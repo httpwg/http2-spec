@@ -16,7 +16,7 @@
 <rfc ipr="trust200902" docName="draft-ietf-httpbis-http2-latest" xmlns:x='http://purl.org/net/xml2rfc/ext'>
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
   <front>
-    <title abbrev="SPDY">SPDY Protocol</title>
+    <title abbrev="HTTP/2.0">Hypertext Transfer Protocol version 2.0</title>
     <author initials="M." surname="Belshe" fullname="Mike Belshe">
       <organization>Twist</organization>
       <address>
@@ -61,9 +61,17 @@
     <area>Applications</area>
     <workgroup>HTTPbis Working Group</workgroup>
     <keyword>HTTP</keyword>
-    <abstract>
-      <t>This document describes SPDY, a protocol designed for low-latency transport of content over the World Wide Web.  SPDY introduces two layers of protocol.  The lower layer is a general purpose framing layer which can be used atop a reliable transport (likely TCP) for multiplexed, prioritized, and compressed data communication of many concurrent streams.  The upper layer of the protocol provides HTTP-like <xref target="RFC2616">RFC2616</xref> semantics for compatibility with existing HTTP application servers.</t>
-    </abstract>
+
+<abstract>
+  <t>
+    This document describes HTTP/2.0, a protocol designed for low-latency transport of content over
+    the World Wide Web.  HTTP/2.0 introduces two layers of protocol.  The lower layer is a general
+    purpose framing layer which can be used atop a reliable transport (likely TCP) for multiplexed,
+    prioritized, and compressed data communication of many concurrent streams.  The upper layer of
+    the protocol provides HTTP-like <xref target="RFC2616">RFC2616</xref> semantics for
+    compatibility with existing HTTP application servers.
+  </t>
+</abstract>
 
 <note title="Editorial Note (To be removed by RFC Editor)">
   <t>
@@ -71,9 +79,9 @@
     consensus.
   </t>
   <t>
-    This first draft uses the SPDY Protocol as a starting point, as per the
-    Working Group's charter. Future drafts will add, remove and change text,
-    based upon the Working Group's decisions.
+    This draft contains features from the SPDY Protocol as a starting point, as per the Working
+    Group's charter. Future drafts will add, remove and change text, based upon the Working Group's
+    decisions.
   </t>
   <t>
     Discussion of this draft takes place on the HTTPBIS working group
@@ -97,42 +105,42 @@
     <section anchor="intro" title="Overview">
 <t>One of the bottlenecks of HTTP implementations is that HTTP relies on multiple connections for concurrency. This causes several problems, including additional round trips for connection setup, slow-start delays, and connection rationing by the client, where it tries to avoid opening too many connections to any single server.  HTTP pipelining helps some, but only achieves partial multiplexing.  In addition, pipelining has proven non-deployable in existing browsers due to intermediary interference.</t>
 
-<t>SPDY adds a framing layer for multiplexing multiple, concurrent streams across a single TCP connection (or any reliable transport stream).  The framing layer is optimized for HTTP-like request-response streams, such that applications which run over HTTP today can work over SPDY with little or no change on behalf of the web application writer.</t>
+<t>HTTP/2.0 adds a framing layer for multiplexing multiple, concurrent streams across a single TCP connection (or any reliable transport stream).  The framing layer is optimized for HTTP-like request-response streams, such that applications which run over HTTP today can work over HTTP/2.0 with little or no change on behalf of the web application writer.</t>
 
-<t>The SPDY session offers four improvements over HTTP:
+<t>The HTTP/2.0 session offers four improvements over HTTP:
 <list>
-<t>Multiplexed requests: There is no limit to the number of requests that can be issued concurrently over a single SPDY connection.</t>
+<t>Multiplexed requests: There is no limit to the number of requests that can be issued concurrently over a single HTTP/2.0 connection.</t>
 <t>Prioritized requests: Clients can request certain resources to be delivered first.  This avoids the problem of congesting the network channel with non-critical resources when a high-priority request is pending.</t>
 <t>Compressed headers:  Clients today send a significant amount of redundant data in the form of HTTP headers.  Because a single web page may require 50 or 100 subrequests, this data is significant.</t>
 <t>Server pushed streams:  Server Push enables content to be pushed from servers to clients without a request.</t>
 </list>
 </t>
 
-<t>SPDY attempts to preserve the existing semantics of HTTP. All features such as cookies, ETags, Vary headers, Content-Encoding negotiations, etc work as they do with HTTP; SPDY only replaces the way the data is written to the network.</t>
+<t>HTTP/2.0 attempts to preserve the existing semantics of HTTP. All features such as cookies, ETags, Vary headers, Content-Encoding negotiations, etc work as they do with HTTP; HTTP/2.0 only replaces the way the data is written to the network.</t>
 
       <section title="Document Organization">
-<t>The SPDY Specification is split into two parts: <xref target="FramingLayer">a framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed frames, and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism for overlaying HTTP request/response pairs on top of the framing layer. While some of the framing layer concepts are isolated from the HTTP layer, building a generic framing layer has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and server push.</t>
+<t>The HTTP/2.0 Specification is split into two parts: <xref target="FramingLayer">a framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed frames, and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism for overlaying HTTP request/response pairs on top of the framing layer. While some of the framing layer concepts are isolated from the HTTP layer, building a generic framing layer has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and server push.</t>
       </section>
       <section title="Definitions">
 <t>
 <list>
-<t>client: The endpoint initiating the SPDY session.</t>
+<t>client: The endpoint initiating the HTTP/2.0 session.</t>
 <t>connection: A transport-level connection between two endpoints.</t>
 <t>endpoint: Either the client or server of a connection.</t>
-<t>frame: A header-prefixed sequence of bytes sent over a SPDY session.</t>
-<t>server: The endpoint which did not initiate the SPDY session.</t>
+<t>frame: A header-prefixed sequence of bytes sent over a HTTP/2.0 session.</t>
+<t>server: The endpoint which did not initiate the HTTP/2.0 session.</t>
 <t>session: A synonym for a connection.</t>
-<t>session error: An error on the SPDY session.</t>
-<t>stream: A bi-directional flow of bytes across a virtual channel within a SPDY session.</t>
-<t>stream error: An error on an individual SPDY stream.</t>
+<t>session error: An error on the HTTP/2.0 session.</t>
+<t>stream: A bi-directional flow of bytes across a virtual channel within a HTTP/2.0 session.</t>
+<t>stream error: An error on an individual HTTP/2.0 stream.</t>
 </list>
 </t>
       </section>
     </section>
 
-    <section anchor="FramingLayer" title="SPDY Framing Layer">
+    <section anchor="FramingLayer" title="HTTP/2.0 Framing Layer">
       <section title="Session (Connections)">
-<t>The SPDY framing layer (or "session") runs atop a reliable transport layer such as <xref target="RFC0793">TCP</xref>. The client is the TCP connection initiator. SPDY connections are persistent connections.</t>
+<t>The HTTP/2.0 framing layer (or "session") runs atop a reliable transport layer such as <xref target="RFC0793">TCP</xref>. The client is the TCP connection initiator. HTTP/2.0 connections are persistent connections.</t>
 
 <t>For best performance, it is expected that clients will not close open connections until the user navigates away from all web pages referencing a connection, or until the server closes the connection. Servers are encouraged to leave connections open for as long as possible, but can terminate idle connections if necessary.  When either endpoint closes the transport-level connection, it MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame so that the endpoints can reliably determine if requests finished before the close.</t>
       </section>
@@ -141,7 +149,7 @@
 
 <t>The first bit is a control bit indicating whether a frame is a control frame or data frame. Control frames carry a version number, a frame type, flags, and a length. Data frames contain the stream ID, flags, and the length for the payload carried after the common header. The simple header is designed to make reading and writing of frames easy.</t>
 
-<t>All integer values, including length, version, and type, are in network byte order.  SPDY does not enforce alignment of types in dynamically sized frames.</t>
+<t>All integer values, including length, version, and type, are in network byte order.  HTTP/2.0 does not enforce alignment of types in dynamically sized frames.</t>
         <section anchor="ControlFrames" title="Control frames">
 <figure>
   <artwork>
@@ -156,7 +164,7 @@
 </figure>
 <t>Control bit: The 'C' bit is a single bit indicating if this is a control message. For control frames this value is always 1.</t>
 
-<t>Version: The version number of the SPDY protocol.  This document describes SPDY version 3.</t>
+<t>Version: The version number of the HTTP/2.0 protocol.  This document describes HTTP/2.0 version 3.</t>
 
 <t>Type: The type of control frame. See Control Frames for the complete list of control frames.</t>
 
@@ -205,8 +213,8 @@
 <t>If an endpoint receives a data frame for a stream-id which is not open and the endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send issue a <xref target="StreamErrorHandler">stream error</xref> with the error code INVALID_STREAM for the stream-id.</t>
 <t>If the endpoint which created the stream receives a data frame before receiving a SYN_REPLY on that stream, it is a protocol error, and the recipient MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code PROTOCOL_ERROR for the stream-id.</t>
 <t>Implementors note: If an endpoint receives multiple data frames for invalid stream-ids, it MAY close the session.</t>
-<t>All SPDY endpoints MUST accept compressed data frames.  Compression of data frames is always done using zlib compression.  Each stream initializes and uses its own compression context dedicated to use within that stream.  Endpoints are encouraged to use application level compression rather than SPDY stream level compression.</t>
-<t>Each SPDY stream sending compressed frames creates its own zlib context for that stream, and these compression contexts MUST be distinct from the compression contexts used with SYN_STREAM/SYN_REPLY/HEADER compression. (Thus, if both endpoints of a stream are compressing data on the stream, there will be two zlib contexts, one for sending and one for receiving).</t>
+<t>All HTTP/2.0 endpoints MUST accept compressed data frames.  Compression of data frames is always done using zlib compression.  Each stream initializes and uses its own compression context dedicated to use within that stream.  Endpoints are encouraged to use application level compression rather than HTTP/2.0 stream level compression.</t>
+<t>Each HTTP/2.0 stream sending compressed frames creates its own zlib context for that stream, and these compression contexts MUST be distinct from the compression contexts used with SYN_STREAM/SYN_REPLY/HEADER compression. (Thus, if both endpoints of a stream are compressing data on the stream, there will be two zlib contexts, one for sending and one for receiving).</t>
 </list>
 </t>
         </section>
@@ -223,7 +231,7 @@
 </t>
 
         <section anchor="StreamFrames" title="Stream frames">
-<t>SPDY defines 3 control frames to manage the lifecycle of a stream:
+<t>HTTP/2.0 defines 3 control frames to manage the lifecycle of a stream:
     <list>
         <t>SYN_STREAM - Open a new stream</t>
         <t>SYN_REPLY - Remote acknowledgement of a new, open stream</t>
@@ -286,7 +294,7 @@
       </section>
 
       <section title="Error Handling">
-<t>The SPDY framing layer has only two types of errors, and they are always handled consistently.  Any reference in this specification to "issue a session error" refers to <xref target="SessionErrorHandler"></xref>.  Any reference to "issue a stream error" refers to <xref target="StreamErrorHandler"></xref>.</t>
+<t>The HTTP/2.0 framing layer has only two types of errors, and they are always handled consistently.  Any reference in this specification to "issue a session error" refers to <xref target="SessionErrorHandler"></xref>.  Any reference to "issue a stream error" refers to <xref target="StreamErrorHandler"></xref>.</t>
 
         <section anchor="SessionErrorHandler" title="Session Error Handling">
 <t>A session error is any error which prevents further processing of the framing layer or which corrupts the session compression state.  When a session error occurs, the endpoint encountering the error MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame with the stream id of most recently received stream from the remote endpoint, and the error code for why the session is terminating.  After sending the GOAWAY frame, the endpoint MUST close the TCP connection.</t>
@@ -297,14 +305,14 @@
         </section>
 
         <section anchor="StreamErrorHandler" title="Stream Error Handling">
-<t>A stream error is an error related to a specific stream-id which does not affect processing of other streams at the framing layer.  Upon a stream error, the endpoint MUST send a <xref target="RST_STREAM">RST_STREAM</xref> frame which contains the stream id of the stream where the error occurred and the error status which caused the error.  After sending the RST_STREAM, the stream is closed to the sending endpoint.  After sending the RST_STREAM, if the sender receives any frames other than a RST_STREAM for that stream id, it will result in sending additional RST_STREAM frames.  An endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM, as doing so would lead to RST_STREAM loops.  Sending a RST_STREAM does not cause the SPDY session to be closed.</t>
+<t>A stream error is an error related to a specific stream-id which does not affect processing of other streams at the framing layer.  Upon a stream error, the endpoint MUST send a <xref target="RST_STREAM">RST_STREAM</xref> frame which contains the stream id of the stream where the error occurred and the error status which caused the error.  After sending the RST_STREAM, the stream is closed to the sending endpoint.  After sending the RST_STREAM, if the sender receives any frames other than a RST_STREAM for that stream id, it will result in sending additional RST_STREAM frames.  An endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM, as doing so would lead to RST_STREAM loops.  Sending a RST_STREAM does not cause the HTTP/2.0 session to be closed.</t>
 
 <t>If an endpoint has multiple RST_STREAM frames to send in succession for the same stream-id and the same error code, it MAY coalesce them into a single RST_STREAM frame.  (This can happen if a stream is closed, but the remote sends multiple data frames.  There is no reason to send a RST_STREAM for each frame in succession).</t>
         </section>
       </section>
 
       <section title="Data flow">
-<t>Because TCP provides a single stream of data on which SPDY multiplexes multiple logical streams, clients and servers must intelligently interleave data messages for concurrent sessions.</t>
+<t>Because TCP provides a single stream of data on which HTTP/2.0 multiplexes multiple logical streams, clients and servers must intelligently interleave data messages for concurrent sessions.</t>
       </section>
 
       <section title="Control frame types">
@@ -430,7 +438,7 @@
 <t>1 - PROTOCOL_ERROR. This is a generic error, and should only be used if a more specific error is not available.</t>
 <t>2 - INVALID_STREAM. This is returned when a frame is received for a stream which is not active.</t>
 <t>3 - REFUSED_STREAM.  Indicates that the stream was refused before any processing has been done on the stream.</t>
-<t>4 - UNSUPPORTED_VERSION.  Indicates that the recipient of a stream does not support the SPDY version requested.</t>
+<t>4 - UNSUPPORTED_VERSION.  Indicates that the recipient of a stream does not support the HTTP/2.0 version requested.</t>
 <t>5 - CANCEL.  Used by the creator of a stream to indicate that the stream is no longer needed.</t>
 <t>6 - INTERNAL_ERROR.  This is a generic error which can be used when the implementation has internally failed, not due to anything in the protocol.</t>
 <t>7 - FLOW_CONTROL_ERROR.  The endpoint detected that its peer violated the flow control protocol.</t>
@@ -446,7 +454,7 @@
         </section>
 
         <section anchor="SETTINGS" title="SETTINGS">
-<t>A SETTINGS frame contains a set of id/value pairs for communicating configuration data about how the two endpoints may communicate. SETTINGS frames can be sent at any time by either endpoint, are optionally sent, and are fully asynchronous.  When the server is the sender, the sender can request that configuration data be persisted by the client across SPDY sessions and returned to the server in future communications.</t>
+<t>A SETTINGS frame contains a set of id/value pairs for communicating configuration data about how the two endpoints may communicate. SETTINGS frames can be sent at any time by either endpoint, are optionally sent, and are fully asynchronous.  When the server is the sender, the sender can request that configuration data be persisted by the client across HTTP/2.0 sessions and returned to the server in future communications.</t>
 
 <t>Persistence of SETTINGS ID/Value pairs is done on a per origin/IP pair (the "origin" is the set of scheme, host, and port from the URI.  See <xref target="RFC6454"></xref>).  That is, when a client connects to a server, and the server persists settings within the client, the client SHOULD return the persisted settings on future connections to the same origin AND IP address and TCP port. Clients MUST NOT request servers to use the persistence features of the SETTINGS frames, and servers MUST ignore persistence related flags sent by a client.</t>
           <figure>
@@ -464,7 +472,7 @@
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The SPDY version number.</t>
+<t>Version: The HTTP/2.0 version number.</t>
 
 <t>Type: The message type for a SETTINGS message is 4.</t>
 
@@ -492,7 +500,7 @@
 <t>5 - SETTINGS_CURRENT_CWND allows the sender to inform the remote endpoint of the current TCP CWND value.</t>
 <t>6 - SETTINGS_DOWNLOAD_RETRANS_RATE allows the sender to inform the remote endpoint the retransmission rate (bytes retransmitted / total bytes transmitted).</t>
 <t>7 - SETTINGS_INITIAL_WINDOW_SIZE allows the sender to inform the remote endpoint the initial window size (in bytes) for new streams.</t>
-<t>8 - SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE allows the server to inform the client if the new size of the client certificate vector.</t>
+<t>8 - SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE allows the server to inform the client of the new size of the client certificate vector.</t>
   </list>
   </t>
 </list>
@@ -520,7 +528,7 @@
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The SPDY version number.</t>
+<t>Version: The HTTP/2.0 version number.</t>
 
 <t>Type: The message type for a PING message is 6.</t>
 
@@ -557,7 +565,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The SPDY version number.</t>
+<t>Version: The HTTP/2.0 version number.</t>
 
 <t>Type: The message type for a GOAWAY message is 7.</t>
 
@@ -569,7 +577,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 <list>
 <t>0 - OK. This is a normal session teardown.</t>
 <t>1 - PROTOCOL_ERROR. This is a generic error, and should only be used if a more specific error is not available.</t>
-<t>11 - INTERNAL_ERROR.  This is a generic error which can be used when the implementation has internally failed, not due to anything in the protocol.</t>
+<t>2 - INTERNAL_ERROR.  This is a generic error which can be used when the implementation has internally failed, not due to anything in the protocol.</t>
 </list>
 </t>
         </section>
@@ -613,9 +621,9 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           </section>
 
           <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
-<t>The WINDOW_UPDATE control frame is used to implement per stream flow control in SPDY. Flow control in SPDY is per hop, that is, only between the two endpoints of a SPDY connection. If there are one or more intermediaries between the client and the origin server, flow control signals are not explicitly forwarded by the intermediaries. (However, throttling of data transfer by any recipient may have the effect of indirectly propagating flow control information upstream back to the original sender.) Flow control only applies to the data portion of data frames. Recipients must buffer all control frames. If a recipient fails to buffer an entire control frame, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code FLOW_CONTROL_ERROR for the stream.</t>
+<t>The WINDOW_UPDATE control frame is used to implement per stream flow control in HTTP/2.0. Flow control in HTTP/2.0 is per hop, that is, only between the two endpoints of a HTTP/2.0 connection. If there are one or more intermediaries between the client and the origin server, flow control signals are not explicitly forwarded by the intermediaries. (However, throttling of data transfer by any recipient may have the effect of indirectly propagating flow control information upstream back to the original sender.) Flow control only applies to the data portion of data frames. Recipients must buffer all control frames. If a recipient fails to buffer an entire control frame, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code FLOW_CONTROL_ERROR for the stream.</t>
 
-<t>Flow control in SPDY is implemented by a data transfer window kept by the sender of each stream. The data transfer window is a simple uint32 that indicates how many bytes of data the sender can transmit. After a stream is created, but before any data frames have been transmitted, the sender begins with the initial window size. This window size is a measure of the buffering capability of the recipient. The sender must not send a data frame with data length greater than the transfer window size. After sending each data frame, the sender decrements its transfer window size by the amount of data transmitted. When the window size becomes less than or equal to 0, the sender must pause transmitting data frames. At the other end of the stream, the recipient sends a WINDOW_UPDATE control back to notify the sender that it has consumed some data and freed up buffer space to receive more data.</t>
+<t>Flow control in HTTP/2.0 is implemented by a data transfer window kept by the sender of each stream. The data transfer window is a simple uint32 that indicates how many bytes of data the sender can transmit. After a stream is created, but before any data frames have been transmitted, the sender begins with the initial window size. This window size is a measure of the buffering capability of the recipient. The sender must not send a data frame with data length greater than the transfer window size. After sending each data frame, the sender decrements its transfer window size by the amount of data transmitted. When the window size becomes less than or equal to 0, the sender must pause transmitting data frames. At the other end of the stream, the recipient sends a WINDOW_UPDATE control back to notify the sender that it has consumed some data and freed up buffer space to receive more data.</t>
           <figure>
             <artwork>
 +----------------------------------+
@@ -631,7 +639,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The SPDY version number.</t>
+<t>Version: The HTTP/2.0 version number.</t>
 
 <t>Type: The message type for a WINDOW_UPDATE message is 9.</t>
 
@@ -643,7 +651,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 
 <t>The window size as kept by the sender must never exceed 2^31 (although it can become negative in one special case). If a sender receives a WINDOW_UPDATE that causes the its window size to exceed this limit, it must send RST_STREAM with status code FLOW_CONTROL_ERROR to terminate the stream.</t>
 
-<t>When a SPDY connection is first established, the default initial window size for all streams is 64KB. An endpoint can use the SETTINGS control frame to adjust the initial window size for the connection. That is, its peer can start out using the 64KB default initial window size when sending data frames before receiving the SETTINGS. Because SETTINGS  is asynchronous, there may be a race condition if the recipient wants to decrease the initial window size, but its peer immediately sends 64KB on the creation of a new connection, before waiting for the SETTINGS to arrive. This is one case where the window size kept by the sender will become negative. Once the sender detects this condition, it must stop sending data frames and wait for the recipient to catch up. The recipient has two choices:
+<t>When a HTTP/2.0 connection is first established, the default initial window size for all streams is 64KB. An endpoint can use the SETTINGS control frame to adjust the initial window size for the connection. That is, its peer can start out using the 64KB default initial window size when sending data frames before receiving the SETTINGS. Because SETTINGS  is asynchronous, there may be a race condition if the recipient wants to decrease the initial window size, but its peer immediately sends 64KB on the creation of a new connection, before waiting for the SETTINGS to arrive. This is one case where the window size kept by the sender will become negative. Once the sender detects this condition, it must stop sending data frames and wait for the recipient to catch up. The recipient has two choices:
 <list>
 <t>immediately send RST_STREAM with FLOW_CONTROL_ERROR status code.</t>
 <t>allow the head of line blocking (as there is only one stream for the session and the amount of data in flight is bounded by the default initial window size), and send WINDOW_UPDATE as it consumes data.</t>
@@ -658,11 +666,11 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           </section>
 
           <section anchor="CREDENTIAL" title="CREDENTIAL">
-<t>The CREDENTIAL control frame is used by the client to send additional client certificates to the server.  A SPDY client may decide to send requests for resources from different origins on the same SPDY session if it decides that that server handles both origins.  For example if the IP address associated with both hostnames matches and the SSL server certificate presented in the initial handshake is valid for both hostnames.  However, because the SSL connection can contain at most one client certificate, the client needs a mechanism to send additional client certificates to the server.</t>
+<t>The CREDENTIAL control frame is used by the client to send additional client certificates to the server.  A HTTP/2.0 client may decide to send requests for resources from different origins on the same HTTP/2.0 session if it decides that that server handles both origins.  For example if the IP address associated with both hostnames matches and the SSL server certificate presented in the initial handshake is valid for both hostnames.  However, because the SSL connection can contain at most one client certificate, the client needs a mechanism to send additional client certificates to the server.</t>
 
-<t>The server is required to maintain a vector of client certificates associated with a SPDY session.  When the client needs to send a client certificate to the server, it will send a CREDENTIAL frame that specifies the index of the slot in which to store the certificate as well as proof that the client posesses the corresponding private key.  The initial size of this vector must be 8.  If the client provides a client certificate during the first TLS handshake, the contents of this certificate must be copied into the first slot (index 1) in the CREDENTIAL vector, though it may be overwritten by subsequent CREDENTIAL frames.  The server must exclusively use the CREDNETIAL vector when evaluating the client certificates associated with an origin.  The server may change the size of this vector by sending a SETTINGS frame with the setting SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE value specified.  In the event that the new size is smaller than the current size, truncation occurs preserving lower-index slots as possible.</t>  
+<t>The server is required to maintain a vector of client certificates associated with a HTTP/2.0 session.  When the client needs to send a client certificate to the server, it will send a CREDENTIAL frame that specifies the index of the slot in which to store the certificate as well as proof that the client posesses the corresponding private key.  The initial size of this vector must be 8.  If the client provides a client certificate during the first TLS handshake, the contents of this certificate must be copied into the first slot (index 1) in the CREDENTIAL vector, though it may be overwritten by subsequent CREDENTIAL frames.  The server must exclusively use the CREDENTIAL vector when evaluating the client certificates associated with an origin.  The server may change the size of this vector by sending a SETTINGS frame with the setting SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE value specified.  In the event that the new size is smaller than the current size, truncation occurs preserving lower-index slots as possible.</t>  
 
-<t>TLS renegotiation with client authentication is incompatible with SPDY given the multiplexed nature of SPDY.  Specifically, imagine that the client has 2 requests outstanding to the server for two different pages (in different tabs).  When the renegotiation + client certificate request comes in, the browser is unable to determine which resource triggered the client certificate request, in order to prompt the user accordingly.</t>
+<t>TLS renegotiation with client authentication is incompatible with HTTP/2.0 given the multiplexed nature of HTTP/2.0.  Specifically, imagine that the client has 2 requests outstanding to the server for two different pages (in different tabs).  When the renegotiation + client certificate request comes in, the browser is unable to determine which resource triggered the client certificate request, in order to prompt the user accordingly.</t>
 
           <figure>
             <artwork>
@@ -699,14 +707,14 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
   not be correctly encoded in a digitally-signed element, SHA1 must be used
   when MD5+SHA1 was used in the SSL connection.  The signature is calculated
   over a 32 byte TLS extractor value (http://tools.ietf.org/html/rfc5705) with
-  a label of "EXPORTER SPDY certificate proof" using the empty string as
+  a label of "EXPORTER HTTP/2.0 certificate proof" using the empty string as
   context. ForRSA certificates the signature would be a PKCS#1 v1.5 signature.
   For ECDSA, it would be an ECDSA-Sig-Value
   (http://tools.ietf.org/html/rfc5480#appendix-A).  For a 1024-bit RSA key,
   the CREDENTIAL message would be ~500 bytes.
 </t>
 <t>Certificate: The certificate chain, starting with the leaf certificate.  Each certificate must be encoded as a 32 bit length, followed by a DER encoded certificate.  The certificate must be of the same type (RSA, ECDSA, etc) as the client certificate associated with the SSL connection.</t>
-<t>If the server receives a request for a resource with unacceptable credential (either missing or invalid), it must reply with a RST_STREAM frame with the status code INVALID_CREDENTIALS. Upon receipt of a RST_STREAM frame with INVALID_CREDENTIALS, the client should initiate a new stream directly to the requested origin and resend the request.  Note, SPDY does not allow the server to request different client authentication for different resources in the same origin.</t>
+<t>If the server receives a request for a resource with unacceptable credential (either missing or invalid), it must reply with a RST_STREAM frame with the status code INVALID_CREDENTIALS. Upon receipt of a RST_STREAM frame with INVALID_CREDENTIALS, the client should initiate a new stream directly to the requested origin and resend the request.  Note, HTTP/2.0 does not allow the server to request different client authentication for different resources in the same origin.</t>
 <t>If the server receives an invalid CREDENTIAL frame, it MUST respond with a GOAWAY frame and shutdown the session.  </t>
           </section>
 
@@ -734,9 +742,9 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 
 <t>List of Name/Value pairs:
 <list>
-<t>Length of Name: a 32-bit value containing the number of octets in the name field.  Note that in practice, this length must not exceed 2^24, as that is the maximum size of a SPDY frame.</t>
+<t>Length of Name: a 32-bit value containing the number of octets in the name field.  Note that in practice, this length must not exceed 2^24, as that is the maximum size of a HTTP/2.0 frame.</t>
 <t>Name: 0 or more octets, 8-bit sequences of data, excluding 0.</t>
-<t>Length of Value: a 32-bit value containing the number of octets in the value field.  Note that in practice, this length must not exceed 2^24, as that is the maximum size of a SPDY frame.</t>
+<t>Length of Value: a 32-bit value containing the number of octets in the value field.  Note that in practice, this length must not exceed 2^24, as that is the maximum size of a HTTP/2.0 frame.</t>
 <t>Value: 0 or more octets, 8-bit sequences of data, excluding 0.</t>
 </list>
 </t>
@@ -752,7 +760,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 
 <figure>
   <artwork type="code" x:isCodeComponent="yes">
-const unsigned char SPDY_dictionary_txt[] = {
+const unsigned char http2_dictionary_txt[] = {
   0x00, 0x00, 0x00, 0x07, 0x6f, 0x70, 0x74, 0x69,  \\ - - - - o p t i
   0x6f, 0x6e, 0x73, 0x00, 0x00, 0x00, 0x04, 0x68,  \\ o n s - - - - h
   0x65, 0x61, 0x64, 0x00, 0x00, 0x00, 0x04, 0x70,  \\ e a d - - - - p
@@ -935,7 +943,7 @@ const unsigned char SPDY_dictionary_txt[] = {
 </artwork>
 </figure>
 
-<t>The entire contents of the name/value header block is compressed using zlib.  There is a single zlib stream for all name value pairs in one direction on a connection.   SPDY uses a SYNC_FLUSH between each compressed frame.</t>
+<t>The entire contents of the name/value header block is compressed using zlib.  There is a single zlib stream for all name value pairs in one direction on a connection.   HTTP/2.0 uses a SYNC_FLUSH between each compressed frame.</t>
 
 <t>Implementation notes: the compression engine can be tuned to favor speed or size. Optimizing for size increases memory use and CPU consumption.  Because header blocks are generally small, implementors may want to reduce the window-size of the compression engine from the default 15bits (a 32KB window) to more like 11bits (a 2KB window).  The exact setting is chosen by the compressor, the decompressor will work with any setting.</t>
           </section>
@@ -943,20 +951,20 @@ const unsigned char SPDY_dictionary_txt[] = {
       </section>
     </section>
 
-    <section anchor="HTTPLayer" title="HTTP Layering over SPDY">
-<t>SPDY is intended to be as compatible as possible with current web-based applications. This means that, from the perspective of the server business logic or application API, the features of HTTP are unchanged. To achieve this, all of the application request and response header semantics are preserved, although the syntax of conveying those semantics has changed.  Thus, the rules from the <xref target="RFC2616">HTTP/1.1 specification in RFC2616</xref> apply with the changes in the sections below.</t>
+    <section anchor="HTTPLayer" title="HTTP Layering over HTTP/2.0">
+<t>HTTP/2.0 is intended to be as compatible as possible with current web-based applications. This means that, from the perspective of the server business logic or application API, the features of HTTP are unchanged. To achieve this, all of the application request and response header semantics are preserved, although the syntax of conveying those semantics has changed.  Thus, the rules from the <xref target="RFC2616">HTTP/1.1 specification in RFC2616</xref> apply with the changes in the sections below.</t>
 
       <section title="Connection Management">
-<t>Clients SHOULD NOT open more than one SPDY session to a given <xref target="RFC6454">origin</xref> concurrently.</t>
-<t>Note that it is possible for one SPDY session to be finishing (e.g. a GOAWAY message has been sent, but not all streams have finished), while another SPDY session is starting.</t>
+<t>Clients SHOULD NOT open more than one HTTP/2.0 session to a given <xref target="RFC6454">origin</xref> concurrently.</t>
+<t>Note that it is possible for one HTTP/2.0 session to be finishing (e.g. a GOAWAY message has been sent, but not all streams have finished), while another HTTP/2.0 session is starting.</t>
         <section title="Use of GOAWAY">
-<t>SPDY provides a GOAWAY message which can be used when closing a connection from either the client or server.  Without a server GOAWAY message, HTTP has a race condition where the client sends a request (a new SYN_STREAM)  just as the server is closing the connection, and the client cannot know if the server received the stream or not.  By using the last-stream-id in the GOAWAY, servers can indicate to the client if a request was processed or not.</t>
+<t>HTTP/2.0 provides a GOAWAY message which can be used when closing a connection from either the client or server.  Without a server GOAWAY message, HTTP has a race condition where the client sends a request (a new SYN_STREAM)  just as the server is closing the connection, and the client cannot know if the server received the stream or not.  By using the last-stream-id in the GOAWAY, servers can indicate to the client if a request was processed or not.</t>
 
-<t>Note that some servers will choose to send the GOAWAY and immediately terminate the connection without waiting for active streams to finish.  The client will be able to determine this because SPDY streams are determinstically closed.  This abrupt termination will force the client to heuristically decide whether to retry the pending requests.  Clients always need to be capable of dealing with this case because they must deal with accidental connection termination cases, which are the same as the server never having sent a GOAWAY.</t>
+<t>Note that some servers will choose to send the GOAWAY and immediately terminate the connection without waiting for active streams to finish.  The client will be able to determine this because HTTP/2.0 streams are determinstically closed.  This abrupt termination will force the client to heuristically decide whether to retry the pending requests.  Clients always need to be capable of dealing with this case because they must deal with accidental connection termination cases, which are the same as the server never having sent a GOAWAY.</t>
 
 <t>More sophisticated servers will use GOAWAY to implement a graceful teardown. They will send the GOAWAY and provide some time for the active streams to finish before terminating the connection.</t>
 
-<t>If a SPDY client closes the connection, it should also send a GOAWAY message.  This allows the server to know if any server-push streams were received by the client.</t>
+<t>If a HTTP/2.0 client closes the connection, it should also send a GOAWAY message.  This allows the server to know if any server-push streams were received by the client.</t>
 
 <t>If the endpoint closing the connection has not received any SYN_STREAMs from the remote, the GOAWAY will contain a last-stream-id of 0.</t>
 
@@ -967,7 +975,7 @@ const unsigned char SPDY_dictionary_txt[] = {
         <section title="Request">
 <t>The client initiates a request by sending a SYN_STREAM frame.  For requests which do not contain a body, the SYN_STREAM frame MUST set the FLAG_FIN, indicating that the client intends to send no further data on this stream.  For requests which do contain a body, the SYN_STREAM will not contain the FLAG_FIN, and the body will follow the SYN_STREAM in a series of DATA frames. The last DATA frame will set the FLAG_FIN to indicate the end of the body.</t>
 
-<t>The SYN_STREAM Name/Value section will contain all of the HTTP headers which are associated with an HTTP request. The header block in SPDY is mostly unchanged from today's HTTP header block, with the following differences:
+<t>The SYN_STREAM Name/Value section will contain all of the HTTP headers which are associated with an HTTP request. The header block in HTTP/2.0 is mostly unchanged from today's HTTP header block, with the following differences:
 <list>
 <t>The first line of the request is unfolded into name/value pairs like other HTTP headers and MUST be present:
 <list>
@@ -987,7 +995,7 @@ const unsigned char SPDY_dictionary_txt[] = {
 <t>If a server receives a request where the sum of the data frame payload lengths does not equal the size of the Content-Length header, the server MUST return a 400 (Bad Request) error.</t>
 <t>POST-specific changes:
 <list>
-<t>Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a Content-Length header.  There are two reasons for this:  First, it assists with upload progress meters for an improved user experience.  But second, we know from early versions of SPDY that failure to send a content length header is incompatible with many existing HTTP server implementations.  Existing user-agents do not omit the Content-Length header, and server implementations have come to depend upon this.</t>
+<t>Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a Content-Length header.  There are two reasons for this:  First, it assists with upload progress meters for an improved user experience.  But second, we know from early versions of HTTP/2.0 that failure to send a content length header is incompatible with many existing HTTP server implementations.  Existing user-agents do not omit the Content-Length header, and server implementations have come to depend upon this.</t>
 </list>
 </t>
 </list>
@@ -1025,13 +1033,13 @@ const unsigned char SPDY_dictionary_txt[] = {
 <t>There are four options for proxy authentication, Basic, Digest, NTLM and Negotiate (SPNEGO).  The first two options were defined in <xref target="RFC2617">RFC2617</xref>, and are stateless.  The second two options were developed by Microsoft and specified in <xref target="RFC4559">RFC4559</xref>, and are stateful; otherwise known as multi-round authentication, or connection authentication.</t>
 
           <section title="Stateless Authentication">
-<t>Stateless Authentication over SPDY is identical to how it is performed over HTTP. If multiple SPDY streams are concurrently sent to a single server, each will authenticate independently, similar to how two HTTP connections would independently authenticate to a proxy server.</t>
+<t>Stateless Authentication over HTTP/2.0 is identical to how it is performed over HTTP. If multiple HTTP/2.0 streams are concurrently sent to a single server, each will authenticate independently, similar to how two HTTP connections would independently authenticate to a proxy server.</t>
           </section>
 
           <section title="Stateful Authentication">
-<t>Unfortunately, the stateful authentication mechanisms were implemented and defined in a such a way that directly violates RFC2617 - they do not include a "realm" as part of the request.  This is problematic in SPDY because it makes it impossible for a client to disambiguate two concurrent server authentication challenges.</t>
+<t>Unfortunately, the stateful authentication mechanisms were implemented and defined in a such a way that directly violates RFC2617 - they do not include a "realm" as part of the request.  This is problematic in HTTP/2.0 because it makes it impossible for a client to disambiguate two concurrent server authentication challenges.</t>
 
-<t>To deal with this case, SPDY servers using Stateful Authentication MUST implement one of two changes:
+<t>To deal with this case, HTTP/2.0 servers using Stateful Authentication MUST implement one of two changes:
 <list>
 <t>Servers can add a "realm=&lt;desired realm&gt;" header so that the two authentication requests can be disambiguated and run concurrently.  Unfortunately, given how these mechanisms work, this is probably not practical.</t>
 <t>Upon sending the first stateful challenge response, the server MUST buffer and defer all further frames which are not part of completing the challenge until the challenge has completed.  Completing the authentication challenge may take multiple round trips.  Once the client receives a "401 Authenticate" response for a stateful authentication type, it MUST stop sending new requests to the server until the authentication has completed by receiving a non-401 response on at least one stream.</t>
@@ -1042,13 +1050,13 @@ const unsigned char SPDY_dictionary_txt[] = {
       </section>
 
       <section title="Server Push Transactions">
-<t>SPDY enables a server to send multiple replies to a client for a single request.  The rationale for this feature is that sometimes a server knows that it will need to send multiple resources in response to a single request.  Without server push features, the client must first download the primary resource, then discover the secondary resource(s), and request them.  Pushing of resources avoids the round-trip delay, but also creates a potential race where a server can be pushing content which a user-agent is in the process of requesting.  The following mechanics attempt to prevent the race condition while enabling the performance benefit.</t>
+<t>HTTP/2.0 enables a server to send multiple replies to a client for a single request.  The rationale for this feature is that sometimes a server knows that it will need to send multiple resources in response to a single request.  Without server push features, the client must first download the primary resource, then discover the secondary resource(s), and request them.  Pushing of resources avoids the round-trip delay, but also creates a potential race where a server can be pushing content which a user-agent is in the process of requesting.  The following mechanics attempt to prevent the race condition while enabling the performance benefit.</t>
 
-<t>Browsers receiving a pushed response MUST validate that the server is authorized to push the URL using the <xref target="RFC6454">browser same-origin</xref> policy.  For example, a SPDY connection to www.foo.com is generally not permitted to push a response for www.evil.com.</t>
+<t>Browsers receiving a pushed response MUST validate that the server is authorized to push the URL using the <xref target="RFC6454">browser same-origin</xref> policy.  For example, a HTTP/2.0 connection to www.foo.com is generally not permitted to push a response for www.evil.com.</t>
 
 <t>If the browser accepts a pushed response (e.g. it does not send a RST_STREAM), the browser MUST attempt to cache the pushed response in same way that it would cache any other response.  This means validating the response headers and inserting into the disk cache.</t>
 
-<t>Because pushed responses have no request, they have no request headers associated with them.  At the framing layer, SPDY pushed streams contain an "associated-stream-id" which indicates the requested stream for which the pushed stream is related.  The pushed stream inherits all of the headers from the associated-stream-id with the exception of ":host", ":scheme", and ":path", which are provided as part of the pushed response stream headers.  The browser MUST store these inherited and implied request headers with the cached resource.</t>
+<t>Because pushed responses have no request, they have no request headers associated with them.  At the framing layer, HTTP/2.0 pushed streams contain an "associated-stream-id" which indicates the requested stream for which the pushed stream is related.  The pushed stream inherits all of the headers from the associated-stream-id with the exception of ":host", ":scheme", and ":path", which are provided as part of the pushed response stream headers.  The browser MUST store these inherited and implied request headers with the cached resource.</t>
 
 <t>Implementation note:  With server push, it is theoretically possible for servers to push unreasonable amounts of content or resources to the user-agent.  Browsers MUST implement throttles to protect against unreasonable push attacks.</t>
 
@@ -1095,37 +1103,37 @@ const unsigned char SPDY_dictionary_txt[] = {
     </section>
 
     <section title="Design Rationale and Notes">
-<t>Authors' notes:  The notes in this section have no bearing on the SPDY protocol as specified within this document, and none of these notes should be considered authoritative about how the protocol works.  However, these notes may prove useful in future debates about how to resolve protocol ambiguities or how to evolve the protocol going forward.  They may be removed before the final draft.</t>
+<t>Authors' notes:  The notes in this section have no bearing on the HTTP/2.0 protocol as specified within this document, and none of these notes should be considered authoritative about how the protocol works.  However, these notes may prove useful in future debates about how to resolve protocol ambiguities or how to evolve the protocol going forward.  They may be removed before the final draft.</t>
 
       <section title="Separation of Framing Layer and Application Layer">
 <t>Readers may note that this specification sometimes blends the <xref target="FramingLayer">framing layer</xref> with requirements of a specific application - <xref target="HTTPLayer">HTTP</xref>.  This is reflected in the request/response nature of the streams, the definition of the HEADERS and compression contexts which are very similar to HTTP, and other areas as well.</t>
 
-<t>This blending is intentional - the primary goal of this protocol is to create a low-latency protocol for use with HTTP.  Isolating the two layers is convenient for description of the protocol and how it relates to existing HTTP implementations.  However, the ability to reuse the SPDY framing layer is a non goal.</t>
+<t>This blending is intentional - the primary goal of this protocol is to create a low-latency protocol for use with HTTP.  Isolating the two layers is convenient for description of the protocol and how it relates to existing HTTP implementations.  However, the ability to reuse the HTTP/2.0 framing layer is a non goal.</t>
       </section>
 
       <section title="Error handling - Framing Layer">
-<t>Error handling at the SPDY layer splits errors into two groups:  Those that affect an individual SPDY stream, and those that do not.</t>
+<t>Error handling at the HTTP/2.0 layer splits errors into two groups:  Those that affect an individual HTTP/2.0 stream, and those that do not.</t>
 
-<t>When an error is confined to a single stream, but general framing is in tact, SPDY attempts to use the RST_STREAM as a mechanism to invalidate the stream but move forward without aborting the connection altogether.</t>
+<t>When an error is confined to a single stream, but general framing is in tact, HTTP/2.0 attempts to use the RST_STREAM as a mechanism to invalidate the stream but move forward without aborting the connection altogether.</t>
 
-<t>For errors occuring outside of a single stream context, SPDY assumes the entire session is hosed.  In this case, the endpoint detecting the error should initiate a connection close.</t>
+<t>For errors occuring outside of a single stream context, HTTP/2.0 assumes the entire session is hosed.  In this case, the endpoint detecting the error should initiate a connection close.</t>
       </section>
       <section title="One Connection Per Domain">
-<t>SPDY attempts to use fewer connections than other protocols have traditionally used.  The rationale for this behavior is because it is very difficult to provide a consistent level of service (e.g. TCP slow-start), prioritization, or optimal compression when the client is connecting to the server through multiple channels.</t>
+<t>HTTP/2.0 attempts to use fewer connections than other protocols have traditionally used.  The rationale for this behavior is because it is very difficult to provide a consistent level of service (e.g. TCP slow-start), prioritization, or optimal compression when the client is connecting to the server through multiple channels.</t>
 
-<t>Through lab measurements, we have seen consistent latency benefits by using fewer connections from the client.  The overall number of packets sent by SPDY can be as much as 40% less than HTTP.  Handling large numbers of concurrent connections on the server also does become a scalability problem, and SPDY reduces this load.</t>
+<t>Through lab measurements, we have seen consistent latency benefits by using fewer connections from the client.  The overall number of packets sent by HTTP/2.0 can be as much as 40% less than HTTP.  Handling large numbers of concurrent connections on the server also does become a scalability problem, and HTTP/2.0 reduces this load.</t>
 
-<t>The use of multiple connections is not without benefit, however.  Because SPDY multiplexes multiple, independent streams onto a single stream, it creates a potential for head-of-line blocking problems at the transport level.  In tests so far, the negative effects of head-of-line blocking (especially in the presence of packet loss) is outweighed by the benefits of compression and prioritization.</t>
+<t>The use of multiple connections is not without benefit, however.  Because HTTP/2.0 multiplexes multiple, independent streams onto a single stream, it creates a potential for head-of-line blocking problems at the transport level.  In tests so far, the negative effects of head-of-line blocking (especially in the presence of packet loss) is outweighed by the benefits of compression and prioritization.</t>
       </section>
       <section title="Fixed vs Variable Length Fields">
-<t>SPDY favors use of fixed length 32bit fields in cases where smaller, variable length encodings could have been used.  To some, this seems like a tragic waste of bandwidth.  SPDY choses the simple encoding for speed and simplicity.</t>
+<t>HTTP/2.0 favors use of fixed length 32bit fields in cases where smaller, variable length encodings could have been used.  To some, this seems like a tragic waste of bandwidth.  HTTP/2.0 choses the simple encoding for speed and simplicity.</t>
 
-<t>The goal of SPDY is to reduce latency on the network.  The overhead of SPDY frames is generally quite low.  Each data frame is only an 8 byte overhead for a 1452 byte payload (~0.6%).  At the time of this writing, bandwidth is already plentiful, and there is a strong trend indicating that bandwidth will continue to increase.  With an average worldwide bandwidth of 1Mbps, and assuming that a variable length encoding could reduce the overhead by 50%, the latency saved by using a variable length encoding would be less than 100 nanoseconds.  More interesting are the effects when the larger encodings force a packet boundary, in which case a round-trip could be induced.  However, by addressing other aspects of SPDY and TCP interactions, we believe this is completely mitigated.</t>
+<t>The goal of HTTP/2.0 is to reduce latency on the network.  The overhead of HTTP/2.0 frames is generally quite low.  Each data frame is only an 8 byte overhead for a 1452 byte payload (~0.6%).  At the time of this writing, bandwidth is already plentiful, and there is a strong trend indicating that bandwidth will continue to increase.  With an average worldwide bandwidth of 1Mbps, and assuming that a variable length encoding could reduce the overhead by 50%, the latency saved by using a variable length encoding would be less than 100 nanoseconds.  More interesting are the effects when the larger encodings force a packet boundary, in which case a round-trip could be induced.  However, by addressing other aspects of HTTP/2.0 and TCP interactions, we believe this is completely mitigated.</t>
       </section>
       <section title="Compression Context(s)">
 <t>When isolating the compression contexts used for communicating with multiple origins, we had a few choices to make.  We could have maintained a map (or list) of compression contexts usable for each origin.  The basic case is easy - each HEADERS frame would need to identify the context to use for that frame.  However, compression contexts are not cheap, so the lifecycle of each context would need to be bounded.  For proxy servers, where we could churn through many contexts, this would be a concern.  We considered using a static set of contexts, say 16 of them, which would bound the memory use.  We also considered dynamic contexts, which could be created on the fly, and would need to be subsequently destroyed.  All of these are complicated, and ultimately we decided that such a mechanism creates too many problems to solve.</t>
 
-<t>Alternatively, we've chosen the simple approach, which is to simply provide a flag for resetting the compression context.  For the common case (no proxy), this fine because most requests are to the same origin and we never need to reset the context.  For cases where we are using two different origins over a single SPDY session, we simply reset the compression state between each transition.</t>
+<t>Alternatively, we've chosen the simple approach, which is to simply provide a flag for resetting the compression context.  For the common case (no proxy), this fine because most requests are to the same origin and we never need to reset the context.  For cases where we are using two different origins over a single HTTP/2.0 session, we simply reset the compression state between each transition.</t>
       </section>
       <section title="Unidirectional streams">
 <t>Many readers notice that unidirectional streams are both a bit confusing in concept and also somewhat redundant.  If the recipient of a stream doesn't wish to send data on a stream, it could simply send a SYN_REPLY with the FLAG_FIN bit set.  The FLAG_UNIDIRECTIONAL is, therefore, not necessary.</t>
@@ -1133,7 +1141,7 @@ const unsigned char SPDY_dictionary_txt[] = {
 <t>It is true that we don't need the UNIDIRECTIONAL markings.  It is added because it avoids the recipient of pushed streams from needing to send a set of empty frames (e.g. the SYN_STREAM w/ FLAG_FIN) which otherwise serve no purpose.</t>
       </section>
       <section title="Data Compression">
-<t>Generic compression of data portion of the streams (as opposed to compression of the headers) without knowing the content of the stream is redundant.  There is no value in compressing a stream which is already compressed.  Because of this, SPDY does allow data compression to be optional.  We included it because study of existing websites shows that many sites are not using compression as they should, and users suffer because of it.  We wanted a mechanism where, at the SPDY layer, site administrators could simply force compression - it is better to compress twice than to not compress.</t>
+<t>Generic compression of data portion of the streams (as opposed to compression of the headers) without knowing the content of the stream is redundant.  There is no value in compressing a stream which is already compressed.  Because of this, HTTP/2.0 does allow data compression to be optional.  We included it because study of existing websites shows that many sites are not using compression as they should, and users suffer because of it.  We wanted a mechanism where, at the HTTP/2.0 layer, site administrators could simply force compression - it is better to compress twice than to not compress.</t>
 
 <t>Overall, however, with this feature being optional and sometimes redundant, it is unclear if it is useful at all.  We will likely remove it from the specification.</t>
       </section>
@@ -1147,12 +1155,12 @@ const unsigned char SPDY_dictionary_txt[] = {
 <t>This specification uses the <xref target="RFC6454">same-origin policy</xref> in all cases where verification of content is required.</t>
       </section>
 
-      <section title="HTTP Headers and SPDY Headers">
-<t>At the application level, HTTP uses name/value pairs in its headers.  Because SPDY merges the existing HTTP headers with SPDY headers, there is a possibility that some HTTP applications already use a particular header name.  To avoid any conflicts, all headers introduced for layering HTTP over SPDY are prefixed with ":".  ":" is not a valid sequence in HTTP header naming, preventing any possible conflict.</t>
+      <section title="HTTP Headers and HTTP/2.0 Headers">
+<t>At the application level, HTTP uses name/value pairs in its headers.  Because HTTP/2.0 merges the existing HTTP headers with HTTP/2.0 headers, there is a possibility that some HTTP applications already use a particular header name.  To avoid any conflicts, all headers introduced for layering HTTP over HTTP/2.0 are prefixed with ":".  ":" is not a valid sequence in HTTP header naming, preventing any possible conflict.</t>
       </section>
 
       <section title="Cross-Protocol Attacks">
-<t>By utilizing TLS, we believe that SPDY introduces no new cross-protocol attacks.  TLS encrypts the contents of all transmission (except the handshake itself), making it difficult for attackers to control the data which could be used in a cross-protocol attack.</t>
+<t>By utilizing TLS, we believe that HTTP/2.0 introduces no new cross-protocol attacks.  TLS encrypts the contents of all transmission (except the handshake itself), making it difficult for attackers to control the data which could be used in a cross-protocol attack.</t>
       </section>
 
       <section title="Server Push Implicit Headers">
@@ -1162,11 +1170,11 @@ const unsigned char SPDY_dictionary_txt[] = {
 
     <section title="Privacy Considerations">
       <section title="Long Lived Connections">
-<t>SPDY aims to keep connections open longer between clients and servers in order to reduce the latency when a user makes a request.  The maintenance of these connections over time could be used to expose private information.  For example, a user using a browser hours after the previous user stopped using that browser may be able to learn about what the previous user was doing.  This is a problem with HTTP in its current form as well, however the short lived connections make it less of a risk.</t>
+<t>HTTP/2.0 aims to keep connections open longer between clients and servers in order to reduce the latency when a user makes a request.  The maintenance of these connections over time could be used to expose private information.  For example, a user using a browser hours after the previous user stopped using that browser may be able to learn about what the previous user was doing.  This is a problem with HTTP in its current form as well, however the short lived connections make it less of a risk.</t>
       </section>
 
       <section title="SETTINGS frame">
-<t>The SPDY SETTINGS frame allows servers to store out-of-band transmitted information about the communication between client and server on the client.  Although this is intended only to be used to reduce latency, renegade servers could use it as a mechanism to store identifying information about the client in future requests.</t>
+<t>The HTTP/2.0 SETTINGS frame allows servers to store out-of-band transmitted information about the communication between client and server on the client.  Although this is intended only to be used to reduce latency, renegade servers could use it as a mechanism to store identifying information about the client in future requests.</t>
 
 <t>Clients implementing privacy modes, such as Google Chrome's "incognito mode", may wish to disable client-persisted SETTINGS storage.</t>
 
@@ -1176,44 +1184,23 @@ const unsigned char SPDY_dictionary_txt[] = {
       </section>
     </section>
 
-    <section title="Incompatibilities with SPDY draft #2">
-      <t>
-Here is a list of the major changes between this draft and draft #2.
-<list>
-<t>Addition of flow control</t>
-<t>Increased 16 bit length fields in SYN_STREAM and SYN_REPLY to 32 bits.</t>
-<t>Changed definition of compression for DATA frames</t>
-<t>Updated compression dictionary</t>
-<t>Fixed off-by-one on the compression dictionary for headers</t>
-<t>Increased priority field from 2bits to 3bits.</t>
-<t>Removed NOOP frame</t>
-<t>Split the request "url" into "scheme", "host", and "path"</t>
-<t>Added the requirement that POSTs contain content-length.</t>
-<t>Removed wasted 16bits of unused space from the end of the SYN_REPLY and HEADERS frames.</t>
-<t>Fixed bug: Priorities were described backward (0 was lowest instead of highest).</t>
-<t>Fixed bug: Name/Value header counts were duplicated in both the Name Value header block and also the containing frame.</t>
-</list>
-      </t>
-    </section>
+<section title="Requirements Notation">
+  <t>
+    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT",
+    "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in
+    <xref target="RFC2119">RFC 2119</xref>.
+  </t>
+</section>
 
-    <section title="Requirements Notation">
-      <t>
-        The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
-        "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
-        document are to be interpreted as described in <xref target="RFC2119">RFC 2119</xref>.
-      </t>
-    </section>
-
-    <section title="Acknowledgements">
-      <t>
-        Many individuals have contributed to the design and evolution of SPDY:
-        Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk,
-        Costin Manolache, William Chan, Vitaliy Lvin, Joe Chan, Adam Barth,
-        Ryan Hamilton, Gavin Peters, Kent Alstad, Kevin Lindsay, Paul Amer,
-        Fan Yang, Jonathan Leighton.
-      </t>
-    </section>
-  </middle>
+<section title="Acknowledgements">
+  <t>
+    Prior to being used as the basis for HTTP/2.0, the following individuals contributed to the
+    design and evolution of SPDY: Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa
+    Wilk, Costin Manolache, William Chan, Vitaliy Lvin, Joe Chan, Adam Barth, Ryan Hamilton, Gavin
+    Peters, Kent Alstad, Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton.
+  </t>
+</section>
+</middle>
 
   <back>
   <references title="Normative References">
@@ -1430,7 +1417,13 @@ Here is a list of the major changes between this draft and draft #2.
 
 <section title="Since draft-ietf-httpbis-http2-00" anchor="changes.since.draft-ietf-httpbis-http2-00">
 <t>
-  None yet.
+  Changed title throughout.
+</t>
+<t>
+  Removed section on Incompatibilities with SPDY draft#2.
+</t>
+<t>
+  Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
 </t>
 </section>
 <section title="Since draft-mbelshe-httpbis-spdy-00" anchor="changes.since.draft-mbelshe-httpbis-spdy-00">
