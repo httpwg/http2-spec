@@ -64,12 +64,14 @@
 
 <abstract>
   <t>
-    This document describes HTTP/2.0, a protocol designed for low-latency transport of content over
-    the World Wide Web.  HTTP/2.0 introduces two layers of protocol.  The lower layer is a general
-    purpose framing layer which can be used atop a reliable transport (likely TCP) for multiplexed,
-    prioritized, and compressed data communication of many concurrent streams.  The upper layer of
-    the protocol provides HTTP-like <xref target="RFC2616">RFC2616</xref> semantics for
-    compatibility with existing HTTP application servers.
+    This document describes an optimised expression of the semantics of the HTTP protocol.  The
+    HTTP/2.0 encapsulation enables more efficient transfer of resources over HTTP by providing
+    compressed headers, simultaneous requests, and unsolicted push of resources from server to
+    client.
+  </t>
+  <t>
+    This document is an alternative to, but does not obsolete RFC{http-p1}.  The HTTP protocol
+    semantics described in RFC{http-p2..p7} are unmodified.
   </t>
 </abstract>
 
@@ -102,24 +104,45 @@
   </front>
 
   <middle>
-    <section anchor="intro" title="Overview">
-<t>One of the bottlenecks of HTTP implementations is that HTTP relies on multiple connections for concurrency. This causes several problems, including additional round trips for connection setup, slow-start delays, and connection rationing by the client, where it tries to avoid opening too many connections to any single server.  HTTP pipelining helps some, but only achieves partial multiplexing.  In addition, pipelining has proven non-deployable in existing browsers due to intermediary interference.</t>
-
-<t>HTTP/2.0 adds a framing layer for multiplexing multiple, concurrent streams across a single TCP connection (or any reliable transport stream).  The framing layer is optimized for HTTP-like request-response streams, such that applications which run over HTTP today can work over HTTP/2.0 with little or no change on behalf of the web application writer.</t>
-
-<t>The HTTP/2.0 session offers four improvements over HTTP:
-<list>
-<t>Multiplexed requests: There is no limit to the number of requests that can be issued concurrently over a single HTTP/2.0 connection.</t>
-<t>Prioritized requests: Clients can request certain resources to be delivered first.  This avoids the problem of congesting the network channel with non-critical resources when a high-priority request is pending.</t>
-<t>Compressed headers:  Clients today send a significant amount of redundant data in the form of HTTP headers.  Because a single web page may require 50 or 100 subrequests, this data is significant.</t>
-<t>Server pushed streams:  Server Push enables content to be pushed from servers to clients without a request.</t>
-</list>
+    <section anchor="intro" title="Introduction">
+<t>
+  HTTP is a wildly successful protocol.  <xref target="HTTP-p1">HTTP/1.1
+  message encapsulation</xref> is optimized for implementation simplicity and accessibility, not
+  application performance.  As such it has several characteristics that have a negative overall
+  effect on application performance.
+</t>
+<t>
+  The HTTP/1.1 encapsulation ensures that only one request can be delivered at a time on a given
+  connection.  HTTP/1.1 pipelining, which is not widely deployed, only partially addresses these
+  concerns.  Clients that need to make multiple requests therefore use commonly multiple connections
+  to a server or servers in order to reduce the overall latency of those requests.
+</t>
+<t>
+  Furthermore, HTTP/1.1 headers are represented in an inefficient fashion, which, in addition to
+  generating more or larger network packets, can cause the small initial TCP window to fill more
+  quickly than is ideal.  This results in excessive latency where multiple requests are made on a
+  new TCP connection.
+</t>
+<t>
+  This document defines an optimized mapping of the HTTP semantics to a TCP connection.  This
+  optimization reduces the latency costs of HTTP by allowing parallel requests on the same
+  connection and by using an efficient coding for HTTP headers.  Prioritization of requests lets
+  more important requests complete faster, further improving application performance.
+</t>
+<t>
+  HTTP/2.0 applications have an improved impact on network congestion due to the use of fewer TCP
+  connections to achieve the same effect.  Fewer TCP connections compete more fairly with other
+  flows.  Long-lived connections are also more able to take better advantage of the available
+  network capacity, rather than operating in the slow start phase of TCP.
+</t>
+<t>
+  The HTTP/2.0 encapsulation also enables more efficient processing of messages by providing
+  efficient message framing.  Processing of headers in HTTP/2.0 messages is more efficient (for
+  entities that process many messages).
 </t>
 
-<t>HTTP/2.0 attempts to preserve the existing semantics of HTTP. All features such as cookies, ETags, Vary headers, Content-Encoding negotiations, etc work as they do with HTTP; HTTP/2.0 only replaces the way the data is written to the network.</t>
-
       <section title="Document Organization">
-<t>The HTTP/2.0 Specification is split into two parts: <xref target="FramingLayer">a framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed frames, and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism for overlaying HTTP request/response pairs on top of the framing layer. While some of the framing layer concepts are isolated from the HTTP layer, building a generic framing layer has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and server push.</t>
+<t>The HTTP/2.0 Specification is split into three parts: <xref target="starting">starting HTTP/2.0</xref>, which covers how a HTTP/2.0 is started; <xref target="FramingLayer">a framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed frames; and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism for overlaying HTTP request/response pairs on top of the framing layer. While some of the framing layer concepts are isolated from the HTTP layer, building a generic framing layer has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and server push.</t>
       </section>
       <section title="Definitions">
 <t>
@@ -136,6 +159,102 @@
 </list>
 </t>
       </section>
+    </section>
+
+<section anchor="starting" title="Starting HTTP/2.0">
+<t>
+  Just as HTTP/1.1 does, HTTP/2.0 uses the "http:" and "https:" URI schemes.  An HTTP/2.0-capable
+  client is therefore required to discover whether a server (or intermediary) supports HTTP/2.0.
+</t>
+<t>
+  Different discovery mechanisms are defined for "http:" and "https:" URIs.  Discovery for "http:"
+  URIs is described in <xref target="discover-http"/>; discovery for "https:" URIs is described in
+  <xref target="discover-https"/>.
+</t>
+
+<section anchor="versioning" title="HTTP/2.0 Version Identification">
+<t>
+  HTTP/2.0 is identified in using the string "HTTP/2.0".  This identification is used in the
+  HTTP/1.1 Upgrade header, in the <xref target="TLSNPN">TLS-NPN</xref> [[TBD]] field and other
+  places where protocol identification is required.
+</t>
+<t>
+  [[Editor's Note: please remove the following text prior to the publication of a final version of
+  this document.]]
+</t>
+<t>
+  Only implementations of the final, published RFC can identify themselves as "HTTP/2.0".  Until
+  such an RFC exists, implementations MUST NOT identify themselves using "HTTP/2.0".
+</t>
+<t>
+  Examples and text throughout the rest of this document use "HTTP/2.0" as a matter of editorial
+  convenience only.  Implementations of draft versions MUST NOT identify using this string.
+</t>
+<t>
+  Implementations of draft versions of the protocol MUST add the corresponding draft number to the
+  identifier before the separator ('/').  For example, draft-ietf-httpbis-http2-03 is identified
+  using the string "HTTP-03/2.0".
+</t>
+<t>
+  Non-compatible experiments that are based on these draft versions MUST include a further
+  identifier.  For example, an experimental implementation of packet mood-based encoding based on
+  draft-ietf-httpbis-http2-07 might identify itself as "HTTP-07-emo/2.0".  Note that any label MUST
+  conform with the "token" syntax defined in Section 3.2.4 of <xref target="HTTP-p1"/>.
+  Experimenters are encouraged to coordinate their experiments on the ietf-http-wg@w3.org mailing
+  list.
+</t>
+</section>
+<section anchor="discover-http" title="Starting HTTP/2.0 for &quot;http:&quot; URIs">
+<t>
+  A client that makes a request to an "http:" URI without prior knowledge about support for HTTP/2.0
+  uses the HTTP Upgrade mechanism <xref target="HTTP-p2"/>.  The client makes an HTTP/1.1 request
+  that includes an Upgrade header field identifying HTTP/2.0.
+</t>
+<t>
+For example:
+</t>
+<figure><artwork><![CDATA[
+   GET /default.htm HTTP/1.1
+   Host: server.example.com
+   Connection: Upgrade
+   Upgrade: HTTP/2.0 
+]]></artwork></figure>
+<t>
+  A server that does not support HTTP/2.0 can respond to the request as though the Upgrade header
+  field were absent:
+</t>
+<figure><artwork><![CDATA[
+   HTTP/1.1 200 OK
+   Content-length: 243
+   Content-type: text/html
+      ...
+]]></artwork></figure>
+<t>
+  A server that supports HTTP/2.0 can accept the upgrade with a 101 (Switching Protocols) status
+  code.  After the empty line that terminates the 101 response, the server can begin sending
+  HTTP/2.0 frames.  These frames MUST include a response to the request that initiated the Upgrade.
+</t>
+<figure><artwork><![CDATA[
+   HTTP/1.1 101 Switching Protocols
+   Connection: Upgrade
+   Upgrade: HTTP/2.0
+
+   [ HTTP/2.0 frames ...
+]]></artwork></figure>
+<t>
+  A client can learn that a particular server supports HTTP/2.0 by other means.  A client MAY
+  immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0.  [[Open Issue:
+  This is not definite.  We may yet choose to perform negotiation for every connection.  Reasons
+  include intermediaries; phased upgrade of load-balanced server farms; etc...]] [[Open Issue: We
+  need to enumerate the ways that clients can learn of HTTP/2.0 support.]]
+</t>
+</section>
+<section anchor="discover-https" title="Starting HTTP/2.0 for &quot;https:&quot; URIs">
+<t>
+  [[TBD, maybe NPN]]
+</t>
+</section>
+      
     </section>
 
     <section anchor="FramingLayer" title="HTTP/2.0 Framing Layer">
@@ -1260,17 +1379,6 @@ const unsigned char http2_dictionary_txt[] = {
       <seriesInfo name="RFC" value="2119"/>
     </reference>
 
-    <reference anchor='RFC2285'>
-      <front>
-        <title abbrev='Benchmarking Terminology'>Benchmarking Terminology for LAN Switching Devices</title>
-        <author initials='R.' surname='Mandeville' fullname='Robert Mandeville'>
-          <organization>European Network Laboratories (ENL)</organization>
-        </author>
-        <date year='1998' month='February' />
-      </front>
-      <seriesInfo name='RFC' value='2285' />
-    </reference>
-
     <reference anchor="RFC2616">
       <front>
         <title>Hypertext Transfer Protocol -- HTTP/1.1</title>
@@ -1342,19 +1450,6 @@ const unsigned char http2_dictionary_txt[] = {
       <seriesInfo name="RFC" value="2617"/>
     </reference>
 
-    <reference anchor="RFC4366">
-      <front>
-        <title>Transport Layer Security (TLS) Extensions</title>
-        <author initials="S." surname="Blake-Wilson" fullname="S. Blake-Wilson"/>
-        <author initials="M." surname="Nystrom" fullname="M. Nystrom"/>
-        <author initials="D." surname="Hopwood" fullname="D. Hopwood"/>
-        <author initials="J." surname="Mikkelsen" fullname="J. Mikkelsen"/>
-        <author initials="T." surname="Wright" fullname="T. Wright"/>
-        <date year="2006" month="April"/>
-      </front>
-      <seriesInfo name="RFC" value="4366"/>
-    </reference>
-
     <reference anchor="RFC4559">
       <front>
         <title>SPNEGO-based Kerberos and NTLM HTTP Authentication in Microsoft Windows</title>
@@ -1410,8 +1505,32 @@ const unsigned char http2_dictionary_txt[] = {
         <author initials="J." surname="Leighton"></author>
         <date/>
       </front>
+    </reference> 
+    <reference anchor='HTTP-p1'>
+      <front>
+        <title>Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
+        <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
+        <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
+        <date month='October' day='4' year='2012' />
+        <abstract><t>The Hypertext Transfer Protocol (HTTP) is an application-level protocol for distributed, collaborative, hypertext information systems.  HTTP has been in use by the World Wide Web global information initiative since 1990.  This document provides an overview of HTTP architecture and its associated terminology, defines the "http" and "https" Uniform Resource Identifier (URI) schemes, defines the HTTP/1.1 message syntax and parsing requirements, and describes general security concerns for implementations.</t></abstract>
+      </front>
+      <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p1-messaging-21' />
+      <format type='TXT'
+              target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p1-messaging-21.txt' />
     </reference>
-    </references>
+    <reference anchor='HTTP-p2'>
+      <front>
+        <title>Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</title>
+        <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
+        <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
+        <date month='October' day='4' year='2012' />
+        <abstract><t>The Hypertext Transfer Protocol (HTTP) is an application-level protocol for distributed, collaborative, hypertext information systems.  This document defines the semantics of HTTP/1.1 messages, as expressed by request methods, request header fields, response status codes, and response header fields, along with the payload of messages (metadata and body content) and mechanisms for content negotiation.</t></abstract>
+      </front>
+      <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p2-semantics-21' />
+      <format type='TXT'
+              target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p2-semantics-21.txt' />
+    </reference>
+  </references>
 
 <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
@@ -1424,6 +1543,15 @@ const unsigned char http2_dictionary_txt[] = {
 </t>
 <t>
   Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
+</t>
+<t>
+  Replaced abstract and introduction.
+</t>
+<t>
+  Added section on starting HTTP/2.0, including upgrade mechanism.
+</t>
+<t>
+  Removed unused references.
 </t>
 </section>
 <section title="Since draft-mbelshe-httpbis-spdy-00" anchor="changes.since.draft-mbelshe-httpbis-spdy-00">
