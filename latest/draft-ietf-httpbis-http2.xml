@@ -430,9 +430,69 @@ For example:
         </section>
       </section>
 
-      <section title="Data flow">
-<t>Because TCP provides a single stream of data on which HTTP/2.0 multiplexes multiple logical streams, clients and servers must intelligently interleave data messages for concurrent sessions.</t>
-      </section>
+<section anchor="flowcontrol" title="Stream Flow Control">
+<t>
+  Multiplexing streams introduces contention for access to the shared TCP connection.  Stream
+  contention can result in streams being blocked by other streams.  A flow control scheme ensures
+  that streams do not destructively interfere with other streams on the same TCP connection.
+</t>
+
+<section anchor="fc-principles" title="Flow Control Principles">
+<t>
+  Experience with TCP congestion control has shown that algorithms can evolve over time
+  to become more sophisticated without requiring protocol changes.  TCP congestion control and its
+  evolution is clearly different from HTTP/2.0 flow control, though the evolution of TCP congestion
+  control algorithms shows that a similar approach could be feasible for HTTP/2.0 flow control.
+</t>
+<t>
+  HTTP/2.0 stream flow control aims to allow for future improvements to flow control algorithms
+  without requiring protocol changes.  The following principles guide the HTTP/2.0 design:
+  <list style="numbers">
+    <t>
+      Flow control is hop-by-hop, not end-to-end.
+    </t>
+    <t>
+      Flow control is based on window update messages.  Receivers advertise how many octets they are
+      prepared to receive on a stream.  This is a credit-based scheme.
+    </t>
+    <t>
+      Flow control is directional with overall control provided by the receiver.  A receiver MAY
+      choose to set any window size that it desires for each stream [[TBD: ... and for the overall
+      connection]].  A sender MUST respect flow control limits imposed by a receiver.  Clients,
+      servers and intermediaries all independently advertise their flow control preferences as a
+      receiver and abide by the flow control limits set by their peer when sending.
+    </t>
+    <t>
+      Flow control can be disabled by a receiver.  A receiver can choose to either disable flow
+      control, or to declare an infinite flow control limit.  [[TBD: determine whether just one
+      mechanism is sufficient, and then which alternative]]
+    </t>
+    <t>
+      HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window update
+      message</xref>.  This does not stipulate how a receiver decides when to send this message or
+      the value that it sends.  Nor does it specify how a sender chooses to send packets.
+      Implementations are able to select any algorithm that suits their needs.  An example flow
+      control algorithm is described in <xref target="fc-basic"/>.
+    </t>
+  </list>
+</t>
+<t>
+  Implementations are also responsible for managing how requests and responses are sent based on
+  priority; choosing how to avoid head of line blocking for requests; and managing the creation of
+  new streams.  Algorithm choices for these could interact with any flow control algorithm.
+</t>
+
+</section>
+<section anchor="fc-basic" title="Basic Flow Control Algorithm">
+<t>
+  This section describes a basic flow control algorithm.  This algorithm is provided as an example,
+  implementations can use any algorithm that complies with flow control requirements.
+</t>
+<t>
+  [[Algorithm TBD]]
+</t>
+</section>
+</section>
 
       <section title="Control frame types">
         <section anchor="SYN_STREAM" title="SYN_STREAM">
@@ -1312,12 +1372,26 @@ const unsigned char http2_dictionary_txt[] = {
 </section>
 
 <section title="Acknowledgements">
-  <t>
-    Prior to being used as the basis for HTTP/2.0, the following individuals contributed to the
-    design and evolution of SPDY: Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa
-    Wilk, Costin Manolache, William Chan, Vitaliy Lvin, Joe Chan, Adam Barth, Ryan Hamilton, Gavin
-    Peters, Kent Alstad, Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton.
+  <t>This document includes substantial input from the following individuals:
+  <list style="symbols">
+    <t>
+      Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk, Costin Manolache,
+      William Chan, Vitaliy Lvin, Joe Chan, Adam Barth, Ryan Hamilton, Gavin Peters, Kent Alstad,
+      Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton (SPDY contributors).
+    </t>
+    <t>
+      Gabriel Montenegro and Willy Tarreau (Upgrade mechanism)
+    </t>
+    <t>
+      William Chan, Salvatore Loreto, Osama Mazahir, Gabriel Montenegro, Jitu Padhye, Roberto Peon,
+      Rob Trace (Flow control principles)
+    </t>
+    <t>
+      Mark Nottingham and Julian Reschke
+    </t>
+  </list>
   </t>
+
 </section>
 </middle>
 
@@ -1542,7 +1616,8 @@ const unsigned char http2_dictionary_txt[] = {
   Removed section on Incompatibilities with SPDY draft#2.
 </t>
 <t>
-  Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
+  Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref
+  target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
 </t>
 <t>
   Replaced abstract and introduction.
@@ -1552,6 +1627,10 @@ const unsigned char http2_dictionary_txt[] = {
 </t>
 <t>
   Removed unused references.
+</t>
+<t>
+  Added <xref target="fc-principles">flow control principles</xref> based on <eref
+  target="http://tools.ietf.org/html/draft-montenegro-httpbis-http2-fc-principles-01"/>.
 </t>
 </section>
 <section title="Since draft-mbelshe-httpbis-spdy-00" anchor="changes.since.draft-mbelshe-httpbis-spdy-00">

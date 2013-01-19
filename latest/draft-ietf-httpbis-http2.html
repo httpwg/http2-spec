@@ -405,7 +405,7 @@ ul.ind li li {
        content: "Belshe, et al."; 
   } 
   @bottom-center {
-       content: "Expires July 20, 2013"; 
+       content: "Expires July 22, 2013"; 
   } 
   @bottom-right {
        content: "[Page " counter(page) "]"; 
@@ -446,7 +446,7 @@ ul.ind li li {
       <meta name="dct.creator" content="Thomson, M.">
       <meta name="dct.creator" content="Melnikov, A.">
       <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-httpbis-http2-latest">
-      <meta name="dct.issued" scheme="ISO8601" content="2013-01-16">
+      <meta name="dct.issued" scheme="ISO8601" content="2013-01-18">
       <meta name="dct.abstract" content="This document describes an optimised expression of the semantics of the HTTP protocol. The HTTP/2.0 encapsulation enables more efficient transfer of resources over HTTP by providing compressed headers, simultaneous requests, and unsolicted push of resources from server to client. This document is an alternative to, but does not obsolete RFC{http-p1}. The HTTP protocol semantics described in RFC{http-p2..p7} are unmodified.">
       <meta name="description" content="This document describes an optimised expression of the semantics of the HTTP protocol. The HTTP/2.0 encapsulation enables more efficient transfer of resources over HTTP by providing compressed headers, simultaneous requests, and unsolicted push of resources from server to client. This document is an alternative to, but does not obsolete RFC{http-p1}. The HTTP protocol semantics described in RFC{http-p2..p7} are unmodified.">
    </head>
@@ -466,7 +466,7 @@ ul.ind li li {
                <td class="right">R. Peon</td>
             </tr>
             <tr>
-               <td class="left">Expires: July 20, 2013</td>
+               <td class="left">Expires: July 22, 2013</td>
                <td class="right">Google, Inc</td>
             </tr>
             <tr>
@@ -487,7 +487,7 @@ ul.ind li li {
             </tr>
             <tr>
                <td class="left"></td>
-               <td class="right">January 16, 2013</td>
+               <td class="right">January 18, 2013</td>
             </tr>
          </tbody>
       </table>
@@ -520,7 +520,7 @@ ul.ind li li {
          documents at any time. It is inappropriate to use Internet-Drafts as reference material or to cite them other than as “work
          in progress”.
       </p>
-      <p>This Internet-Draft will expire on July 20, 2013.</p>
+      <p>This Internet-Draft will expire on July 22, 2013.</p>
       <h1><a id="rfc.copyrightnotice" href="#rfc.copyrightnotice">Copyright Notice</a></h1>
       <p>Copyright © 2013 IETF Trust and the persons identified as the document authors. All rights reserved.</p>
       <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (<a href="http://trustee.ietf.org/license-info">http://trustee.ietf.org/license-info</a>) in effect on the date of publication of this document. Please review these documents carefully, as they describe your rights
@@ -568,7 +568,11 @@ ul.ind li li {
                      <li><a href="#rfc.section.3.4.2">3.4.2</a>&nbsp;&nbsp;&nbsp;<a href="#StreamErrorHandler">Stream Error Handling</a></li>
                   </ul>
                </li>
-               <li><a href="#rfc.section.3.5">3.5</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.3.5">Data flow</a></li>
+               <li><a href="#rfc.section.3.5">3.5</a>&nbsp;&nbsp;&nbsp;<a href="#flowcontrol">Stream Flow Control</a><ul>
+                     <li><a href="#rfc.section.3.5.1">3.5.1</a>&nbsp;&nbsp;&nbsp;<a href="#fc-principles">Flow Control Principles</a></li>
+                     <li><a href="#rfc.section.3.5.2">3.5.2</a>&nbsp;&nbsp;&nbsp;<a href="#fc-basic">Basic Flow Control Algorithm</a></li>
+                  </ul>
+               </li>
                <li><a href="#rfc.section.3.6">3.6</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.3.6">Control frame types</a><ul>
                      <li><a href="#rfc.section.3.6.1">3.6.1</a>&nbsp;&nbsp;&nbsp;<a href="#SYN_STREAM">SYN_STREAM</a></li>
                      <li><a href="#rfc.section.3.6.2">3.6.2</a>&nbsp;&nbsp;&nbsp;<a href="#SYN_REPLY">SYN_REPLY</a></li>
@@ -933,11 +937,46 @@ ul.ind li li {
          coalesce them into a single RST_STREAM frame. (This can happen if a stream is closed, but the remote sends multiple data frames.
          There is no reason to send a RST_STREAM for each frame in succession).
       </p>
-      <h2 id="rfc.section.3.5"><a href="#rfc.section.3.5">3.5</a>&nbsp;Data flow
-      </h2>
-      <p id="rfc.section.3.5.p.1">Because TCP provides a single stream of data on which HTTP/2.0 multiplexes multiple logical streams, clients and servers must
-         intelligently interleave data messages for concurrent sessions.
+      <h2 id="rfc.section.3.5"><a href="#rfc.section.3.5">3.5</a>&nbsp;<a id="flowcontrol" href="#flowcontrol">Stream Flow Control</a></h2>
+      <p id="rfc.section.3.5.p.1">Multiplexing streams introduces contention for access to the shared TCP connection. Stream contention can result in streams
+         being blocked by other streams. A flow control scheme ensures that streams do not destructively interfere with other streams
+         on the same TCP connection.
       </p>
+      <h3 id="rfc.section.3.5.1"><a href="#rfc.section.3.5.1">3.5.1</a>&nbsp;<a id="fc-principles" href="#fc-principles">Flow Control Principles</a></h3>
+      <p id="rfc.section.3.5.1.p.1">Experience with TCP congestion control has shown that algorithms can evolve over time to become more sophisticated without
+         requiring protocol changes. TCP congestion control and its evolution is clearly different from HTTP/2.0 flow control, though
+         the evolution of TCP congestion control algorithms shows that a similar approach could be feasible for HTTP/2.0 flow control.
+      </p>
+      <p id="rfc.section.3.5.1.p.2">HTTP/2.0 stream flow control aims to allow for future improvements to flow control algorithms without requiring protocol changes.
+         The following principles guide the HTTP/2.0 design: 
+      </p>
+      <ol>
+         <li>Flow control is hop-by-hop, not end-to-end.</li>
+         <li>Flow control is based on window update messages. Receivers advertise how many octets they are prepared to receive on a stream.
+            This is a credit-based scheme.
+         </li>
+         <li>Flow control is directional with overall control provided by the receiver. A receiver MAY choose to set any window size that
+            it desires for each stream [[TBD: ... and for the overall connection]]. A sender MUST respect flow control limits imposed
+            by a receiver. Clients, servers and intermediaries all independently advertise their flow control preferences as a receiver
+            and abide by the flow control limits set by their peer when sending.
+         </li>
+         <li>Flow control can be disabled by a receiver. A receiver can choose to either disable flow control, or to declare an infinite
+            flow control limit. [[TBD: determine whether just one mechanism is sufficient, and then which alternative]]
+         </li>
+         <li>HTTP/2.0 standardizes only the format of the window update message (<a href="#WINDOW_UPDATE" title="WINDOW_UPDATE">Section&nbsp;3.6.8</a>). This does not stipulate how a receiver decides when to send this message or the value that it sends. Nor does it specify
+            how a sender chooses to send packets. Implementations are able to select any algorithm that suits their needs. An example
+            flow control algorithm is described in <a href="#fc-basic" title="Basic Flow Control Algorithm">Section&nbsp;3.5.2</a>.
+         </li>
+      </ol>
+      <p id="rfc.section.3.5.1.p.3">Implementations are also responsible for managing how requests and responses are sent based on priority; choosing how to avoid
+         head of line blocking for requests; and managing the creation of new streams. Algorithm choices for these could interact with
+         any flow control algorithm.
+      </p>
+      <h3 id="rfc.section.3.5.2"><a href="#rfc.section.3.5.2">3.5.2</a>&nbsp;<a id="fc-basic" href="#fc-basic">Basic Flow Control Algorithm</a></h3>
+      <p id="rfc.section.3.5.2.p.1">This section describes a basic flow control algorithm. This algorithm is provided as an example, implementations can use any
+         algorithm that complies with flow control requirements.
+      </p>
+      <p id="rfc.section.3.5.2.p.2">[[Algorithm TBD]]</p>
       <h2 id="rfc.section.3.6"><a href="#rfc.section.3.6">3.6</a>&nbsp;Control frame types
       </h2>
       <h3 id="rfc.section.3.6.1"><a href="#rfc.section.3.6.1">3.6.1</a>&nbsp;<a id="SYN_STREAM" href="#SYN_STREAM">SYN_STREAM</a></h3>
@@ -1982,10 +2021,15 @@ ul.ind li li {
       </p>
       <h1 id="rfc.section.9"><a href="#rfc.section.9">9.</a>&nbsp;Acknowledgements
       </h1>
-      <p id="rfc.section.9.p.1">Prior to being used as the basis for HTTP/2.0, the following individuals contributed to the design and evolution of SPDY:
-         Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk, Costin Manolache, William Chan, Vitaliy Lvin, Joe
-         Chan, Adam Barth, Ryan Hamilton, Gavin Peters, Kent Alstad, Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton.
-      </p>
+      <p id="rfc.section.9.p.1">This document includes substantial input from the following individuals: </p>
+      <ul>
+         <li>Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk, Costin Manolache, William Chan, Vitaliy Lvin, Joe
+            Chan, Adam Barth, Ryan Hamilton, Gavin Peters, Kent Alstad, Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton (SPDY contributors).
+         </li>
+         <li>Gabriel Montenegro and Willy Tarreau (Upgrade mechanism)</li>
+         <li>William Chan, Salvatore Loreto, Osama Mazahir, Gabriel Montenegro, Jitu Padhye, Roberto Peon, Rob Trace (Flow control principles)</li>
+         <li>Mark Nottingham and Julian Reschke</li>
+      </ul>
       <h1 id="rfc.references"><a href="#rfc.section.10" id="rfc.section.10">10.</a> Normative References
       </h1>
       <table>                            
@@ -2079,6 +2123,8 @@ ul.ind li li {
       <p id="rfc.section.A.1.p.4">Replaced abstract and introduction.</p>
       <p id="rfc.section.A.1.p.5">Added section on starting HTTP/2.0, including upgrade mechanism.</p>
       <p id="rfc.section.A.1.p.6">Removed unused references.</p>
+      <p id="rfc.section.A.1.p.7">Added flow control principles (<a href="#fc-principles" title="Flow Control Principles">Section&nbsp;3.5.1</a>) based on &lt;<a href="http://tools.ietf.org/html/draft-montenegro-httpbis-http2-fc-principles-01">http://tools.ietf.org/html/draft-montenegro-httpbis-http2-fc-principles-01</a>&gt;.
+      </p>
       <h2 id="rfc.section.A.2"><a href="#rfc.section.A.2">A.2</a>&nbsp;<a id="changes.since.draft-mbelshe-httpbis-spdy-00" href="#changes.since.draft-mbelshe-httpbis-spdy-00">Since draft-mbelshe-httpbis-spdy-00</a></h2>
       <p id="rfc.section.A.2.p.1">Adopted as base for draft-ietf-httpbis-http2.</p>
       <p id="rfc.section.A.2.p.2">Updated authors/editors list.</p>
