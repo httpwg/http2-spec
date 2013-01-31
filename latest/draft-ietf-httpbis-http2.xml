@@ -174,9 +174,13 @@
 
 <section anchor="versioning" title="HTTP/2.0 Version Identification">
 <t>
-  HTTP/2.0 is identified in using the string "HTTP/2.0".  This identification is used in the
+  HTTP/2.0 is identified using the string "HTTP/2.0".  This identification is used in the
   HTTP/1.1 Upgrade header, in the <xref target="TLSNPN">TLS-NPN</xref> [[TBD]] field and other
   places where protocol identification is required.
+</t>
+<t>
+  Negotiating "HTTP/2.0" implies the use of the transport, security, framing and message semantics
+  described in this document.
 </t>
 <t>
   [[Editor's Note: please remove the following text prior to the publication of a final version of
@@ -266,14 +270,14 @@ For example:
       <section title="Framing">
 <t>Once the connection is established, clients and servers exchange framed messages. There are two types of frames: <xref target="ControlFrames">control frames</xref> and <xref target="DataFrames">data frames</xref>.  Frames always have a common header which is 8 bytes in length.</t>
 
-<t>The first bit is a control bit indicating whether a frame is a control frame or data frame. Control frames carry a version number, a frame type, flags, and a length. Data frames contain the stream ID, flags, and the length for the payload carried after the common header. The simple header is designed to make reading and writing of frames easy.</t>
+<t>The first bit is a control bit indicating whether a frame is a control frame or data frame. Control frames carry a frame type, flags, and a length. Data frames contain the stream ID, flags, and the length for the payload carried after the common header. The simple header is designed to make reading and writing of frames easy.</t>
 
-<t>All integer values, including length, version, and type, are in network byte order.  HTTP/2.0 does not enforce alignment of types in dynamically sized frames.</t>
+<t>All integer values, including length and type, are in network byte order.  HTTP/2.0 does not enforce alignment of types in dynamically sized frames.</t>
         <section anchor="ControlFrames" title="Control frames">
 <figure>
   <artwork>
 +----------------------------------+
-|C| Version(15bits) | Type(16bits) |
+|C| Unused (15bits) | Type(16bits) |
 +----------------------------------+
 | Flags (8)  |  Length (24 bits)   |
 +----------------------------------+
@@ -283,7 +287,9 @@ For example:
 </figure>
 <t>Control bit: The 'C' bit is a single bit indicating if this is a control message. For control frames this value is always 1.</t>
 
-<t>Version: The version number of the HTTP/2.0 protocol.  This document describes HTTP/2.0 version 3.</t>
+<t>
+  Unused: these 15 bits are unused.
+</t>
 
 <t>Type: The type of control frame. See Control Frames for the complete list of control frames.</t>
 
@@ -446,26 +452,33 @@ For example:
 </t>
 <t>
   HTTP/2.0 stream flow control aims to allow for future improvements to flow control algorithms
-  without requiring protocol changes.  The following principles guide the HTTP/2.0 design:
+  without requiring protocol changes.  Flow control in HTTP/2.0 has the following characteristics:
   <list style="numbers">
     <t>
       Flow control is hop-by-hop, not end-to-end.
     </t>
     <t>
-      Flow control is based on window update messages.  Receivers advertise how many octets they are
-      prepared to receive on a stream.  This is a credit-based scheme.
+      Flow control is based on window update messages.  Receivers advertise how many octets they
+      are prepared to receive on a stream.  This is a credit-based scheme.
     </t>
     <t>
       Flow control is directional with overall control provided by the receiver.  A receiver MAY
-      choose to set any window size that it desires for each stream [[TBD: ... and for the overall
-      connection]].  A sender MUST respect flow control limits imposed by a receiver.  Clients,
+      choose to set any window size that it desires for each stream and for the entire
+      connection.  A sender MUST respect flow control limits imposed by a receiver.  Clients,
       servers and intermediaries all independently advertise their flow control preferences as a
       receiver and abide by the flow control limits set by their peer when sending.
     </t>
     <t>
+      The initial value for the flow control window is 65536 bytes for both new streams and the
+      overall connection.
+    </t>
+    <t>
+      Flow control only applies to data frames.  Control frames do not consume space in the
+      advertised flow control window.
+    </t>
+    <t>
       Flow control can be disabled by a receiver.  A receiver can choose to either disable flow
-      control, or to declare an infinite flow control limit.  [[TBD: determine whether just one
-      mechanism is sufficient, and then which alternative]]
+      control for a stream or connection by declaring an infinite flow control limit.
     </t>
     <t>
       HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window update
@@ -500,7 +513,7 @@ For example:
           <figure>
             <artwork>
 +------------------------------------+
-|1|    version    |         1        |
+|1|    unused     |         1        |
 +------------------------------------+
 |  Flags (8)  |  Length (24 bits)    |
 +------------------------------------+
@@ -554,7 +567,7 @@ For example:
           <figure>
             <artwork>
 +------------------------------------+
-|1|    version    |         2        |
+|1|    unused     |         2        |
 +------------------------------------+
 |  Flags (8)  |  Length (24 bits)    |
 +------------------------------------+
@@ -596,7 +609,7 @@ For example:
           <figure>
             <artwork>
 +----------------------------------+
-|1|   version    |         3       |
+|1|   unused     |         3       |
 +----------------------------------+
 | Flags (8)  |         8           |
 +----------------------------------+
@@ -617,7 +630,7 @@ For example:
 <t>1 - PROTOCOL_ERROR. This is a generic error, and should only be used if a more specific error is not available.</t>
 <t>2 - INVALID_STREAM. This is returned when a frame is received for a stream which is not active.</t>
 <t>3 - REFUSED_STREAM.  Indicates that the stream was refused before any processing has been done on the stream.</t>
-<t>4 - UNSUPPORTED_VERSION.  Indicates that the recipient of a stream does not support the HTTP/2.0 version requested.</t>
+<t>4 - (UNUSED)</t>
 <t>5 - CANCEL.  Used by the creator of a stream to indicate that the stream is no longer needed.</t>
 <t>6 - INTERNAL_ERROR.  This is a generic error which can be used when the implementation has internally failed, not due to anything in the protocol.</t>
 <t>7 - FLOW_CONTROL_ERROR.  The endpoint detected that its peer violated the flow control protocol.</t>
@@ -639,7 +652,7 @@ For example:
           <figure>
             <artwork>
 +----------------------------------+
-|1|   version    |         4       |
+|1|   unused     |         4       |
 +----------------------------------+
 | Flags (8)  |  Length (24 bits)   |
 +----------------------------------+
@@ -651,7 +664,9 @@ For example:
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The HTTP/2.0 version number.</t>
+<t>
+  Unused
+</t>
 
 <t>Type: The message type for a SETTINGS message is 4.</t>
 
@@ -697,7 +712,7 @@ For example:
           <figure>
             <artwork>
 +----------------------------------+
-|1|   version    |         6       |
+|1|   unused     |         6       |
 +----------------------------------+
 | 0 (flags) |     4 (length)       |
 +----------------------------------|
@@ -707,7 +722,9 @@ For example:
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The HTTP/2.0 version number.</t>
+<t>
+  Unused
+</t>
 
 <t>Type: The message type for a PING message is 6.</t>
 
@@ -732,7 +749,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           <figure>
             <artwork>
 +----------------------------------+
-|1|   version    |         7       |
+|1|   unused     |         7       |
 +----------------------------------+
 | 0 (flags) |     8 (length)       |
 +----------------------------------|
@@ -744,7 +761,9 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The HTTP/2.0 version number.</t>
+<t>
+  Unused
+</t>
 
 <t>Type: The message type for a GOAWAY message is 7.</t>
 
@@ -766,7 +785,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           <figure>
             <artwork>
 +------------------------------------+
-|1|   version     |          8       |
+|1|   unused      |          8       |
 +------------------------------------+
 | Flags (8)  |   Length (24 bits)    |
 +------------------------------------+
@@ -806,7 +825,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           <figure>
             <artwork>
 +----------------------------------+
-|1|   version    |         9       |
+|1|   unused     |         9       |
 +----------------------------------+
 | 0 (flags) |     8 (length)       |
 +----------------------------------+
@@ -818,7 +837,9 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           </figure>
 <t>Control bit: The control bit is always 1 for this message.</t>
 
-<t>Version: The HTTP/2.0 version number.</t>
+<t>
+  Unused
+</t>
 
 <t>Type: The message type for a WINDOW_UPDATE message is 9.</t>
 
@@ -1174,7 +1195,7 @@ const unsigned char http2_dictionary_txt[] = {
 <t>If a server receives a request where the sum of the data frame payload lengths does not equal the size of the Content-Length header, the server MUST return a 400 (Bad Request) error.</t>
 <t>POST-specific changes:
 <list>
-<t>Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a Content-Length header.  There are two reasons for this:  First, it assists with upload progress meters for an improved user experience.  But second, we know from early versions of HTTP/2.0 that failure to send a content length header is incompatible with many existing HTTP server implementations.  Existing user-agents do not omit the Content-Length header, and server implementations have come to depend upon this.</t>
+<t>Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a Content-Length header.  There are two reasons for this:  First, it assists with upload progress meters for an improved user experience.  More importantly, failure to send a Content-Length header is incompatible with many existing HTTP server implementations.  Existing user agents do not omit the Content-Length header, and server implementations have come to depend upon this.</t>
 </list>
 </t>
 </list>
