@@ -5,10 +5,6 @@ HTTP/2.0 Specification
 This is the working area for the [IETF HTTPbis Working
 Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of HTTP/2.0.
 
-
-Layout and Formats
-------------------
-
 Published drafts are in numbered directories; e.g., "00", "01". 
 
 The current editor's copy is always in [latest](latest/). 
@@ -46,7 +42,7 @@ feedback.
 
 
 NOTE WELL
-=========
+---------
 
 Any submission to the [IETF](http://www.ietf.org/) intended by the Contributor
 for publication as all or part of an IETF Internet-Draft or RFC and any
