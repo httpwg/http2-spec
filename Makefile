@@ -1,4 +1,4 @@
-xml2rfc = "../../xml2rfc/xml2rfc.tcl"
+xml2rfc = "/usr/local/bin/xml2rfc"
 saxpath = "$(HOME)/java/saxon-8-9-j/saxon8.jar"
 saxon = java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 
@@ -22,7 +22,7 @@ $(draft_title)-$(next_rev).xml:
 	sed -i '' -e"s/$(draft_title)-latest/$(draft_title)-$(next_rev)/" $(draft_title)-$(next_rev).xml
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(draft_title).redxml
 	rm -f $(draft_title)-*.xml
 	rm -f $(draft_title)-*.txt
 
