@@ -5,12 +5,13 @@ HTTP/2.0 Specification
 This is the working area for the [IETF HTTPbis Working
 Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of HTTP/2.0.
 
-Published drafts are in numbered directories; e.g., "00", "01". 
+Published drafts can be found on the [IETF tools
+site](http://tools.ietf.org/html/draft-ietf-httpbis-http2), and are marked
+with tags here.
 
-The current editor's copy is always in [latest](latest/). 
-
-Drafts are produced using the [RFC2629
-format](http://xml.resource.org/public/rfc/html/rfc2629.html).
+The source for our current draft is
+[draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
+[RFC2629 format](http://xml.resource.org/public/rfc/html/rfc2629.html).
 
 
 Providing Feedback
