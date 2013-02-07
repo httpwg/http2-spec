@@ -13,6 +13,9 @@ The source for our current draft is
 [draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
 [RFC2629 format](http://xml.resource.org/public/rfc/html/rfc2629.html).
 
+An HTML copy of the current (unsubmitted) draft can be found
+[here](http://http2.github.com/http2-spec/draft-ietf-httpbis-http2.html).
+
 
 Providing Feedback
 ------------------
@@ -40,6 +43,21 @@ list.
 this feedback is processed only with best effort by the editors, so it should
 only be used for quick editorial suggestions or questions, not substantial
 feedback.
+
+
+Working With the Draft
+----------------------
+
+If you're an editor, or forking a copy of the draft, a few things to know:
+
+* We push to both the master and gh-pages branches, to keep the HTML view in
+  sync. See [this
+  tip](http://brettterpstra.com/2012/09/26/github-tip-easily-sync-your-master-to-github-pages/)
+  to make that easy; after doing that, you'll only need to "git push" (NOT
+  "git push origin master").
+* You'll need xml2rfc, java and saxon available. You can override the default
+  locations in the environment, if you use "make -e".
+* Making the txt and html for the latest draft is done with "make latest".
 
 
 NOTE WELL

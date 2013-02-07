@@ -17,6 +17,6 @@ When you're ready to submit a new version of draft-ietf-httpbis-http-NN:
 5. make clean
 
 6. git tag draft-ietf-httpbis-http-NN
-   git push --tags origin master
+   git push --tags
 
 7. Add "Since draft-ietf-httpbis-http2-...-NN" subsection to "Changes".
