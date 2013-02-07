@@ -2,17 +2,29 @@ xml2rfc = "../../xml2rfc/xml2rfc.tcl"
 saxpath = "$(HOME)/java/saxon-8-9-j/saxon8.jar"
 saxon = java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 
-stylesheet = ../../draft-ietf-httpbis/myxml2rfc.xslt
-reduction  = ../../rfc2629xslt/clean-for-DTD.xslt
+draft_title = draft-ietf-httpbis-http2
+current_rev = $(shell git tag | tail -1 | awk -F- '{print $$NF}')
+next_rev = $(shell printf "%.2d" `echo ${current_rev}+1 | bc`)
 
-TARGETS = draft-ietf-httpbis-http2.html \
-          draft-ietf-httpbis-http2.redxml \
-          draft-ietf-httpbis-http2.txt
+stylesheet = lib/myxml2rfc.xslt
+reduction  = lib/clean-for-DTD.xslt
 
-all: $(TARGETS)
+TARGETS = $(draft_title).html \
+          $(draft_title).redxml \
+          $(draft_title).txt
+
+latest: $(TARGETS)
+
+submit: $(draft_title)-$(next_rev).xml $(draft_title)-$(next_rev).txt
+
+$(draft_title)-$(next_rev).xml:
+	cp $(draft_title).xml $(draft_title)-$(next_rev).xml
+	sed -i '' -e"s/$(draft_title)-latest/$(draft_title)-$(next_rev)/" $(draft_title)-$(next_rev).xml
 
 clean:
 	rm -f $(TARGETS)
+	rm -f $(draft_title)-*.xml
+	rm -f $(draft_title)-*.txt
 
 %.html: %.xml $(stylesheet)
 	$(saxon) $< $(stylesheet) > $@
