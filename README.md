@@ -35,9 +35,10 @@ this method can also be used to suggest more substantial changes, they'll need
 to be discussed on the list first.
 
 3. You can also create an issue on github. Note that such issues may be
-changed or pre-emptively closed, based upon their relevance to our work. If
-you disagree with how your issue is handled, please bring it up on the mailing
-list. 
+changed or pre-emptively closed, based upon their relevance to our work; in
+particular, **questions should be asked on the mailing list**, not in an
+issue. If you disagree with how your issue is handled, please bring it up on
+the mailing list.
 
 4. Finally, you can make comments on individual commits in Github. Note that
 this feedback is processed only with best effort by the editors, so it should
