@@ -336,7 +336,7 @@ For example:
 <t>Data frame processing requirements:
 <list>
 <t>If an endpoint receives a data frame for a stream-id which is not open and the endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send issue a <xref target="StreamErrorHandler">stream error</xref> with the error code INVALID_STREAM for the stream-id.</t>
-<t>If the endpoint which created the stream receives a data frame before receiving a SYN_REPLY on that stream, it is a protocol error, and the recipient MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code PROTOCOL_ERROR for the stream-id.</t>
+<t>If the endpoint which created the stream receives a data frame before receiving a SYN_REPLY on that stream, it is a protocol error, and the recipient MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for the stream-id.</t>
 <t>Implementors note: If an endpoint receives multiple data frames for invalid stream-ids, it MAY close the session.</t>
 <t>All HTTP/2.0 endpoints MUST accept compressed data frames.  Compression of data frames is always done using zlib compression.  Each stream initializes and uses its own compression context dedicated to use within that stream.  Endpoints are encouraged to use application level compression rather than HTTP/2.0 stream level compression.</t>
 <t>Each HTTP/2.0 stream sending compressed frames creates its own zlib context for that stream, and these compression contexts MUST be distinct from the compression contexts used with SYN_STREAM/SYN_REPLY/HEADER compression. (Thus, if both endpoints of a stream are compressing data on the stream, there will be two zlib contexts, one for sending and one for receiving).</t>
@@ -370,7 +370,7 @@ For example:
 
 <t>The stream-id MUST increase with each new stream.  If an endpoint receives a SYN_STREAM with a stream id which is less than any previously received SYN_STREAM, it MUST issue a <xref target="SessionErrorHandler">session error</xref> with the status PROTOCOL_ERROR.</t>
 
-<t>It is a protocol error to send two SYN_STREAMs with the same stream-id.  If a recipient receives a second SYN_STREAM for the same stream, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code PROTOCOL_ERROR.</t>
+<t>It is a protocol error to send two SYN_STREAMs with the same stream-id.  If a recipient receives a second SYN_STREAM for the same stream, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR.</t>
 
 <t>Upon receipt of a SYN_STREAM, the recipient can reject the stream by sending a <xref target="StreamErrorHandler">stream error</xref> with the error code REFUSED_STREAM. Note, however, that the creating endpoint may have already sent additional frames for that stream which cannot be immediately stopped.</t>
 
@@ -615,7 +615,7 @@ For example:
 +----------------------------------+
 |X|          Stream-ID (31bits)    |
 +----------------------------------+
-|          Status code             |
+|           Error code             |
 +----------------------------------+
             </artwork>
           </figure>
@@ -625,7 +625,7 @@ For example:
 
 <t>Stream-ID: The 31-bit identifier for this stream.</t>
 
-<t>Status code: (32 bits) An indicator for why the stream is being terminated.The following status codes are defined:
+<t>Error code: (32 bits) An indicator for why the stream is being terminated. The following error codes are defined:
 <list>
 <t>1 - PROTOCOL_ERROR. This is a generic error, and should only be used if a more specific error is not available.</t>
 <t>2 - INVALID_STREAM. This is returned when a frame is received for a stream which is not active.</t>
@@ -638,7 +638,7 @@ For example:
 <t>9 - STREAM_ALREADY_CLOSED.  The endpoint received a data or SYN_REPLY frame for a stream which is half closed.</t>
 <t>10 - INVALID_CREDENTIALS.  The server received a request for a resource whose origin does not have valid credentials in the client certificate vector.</t>
 <t>11 - FRAME_TOO_LARGE.  The endpoint received a frame which this implementation could not support.  If FRAME_TOO_LARGE is sent for a SYN_STREAM, HEADERS, or SYN_REPLY frame without fully processing the compressed portion of those frames, then the compression state will be out-of-sync with the other endpoint.  In this case, senders of FRAME_TOO_LARGE MUST close the session.</t>
-<t>Note:  0 is not a valid status code for a RST_STREAM.</t>
+<t>Note:  0 is not a valid error code for a RST_STREAM.</t>
 </list>
 </t>
 
@@ -755,7 +755,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 +----------------------------------|
 |X|  Last-good-stream-ID (31 bits) |
 +----------------------------------+
-|          Status code             |
+|           Error code             |
 +----------------------------------+
             </artwork>
           </figure>
@@ -771,7 +771,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 
 <t>Last-good-stream-Id: The last stream id which was replied to (with either a SYN_REPLY or RST_STREAM) by the sender of the GOAWAY message.  If no streams were replied to, this value MUST be 0.</t>
 
-<t>Status: The reason for closing the session.
+<t>Error code: The reason for closing the session.
 <list>
 <t>0 - OK. This is a normal session teardown.</t>
 <t>1 - PROTOCOL_ERROR. This is a generic error, and should only be used if a more specific error is not available.</t>
@@ -819,7 +819,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
           </section>
 
           <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
-<t>The WINDOW_UPDATE control frame is used to implement per stream flow control in HTTP/2.0. Flow control in HTTP/2.0 is per hop, that is, only between the two endpoints of a HTTP/2.0 connection. If there are one or more intermediaries between the client and the origin server, flow control signals are not explicitly forwarded by the intermediaries. (However, throttling of data transfer by any recipient may have the effect of indirectly propagating flow control information upstream back to the original sender.) Flow control only applies to the data portion of data frames. Recipients must buffer all control frames. If a recipient fails to buffer an entire control frame, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code FLOW_CONTROL_ERROR for the stream.</t>
+<t>The WINDOW_UPDATE control frame is used to implement per stream flow control in HTTP/2.0. Flow control in HTTP/2.0 is per hop, that is, only between the two endpoints of a HTTP/2.0 connection. If there are one or more intermediaries between the client and the origin server, flow control signals are not explicitly forwarded by the intermediaries. (However, throttling of data transfer by any recipient may have the effect of indirectly propagating flow control information upstream back to the original sender.) Flow control only applies to the data portion of data frames. Recipients must buffer all control frames. If a recipient fails to buffer an entire control frame, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code FLOW_CONTROL_ERROR for the stream.</t>
 
 <t>Flow control in HTTP/2.0 is implemented by a data transfer window kept by the sender of each stream. The data transfer window is a simple uint32 that indicates how many bytes of data the sender can transmit. After a stream is created, but before any data frames have been transmitted, the sender begins with the initial window size. This window size is a measure of the buffering capability of the recipient. The sender must not send a data frame with data length greater than the transfer window size. After sending each data frame, the sender decrements its transfer window size by the amount of data transmitted. When the window size becomes less than or equal to 0, the sender must pause transmitting data frames. At the other end of the stream, the recipient sends a WINDOW_UPDATE control back to notify the sender that it has consumed some data and freed up buffer space to receive more data.</t>
           <figure>
@@ -849,11 +849,11 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 
 <t>Delta-Window-Size: The additional number of bytes that the sender can transmit in addition to existing remaining window size. The legal range for this field is 1 to 2^31 - 1 (0x7fffffff) bytes.</t>
 
-<t>The window size as kept by the sender must never exceed 2^31 (although it can become negative in one special case). If a sender receives a WINDOW_UPDATE that causes the its window size to exceed this limit, it must send RST_STREAM with status code FLOW_CONTROL_ERROR to terminate the stream.</t>
+<t>The window size as kept by the sender must never exceed 2^31 (although it can become negative in one special case). If a sender receives a WINDOW_UPDATE that causes the its window size to exceed this limit, it must send RST_STREAM with error code FLOW_CONTROL_ERROR to terminate the stream.</t>
 
 <t>When a HTTP/2.0 connection is first established, the default initial window size for all streams is 64KB. An endpoint can use the SETTINGS control frame to adjust the initial window size for the connection. That is, its peer can start out using the 64KB default initial window size when sending data frames before receiving the SETTINGS. Because SETTINGS  is asynchronous, there may be a race condition if the recipient wants to decrease the initial window size, but its peer immediately sends 64KB on the creation of a new connection, before waiting for the SETTINGS to arrive. This is one case where the window size kept by the sender will become negative. Once the sender detects this condition, it must stop sending data frames and wait for the recipient to catch up. The recipient has two choices:
 <list>
-<t>immediately send RST_STREAM with FLOW_CONTROL_ERROR status code.</t>
+<t>immediately send RST_STREAM with FLOW_CONTROL_ERROR error code.</t>
 <t>allow the head of line blocking (as there is only one stream for the session and the amount of data in flight is bounded by the default initial window size), and send WINDOW_UPDATE as it consumes data.</t>
 </list>
 </t>
@@ -914,7 +914,7 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
   the CREDENTIAL message would be ~500 bytes.
 </t>
 <t>Certificate: The certificate chain, starting with the leaf certificate.  Each certificate must be encoded as a 32 bit length, followed by a DER encoded certificate.  The certificate must be of the same type (RSA, ECDSA, etc) as the client certificate associated with the SSL connection.</t>
-<t>If the server receives a request for a resource with unacceptable credential (either missing or invalid), it must reply with a RST_STREAM frame with the status code INVALID_CREDENTIALS. Upon receipt of a RST_STREAM frame with INVALID_CREDENTIALS, the client should initiate a new stream directly to the requested origin and resend the request.  Note, HTTP/2.0 does not allow the server to request different client authentication for different resources in the same origin.</t>
+<t>If the server receives a request for a resource with unacceptable credential (either missing or invalid), it must reply with a RST_STREAM frame with the error code INVALID_CREDENTIALS. Upon receipt of a RST_STREAM frame with INVALID_CREDENTIALS, the client should initiate a new stream directly to the requested origin and resend the request.  Note, HTTP/2.0 does not allow the server to request different client authentication for different resources in the same origin.</t>
 <t>If the server receives an invalid CREDENTIAL frame, it MUST respond with a GOAWAY frame and shutdown the session.  </t>
           </section>
 
@@ -949,9 +949,9 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
 </list>
 </t>
 
-<t>Each header name must have at least one value.  Header names are encoded using the <xref target="ASCII">US-ASCII character set</xref> and must be all lower case.  The length of each name must be greater than zero.  A recipient of a zero-length name MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code PROTOCOL_ERROR for the stream-id.</t>
+<t>Each header name must have at least one value.  Header names are encoded using the <xref target="ASCII">US-ASCII character set</xref> and must be all lower case.  The length of each name must be greater than zero.  A recipient of a zero-length name MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for the stream-id.</t>
 
-<t>Duplicate header names are not allowed.  To send two identically named headers, send a header with two values, where the values are separated by a single NUL (0) byte.  A header value can either be empty (e.g. the length is zero) or it can contain multiple, NUL-separated values, each with length greater than zero.  The value never starts nor ends with a NUL character.  Recipients of illegal value fields MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the status code PROTOCOL_ERROR for the stream-id.</t>
+<t>Duplicate header names are not allowed.  To send two identically named headers, send a header with two values, where the values are separated by a single NUL (0) byte.  A header value can either be empty (e.g. the length is zero) or it can contain multiple, NUL-separated values, each with length greater than zero.  The value never starts nor ends with a NUL character.  Recipients of illegal value fields MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for the stream-id.</t>
 
       <section title="Compression" anchor="Compression">
         <t>The Name/Value Header Block is a section of the SYN_STREAM, SYN_REPLY, and HEADERS frames used to carry header meta-data.  This block is always compressed using zlib compression.  Within this specification, any reference to 'zlib' is referring to the <xref target="RFC1950">ZLIB Compressed Data Format Specification Version 3.3 as part of RFC1950.</xref></t>
@@ -1286,7 +1286,7 @@ const unsigned char http2_dictionary_txt[] = {
 <t>When a SYN_STREAM and HEADERS frame which contains an Associated-To-Stream-ID is received, the client must not issue GET requests for the resource in the pushed stream, and instead wait for the pushed stream to arrive.  </t>
 
 <t>If a client receives a server push stream with stream-id 0, it
- MUST issue a <xref target="SessionErrorHandler">session error</xref> with the status code PROTOCOL_ERROR.</t>
+ MUST issue a <xref target="SessionErrorHandler">session error</xref> with the error code PROTOCOL_ERROR.</t>
 
 <t>When a client receives a SYN_STREAM from the server without a the ':host', ':scheme', and ':path' headers in the Name/Value section, it MUST reply with a RST_STREAM with error code HTTP_PROTOCOL_ERROR.</t>
 
