@@ -37,3 +37,8 @@ clean:
 
 %.xhtml: %.xml ../../rfc2629xslt/rfc2629toXHTML.xslt
 	$(saxon) $< ../../rfc2629xslt/rfc2629toXHTML.xslt > $@
+
+# backup issues
+.PHONY: issues
+issues:
+	curl https://api.github.com/repos/http2/http2-spec/issues > issues.json
