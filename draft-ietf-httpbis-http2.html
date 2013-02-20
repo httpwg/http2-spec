@@ -435,7 +435,7 @@ ul.ind li li {
       <link rel="Chapter" title="6 Security Considerations" href="#rfc.section.6">
       <link rel="Chapter" title="7 Privacy Considerations" href="#rfc.section.7">
       <link rel="Chapter" title="8 Acknowledgements" href="#rfc.section.8">
-      <link rel="Chapter" href="#rfc.section.9" title="9 Normative References">
+      <link rel="Chapter" href="#rfc.section.9" title="9 References">
       <link rel="Appendix" title="A Change Log (to be removed by RFC Editor before publication)" href="#rfc.section.A">
       <meta name="generator" content="http://greenbytes.de/tech/webdav/rfc2629.xslt, Revision 1.589, 2012-11-30 14:23:31, XSLT vendor: SAXON 8.9 from Saxonica http://www.saxonica.com/">
       <meta name="keywords" content="HTTP">
@@ -570,7 +570,7 @@ ul.ind li li {
                </li>
                <li><a href="#rfc.section.3.6">3.6</a>&nbsp;&nbsp;&nbsp;<a href="#flowcontrol">Stream Flow Control</a><ul>
                      <li><a href="#rfc.section.3.6.1">3.6.1</a>&nbsp;&nbsp;&nbsp;<a href="#fc-principles">Flow Control Principles</a></li>
-                     <li><a href="#rfc.section.3.6.2">3.6.2</a>&nbsp;&nbsp;&nbsp;<a href="#fc-basic">Basic Flow Control Algorithm</a></li>
+                     <li><a href="#rfc.section.3.6.2">3.6.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.3.6.2">Appropriate Use of Flow Control</a></li>
                   </ul>
                </li>
                <li><a href="#rfc.section.3.7">3.7</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.3.7">Frame Types</a><ul>
@@ -638,7 +638,11 @@ ul.ind li li {
             </ul>
          </li>
          <li><a href="#rfc.section.8">8.</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.8">Acknowledgements</a></li>
-         <li><a href="#rfc.section.9">9.</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.references">Normative References</a></li>
+         <li><a href="#rfc.section.9">9.</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.references">References</a><ul>
+               <li><a href="#rfc.section.9.1">9.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.references.1">Normative References</a></li>
+               <li><a href="#rfc.section.9.2">9.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.references.2">Informative References</a></li>
+            </ul>
+         </li>
          <li><a href="#rfc.authors">Authors' Addresses</a></li>
          <li><a href="#rfc.section.A">A.</a>&nbsp;&nbsp;&nbsp;<a href="#change.log">Change Log (to be removed by RFC Editor before publication)</a><ul>
                <li><a href="#rfc.section.A.1">A.1</a>&nbsp;&nbsp;&nbsp;<a href="#changes.since.draft-ietf-httpbis-http2-01">Since draft-ietf-httpbis-http2-01</a></li>
@@ -1006,19 +1010,29 @@ ul.ind li li {
             by declaring an infinite flow control limit.
          </li>
          <li>HTTP/2.0 standardizes only the format of the window update message (<a href="#WINDOW_UPDATE" title="WINDOW_UPDATE">Section&nbsp;3.7.9</a>). This does not stipulate how a receiver decides when to send this message or the value that it sends. Nor does it specify
-            how a sender chooses to send packets. Implementations are able to select any algorithm that suits their needs. An example
-            flow control algorithm is described in <a href="#fc-basic" title="Basic Flow Control Algorithm">Section&nbsp;3.6.2</a>.
+            how a sender chooses to send packets. Implementations are able to select any algorithm that suits their needs.
          </li>
       </ol>
       <p id="rfc.section.3.6.1.p.3">Implementations are also responsible for managing how requests and responses are sent based on priority; choosing how to avoid
          head of line blocking for requests; and managing the creation of new streams. Algorithm choices for these could interact with
          any flow control algorithm.
       </p>
-      <h3 id="rfc.section.3.6.2"><a href="#rfc.section.3.6.2">3.6.2</a>&nbsp;<a id="fc-basic" href="#fc-basic">Basic Flow Control Algorithm</a></h3>
-      <p id="rfc.section.3.6.2.p.1">This section describes a basic flow control algorithm. This algorithm is provided as an example, implementations can use any
-         algorithm that complies with flow control requirements.
+      <h3 id="rfc.section.3.6.2"><a href="#rfc.section.3.6.2">3.6.2</a>&nbsp;Appropriate Use of Flow Control
+      </h3>
+      <p id="rfc.section.3.6.2.p.1">Flow control is defined to protect deployments (client, server or intermediary) that are operating under constraints. For
+         example, a proxy must share memory between many connections. Flow control addresses cases where the receiver is unable process
+         data on one stream, yet wants to be continue to process other streams.
       </p>
-      <p id="rfc.section.3.6.2.p.2">[[Algorithm TBD]]</p>
+      <p id="rfc.section.3.6.2.p.2">Deployments that do not rely on this capability SHOULD disable flow control for data that is being received. Note that flow
+         control cannot be disabled for sending. Sending data is always subject to the flow control window advertised by the receiver.
+      </p>
+      <p id="rfc.section.3.6.2.p.3">Deployments with constrained resources (for example, memory), MAY employ flow control to limit the amount of memory a peer
+         can consume. This can lead to suboptimal use of available network resources if flow control is enabled without knowledge of
+         the <a href="#RFC1323">bandwidth-delay product</a> <cite title="TCP Extensions for High Performance" id="rfc.xref.RFC1323.1">[RFC1323]</cite>.
+      </p>
+      <p id="rfc.section.3.6.2.p.4">Implementation of flow control in full awareness of the current bandwidth-delay product is difficult, but it can ensure that
+         constrained resources are protected without any reduction in connection utilization.
+      </p>
       <h2 id="rfc.section.3.7"><a href="#rfc.section.3.7">3.7</a>&nbsp;Frame Types
       </h2>
       <h3 id="rfc.section.3.7.1"><a href="#rfc.section.3.7.1">3.7.1</a>&nbsp;<a id="DataFrames" href="#DataFrames">Data Frames</a></h3>
@@ -1212,8 +1226,9 @@ ul.ind li li {
             of time to send a control frame from this client to the remote and receive a response. The value is represented in milliseconds.
          </dd>
          <dt>SETTINGS_MAX_CONCURRENT_STREAMS (4):</dt>
-         <dd>allows the sender to inform the remote endpoint the maximum number of concurrent streams which it will allow. By default there
-            is no limit. For implementors it is recommended that this value be no smaller than 100.
+         <dd>allows the sender to inform the remote endpoint the maximum number of concurrent streams which it will allow. This limit is
+            directional: it applies to the number of streams that the sender permits the receiver to create. By default there is no limit.
+            For implementors it is recommended that this value be no smaller than 100, so as to not unnecessarily limit parallelism.
          </dd>
          <dt>SETTINGS_CURRENT_CWND (5):</dt>
          <dd>allows the sender to inform the remote endpoint of the current TCP CWND value.</dd>
@@ -1795,19 +1810,22 @@ ul.ind li li {
          which a user-agent is in the process of requesting. The following mechanics attempt to prevent the race condition while enabling
          the performance benefit.
       </p>
-      <p id="rfc.section.4.3.p.2">Browsers receiving a pushed response MUST validate that the server is authorized to push the URL using the <a href="#RFC6454">browser same-origin</a> <cite title="The Web Origin Concept" id="rfc.xref.RFC6454.3">[RFC6454]</cite> policy. For example, a HTTP/2.0 connection to www.foo.com is generally not permitted to push a response for www.evil.com.
+      <p id="rfc.section.4.3.p.2">Server push is an optional feature. Server push can be disabled by clients that do not wish to receive pushed resources by
+         advertising a SETTINGS_MAX_CONCURRENT_STREAMS SETTING (<a href="#SETTINGS" title="SETTINGS">Section&nbsp;3.7.5</a>) of zero. This prevents servers from creating the streams necessary to push resources.
       </p>
-      <p id="rfc.section.4.3.p.3">If the browser accepts a pushed response (e.g. it does not send a RST_STREAM), the browser MUST attempt to cache the pushed
+      <p id="rfc.section.4.3.p.3">Browsers receiving a pushed response MUST validate that the server is authorized to push the resource using the <a href="#RFC6454">browser same-origin</a> <cite title="The Web Origin Concept" id="rfc.xref.RFC6454.3">[RFC6454]</cite> policy. For example, a HTTP/2.0 connection to <samp>example.com</samp> is generally not permitted to push a response for <samp>www.example.org</samp>.
+      </p>
+      <p id="rfc.section.4.3.p.4">If the browser accepts a pushed response (e.g. it does not send a RST_STREAM), the browser MUST attempt to cache the pushed
          response in same way that it would cache any other response. This means validating the response headers and inserting into
          the disk cache.
       </p>
-      <p id="rfc.section.4.3.p.4">Because pushed responses have no request, they have no request headers associated with them. At the framing layer, HTTP/2.0
+      <p id="rfc.section.4.3.p.5">Because pushed responses have no request, they have no request headers associated with them. At the framing layer, HTTP/2.0
          pushed streams contain an "associated-stream-id" which indicates the requested stream for which the pushed stream is related.
          The pushed stream inherits all of the headers from the associated-stream-id with the exception of ":host", ":scheme", and
          ":path", which are provided as part of the pushed response stream headers. The browser MUST store these inherited and implied
          request headers with the cached resource.
       </p>
-      <p id="rfc.section.4.3.p.5">Implementation note: With server push, it is theoretically possible for servers to push unreasonable amounts of content or
+      <p id="rfc.section.4.3.p.6">Implementation note: With server push, it is theoretically possible for servers to push unreasonable amounts of content or
          resources to the user-agent. Browsers MUST implement throttles to protect against unreasonable push attacks.
       </p>
       <h3 id="rfc.section.4.3.1"><a href="#rfc.section.4.3.1">4.3.1</a>&nbsp;Server implementation
@@ -2024,8 +2042,10 @@ ul.ind li li {
          <li>William Chan, Salvatore Loreto, Osama Mazahir, Gabriel Montenegro, Jitu Padhye, Roberto Peon, Rob Trace (Flow control)</li>
          <li>Mark Nottingham and Julian Reschke</li>
       </ul>
-      <h1 id="rfc.references"><a href="#rfc.section.9" id="rfc.section.9">9.</a> Normative References
+      <h1 id="rfc.references"><a id="rfc.section.9" href="#rfc.section.9">9.</a> References
       </h1>
+      <h2 id="rfc.references.1"><a href="#rfc.section.9.1" id="rfc.section.9.1">9.1</a> Normative References
+      </h2>
       <table>                            
          <tr>
             <td class="reference"><b id="ASCII">[ASCII]</b></td>
@@ -2097,6 +2117,15 @@ ul.ind li li {
             </td>
          </tr>
       </table>
+      <h2 id="rfc.references.2"><a href="#rfc.section.9.2" id="rfc.section.9.2">9.2</a> Informative References
+      </h2>
+      <table>  
+         <tr>
+            <td class="reference"><b id="RFC1323">[RFC1323]</b></td>
+            <td class="top">Jacobson, V., Braden, B., and D. Borman, “<a href="http://tools.ietf.org/html/rfc1323">TCP Extensions for High Performance</a>”, RFC&nbsp;1323, May&nbsp;1992.
+            </td>
+         </tr>
+      </table>
       <div class="avoidbreak">
          <h1 id="rfc.authors"><a href="#rfc.authors">Authors' Addresses</a></h1>
          <address class="vcard"><span class="vcardline"><span class="fn">Mike Belshe</span><span class="n hidden"><span class="family-name">Belshe</span><span class="given-name">Mike</span></span></span><span class="org vcardline">Twist</span><span class="vcardline">Email: <a href="mailto:mbelshe@chromium.org"><span class="email">mbelshe@chromium.org</span></a></span></address>
@@ -2110,11 +2139,12 @@ ul.ind li li {
       </div>
       <h1 id="rfc.section.A" class="np"><a href="#rfc.section.A">A.</a>&nbsp;<a id="change.log" href="#change.log">Change Log (to be removed by RFC Editor before publication)</a></h1>
       <h2 id="rfc.section.A.1"><a href="#rfc.section.A.1">A.1</a>&nbsp;<a id="changes.since.draft-ietf-httpbis-http2-01" href="#changes.since.draft-ietf-httpbis-http2-01">Since draft-ietf-httpbis-http2-01</a></h2>
-      <p id="rfc.section.A.1.p.1">Added session header section.</p>
-      <p id="rfc.section.A.1.p.2">Restructured frame header. Removed distinction between data and control frames.</p>
-      <p id="rfc.section.A.1.p.3">Altered flow control properties to include session-level limits.</p>
-      <p id="rfc.section.A.1.p.4">Added note on cacheability of pushed resources and multiple tenant servers.</p>
-      <p id="rfc.section.A.1.p.5">Changed protocol label form based on discussions.</p>
+      <p id="rfc.section.A.1.p.1">Added advice against naive implementation of flow control.</p>
+      <p id="rfc.section.A.1.p.2">Added session header section.</p>
+      <p id="rfc.section.A.1.p.3">Restructured frame header. Removed distinction between data and control frames.</p>
+      <p id="rfc.section.A.1.p.4">Altered flow control properties to include session-level limits.</p>
+      <p id="rfc.section.A.1.p.5">Added note on cacheability of pushed resources and multiple tenant servers.</p>
+      <p id="rfc.section.A.1.p.6">Changed protocol label form based on discussions.</p>
       <h2 id="rfc.section.A.2"><a href="#rfc.section.A.2">A.2</a>&nbsp;<a id="changes.since.draft-ietf-httpbis-http2-00" href="#changes.since.draft-ietf-httpbis-http2-00">Since draft-ietf-httpbis-http2-00</a></h2>
       <p id="rfc.section.A.2.p.1">Changed title throughout.</p>
       <p id="rfc.section.A.2.p.2">Removed section on Incompatibilities with SPDY draft#2.</p>
@@ -2135,35 +2165,36 @@ ul.ind li li {
       <div class="print2col">
          <ul class="ind">
             <li><a id="rfc.index.A" href="#rfc.index.A"><b>A</b></a><ul>
-                  <li><em>ASCII</em>&nbsp;&nbsp;<a href="#rfc.xref.ASCII.1">3.7.11</a>, <a href="#ASCII"><b>9</b></a></li>
+                  <li><em>ASCII</em>&nbsp;&nbsp;<a href="#rfc.xref.ASCII.1">3.7.11</a>, <a href="#ASCII"><b>9.1</b></a></li>
                </ul>
             </li>
             <li><a id="rfc.index.H" href="#rfc.index.H"><b>H</b></a><ul>
-                  <li><em>HTTP-p1</em>&nbsp;&nbsp;<a href="#rfc.xref.HTTP-p1.1">1</a>, <a href="#rfc.xref.HTTP-p1.2">2.1</a>, <a href="#HTTP-p1"><b>9</b></a></li>
-                  <li><em>HTTP-p2</em>&nbsp;&nbsp;<a href="#rfc.xref.HTTP-p2.1">2.2</a>, <a href="#HTTP-p2"><b>9</b></a></li>
+                  <li><em>HTTP-p1</em>&nbsp;&nbsp;<a href="#rfc.xref.HTTP-p1.1">1</a>, <a href="#rfc.xref.HTTP-p1.2">2.1</a>, <a href="#HTTP-p1"><b>9.1</b></a></li>
+                  <li><em>HTTP-p2</em>&nbsp;&nbsp;<a href="#rfc.xref.HTTP-p2.1">2.2</a>, <a href="#HTTP-p2"><b>9.1</b></a></li>
                </ul>
             </li>
             <li><a id="rfc.index.R" href="#rfc.index.R"><b>R</b></a><ul>
-                  <li><em>RFC0793</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC0793.1">3.1</a>, <a href="#RFC0793"><b>9</b></a></li>
-                  <li><em>RFC1738</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC1738.1">4.2.1</a>, <a href="#rfc.xref.RFC1738.2">4.2.1</a>, <a href="#RFC1738"><b>9</b></a></li>
-                  <li><em>RFC1950</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC1950.1">3.7.1</a>, <a href="#rfc.xref.RFC1950.2">3.7.11.1</a>, <a href="#RFC1950"><b>9</b></a></li>
-                  <li><em>RFC2119</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC2119.1">1.2</a>, <a href="#RFC2119"><b>9</b></a></li>
-                  <li><em>RFC2616</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC2616.1">4</a>, <a href="#RFC2616"><b>9</b></a></li>
-                  <li><em>RFC2617</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC2617.1">4.2.3</a>, <a href="#RFC2617"><b>9</b></a></li>
-                  <li><em>RFC4559</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC4559.1">4.2.3</a>, <a href="#RFC4559"><b>9</b></a></li>
-                  <li><em>RFC5246</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC5246.1">3.7.10</a>, <a href="#RFC5246"><b>9</b></a><ul>
+                  <li><em>RFC0793</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC0793.1">3.1</a>, <a href="#RFC0793"><b>9.1</b></a></li>
+                  <li><em>RFC1323</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC1323.1">3.6.2</a>, <a href="#RFC1323"><b>9.2</b></a></li>
+                  <li><em>RFC1738</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC1738.1">4.2.1</a>, <a href="#rfc.xref.RFC1738.2">4.2.1</a>, <a href="#RFC1738"><b>9.1</b></a></li>
+                  <li><em>RFC1950</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC1950.1">3.7.1</a>, <a href="#rfc.xref.RFC1950.2">3.7.11.1</a>, <a href="#RFC1950"><b>9.1</b></a></li>
+                  <li><em>RFC2119</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC2119.1">1.2</a>, <a href="#RFC2119"><b>9.1</b></a></li>
+                  <li><em>RFC2616</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC2616.1">4</a>, <a href="#RFC2616"><b>9.1</b></a></li>
+                  <li><em>RFC2617</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC2617.1">4.2.3</a>, <a href="#RFC2617"><b>9.1</b></a></li>
+                  <li><em>RFC4559</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC4559.1">4.2.3</a>, <a href="#RFC4559"><b>9.1</b></a></li>
+                  <li><em>RFC5246</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC5246.1">3.7.10</a>, <a href="#RFC5246"><b>9.1</b></a><ul>
                         <li><em>Section 4.7</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC5246.1">3.7.10</a></li>
                      </ul>
                   </li>
-                  <li><em>RFC6454</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC6454.1">3.7.5</a>, <a href="#rfc.xref.RFC6454.2">4.1</a>, <a href="#rfc.xref.RFC6454.3">4.3</a>, <a href="#rfc.xref.RFC6454.4">6.1</a>, <a href="#RFC6454"><b>9</b></a></li>
+                  <li><em>RFC6454</em>&nbsp;&nbsp;<a href="#rfc.xref.RFC6454.1">3.7.5</a>, <a href="#rfc.xref.RFC6454.2">4.1</a>, <a href="#rfc.xref.RFC6454.3">4.3</a>, <a href="#rfc.xref.RFC6454.4">6.1</a>, <a href="#RFC6454"><b>9.1</b></a></li>
                </ul>
             </li>
             <li><a id="rfc.index.T" href="#rfc.index.T"><b>T</b></a><ul>
-                  <li><em>TLSNPN</em>&nbsp;&nbsp;<a href="#rfc.xref.TLSNPN.1">2.1</a>, <a href="#rfc.xref.TLSNPN.2">2.3</a>, <a href="#TLSNPN"><b>9</b></a></li>
+                  <li><em>TLSNPN</em>&nbsp;&nbsp;<a href="#rfc.xref.TLSNPN.1">2.1</a>, <a href="#rfc.xref.TLSNPN.2">2.3</a>, <a href="#TLSNPN"><b>9.1</b></a></li>
                </ul>
             </li>
             <li><a id="rfc.index.U" href="#rfc.index.U"><b>U</b></a><ul>
-                  <li><em>UDELCOMPRESSION</em>&nbsp;&nbsp;<a href="#rfc.xref.UDELCOMPRESSION.1">3.7.11.1</a>, <a href="#UDELCOMPRESSION"><b>9</b></a></li>
+                  <li><em>UDELCOMPRESSION</em>&nbsp;&nbsp;<a href="#rfc.xref.UDELCOMPRESSION.1">3.7.11.1</a>, <a href="#UDELCOMPRESSION"><b>9.1</b></a></li>
                </ul>
             </li>
          </ul>

@@ -587,8 +587,7 @@ For example:
                 HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window update
                 message</xref>.  This does not stipulate how a receiver decides when to send this message or
                 the value that it sends.  Nor does it specify how a sender chooses to send packets.
-                Implementations are able to select any algorithm that suits their needs.  An example flow
-                control algorithm is described in <xref target="fc-basic"/>.
+                Implementations are able to select any algorithm that suits their needs.
               </t>
             </list>
           </t>
@@ -599,13 +598,28 @@ For example:
           </t>
 
         </section>
-        <section anchor="fc-basic" title="Basic Flow Control Algorithm">
+        <section title="Appropriate Use of Flow Control">
           <t>
-            This section describes a basic flow control algorithm.  This algorithm is provided as an example,
-            implementations can use any algorithm that complies with flow control requirements.
+            Flow control is defined to protect deployments (client, server or intermediary) that are
+            operating under constraints.  For example, a proxy must share memory between many
+            connections.  Flow control addresses cases where the receiver is unable process data on
+            one stream, yet wants to be continue to process other streams.
           </t>
           <t>
-            [[Algorithm TBD]]
+             Deployments that do not rely on this capability SHOULD disable flow control for data
+             that is being received.  Note that flow control cannot be disabled for sending.
+             Sending data is always subject to the flow control window advertised by the receiver.
+          </t>
+          <t>
+            Deployments with constrained resources (for example, memory), MAY employ flow control to
+            limit the amount of memory a peer can consume.  This can lead to suboptimal use of
+            available network resources if flow control is enabled without knowledge of the <xref
+            target="RFC1323">bandwidth-delay product</xref>.
+          </t>
+          <t>
+            Implementation of flow control in full awareness of the current bandwidth-delay product
+            is difficult, but it can ensure that constrained resources are protected without any
+            reduction in connection utilization.
           </t>
         </section>
       </section>
@@ -927,16 +941,26 @@ For example:
           <t>The following settings are defined:
           <list style="hanging">
             <t hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
-              allows the sender to send its expected upload bandwidth on this channel. This number is an estimate. The value should be the integral number of kilobytes per second that the sender predicts as an expected maximum upload channel capacity.
+              allows the sender to send its expected upload bandwidth on this channel. This number
+              is an estimate. The value should be the integral number of kilobytes per second that
+              the sender predicts as an expected maximum upload channel capacity.
             </t>
             <t hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
-              allows the sender to send its expected download bandwidth on this channel. This number is an estimate. The value should be the integral number of kilobytes per second that the sender predicts as an expected maximum download channel capacity.
+              allows the sender to send its expected download bandwidth on this channel. This number
+              is an estimate. The value should be the integral number of kilobytes per second that
+              the sender predicts as an expected maximum download channel capacity.
             </t>
             <t hangText="SETTINGS_ROUND_TRIP_TIME (3):">
-              allows the sender to send its expected round-trip-time on this channel. The round trip time is defined as the minimum amount of time to send a control frame from this client to the remote and receive a response. The value is represented in milliseconds.
+              allows the sender to send its expected round-trip-time on this channel. The round trip
+              time is defined as the minimum amount of time to send a control frame from this client
+              to the remote and receive a response. The value is represented in milliseconds.
             </t>
             <t hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
-              allows the sender to inform the remote endpoint the maximum number of concurrent streams which it will allow. By default there is no limit. For implementors it is recommended that this value be no smaller than 100.
+              allows the sender to inform the remote endpoint the maximum number of concurrent
+              streams which it will allow. This limit is directional: it applies to the number of
+              streams that the sender permits the receiver to create. By default there is no limit.
+              For implementors it is recommended that this value be no smaller than 100, so as to not
+              unnecessarily limit parallelism.
             </t>
             <t hangText="SETTINGS_CURRENT_CWND (5):">
               allows the sender to inform the remote endpoint of the current TCP CWND value.
@@ -1604,9 +1628,30 @@ const unsigned char http2_dictionary_txt[] = {
       </section>
 
       <section title="Server Push Transactions">
-<t>HTTP/2.0 enables a server to send multiple replies to a client for a single request.  The rationale for this feature is that sometimes a server knows that it will need to send multiple resources in response to a single request.  Without server push features, the client must first download the primary resource, then discover the secondary resource(s), and request them.  Pushing of resources avoids the round-trip delay, but also creates a potential race where a server can be pushing content which a user-agent is in the process of requesting.  The following mechanics attempt to prevent the race condition while enabling the performance benefit.</t>
+        <t>
+          HTTP/2.0 enables a server to send multiple replies to a client for a single request.  The
+          rationale for this feature is that sometimes a server knows that it will need to send
+          multiple resources in response to a single request.  Without server push features, the
+          client must first download the primary resource, then discover the secondary resource(s),
+          and request them.  Pushing of resources avoids the round-trip delay, but also creates a
+          potential race where a server can be pushing content which a user-agent is in the process
+          of requesting.  The following mechanics attempt to prevent the race condition while
+          enabling the performance benefit.
+        </t>
 
-<t>Browsers receiving a pushed response MUST validate that the server is authorized to push the URL using the <xref target="RFC6454">browser same-origin</xref> policy.  For example, a HTTP/2.0 connection to www.foo.com is generally not permitted to push a response for www.evil.com.</t>
+        <t>
+          Server push is an optional feature.  Server push can be disabled by clients that do not
+          wish to receive pushed resources by advertising a SETTINGS_MAX_CONCURRENT_STREAMS <xref
+          target="SETTINGS">SETTING</xref> of zero.  This prevents servers from creating the streams
+          necessary to push resources.
+        </t>
+
+        <t>
+          Browsers receiving a pushed response MUST validate that the server is authorized to push
+          the resource using the <xref target="RFC6454">browser same-origin</xref> policy.  For
+          example, a HTTP/2.0 connection to <spanx style="verb">example.com</spanx> is generally not
+          permitted to push a response for <spanx style="verb">www.example.org</spanx>.
+        </t>
 
 <t>If the browser accepts a pushed response (e.g. it does not send a RST_STREAM), the browser MUST attempt to cache the pushed response in same way that it would cache any other response.  This means validating the response headers and inserting into the disk cache.</t>
 
@@ -2016,9 +2061,29 @@ const unsigned char http2_dictionary_txt[] = {
     </reference>
   </references>
 
+  <references title="Informative References">
+    <reference anchor="RFC1323">
+      <front>
+        <title>TCP Extensions for High Performance</title>
+        <author initials='V.' surname='Jacobson' fullname='Van Jacobson'></author>
+        <author initials='B.' surname='Braden' fullname='Bob Braden'></author>
+        <author initials='D.' surname='Borman' fullname='Dave Borman'></author>
+        <date year='1992' month='May' />
+        <abstract>
+          <t>This memo presents a set of TCP extensions to improve performance over large bandwidth*delay product paths and to provide reliable operation over very high-speed paths.  It defines new TCP options for scaled windows and timestamps, which are designed to provide compatible interworking with TCP's that do not implement the extensions.  The timestamps are used for two distinct mechanisms: RTTM (Round Trip Time Measurement) and PAWS (Protect Against Wrapped Sequences).  Selective acknowledgments are not included in this memo.</t>
+      <t>This memo combines and supersedes RFC-1072 and RFC-1185, adding additional clarification and more detailed specification.  Appendix C summarizes the changes from the earlier RFCs.</t></abstract></front>
+
+      <seriesInfo name='RFC' value='1323' />
+      <format type='TXT' octets='84558' target='http://www.rfc-editor.org/rfc/rfc1323.txt' />
+    </reference>
+  </references>
+
   <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
     <section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
+      <t>
+        Added advice against naive implementation of flow control.
+      </t>
       <t>
         Added session header section.
       </t>
