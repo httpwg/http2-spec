@@ -653,10 +653,11 @@ ul.ind li li {
             
             <ul>
                <li><a href="#rfc.figure.1">Figure 1: SYN_STREAM Frame Payload</a></li>
-               <li><a href="#rfc.figure.2">Figure 2: SYN_REPLY Frame Payload</a></li>
-               <li><a href="#rfc.figure.3">Figure 3: RST_STREAM Frame Payload</a></li>
-               <li><a href="#rfc.figure.4">Figure 4: SETTINGS ID/Value Pair</a></li>
-               <li><a href="#rfc.figure.5">Figure 5: CREDENTIAL Frame Payload</a></li>
+               <li><a href="#rfc.figure.2">Figure 2: RST_STREAM Frame Payload</a></li>
+               <li><a href="#rfc.figure.3">Figure 3: SETTINGS ID/Value Pair</a></li>
+               <li><a href="#rfc.figure.4">Figure 4: CREDENTIAL Frame Payload</a></li>
+               <li><a href="#rfc.figure.5">Figure 5: Format of Name/Value Header Block</a></li>
+               <li><a href="#rfc.figure.6">Figure 6: Name/Value Pair Format</a></li>
             </ul>
          </li>
       </ul>
@@ -1027,8 +1028,8 @@ ul.ind li li {
       <p id="rfc.section.3.7.1.p.2">Valid flags for data frames are: </p>
       <dl>
          <dt>FINAL (0x1):</dt>
-         <dd>Bit 1 (the least significant flag bit) being set signifies that this frame is the last data frame to be transmitted on this
-            stream (see Stream Close (<a href="#StreamClose" title="Stream close">Section&nbsp;3.4.7</a>)).
+         <dd>Bit 1 (the least significant flag bit) being set signifies that this frame is the last frame to be transmitted on this stream
+            (see Stream Close (<a href="#StreamClose" title="Stream close">Section&nbsp;3.4.7</a>)).
          </dd>
          <dt>COMPRESSED (0x2):</dt>
          <dd>Bit 2 being set indicates that the data in the frame has been compressed with <a href="#RFC1950">ZLIB compression</a> <cite title="ZLIB Compressed Data Format Specification version 3.3" id="rfc.xref.RFC1950.1">[RFC1950]</cite>.
@@ -1067,18 +1068,18 @@ ul.ind li li {
 </pre> <p class="figure">Figure 1: SYN_STREAM Frame Payload</p>
       <p id="rfc.section.3.7.2.p.3">Valid flags for the SYN_STREAM frame are: </p>
       <dl>
-         <dt>FINAL:</dt>
+         <dt>FINAL (0x1):</dt>
          <dd>Bit 1 (the least significant bit) being set marks this frame as the last frame to be transmitted on this stream and puts the
             sender in the half-closed (<a href="#StreamHalfClose" title="Stream half-close">Section&nbsp;3.4.6</a>) state.
          </dd>
-         <dt>UNIDIRECTIONAL:</dt>
+         <dt>UNIDIRECTIONAL (0x2):</dt>
          <dd>Bit 2 being set marks this stream as unidirectional. The stream creator is the only peer that can send on the stream. This
             flag being set puts the recipient in the half-closed (<a href="#StreamHalfClose" title="Stream half-close">Section&nbsp;3.4.6</a>) state.
          </dd>
       </dl>
       <p id="rfc.section.3.7.2.p.4">The identifier field in the frame header MUST contain an unused stream identifier, see <a href="#StreamCreation" title="Stream creation">Section&nbsp;3.4.2</a>.
       </p>
-      <p id="rfc.section.3.7.2.p.5">The SYN_STREAM body contains the following fields: </p>
+      <p id="rfc.section.3.7.2.p.5">The SYN_STREAM payload contains the following fields: </p>
       <dl>
          <dd>Associated-To-Stream-ID: The 31-bit identifier for a stream which this stream is associated to. If this stream is independent
             of all other streams, it should be 0. [[ED: This will be moved to the push promise.]]
@@ -1094,44 +1095,31 @@ ul.ind li li {
       </dl>
       <h3 id="rfc.section.3.7.3"><a href="#rfc.section.3.7.3">3.7.3</a>&nbsp;<a id="SYN_REPLY" href="#SYN_REPLY">SYN_REPLY</a></h3>
       <p id="rfc.section.3.7.3.p.1">The SYN_REPLY frame (type=2) indicates the acceptance of a stream creation by the recipient of a SYN_STREAM frame.</p>
-      <div id="rfc.figure.2"></div> <pre>+------------------------------------+
-| Number of Name/Value pairs (int32) |   &lt;+
-+------------------------------------+    |
-|     Length of name (int32)         |    | This section is the
-+------------------------------------+    | "Name/Value Header
-|           Name (string)            |    | Block", and is
-+------------------------------------+    | compressed.
-|     Length of value  (int32)       |    |
-+------------------------------------+    |
-|          Value   (string)          |    |
-+------------------------------------+    |
-|           (repeats)                |   &lt;+
-            </pre> <p class="figure">Figure 2: SYN_REPLY Frame Payload</p>
-      <p id="rfc.section.3.7.3.p.3">Valid flags for the SYN_REPLY frame are: </p>
+      <p id="rfc.section.3.7.3.p.2">Valid flags for the SYN_REPLY frame are: </p>
       <dl>
-         <dt>FINAL:</dt>
+         <dt>FINAL (0x1):</dt>
          <dd>Bit 1 (the least significant bit) being set marks this frame as the last frame to be transmitted on this stream and puts the
             sender in the half-closed (<a href="#StreamHalfClose" title="Stream half-close">Section&nbsp;3.4.6</a>) state.
          </dd>
       </dl>
-      <p id="rfc.section.3.7.3.p.4">The identifier field in the frame header MUST contain the stream identifier that was included in the corresponding SYN_STREAM,
+      <p id="rfc.section.3.7.3.p.3">The identifier field in the frame header MUST contain the stream identifier that was included in the corresponding SYN_STREAM,
          see <a href="#StreamCreation" title="Stream creation">Section&nbsp;3.4.2</a>.
       </p>
-      <p id="rfc.section.3.7.3.p.5">If an endpoint receives multiple SYN_REPLY frames for the same active stream ID, it MUST issue a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code STREAM_IN_USE.
+      <p id="rfc.section.3.7.3.p.4">If an endpoint receives multiple SYN_REPLY frames for the same active stream ID, it MUST issue a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code STREAM_IN_USE.
       </p>
-      <p id="rfc.section.3.7.3.p.6">The body of a SYN_REPLY contains a Name/Value Header Block, which is the set of name/value pairs carried as part of the SYN_REPLY. see Name/Value Header Block (<a href="#HeaderBlock" title="Name/Value Header Block">Section&nbsp;3.7.11</a>).
+      <p id="rfc.section.3.7.3.p.5">The body of a SYN_REPLY contains a Name/Value Header Block, which is the set of name/value pairs carried as part of the SYN_REPLY. see Name/Value Header Block (<a href="#HeaderBlock" title="Name/Value Header Block">Section&nbsp;3.7.11</a>).
       </p>
       <h3 id="rfc.section.3.7.4"><a href="#rfc.section.3.7.4">3.7.4</a>&nbsp;<a id="RST_STREAM" href="#RST_STREAM">RST_STREAM</a></h3>
       <p id="rfc.section.3.7.4.p.1">The RST_STREAM frame (type=3) allows for abnormal termination of a stream. When sent by the creator of a stream, it indicates
          the creator wishes to cancel the stream. When sent by the recipient of a stream, it indicates an error or that the recipient
          did not want to accept the stream, so the stream should be closed.
       </p>
-      <div id="rfc.figure.3"></div> <pre> 0                   1                   2                   3
+      <div id="rfc.figure.2"></div> <pre> 0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                         Error Code (32)                       |
 +---------------------------------------------------------------+
-            </pre> <p class="figure">Figure 3: RST_STREAM Frame Payload</p>
+            </pre> <p class="figure">Figure 2: RST_STREAM Frame Payload</p>
       <p id="rfc.section.3.7.4.p.3">The RST_STREAM frame does not define any valid flags.</p>
       <p id="rfc.section.3.7.4.p.4">The identifier field in the frame header MUST contain the stream identifier for an open stream.</p>
       <p id="rfc.section.3.7.4.p.5">The RST_STREAM frame contains a single 32-bit error code. The error code indicates why the stream is being terminated. The
@@ -1181,24 +1169,24 @@ ul.ind li li {
       <p id="rfc.section.3.7.5.p.6">SETTINGS frames always apply to a session, never a single stream. The identifier field in the frame header carries a count
          of the number of settings contained in the payload. [[ED: this seems totally unnecessary.]]
       </p>
-      <div id="rfc.figure.4"></div> <pre> 0                   1                   2                   3
+      <div id="rfc.figure.3"></div> <pre> 0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |SettingFlags(8)|             Setting Identifier (24)           |
 +---------------+-----------------------------------------------+
 |                        Value (32)                             |
 +---------------------------------------------------------------+
-</pre> <p class="figure">Figure 4: SETTINGS ID/Value Pair</p>
+</pre> <p class="figure">Figure 3: SETTINGS ID/Value Pair</p>
       <p id="rfc.section.3.7.5.p.8">The payload of a SETTINGS frame contains zero or more settings. Each setting is comprised of the following </p>
       <dl>
          <dt>Settings Flags:</dt>
          <dd>An 8-bit flags field containing per-setting instructions. The following flags are valid: 
             <dl>
-               <dt>PERSIST_VALUE (0x1)</dt>
+               <dt>PERSIST_VALUE (0x1):</dt>
                <dd>Bit 1 (the least significant bit) being set indicates a request from the server to the client to persist this setting. A client
                   MUST NOT set this flag.
                </dd>
-               <dt>PERSISTED (0x2)</dt>
+               <dt>PERSISTED (0x2):</dt>
                <dd>Bit 2 being set indicates that this setting is a persisted setting being returned by the client to the server. This also indicates
                   that this setting is not a client setting, but a value previously set by the server. A server MUST NOT set this flag.
                </dd>
@@ -1386,7 +1374,7 @@ ul.ind li li {
          + client certificate request comes in, the browser is unable to determine which resource triggered the client certificate
          request, in order to prompt the user accordingly.
       </p>
-      <div id="rfc.figure.5"></div> <pre>+----------------------------------+
+      <div id="rfc.figure.4"></div> <pre>+----------------------------------+
 |  Slot (16 bits) |                |
 +-----------------+                |
 |      Proof Length (32 bits)      |
@@ -1397,7 +1385,7 @@ ul.ind li li {
 +----------------------------------+  | Repeated until end of frame
 |            Certificate           |  |
 +----------------------------------+ &lt;+
-            </pre> <p class="figure">Figure 5: CREDENTIAL Frame Payload</p>
+            </pre> <p class="figure">Figure 4: CREDENTIAL Frame Payload</p>
       <p id="rfc.section.3.7.10.p.5">Slot: The index in the server's client certificate vector where this certificate should be stored. If there is already a certificate
          stored at this index, it will be overwritten. The index is one based, not zero based; zero is an invalid slot index.
       </p>
@@ -1421,20 +1409,28 @@ ul.ind li li {
       <p id="rfc.section.3.7.10.p.9">If the server receives an invalid CREDENTIAL frame, it MUST respond with a GOAWAY frame and shutdown the session.</p>
       <h3 id="rfc.section.3.7.11"><a href="#rfc.section.3.7.11">3.7.11</a>&nbsp;<a id="HeaderBlock" href="#HeaderBlock">Name/Value Header Block</a></h3>
       <p id="rfc.section.3.7.11.p.1">The Name/Value Header Block is found in the SYN_STREAM, SYN_REPLY and HEADERS frames, and shares a common format:</p>
-      <div id="rfc.figure.u.5"></div> <pre>+------------------------------------+
-| Number of Name/Value pairs (int32) |
-+------------------------------------+
-|     Length of name (int32)         |
-+------------------------------------+
-|           Name (string)            |
-+------------------------------------+
-|     Length of value  (int32)       |
-+------------------------------------+
-|          Value   (string)          |
-+------------------------------------+
-|           (repeats)                |
-            </pre> <p id="rfc.section.3.7.11.p.3">Number of Name/Value pairs: The number of repeating name/value pairs following this field.</p>
-      <p id="rfc.section.3.7.11.p.4">List of Name/Value pairs: </p>
+      <div id="rfc.figure.5"></div> <pre> 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                Number of Name/Value Pairs (32)                |
++---------------------------------------------------------------+
+|                      Name/Value Pairs (*)                   ...
++---------------------------------------------------------------+
+</pre> <p class="figure">Figure 5: Format of Name/Value Header Block</p>
+      <p id="rfc.section.3.7.11.p.3">Number of Name/Value pairs: The number of repeating name/value pairs following this field. [[ED: this field is not necessary]]</p>
+      <div id="rfc.figure.6"></div> <pre> 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                       Length of Name (32)                     |
++---------------------------------------------------------------+
+|                            Name (*)                         ...
++---------------------------------------------------------------+
+|                       Length of Value (32)                    |
++---------------------------------------------------------------+
+|                            Value (*)                        ...
++---------------------------------------------------------------+
+</pre> <p class="figure">Figure 6: Name/Value Pair Format</p>
+      <p id="rfc.section.3.7.11.p.5">Each Name/Value pair consists of: </p>
       <ul class="empty">
          <li>Length of Name: a 32-bit value containing the number of octets in the name field. Note that in practice, this length must
             not exceed 2^24, as that is the maximum size of a HTTP/2.0 frame.
@@ -1445,10 +1441,10 @@ ul.ind li li {
          </li>
          <li>Value: 0 or more octets, 8-bit sequences of data, excluding 0.</li>
       </ul>
-      <p id="rfc.section.3.7.11.p.5">Each header name must have at least one value. Header names are encoded using the <a href="#ASCII">US-ASCII character set</a> <cite title="US-ASCII. Coded Character Set - 7-Bit American Standard Code for Information Interchange. Standard ANSI X3.4-1986, ANSI, 1986." id="rfc.xref.ASCII.1">[ASCII]</cite> and must be all lower case. The length of each name must be greater than zero. A recipient of a zero-length name MUST issue
+      <p id="rfc.section.3.7.11.p.6">Each header name must have at least one value. Header names are encoded using the <a href="#ASCII">US-ASCII character set</a> <cite title="US-ASCII. Coded Character Set - 7-Bit American Standard Code for Information Interchange. Standard ANSI X3.4-1986, ANSI, 1986." id="rfc.xref.ASCII.1">[ASCII]</cite> and must be all lower case. The length of each name must be greater than zero. A recipient of a zero-length name MUST issue
          a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code PROTOCOL_ERROR for the stream-id.
       </p>
-      <p id="rfc.section.3.7.11.p.6">Duplicate header names are not allowed. To send two identically named headers, send a header with two values, where the values
+      <p id="rfc.section.3.7.11.p.7">Duplicate header names are not allowed. To send two identically named headers, send a header with two values, where the values
          are separated by a single NUL (0) byte. A header value can either be empty (e.g. the length is zero) or it can contain multiple,
          NUL-separated values, each with length greater than zero. The value never starts nor ends with a NUL character. Recipients
          of illegal value fields MUST issue a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code PROTOCOL_ERROR for the stream-id.
@@ -1459,7 +1455,7 @@ ul.ind li li {
          the <a href="#RFC1950">ZLIB Compressed Data Format Specification Version 3.3 as part of RFC1950.</a> <cite title="ZLIB Compressed Data Format Specification version 3.3" id="rfc.xref.RFC1950.2">[RFC1950]</cite></p>
       <p id="rfc.section.3.7.11.1.p.2">For each HEADERS compression instance, the initial state is initialized using the following <a href="#UDELCOMPRESSION">dictionary</a> <cite title="A Methodology to Derive SPDY's Initial Dictionary for Zlib Compression" id="rfc.xref.UDELCOMPRESSION.1">[UDELCOMPRESSION]</cite>:
       </p>
-      <div id="rfc.figure.u.6"></div> <pre class="ccmarker cct"><span>&lt;CODE BEGINS&gt;</span></pre><pre class="text">const unsigned char http2_dictionary_txt[] = {
+      <div id="rfc.figure.u.5"></div> <pre class="ccmarker cct"><span>&lt;CODE BEGINS&gt;</span></pre><pre class="text">const unsigned char http2_dictionary_txt[] = {
   0x00, 0x00, 0x00, 0x07, 0x6f, 0x70, 0x74, 0x69,  \\ - - - - o p t i
   0x6f, 0x6e, 0x73, 0x00, 0x00, 0x00, 0x04, 0x68,  \\ o n s - - - - h
   0x65, 0x61, 0x64, 0x00, 0x00, 0x00, 0x04, 0x70,  \\ e a d - - - - p
@@ -2114,10 +2110,11 @@ ul.ind li li {
       </div>
       <h1 id="rfc.section.A" class="np"><a href="#rfc.section.A">A.</a>&nbsp;<a id="change.log" href="#change.log">Change Log (to be removed by RFC Editor before publication)</a></h1>
       <h2 id="rfc.section.A.1"><a href="#rfc.section.A.1">A.1</a>&nbsp;<a id="changes.since.draft-ietf-httpbis-http2-01" href="#changes.since.draft-ietf-httpbis-http2-01">Since draft-ietf-httpbis-http2-01</a></h2>
-      <p id="rfc.section.A.1.p.1">Removed per-frame version field.</p>
-      <p id="rfc.section.A.1.p.2">Altered flow control properties to include session-level limits.</p>
-      <p id="rfc.section.A.1.p.3">Added note on cacheability of pushed resources and multiple tenant servers.</p>
-      <p id="rfc.section.A.1.p.4">Changed protocol label form based on discussions.</p>
+      <p id="rfc.section.A.1.p.1">Added session header section.</p>
+      <p id="rfc.section.A.1.p.2">Restructured frame header. Removed distinction between data and control frames.</p>
+      <p id="rfc.section.A.1.p.3">Altered flow control properties to include session-level limits.</p>
+      <p id="rfc.section.A.1.p.4">Added note on cacheability of pushed resources and multiple tenant servers.</p>
+      <p id="rfc.section.A.1.p.5">Changed protocol label form based on discussions.</p>
       <h2 id="rfc.section.A.2"><a href="#rfc.section.A.2">A.2</a>&nbsp;<a id="changes.since.draft-ietf-httpbis-http2-00" href="#changes.since.draft-ietf-httpbis-http2-00">Since draft-ietf-httpbis-http2-00</a></h2>
       <p id="rfc.section.A.2.p.1">Changed title throughout.</p>
       <p id="rfc.section.A.2.p.2">Removed section on Incompatibilities with SPDY draft#2.</p>
