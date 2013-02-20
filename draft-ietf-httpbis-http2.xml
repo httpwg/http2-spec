@@ -62,253 +62,274 @@
     <workgroup>HTTPbis Working Group</workgroup>
     <keyword>HTTP</keyword>
 
-<abstract>
-  <t>
-    This document describes an optimised expression of the semantics of the HTTP protocol.  The
-    HTTP/2.0 encapsulation enables more efficient transfer of resources over HTTP by providing
-    compressed headers, simultaneous requests, and unsolicited push of resources from server to
-    client.
-  </t>
-  <t>
-    This document is an alternative to, but does not obsolete RFC{http-p1}.  The HTTP protocol
-    semantics described in RFC{http-p2..p7} are unmodified.
-  </t>
-</abstract>
+    <abstract>
+      <t>
+        This document describes an optimised expression of the semantics of the HTTP protocol.  The
+        HTTP/2.0 encapsulation enables more efficient transfer of resources over HTTP by providing
+        compressed headers, simultaneous requests, and unsolicited push of resources from server to
+        client.
+      </t>
+      <t>
+        This document is an alternative to, but does not obsolete RFC{http-p1}.  The HTTP protocol
+        semantics described in RFC{http-p2..p7} are unmodified.
+      </t>
+    </abstract>
 
-<note title="Editorial Note (To be removed by RFC Editor)">
-  <t>
-    This draft is a work-in-progress, and does not yet reflect Working Group
-    consensus.
-  </t>
-  <t>
-    This draft contains features from the SPDY Protocol as a starting point, as per the Working
-    Group's charter. Future drafts will add, remove and change text, based upon the Working Group's
-    decisions.
-  </t>
-  <t>
-    Discussion of this draft takes place on the HTTPBIS working group
-    mailing list (ietf-http-wg@w3.org), which is archived at
-    <eref target="http://lists.w3.org/Archives/Public/ietf-http-wg/"/>.
-  </t>
-  <t>
-    The current issues list is at
-    <eref target="http://tools.ietf.org/wg/httpbis/trac/report/21"/> and related
-    documents (including fancy diffs) can be found at
-    <eref target="http://tools.ietf.org/wg/httpbis/"/>.
-  </t>
-  <t>
-    The changes in this draft are summarized in <xref target="changes.since.draft-ietf-httpbis-http2-01"/>.
-  </t>
-</note>
+    <note title="Editorial Note (To be removed by RFC Editor)">
+      <t>
+        This draft is a work-in-progress, and does not yet reflect Working Group
+        consensus.
+      </t>
+      <t>
+        This draft contains features from the SPDY Protocol as a starting point, as per the Working
+        Group's charter. Future drafts will add, remove and change text, based upon the Working
+        Group's decisions.
+      </t>
+      <t>
+        Discussion of this draft takes place on the HTTPBIS working group
+        mailing list (ietf-http-wg@w3.org), which is archived at
+        <eref target="http://lists.w3.org/Archives/Public/ietf-http-wg/"/>.
+      </t>
+      <t>
+        The current issues list is at <eref
+        target="http://tools.ietf.org/wg/httpbis/trac/report/21"/> and related documents (including
+        fancy diffs) can be found at <eref target="http://tools.ietf.org/wg/httpbis/"/>.
+      </t>
+      <t>
+        The changes in this draft are summarized in <xref
+        target="changes.since.draft-ietf-httpbis-http2-01"/>.
+      </t>
+    </note>
 
   </front>
 
   <middle>
     <section anchor="intro" title="Introduction">
-<t>
-  HTTP is a wildly successful protocol.  <xref target="HTTP-p1">HTTP/1.1
-  message encapsulation</xref> is optimized for implementation simplicity and accessibility, not
-  application performance.  As such it has several characteristics that have a negative overall
-  effect on application performance.
-</t>
-<t>
-  The HTTP/1.1 encapsulation ensures that only one request can be delivered at a time on a given
-  connection.  HTTP/1.1 pipelining, which is not widely deployed, only partially addresses these
-  concerns.  Clients that need to make multiple requests therefore use commonly multiple connections
-  to a server or servers in order to reduce the overall latency of those requests.
-</t>
-<t>
-  Furthermore, HTTP/1.1 headers are represented in an inefficient fashion, which, in addition to
-  generating more or larger network packets, can cause the small initial TCP window to fill more
-  quickly than is ideal.  This results in excessive latency where multiple requests are made on a
-  new TCP connection.
-</t>
-<t>
-  This document defines an optimized mapping of the HTTP semantics to a TCP connection.  This
-  optimization reduces the latency costs of HTTP by allowing parallel requests on the same
-  connection and by using an efficient coding for HTTP headers.  Prioritization of requests lets
-  more important requests complete faster, further improving application performance.
-</t>
-<t>
-  HTTP/2.0 applications have an improved impact on network congestion due to the use of fewer TCP
-  connections to achieve the same effect.  Fewer TCP connections compete more fairly with other
-  flows.  Long-lived connections are also more able to take better advantage of the available
-  network capacity, rather than operating in the slow start phase of TCP.
-</t>
-<t>
-  The HTTP/2.0 encapsulation also enables more efficient processing of messages by providing
-  efficient message framing.  Processing of headers in HTTP/2.0 messages is more efficient (for
-  entities that process many messages).
-</t>
+      <t>
+        HTTP is a wildly successful protocol.  <xref target="HTTP-p1">HTTP/1.1 message
+        encapsulation</xref> is optimized for implementation simplicity and accessibility, not
+        application performance.  As such it has several characteristics that have a negative
+        overall effect on application performance.
+      </t>
+      <t>
+        The HTTP/1.1 encapsulation ensures that only one request can be delivered at a time on a
+        given connection.  HTTP/1.1 pipelining, which is not widely deployed, only partially
+        addresses these concerns.  Clients that need to make multiple requests therefore use
+        commonly multiple connections to a server or servers in order to reduce the overall latency
+        of those requests.
+      </t>
+      <t>
+        Furthermore, HTTP/1.1 headers are represented in an inefficient fashion, which, in addition
+        to generating more or larger network packets, can cause the small initial TCP window to fill
+        more quickly than is ideal.  This results in excessive latency where multiple requests are
+        made on a new TCP connection.
+      </t>
+      <t>
+        This document defines an optimized mapping of the HTTP semantics to a TCP connection.  This
+        optimization reduces the latency costs of HTTP by allowing parallel requests on the same
+        connection and by using an efficient coding for HTTP headers.  Prioritization of requests
+        lets more important requests complete faster, further improving application performance.
+      </t>
+      <t>
+        HTTP/2.0 applications have an improved impact on network congestion due to the use of fewer
+        TCP connections to achieve the same effect.  Fewer TCP connections compete more fairly with
+        other flows.  Long-lived connections are also more able to take better advantage of the
+        available network capacity, rather than operating in the slow start phase of TCP.
+      </t>
+      <t>
+        The HTTP/2.0 encapsulation also enables more efficient processing of messages by providing
+        efficient message framing.  Processing of headers in HTTP/2.0 messages is more efficient
+        (for entities that process many messages).
+      </t>
 
-<section title="Document Organization">
-  <t>
-    The HTTP/2.0 Specification is split into three parts: <xref target="starting">starting HTTP/2.0</xref>, which covers how a HTTP/2.0 is started; <xref target="FramingLayer">a framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed frames; and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism for overlaying HTTP request/response pairs on top of the framing layer. While some of the framing layer concepts are isolated from the HTTP layer, building a generic framing layer has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and server push.
-  </t>
-</section>
-<section title="Conventions and Terminology">
-  <t>
-    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT",
-    "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in
-    <xref target="RFC2119">RFC 2119</xref>.
-  </t>
-  <t>
-    All numeric values are in network byte order.  Values are unsigned unless otherwise indicated.  Literal values are provided in decimal or hexadecimal as appropriate.  Hexadecimal literals are prefixed with <spanx style="verb">0x</spanx> to distinguish them from decimal literals.  
-  </t>
-  <t>
-    The following terms are used:
-    <list style="hanging">
-      <t hangText="client:">
-        The endpoint initiating the HTTP/2.0 session.
-      </t>
-      <t hangText="connection:">
-        A transport-level connection between two endpoints.
-      </t>
-      <t hangText="endpoint:">
-        Either the client or server of a connection.
-      </t>
-      <t hangText="frame:">
-        The smallest unit of communication, each containing a frame header.
-      </t>
-      <t hangText="message:">
-        A complete sequence of frames.
-      </t>
-      <t hangText="receiver:">
-        An endpoint that is receiving frames.
-      </t>
-      <t hangText="sender:">
-        An endpoint that is transmitting frames.
-      </t>
-      <t hangText="server:">
-        The endpoint which did not initiate the HTTP/2.0 session.
-      </t>
-      <t hangText="session:">
-        A synonym for a connection.
-      </t>
-      <t hangText="session error:">
-        An error on the HTTP/2.0 session.
-      </t>
-      <t hangText="stream:">
-        A bi-directional flow of bytes across a virtual channel within a HTTP/2.0 session.
-      </t>
-      <t hangText="stream error:">
-        An error on an individual HTTP/2.0 stream.
-      </t>
-    </list>
-  </t>
-</section>
+      <section title="Document Organization">
+        <t>
+          The HTTP/2.0 Specification is split into three parts: <xref target="starting">starting
+          HTTP/2.0</xref>, which covers how a HTTP/2.0 is started; <xref target="FramingLayer">a
+          framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed
+          frames; and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism
+          for overlaying HTTP request/response pairs on top of the framing layer. While some of the
+          framing layer concepts are isolated from the HTTP layer, building a generic framing layer
+          has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and
+          server push.
+        </t>
+      </section>
+      <section title="Conventions and Terminology">
+        <t>
+          The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD
+          NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as
+          described in <xref target="RFC2119">RFC 2119</xref>.
+        </t>
+        <t>
+          All numeric values are in network byte order.  Values are unsigned unless otherwise
+          indicated.  Literal values are provided in decimal or hexadecimal as appropriate.
+          Hexadecimal literals are prefixed with <spanx style="verb">0x</spanx> to distinguish them
+          from decimal literals.
+        </t>
+        <t>
+          The following terms are used:
+          <list style="hanging">
+            <t hangText="client:">
+              The endpoint initiating the HTTP/2.0 session.
+            </t>
+            <t hangText="connection:">
+              A transport-level connection between two endpoints.
+            </t>
+            <t hangText="endpoint:">
+              Either the client or server of a connection.
+            </t>
+            <t hangText="frame:">
+              The smallest unit of communication, each containing a frame header.
+            </t>
+            <t hangText="message:">
+              A complete sequence of frames.
+            </t>
+            <t hangText="receiver:">
+              An endpoint that is receiving frames.
+            </t>
+            <t hangText="sender:">
+              An endpoint that is transmitting frames.
+            </t>
+            <t hangText="server:">
+              The endpoint which did not initiate the HTTP/2.0 session.
+            </t>
+            <t hangText="session:">
+              A synonym for a connection.
+            </t>
+            <t hangText="session error:">
+              An error on the HTTP/2.0 session.
+            </t>
+            <t hangText="stream:">
+              A bi-directional flow of bytes across a virtual channel within a HTTP/2.0 session.
+            </t>
+            <t hangText="stream error:">
+              An error on an individual HTTP/2.0 stream.
+            </t>
+          </list>
+        </t>
+      </section>
     </section>
 
-<section anchor="starting" title="Starting HTTP/2.0">
-<t>
-  Just as HTTP/1.1 does, HTTP/2.0 uses the "http:" and "https:" URI schemes.  An HTTP/2.0-capable
-  client is therefore required to discover whether a server (or intermediary) supports HTTP/2.0.
-</t>
-<t>
-  Different discovery mechanisms are defined for "http:" and "https:" URIs.  Discovery for "http:"
-  URIs is described in <xref target="discover-http"/>; discovery for "https:" URIs is described in
-  <xref target="discover-https"/>.
-</t>
+    <section anchor="starting" title="Starting HTTP/2.0">
+      <t>
+        Just as HTTP/1.1 does, HTTP/2.0 uses the "http:" and "https:" URI schemes.  An
+        HTTP/2.0-capable client is therefore required to discover whether a server (or intermediary)
+        supports HTTP/2.0.
+      </t>
+      <t>
+        Different discovery mechanisms are defined for "http:" and "https:" URIs.  Discovery for
+        "http:" URIs is described in <xref target="discover-http"/>; discovery for "https:" URIs is
+        described in <xref target="discover-https"/>.
+      </t>
 
-<section anchor="versioning" title="HTTP/2.0 Version Identification">
-<t>
-  HTTP/2.0 is identified using the string "HTTP/2.0".  This identification is used in the
-  HTTP/1.1 Upgrade header, in the <xref target="TLSNPN">TLS-NPN</xref> [[TBD]] field and other
-  places where protocol identification is required.
-</t>
-<t>
-  Negotiating "HTTP/2.0" implies the use of the transport, security, framing and message semantics
-  described in this document.
-</t>
-<t>
-  [[Editor's Note: please remove the following text prior to the publication of a final version of
-  this document.]]
-</t>
-<t>
-  Only implementations of the final, published RFC can identify themselves as "HTTP/2.0".  Until
-  such an RFC exists, implementations MUST NOT identify themselves using "HTTP/2.0".
-</t>
-<t>
-  Examples and text throughout the rest of this document use "HTTP/2.0" as a matter of editorial
-  convenience only.  Implementations of draft versions MUST NOT identify using this string.
-</t>
-<t>
-  Implementations of draft versions of the protocol MUST add the string "-draft-" and the
-  corresponding draft number to the identifier before the separator ('/').  For example,
-  draft-ietf-httpbis-http2-03 is identified using the string "HTTP-draft-03/2.0".
-</t>
-<t>
-  Non-compatible experiments that are based on these draft versions MUST instead replace the string
-  "draft" with a different identifier.  For example, an experimental implementation of packet
-  mood-based encoding based on draft-ietf-httpbis-http2-07 might identify itself as
-  "HTTP-emo-07/2.0".  Note that any label MUST conform with the "token" syntax defined in
-  Section 3.2.4 of <xref target="HTTP-p1"/>.  Experimenters are encouraged to coordinate their
-  experiments on the ietf-http-wg@w3.org mailing list.
-</t>
-</section>
-<section anchor="discover-http" title="Starting HTTP/2.0 for &quot;http:&quot; URIs">
-<t>
-  A client that makes a request to an "http:" URI without prior knowledge about support for HTTP/2.0
-  uses the HTTP Upgrade mechanism <xref target="HTTP-p2"/>.  The client makes an HTTP/1.1 request
-  that includes an Upgrade header field identifying HTTP/2.0.
-</t>
-<t>
-For example:
-</t>
-<figure><artwork><![CDATA[
+      <section anchor="versioning" title="HTTP/2.0 Version Identification">
+        <t>
+          HTTP/2.0 is identified using the string "HTTP/2.0".  This identification is used in the
+          HTTP/1.1 Upgrade header, in the <xref target="TLSNPN">TLS-NPN</xref> [[TBD]] field and
+          other places where protocol identification is required.
+        </t>
+        <t>
+          Negotiating "HTTP/2.0" implies the use of the transport, security, framing and message
+          semantics described in this document.
+        </t>
+        <t>
+          [[Editor's Note: please remove the following text prior to the publication of a final
+          version of this document.]]
+        </t>
+        <t>
+          Only implementations of the final, published RFC can identify themselves as "HTTP/2.0".
+          Until such an RFC exists, implementations MUST NOT identify themselves using "HTTP/2.0".
+        </t>
+        <t>
+          Examples and text throughout the rest of this document use "HTTP/2.0" as a matter of
+          editorial convenience only.  Implementations of draft versions MUST NOT identify using
+          this string.
+        </t>
+        <t>
+          Implementations of draft versions of the protocol MUST add the string "-draft-" and the
+          corresponding draft number to the identifier before the separator ('/').  For example,
+          draft-ietf-httpbis-http2-03 is identified using the string "HTTP-draft-03/2.0".
+        </t>
+        <t>
+          Non-compatible experiments that are based on these draft versions MUST instead replace the
+          string "draft" with a different identifier.  For example, an experimental implementation
+          of packet mood-based encoding based on draft-ietf-httpbis-http2-07 might identify itself
+          as "HTTP-emo-07/2.0".  Note that any label MUST conform with the "token" syntax defined in
+          Section 3.2.4 of <xref target="HTTP-p1"/>.  Experimenters are encouraged to coordinate
+          their experiments on the ietf-http-wg@w3.org mailing list.
+        </t>
+      </section>
+      <section anchor="discover-http" title="Starting HTTP/2.0 for &quot;http:&quot; URIs">
+        <t>
+          A client that makes a request to an "http:" URI without prior knowledge about support for
+          HTTP/2.0 uses the HTTP Upgrade mechanism <xref target="HTTP-p2"/>.  The client makes an
+          HTTP/1.1 request that includes an Upgrade header field identifying HTTP/2.0.
+        </t>
+        <t>
+          For example:
+        </t>
+        <figure>
+          <artwork><![CDATA[
    GET /default.htm HTTP/1.1
    Host: server.example.com
    Connection: Upgrade
    Upgrade: HTTP/2.0 
-]]></artwork></figure>
-<t>
-  A server that does not support HTTP/2.0 can respond to the request as though the Upgrade header
-  field were absent:
-</t>
-<figure><artwork><![CDATA[
+]]></artwork>
+        </figure>
+        <t>
+          A server that does not support HTTP/2.0 can respond to the request as though the Upgrade
+          header field were absent:
+        </t>
+        <figure>
+          <artwork><![CDATA[
    HTTP/1.1 200 OK
    Content-length: 243
    Content-type: text/html
       ...
-]]></artwork></figure>
-<t>
-  A server that supports HTTP/2.0 can accept the upgrade with a 101 (Switching Protocols) status
-  code.  After the empty line that terminates the 101 response, the server can begin sending
-  HTTP/2.0 frames.  These frames MUST include a response to the request that initiated the Upgrade.
-</t>
-<figure><artwork><![CDATA[
+]]></artwork>
+        </figure>
+        <t>
+          A server that supports HTTP/2.0 can accept the upgrade with a 101 (Switching Protocols)
+          status code.  After the empty line that terminates the 101 response, the server can begin
+          sending HTTP/2.0 frames.  These frames MUST include a response to the request that
+          initiated the Upgrade.
+        </t>
+        <figure>
+          <artwork><![CDATA[
    HTTP/1.1 101 Switching Protocols
    Connection: Upgrade
    Upgrade: HTTP/2.0
 
    [ HTTP/2.0 session ...
-]]></artwork></figure>
+]]></artwork>
+        </figure>
 
-<t>
-  Once the server returns the 101 response, both the client and the server send a <xref
-  target="SessionHeader">session header</xref>.
-</t>
+        <t>
+          Once the server returns the 101 response, both the client and the server send a <xref
+          target="SessionHeader">session header</xref>.
+        </t>
 
-<t>
-  A client can learn that a particular server supports HTTP/2.0 by other means.  A client MAY
-  immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0.  [[Issue #29:
-  This is not definite.  We may yet choose to perform negotiation for every connection.  Reasons
-  include intermediaries; phased upgrade of load-balanced server farms; etc...]] [[Issue #1: We
-  need to enumerate the ways that clients can learn of HTTP/2.0 support.]]
-</t>
-</section>
-<section anchor="discover-https" title="Starting HTTP/2.0 for &quot;https:&quot; URIs">
-<t>
-  A client that makes a request to an "https:" URI without prior knowledge about support for
-  HTTP/2.0 uses TLS with <xref target="TLSNPN">TLS-NPN</xref> extension.  [[TBD, maybe NPN]]
-</t>
+        <t>
+          A client can learn that a particular server supports HTTP/2.0 by other means.  A client
+          MAY immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0.
+          [[Issue #29: This is not definite.  We may yet choose to perform negotiation for every
+          connection.  Reasons include intermediaries; phased upgrade of load-balanced server farms;
+          etc...]] [[Issue #1: We need to enumerate the ways that clients can learn of HTTP/2.0
+          support.]]
+        </t>
+      </section>
+      <section anchor="discover-https" title="Starting HTTP/2.0 for &quot;https:&quot; URIs">
+        <t>
+          A client that makes a request to an "https:" URI without prior knowledge about support for
+          HTTP/2.0 uses TLS with <xref target="TLSNPN">TLS-NPN</xref> extension.  [[TBD, maybe NPN]]
+        </t>
 
-<t>
-  Once TLS negotiation is complete, both the client and the server send a <xref
-  target="SessionHeader">session header</xref>.
-</t>
+        <t>
+          Once TLS negotiation is complete, both the client and the server send a <xref
+          target="SessionHeader">session header</xref>.
+        </t>
 
-</section>
+      </section>
       
     </section>
 
@@ -374,7 +395,7 @@ For example:
             HTTP/2.0 frames share a common header format.  Frames have an 8 byte header with between
             0 and 65535 bytes of data.
           </t>
-          <figure>
+          <figure title="Frame Header">
             <artwork><![CDATA[
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -387,31 +408,32 @@ For example:
 +---------------------------------------------------------------+
 ]]></artwork>
           </figure>
-          <t>The fields of the frame header are defined as:
-          <list style="hanging">
-            <t hangText="Length:">
-              The 16-bit length of the frame payload in bytes.  The length of the frame header is
-              not included in this sum.
-            </t>
-            <t hangText="Type:">
-              The 8-bit type of the frame.  The frame type determines how the remainder of the frame
-              header and payload are interpreted.
-            </t>
-            <t hangText="Flags:">
-              An 8-bit field reserved for flags.  The semantics of each bit in flags depends on the
-              frame type.  Bits that have undefined semantics are reserved.
-            </t>
-            <t hangText="R:">
-              A reserved 1-bit field.  The semantics of this bit are not defined.
-            </t>
-            <t hangText="Identifier:">
-              A 31-bit identifier for the frame.  The frame type determines how this identifier is
-              intepreted.  For many frame types, this field includes a stream number.
-            </t>
-            <t hangText="Frame Data:">
-              Frames contain between 0 and 65535 bytes of data.
-            </t>
-          </list>
+          <t>
+            The fields of the frame header are defined as:
+            <list style="hanging">
+              <t hangText="Length:">
+                The 16-bit length of the frame payload in bytes.  The length of the frame header is
+                not included in this sum.
+              </t>
+              <t hangText="Type:">
+                The 8-bit type of the frame.  The frame type determines how the remainder of the
+                frame header and payload are interpreted.
+              </t>
+              <t hangText="Flags:">
+                An 8-bit field reserved for flags.  The semantics of each bit in flags depends on
+                the frame type.  Bits that have undefined semantics are reserved.
+              </t>
+              <t hangText="R:">
+                A reserved 1-bit field.  The semantics of this bit are not defined.
+              </t>
+              <t hangText="Identifier:">
+                A 31-bit identifier for the frame.  The frame type determines how this identifier is
+                intepreted.  For many frame types, this field includes a stream number.
+              </t>
+              <t hangText="Frame Data:">
+                Frames contain between 0 and 65535 bytes of data.
+              </t>
+            </list>
           </t>
           <t>
             Reserved bits in the frame header MUST be set to zero when sending and MUST be ignored
@@ -441,42 +463,92 @@ For example:
 
 
       <section title="Streams">
-<t>Streams are independent sequences of bi-directional data divided into frames with several properties:
-<list>
-<t>Streams may be created by either the client or server.</t>
-<t>Streams optionally carry a set of name/value header pairs.</t>
-<t>Streams can concurrently send data interleaved with other streams.</t>
-<t>Streams may be cancelled.</t>
-</list>
-</t>
+        <t>
+          Streams are independent sequences of bi-directional data divided into frames with several
+          properties:
+          <list>
+            <t>
+              Streams may be created by either the client or server.
+            </t>
+            <t>
+              Streams optionally carry a set of name/value header pairs.
+            </t>
+            <t>
+              Streams can concurrently send data interleaved with other streams.
+            </t>
+            <t>
+              Streams may be cancelled.
+            </t>
+          </list>
+        </t>
 
         <section anchor="StreamFrames" title="Stream frames">
-<t>HTTP/2.0 defines 3 control frames to manage the lifecycle of a stream:
-    <list>
-        <t>SYN_STREAM - Open a new stream</t>
-        <t>SYN_REPLY - Remote acknowledgement of a new, open stream</t>
-        <t>RST_STREAM - Close a stream</t>
-    </list>
-</t>
+          <t>
+            HTTP/2.0 defines 3 control frames to manage the lifecycle of a stream:
+            <list>
+              <t>
+                SYN_STREAM - Open a new stream
+              </t>
+              <t>
+                SYN_REPLY - Remote acknowledgement of a new, open stream
+              </t>
+              <t>
+                RST_STREAM - Close a stream
+              </t>
+            </list>
+          </t>
         </section>
 
         <section anchor="StreamCreation" title="Stream creation">
-<t>A stream is created by sending a control frame with the type set to <xref target="SYN_STREAM">SYN_STREAM</xref>.  If the server is initiating the stream, the Stream-ID must be even.  If the client is initiating the stream, the Stream-ID must be odd.  0 is not a valid Stream-ID. Stream-IDs from each side of the connection must increase monotonically as new streams are created.  E.g. Stream 2 may be created after stream 3, but stream 7 must not be created after stream 9. Stream IDs do not wrap: when a client or server cannot create a new stream id without exceeding a 31 bit value, it MUST NOT create a new stream.</t>
+          <t>
+            A stream is created by sending a control frame with the type set to <xref
+            target="SYN_STREAM">SYN_STREAM</xref>.  If the server is initiating the stream, the
+            Stream-ID must be even.  If the client is initiating the stream, the Stream-ID must be
+            odd.  0 is not a valid Stream-ID. Stream-IDs from each side of the connection must
+            increase monotonically as new streams are created.  E.g. Stream 2 may be created after
+            stream 3, but stream 7 must not be created after stream 9. Stream IDs do not wrap: when
+            a client or server cannot create a new stream id without exceeding a 31 bit value, it
+            MUST NOT create a new stream.
+          </t>
 
-<t>The stream-id MUST increase with each new stream.  If an endpoint receives a SYN_STREAM with a stream id which is less than any previously received SYN_STREAM, it MUST issue a <xref target="SessionErrorHandler">session error</xref> with the status PROTOCOL_ERROR.</t>
+          <t>
+            The stream-id MUST increase with each new stream.  If an endpoint receives a SYN_STREAM
+            with a stream id which is less than any previously received SYN_STREAM, it MUST issue a
+            <xref target="SessionErrorHandler">session error</xref> with the status PROTOCOL_ERROR.
+          </t>
 
-<t>It is a protocol error to send two SYN_STREAMs with the same stream-id.  If a recipient receives a second SYN_STREAM for the same stream, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR.</t>
+          <t>
+            It is a protocol error to send two SYN_STREAMs with the same stream-id.  If a recipient
+            receives a second SYN_STREAM for the same stream, it MUST issue a <xref
+            target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR.
+          </t>
 
-<t>Upon receipt of a SYN_STREAM, the recipient can reject the stream by sending a <xref target="StreamErrorHandler">stream error</xref> with the error code REFUSED_STREAM. Note, however, that the creating endpoint may have already sent additional frames for that stream which cannot be immediately stopped.</t>
+          <t>
+            Upon receipt of a SYN_STREAM, the recipient can reject the stream by sending a <xref
+            target="StreamErrorHandler">stream error</xref> with the error code
+            REFUSED_STREAM. Note, however, that the creating endpoint may have already sent
+            additional frames for that stream which cannot be immediately stopped.
+          </t>
 
-<t>Once the stream is created, the creator may immediately send HEADERS or DATA frames for that stream, without needing to wait for the recipient to acknowledge.</t>
+          <t>
+            Once the stream is created, the creator may immediately send HEADERS or DATA frames for
+            that stream, without needing to wait for the recipient to acknowledge.
+          </t>
 
           <section title="Unidirectional streams">
-<t>When an endpoint creates a stream with the FLAG_UNIDIRECTIONAL flag set, it creates a unidirectional stream which the creating endpoint can use to send frames, but the receiving endpoint cannot.  The receiving endpoint is implicitly already in the <xref target="StreamHalfClose">half-closed</xref> state.</t>
+            <t>
+              When an endpoint creates a stream with the FLAG_UNIDIRECTIONAL flag set, it creates a
+              unidirectional stream which the creating endpoint can use to send frames, but the
+              receiving endpoint cannot.  The receiving endpoint is implicitly already in the <xref
+              target="StreamHalfClose">half-closed</xref> state.
+            </t>
           </section>
 
           <section title="Bidirectional streams">
-<t>SYN_STREAM frames which do not use the FLAG_UNIDIRECTIONAL flag are bidirectional streams.  Both endpoints can send data on a bi-directional stream.</t>
+            <t>
+              SYN_STREAM frames which do not use the FLAG_UNIDIRECTIONAL flag are bidirectional
+              streams.  Both endpoints can send data on a bi-directional stream.
+            </t>
           </section>
         </section>
 
@@ -493,108 +565,194 @@ For example:
         </section>
 
         <section title="Stream headers">
-<t>Streams carry optional sets of name/value pair headers which carry metadata about the stream.  After the stream has been created, and as long as the sender is not <xref target="StreamClose">closed</xref> or <xref target="StreamHalfClose">half-closed</xref>, each side may send HEADERS frame(s) containing the header data.  Header data can be sent in multiple HEADERS frames, and HEADERS frames may be interleaved with data frames.</t>
+          <t>
+            Streams carry optional sets of name/value pair headers which carry metadata about the
+            stream.  After the stream has been created, and as long as the sender is not <xref
+            target="StreamClose">closed</xref> or <xref target="StreamHalfClose">half-closed</xref>,
+            each side may send HEADERS frame(s) containing the header data.  Header data can be sent
+            in multiple HEADERS frames, and HEADERS frames may be interleaved with data frames.
+          </t>
         </section>
 
         <section title="Stream data exchange">
-<t>Once a stream is created, it can be used to send arbitrary amounts of data.  Generally this means that a series of data frames will be sent on the stream until a frame containing the FLAG_FIN flag is set.  The FLAG_FIN can be set on a <xref target="SYN_STREAM">SYN_STREAM</xref>, <xref target="SYN_REPLY">SYN_REPLY</xref>, <xref target="HEADERS">HEADERS</xref> or a <xref target="DataFrames">DATA</xref> frame.  Once the FLAG_FIN has been sent, the stream is considered to be half-closed.</t>
+          <t>
+            Once a stream is created, it can be used to send arbitrary amounts of data.  Generally
+            this means that a series of data frames will be sent on the stream until a frame
+            containing the FLAG_FIN flag is set.  The FLAG_FIN can be set on a <xref
+            target="SYN_STREAM">SYN_STREAM</xref>, <xref target="SYN_REPLY">SYN_REPLY</xref>, <xref
+            target="HEADERS">HEADERS</xref> or a <xref target="DataFrames">DATA</xref> frame.  Once
+            the FLAG_FIN has been sent, the stream is considered to be half-closed.
+          </t>
         </section>
 
         <section anchor="StreamHalfClose" title="Stream half-close">
-<t>When one side of the stream sends a frame with the FLAG_FIN flag set, the stream is half-closed from that endpoint. The sender of the FLAG_FIN MUST NOT send further frames on that stream. When both sides have half-closed, the stream is closed.</t>
+          <t>
+            When one side of the stream sends a frame with the FLAG_FIN flag set, the stream is
+            half-closed from that endpoint. The sender of the FLAG_FIN MUST NOT send further frames
+            on that stream. When both sides have half-closed, the stream is closed.
+          </t>
 
-<t>If an endpoint receives a data frame after the stream is half-closed from the sender (e.g. the endpoint has already received a prior frame for the stream with the FIN flag set), it MUST send a RST_STREAM to the sender with the status STREAM_ALREADY_CLOSED.</t>
+          <t>
+            If an endpoint receives a data frame after the stream is half-closed from the sender
+            (e.g. the endpoint has already received a prior frame for the stream with the FIN flag
+            set), it MUST send a RST_STREAM to the sender with the status STREAM_ALREADY_CLOSED.
+          </t>
         </section>
 
         <section anchor="StreamClose" title="Stream close">
-<t>There are 3 ways that streams can be terminated:
-<list>
-<t>Normal termination: Normal stream termination occurs when both sender and recipient have half-closed the stream by sending a FLAG_FIN.</t>
-<t>Abrupt termination: Either the client or server can send a RST_STREAM control frame at any time. A RST_STREAM contains an error code to indicate the reason for failure.  When a RST_STREAM is sent from the stream originator, it indicates a failure to complete the stream and that no further data will be sent on the stream.  When a RST_STREAM is sent from the stream recipient, the sender, upon receipt, should stop sending any data on the stream.  The stream recipient should be aware that there is a race between data already in transit from the sender and the time the RST_STREAM is received.  See <xref target="StreamErrorHandler">Stream Error Handling</xref></t>
-<t>TCP connection teardown: If the TCP connection is torn down while un-closed streams exist, then the endpoint must assume that the stream was abnormally interrupted and may be incomplete.</t>
-</list>
-</t>
+          <t>
+            There are 3 ways that streams can be terminated:
+            <list>
+              <t>
+                Normal termination: Normal stream termination occurs when both sender and recipient
+                have half-closed the stream by sending a FLAG_FIN.
+              </t>
+              <t>
+                Abrupt termination: Either the client or server can send a RST_STREAM control frame
+                at any time. A RST_STREAM contains an error code to indicate the reason for failure.
+                When a RST_STREAM is sent from the stream originator, it indicates a failure to
+                complete the stream and that no further data will be sent on the stream.  When a
+                RST_STREAM is sent from the stream recipient, the sender, upon receipt, should stop
+                sending any data on the stream.  The stream recipient should be aware that there is
+                a race between data already in transit from the sender and the time the RST_STREAM
+                is received.  See <xref target="StreamErrorHandler">Stream Error Handling</xref>
+              </t>
+              <t>
+                TCP connection teardown: If the TCP connection is torn down while un-closed streams
+                exist, then the endpoint must assume that the stream was abnormally interrupted and
+                may be incomplete.
+              </t>
+            </list>
+          </t>
 
-<t>If an endpoint receives a data frame after the stream is closed, it must send a RST_STREAM to the sender with the status PROTOCOL_ERROR.</t>
+          <t>
+            If an endpoint receives a data frame after the stream is closed, it must send a
+            RST_STREAM to the sender with the status PROTOCOL_ERROR.
+          </t>
         </section>
       </section>
 
       <section title="Error Handling">
-<t>The HTTP/2.0 framing layer has only two types of errors, and they are always handled consistently.  Any reference in this specification to "issue a session error" refers to <xref target="SessionErrorHandler"></xref>.  Any reference to "issue a stream error" refers to <xref target="StreamErrorHandler"></xref>.</t>
+        <t>
+          The HTTP/2.0 framing layer has only two types of errors, and they are always handled
+          consistently.  Any reference in this specification to "issue a session error" refers to
+          <xref target="SessionErrorHandler"></xref>.  Any reference to "issue a stream error"
+          refers to <xref target="StreamErrorHandler"></xref>.
+        </t>
 
         <section anchor="SessionErrorHandler" title="Session Error Handling">
-<t>A session error is any error which prevents further processing of the framing layer or which corrupts the session compression state.  When a session error occurs, the endpoint encountering the error MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame with the stream id of most recently received stream from the remote endpoint, and the error code for why the session is terminating.  After sending the GOAWAY frame, the endpoint MUST close the TCP connection.</t>
+          <t>
+            A session error is any error which prevents further processing of the framing layer or
+            which corrupts the session compression state.  When a session error occurs, the endpoint
+            encountering the error MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame with
+            the stream id of most recently received stream from the remote endpoint, and the error
+            code for why the session is terminating.  After sending the GOAWAY frame, the endpoint
+            MUST close the TCP connection.
+          </t>
 
-<t>Note that the session compression state is dependent upon both endpoints always processing all compressed data.  If an endpoint partially processes a frame containing compressed data without updating compression state properly, future control frames which use compression will be always be errored.  Implementations SHOULD always try to process compressed data so that errors which could be handled as stream errors do not become session errors.</t>
+          <t>
+            Note that the session compression state is dependent upon both endpoints always
+            processing all compressed data.  If an endpoint partially processes a frame containing
+            compressed data without updating compression state properly, future control frames which
+            use compression will be always be errored.  Implementations SHOULD always try to process
+            compressed data so that errors which could be handled as stream errors do not become
+            session errors.
+          </t>
 
-<t>Note that because this GOAWAY is sent during a session error case, it is possible that the GOAWAY will not be reliably received by the receiving endpoint.  It is a best-effort attempt to communicate with the remote about why the session is going down.</t>
+          <t>
+            Note that because this GOAWAY is sent during a session error case, it is possible that
+            the GOAWAY will not be reliably received by the receiving endpoint.  It is a best-effort
+            attempt to communicate with the remote about why the session is going down.
+          </t>
         </section>
 
         <section anchor="StreamErrorHandler" title="Stream Error Handling">
-<t>A stream error is an error related to a specific stream-id which does not affect processing of other streams at the framing layer.  Upon a stream error, the endpoint MUST send a <xref target="RST_STREAM">RST_STREAM</xref> frame which contains the stream id of the stream where the error occurred and the error status which caused the error.  After sending the RST_STREAM, the stream is closed to the sending endpoint.  After sending the RST_STREAM, if the sender receives any frames other than a RST_STREAM for that stream id, it will result in sending additional RST_STREAM frames.  An endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM, as doing so would lead to RST_STREAM loops.  Sending a RST_STREAM does not cause the HTTP/2.0 session to be closed.</t>
+          <t>
+            A stream error is an error related to a specific stream-id which does not affect
+            processing of other streams at the framing layer.  Upon a stream error, the endpoint
+            MUST send a <xref target="RST_STREAM">RST_STREAM</xref> frame which contains the stream
+            id of the stream where the error occurred and the error status which caused the error.
+            After sending the RST_STREAM, the stream is closed to the sending endpoint.  After
+            sending the RST_STREAM, if the sender receives any frames other than a RST_STREAM for
+            that stream id, it will result in sending additional RST_STREAM frames.  An endpoint
+            MUST NOT send a RST_STREAM in response to an RST_STREAM, as doing so would lead to
+            RST_STREAM loops.  Sending a RST_STREAM does not cause the HTTP/2.0 session to be
+            closed.
+          </t>
 
-<t>If an endpoint has multiple RST_STREAM frames to send in succession for the same stream-id and the same error code, it MAY coalesce them into a single RST_STREAM frame.  (This can happen if a stream is closed, but the remote sends multiple data frames.  There is no reason to send a RST_STREAM for each frame in succession).</t>
+          <t>
+            If an endpoint has multiple RST_STREAM frames to send in succession for the same
+            stream-id and the same error code, it MAY coalesce them into a single RST_STREAM frame.
+            (This can happen if a stream is closed, but the remote sends multiple data frames.
+            There is no reason to send a RST_STREAM for each frame in succession).
+          </t>
         </section>
       </section>
 
       <section anchor="flowcontrol" title="Stream Flow Control">
         <t>
-          Multiplexing streams introduces contention for access to the shared TCP connection.  Stream
-          contention can result in streams being blocked by other streams.  A flow control scheme ensures
-          that streams do not destructively interfere with other streams on the same TCP connection.
+          Multiplexing streams introduces contention for access to the shared TCP connection.
+          Stream contention can result in streams being blocked by other streams.  A flow control
+          scheme ensures that streams do not destructively interfere with other streams on the same
+          TCP connection.
         </t>
 
         <section anchor="fc-principles" title="Flow Control Principles">
           <t>
-            Experience with TCP congestion control has shown that algorithms can evolve over time
-            to become more sophisticated without requiring protocol changes.  TCP congestion control and its
-            evolution is clearly different from HTTP/2.0 flow control, though the evolution of TCP congestion
-            control algorithms shows that a similar approach could be feasible for HTTP/2.0 flow control.
+            Experience with TCP congestion control has shown that algorithms can evolve over time to
+            become more sophisticated without requiring protocol changes.  TCP congestion control
+            and its evolution is clearly different from HTTP/2.0 flow control, though the evolution
+            of TCP congestion control algorithms shows that a similar approach could be feasible for
+            HTTP/2.0 flow control.
           </t>
           <t>
-            HTTP/2.0 stream flow control aims to allow for future improvements to flow control algorithms
-            without requiring protocol changes.  Flow control in HTTP/2.0 has the following characteristics:
+            HTTP/2.0 stream flow control aims to allow for future improvements to flow control
+            algorithms without requiring protocol changes.  Flow control in HTTP/2.0 has the
+            following characteristics:
             <list style="numbers">
               <t>
                 Flow control is hop-by-hop, not end-to-end.
               </t>
               <t>
-                Flow control is based on window update messages.  Receivers advertise how many octets they
-                are prepared to receive on a stream.  This is a credit-based scheme.
+                Flow control is based on window update messages.  Receivers advertise how many
+                octets they are prepared to receive on a stream.  This is a credit-based scheme.
               </t>
               <t>
-                Flow control is directional with overall control provided by the receiver.  A receiver MAY
-                choose to set any window size that it desires for each stream and for the entire
-                connection.  A sender MUST respect flow control limits imposed by a receiver.  Clients,
-                servers and intermediaries all independently advertise their flow control preferences as a
-                receiver and abide by the flow control limits set by their peer when sending.
+                Flow control is directional with overall control provided by the receiver.  A
+                receiver MAY choose to set any window size that it desires for each stream and for
+                the entire connection.  A sender MUST respect flow control limits imposed by a
+                receiver.  Clients, servers and intermediaries all independently advertise their
+                flow control preferences as a receiver and abide by the flow control limits set by
+                their peer when sending.
               </t>
               <t>
-                The initial value for the flow control window is 65536 bytes for both new streams and the
-                overall connection.
+                The initial value for the flow control window is 65536 bytes for both new streams
+                and the overall connection.
               </t>
               <t>
-                The frame type determines whether flow control applies to a frame.  Of the frames specified in
-                this document, only data frames are subject to flow control; all other frame types do not
-                consume space in the advertised flow control window.  This ensures that important control
-                frames are not blocked by flow control.
+                The frame type determines whether flow control applies to a frame.  Of the frames
+                specified in this document, only data frames are subject to flow control; all other
+                frame types do not consume space in the advertised flow control window.  This
+                ensures that important control frames are not blocked by flow control.
               </t>
               <t>
-                Flow control can be disabled by a receiver.  A receiver can choose to either disable flow
-                control for a stream or connection by declaring an infinite flow control limit.
+                Flow control can be disabled by a receiver.  A receiver can choose to either disable
+                flow control for a stream or connection by declaring an infinite flow control limit.
               </t>
               <t>
-                HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window update
-                message</xref>.  This does not stipulate how a receiver decides when to send this message or
-                the value that it sends.  Nor does it specify how a sender chooses to send packets.
-                Implementations are able to select any algorithm that suits their needs.
+                HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window
+                update message</xref>.  This does not stipulate how a receiver decides when to send
+                this message or the value that it sends.  Nor does it specify how a sender chooses
+                to send packets.  Implementations are able to select any algorithm that suits their
+                needs.
               </t>
             </list>
           </t>
           <t>
-            Implementations are also responsible for managing how requests and responses are sent based on
-            priority; choosing how to avoid head of line blocking for requests; and managing the creation of
-            new streams.  Algorithm choices for these could interact with any flow control algorithm.
+            Implementations are also responsible for managing how requests and responses are sent
+            based on priority; choosing how to avoid head of line blocking for requests; and
+            managing the creation of new streams.  Algorithm choices for these could interact with
+            any flow control algorithm.
           </t>
 
         </section>
@@ -606,9 +764,9 @@ For example:
             one stream, yet wants to be continue to process other streams.
           </t>
           <t>
-             Deployments that do not rely on this capability SHOULD disable flow control for data
-             that is being received.  Note that flow control cannot be disabled for sending.
-             Sending data is always subject to the flow control window advertised by the receiver.
+            Deployments that do not rely on this capability SHOULD disable flow control for data
+            that is being received.  Note that flow control cannot be disabled for sending.
+            Sending data is always subject to the flow control window advertised by the receiver.
           </t>
           <t>
             Deployments with constrained resources (for example, memory), MAY employ flow control to
@@ -791,13 +949,13 @@ For example:
             want to accept the stream, so the stream should be closed.
           </t>
           <figure title="RST_STREAM Frame Payload">
-            <artwork>
+            <artwork><![CDATA[
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |                         Error Code (32)                       |
 +---------------------------------------------------------------+
-            </artwork>
+ ]]></artwork>
           </figure>
           <t>
             The RST_STREAM frame does not define any valid flags.
@@ -823,10 +981,12 @@ For example:
                 Indicates that the stream was refused before any processing has been done on the
                 stream.
               </t>
-              <t hangText="CANCEL (5):">  
+              <t hangText="CANCEL (5):">
+                
                 Used by the creator of a stream to indicate that the stream is no longer needed.
               </t>
-              <t hangText="INTERNAL_ERROR (6):">  
+              <t hangText="INTERNAL_ERROR (6):">
+                
                 This is a generic error which can be used when the implementation has internally
                 failed, not due to anything in the protocol.
               </t>
@@ -894,7 +1054,9 @@ For example:
             </list>
           </t>
           <t>
-            SETTINGS frames always apply to a session, never a single stream.  The identifier field in the frame header carries a count of the number of settings contained in the payload.  [[ED: this seems totally unnecessary.]]
+            SETTINGS frames always apply to a session, never a single stream.  The identifier field
+            in the frame header carries a count of the number of settings contained in the payload.
+            [[ED: this seems totally unnecessary.]]
           </t>
           
           <figure title="SETTINGS ID/Value Pair">
@@ -938,43 +1100,48 @@ For example:
             </list>
           </t>
 
-          <t>The following settings are defined:
-          <list style="hanging">
-            <t hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
-              allows the sender to send its expected upload bandwidth on this channel. This number
-              is an estimate. The value should be the integral number of kilobytes per second that
-              the sender predicts as an expected maximum upload channel capacity.
-            </t>
-            <t hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
-              allows the sender to send its expected download bandwidth on this channel. This number
-              is an estimate. The value should be the integral number of kilobytes per second that
-              the sender predicts as an expected maximum download channel capacity.
-            </t>
-            <t hangText="SETTINGS_ROUND_TRIP_TIME (3):">
-              allows the sender to send its expected round-trip-time on this channel. The round trip
-              time is defined as the minimum amount of time to send a control frame from this client
-              to the remote and receive a response. The value is represented in milliseconds.
-            </t>
-            <t hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
-              allows the sender to inform the remote endpoint the maximum number of concurrent
-              streams which it will allow. This limit is directional: it applies to the number of
-              streams that the sender permits the receiver to create. By default there is no limit.
-              For implementors it is recommended that this value be no smaller than 100, so as to not
-              unnecessarily limit parallelism.
-            </t>
-            <t hangText="SETTINGS_CURRENT_CWND (5):">
-              allows the sender to inform the remote endpoint of the current TCP CWND value.
-            </t>
-            <t hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
-              allows the sender to inform the remote endpoint the retransmission rate (bytes retransmitted / total bytes transmitted).
-            </t>
-            <t hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
-              allows the sender to inform the remote endpoint the initial window size (in bytes) for new streams.
-            </t>
-            <t hangText="SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE (8):">
-              allows the server to inform the client of the new size of the client certificate vector.
-            </t>
-          </list>
+          <t>
+            The following settings are defined:
+            <list style="hanging">
+              <t hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
+                allows the sender to send its expected upload bandwidth on this channel. This number
+                is an estimate. The value should be the integral number of kilobytes per second that
+                the sender predicts as an expected maximum upload channel capacity.
+              </t>
+              <t hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
+                allows the sender to send its expected download bandwidth on this channel. This
+                number is an estimate. The value should be the integral number of kilobytes per
+                second that the sender predicts as an expected maximum download channel capacity.
+              </t>
+              <t hangText="SETTINGS_ROUND_TRIP_TIME (3):">
+                allows the sender to send its expected round-trip-time on this channel. The round
+                trip time is defined as the minimum amount of time to send a control frame from this
+                client to the remote and receive a response. The value is represented in
+                milliseconds.
+              </t>
+              <t hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
+                allows the sender to inform the remote endpoint the maximum number of concurrent
+                streams which it will allow. This limit is directional: it applies to the number of
+                streams that the sender permits the receiver to create. By default there is no
+                limit.  For implementors it is recommended that this value be no smaller than 100,
+                so as to not unnecessarily limit parallelism.
+              </t>
+              <t hangText="SETTINGS_CURRENT_CWND (5):">
+                allows the sender to inform the remote endpoint of the current TCP CWND value.
+              </t>
+              <t hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
+                allows the sender to inform the remote endpoint the retransmission rate (bytes
+                retransmitted / total bytes transmitted).
+              </t>
+              <t hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
+                allows the sender to inform the remote endpoint the initial window size (in bytes)
+                for new streams.
+              </t>
+              <t hangText="SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE (8):">
+                allows the server to inform the client of the new size of the client certificate
+                vector.
+              </t>
+            </list>
           </t>
 
           <t>
@@ -1050,7 +1217,8 @@ For example:
           </t>
 
           <t>
-            After sending a GOAWAY message, the sender must ignore all SYN_STREAM frames for new streams.
+            After sending a GOAWAY message, the sender must ignore all SYN_STREAM frames for new
+            streams.
           </t>
           <t>
             The GOAWAY frame does not define any valid flags.
@@ -1072,16 +1240,19 @@ For example:
                 This is a generic error, and should only be used if a more specific error is not
                 available.  [[ED: bad name]]
               </t>
-              <t hangText="INTERNAL_ERROR (2):">The implementation has internally failed, not due to anything in the protocol.</t>
+              <t hangText="INTERNAL_ERROR (2):">
+                The implementation has internally failed, not due to anything in the protocol.
+              </t>
             </list>
           </t>
         </section>
 
         <section anchor="HEADERS" title="HEADERS">
           <t>
-            The HEADERS frame (type=8) augments a stream with additional headers. It may be optionally sent
-            on an existing stream at any time.  Specific application of the headers in this frame is
-            application-dependent.  The name/value header block within this frame is compressed.
+            The HEADERS frame (type=8) augments a stream with additional headers. It may be
+            optionally sent on an existing stream at any time.  Specific application of the headers
+            in this frame is application-dependent.  The name/value header block within this frame
+            is compressed.
           </t>
           <t>
             Valid flags for the HEADERS frame are:
@@ -1094,10 +1265,12 @@ For example:
             </list>
           </t>
           <t>
-            The identifier field in the HEADERS frame header MUST contain a stream identifier for an open stream.
+            The identifier field in the HEADERS frame header MUST contain a stream identifier for an
+            open stream.
           </t>
           <t>
-            The body of a HEADERS frame contains a <xref target="HeaderBlock">Name/Value Header Block</xref>.
+            The body of a HEADERS frame contains a <xref target="HeaderBlock">Name/Value Header
+            Block</xref>.
           </t>
         </section>
 
@@ -1190,45 +1363,47 @@ For example:
             aggressively update the window size kept by the sender to prevent the stream from
             stalling.
           </t>
-          </section>
+        </section>
 
-          <section anchor="CREDENTIAL" title="CREDENTIAL">
-            <t>
-              The CREDENTIAL frame (type=11) is used by the client to send additional client
-              certificates to the server.  A HTTP/2.0 client may decide to send requests for
-              resources from different origins on the same HTTP/2.0 session if it decides that that
-              server handles both origins.  For example if the IP address associated with both
-              hostnames matches and the SSL server certificate presented in the initial handshake is
-              valid for both hostnames.  However, because the SSL connection can contain at most one
-              client certificate, the client needs a mechanism to send additional client
-              certificates to the server.
-            </t>
+        <section anchor="CREDENTIAL" title="CREDENTIAL">
+          <t>
+            The CREDENTIAL frame (type=11) is used by the client to send additional client
+            certificates to the server.  A HTTP/2.0 client may decide to send requests for
+            resources from different origins on the same HTTP/2.0 session if it decides that that
+            server handles both origins.  For example if the IP address associated with both
+            hostnames matches and the SSL server certificate presented in the initial handshake is
+            valid for both hostnames.  However, because the SSL connection can contain at most one
+            client certificate, the client needs a mechanism to send additional client
+            certificates to the server.
+          </t>
 
-            <t>
-              The server is required to maintain a vector of client certificates associated with a HTTP/2.0
-              session.  When the client needs to send a client certificate to the server, it will send a
-              CREDENTIAL frame that specifies the index of the slot in which to store the certificate as well as
-              proof that the client posesses the corresponding private key.  The initial size of this vector must
-              be 8.  If the client provides a client certificate during the first TLS handshake, the contents of
-              this certificate must be copied into the first slot (index 1) in the CREDENTIAL vector, though it
-              may be overwritten by subsequent CREDENTIAL frames.  The server must exclusively use the CREDENTIAL
-              vector when evaluating the client certificates associated with an origin.  The server may change the
-              size of this vector by sending a SETTINGS frame with the setting
-              SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE value specified.  In the event that the new size is smaller
-              than the current size, truncation occurs preserving lower-index slots as possible.
-            </t>  
+          <t>
+            The server is required to maintain a vector of client certificates associated with a
+            HTTP/2.0 session.  When the client needs to send a client certificate to the server, it
+            will send a CREDENTIAL frame that specifies the index of the slot in which to store the
+            certificate as well as proof that the client posesses the corresponding private key.
+            The initial size of this vector must be 8.  If the client provides a client certificate
+            during the first TLS handshake, the contents of this certificate must be copied into the
+            first slot (index 1) in the CREDENTIAL vector, though it may be overwritten by
+            subsequent CREDENTIAL frames.  The server must exclusively use the CREDENTIAL vector
+            when evaluating the client certificates associated with an origin.  The server may
+            change the size of this vector by sending a SETTINGS frame with the setting
+            SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE value specified.  In the event that the new size
+            is smaller than the current size, truncation occurs preserving lower-index slots as
+            possible.
+          </t>  
 
-            <t>
-              TLS renegotiation with client authentication is incompatible with HTTP/2.0 given the
-              multiplexed nature of HTTP/2.0.  Specifically, imagine that the client has 2 requests
-              outstanding to the server for two different pages (in different tabs).  When the
-              renegotiation + client certificate request comes in, the browser is unable to
-              determine which resource triggered the client certificate request, in order to prompt
-              the user accordingly.
-            </t>
+          <t>
+            TLS renegotiation with client authentication is incompatible with HTTP/2.0 given the
+            multiplexed nature of HTTP/2.0.  Specifically, imagine that the client has 2 requests
+            outstanding to the server for two different pages (in different tabs).  When the
+            renegotiation + client certificate request comes in, the browser is unable to
+            determine which resource triggered the client certificate request, in order to prompt
+            the user accordingly.
+          </t>
 
           <figure title="CREDENTIAL Frame Payload">
-            <artwork>
+            <artwork><![CDATA[
 +----------------------------------+
 |  Slot (16 bits) |                |
 +-----------------+                |
@@ -1240,7 +1415,7 @@ For example:
 +----------------------------------+  | Repeated until end of frame
 |            Certificate           |  |
 +----------------------------------+ &lt;+
-            </artwork>
+]]></artwork>
           </figure>
 
           <t>
@@ -1299,8 +1474,8 @@ For example:
           </figure>
 
           <t>
-            Number of Name/Value pairs: The number of repeating name/value pairs following this field.
-            [[ED: this field is not necessary]]
+            Number of Name/Value pairs: The number of repeating name/value pairs following this
+            field.  [[ED: this field is not necessary]]
           </t>
 
           <figure title="Name/Value Pair Format">
@@ -1318,26 +1493,62 @@ For example:
 +---------------------------------------------------------------+
 ]]></artwork>
           </figure>
-<t>Each Name/Value pair consists of:
-<list>
-<t>Length of Name: a 32-bit value containing the number of octets in the name field.  Note that in practice, this length must not exceed 2^24, as that is the maximum size of a HTTP/2.0 frame.</t>
-<t>Name: 0 or more octets, 8-bit sequences of data, excluding 0.</t>
-<t>Length of Value: a 32-bit value containing the number of octets in the value field.  Note that in practice, this length must not exceed 2^24, as that is the maximum size of a HTTP/2.0 frame.</t>
-<t>Value: 0 or more octets, 8-bit sequences of data, excluding 0.</t>
-</list>
-</t>
+          <t>
+            Each Name/Value pair consists of:
+            <list>
+              <t>
+                Length of Name: a 32-bit value containing the number of octets in the name field.
+                Note that in practice, this length must not exceed 2^24, as that is the maximum size
+                of a HTTP/2.0 frame.
+              </t>
+              <t>
+                Name: 0 or more octets, 8-bit sequences of data, excluding 0.
+              </t>
+              <t>
+                Length of Value: a 32-bit value containing the number of octets in the value field.
+                Note that in practice, this length must not exceed 2^24, as that is the maximum size
+                of a HTTP/2.0 frame.
+              </t>
+              <t>
+                Value: 0 or more octets, 8-bit sequences of data, excluding 0.
+              </t>
+            </list>
+          </t>
 
-<t>Each header name must have at least one value.  Header names are encoded using the <xref target="ASCII">US-ASCII character set</xref> and must be all lower case.  The length of each name must be greater than zero.  A recipient of a zero-length name MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for the stream-id.</t>
+          <t>
+            Each header name must have at least one value.  Header names are encoded using the <xref
+            target="ASCII">US-ASCII character set</xref> and must be all lower case.  The length of
+            each name must be greater than zero.  A recipient of a zero-length name MUST issue a
+            <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR
+            for the stream-id.
+          </t>
 
-<t>Duplicate header names are not allowed.  To send two identically named headers, send a header with two values, where the values are separated by a single NUL (0) byte.  A header value can either be empty (e.g. the length is zero) or it can contain multiple, NUL-separated values, each with length greater than zero.  The value never starts nor ends with a NUL character.  Recipients of illegal value fields MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for the stream-id.</t>
+          <t>
+            Duplicate header names are not allowed.  To send two identically named headers, send a
+            header with two values, where the values are separated by a single NUL (0) byte.  A
+            header value can either be empty (e.g. the length is zero) or it can contain multiple,
+            NUL-separated values, each with length greater than zero.  The value never starts nor
+            ends with a NUL character.  Recipients of illegal value fields MUST issue a <xref
+            target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for
+            the stream-id.
+          </t>
 
-      <section title="Compression" anchor="Compression">
-        <t>The Name/Value Header Block is a section of the SYN_STREAM, SYN_REPLY, and HEADERS frames used to carry header meta-data.  This block is always compressed using zlib compression.  Within this specification, any reference to 'zlib' is referring to the <xref target="RFC1950">ZLIB Compressed Data Format Specification Version 3.3 as part of RFC1950.</xref></t>
+          <section title="Compression" anchor="Compression">
+            <t>
+              The Name/Value Header Block is a section of the SYN_STREAM, SYN_REPLY, and HEADERS
+              frames used to carry header meta-data.  This block is always compressed using zlib
+              compression.  Within this specification, any reference to 'zlib' is referring to the
+              <xref target="RFC1950">ZLIB Compressed Data Format Specification Version 3.3 as part
+              of RFC1950.</xref>
+            </t>
 
-        <t>For each HEADERS compression instance, the initial state is initialized using the following <xref target="UDELCOMPRESSION">dictionary</xref>:</t>
+            <t>
+              For each HEADERS compression instance, the initial state is initialized using the
+              following <xref target="UDELCOMPRESSION">dictionary</xref>:
+            </t>
 
-<figure>
-  <artwork type="code" x:isCodeComponent="yes">
+            <figure>
+              <artwork type="code" x:isCodeComponent="yes"><![CDATA[
 const unsigned char http2_dictionary_txt[] = {
   0x00, 0x00, 0x00, 0x07, 0x6f, 0x70, 0x74, 0x69,  \\ - - - - o p t i
   0x6f, 0x6e, 0x73, 0x00, 0x00, 0x00, 0x04, 0x68,  \\ o n s - - - - h
@@ -1518,111 +1729,281 @@ const unsigned char http2_dictionary_txt[] = {
   0x31, 0x2c, 0x75, 0x74, 0x66, 0x2d, 0x2c, 0x2a,  \\ 1 - u t f - - -
   0x2c, 0x65, 0x6e, 0x71, 0x3d, 0x30, 0x2e         \\ - e n q - 0 -
 };
-</artwork>
-</figure>
+]]></artwork>
+            </figure>
 
-<t>The entire contents of the name/value header block is compressed using zlib.  There is a single zlib stream for all name value pairs in one direction on a connection.   HTTP/2.0 uses a SYNC_FLUSH between each compressed frame.</t>
+            <t>
+              The entire contents of the name/value header block is compressed using zlib.  There is
+              a single zlib stream for all name value pairs in one direction on a connection.
+              HTTP/2.0 uses a SYNC_FLUSH between each compressed frame.
+            </t>
 
-<t>Implementation notes: the compression engine can be tuned to favor speed or size. Optimizing for size increases memory use and CPU consumption.  Because header blocks are generally small, implementors may want to reduce the window-size of the compression engine from the default 15bits (a 32KB window) to more like 11bits (a 2KB window).  The exact setting is chosen by the compressor, the decompressor will work with any setting.</t>
+            <t>
+              Implementation notes: the compression engine can be tuned to favor speed or
+              size. Optimizing for size increases memory use and CPU consumption.  Because header
+              blocks are generally small, implementors may want to reduce the window-size of the
+              compression engine from the default 15bits (a 32KB window) to more like 11bits (a 2KB
+              window).  The exact setting is chosen by the compressor, the decompressor will work
+              with any setting.
+            </t>
           </section>
         </section>
       </section>
     </section>
 
     <section anchor="HTTPLayer" title="HTTP Layering over HTTP/2.0">
-<t>HTTP/2.0 is intended to be as compatible as possible with current web-based applications. This means that, from the perspective of the server business logic or application API, the features of HTTP are unchanged. To achieve this, all of the application request and response header semantics are preserved, although the syntax of conveying those semantics has changed.  Thus, the rules from the <xref target="RFC2616">HTTP/1.1 specification in RFC2616</xref> apply with the changes in the sections below.</t>
+      <t>
+        HTTP/2.0 is intended to be as compatible as possible with current web-based
+        applications. This means that, from the perspective of the server business logic or
+        application API, the features of HTTP are unchanged. To achieve this, all of the application
+        request and response header semantics are preserved, although the syntax of conveying those
+        semantics has changed.  Thus, the rules from the <xref target="RFC2616">HTTP/1.1
+        specification in RFC2616</xref> apply with the changes in the sections below.
+      </t>
 
       <section title="Connection Management">
-<t>Clients SHOULD NOT open more than one HTTP/2.0 session to a given <xref target="RFC6454">origin</xref> concurrently.</t>
-<t>Note that it is possible for one HTTP/2.0 session to be finishing (e.g. a GOAWAY message has been sent, but not all streams have finished), while another HTTP/2.0 session is starting.</t>
+        <t>
+          Clients SHOULD NOT open more than one HTTP/2.0 session to a given <xref
+          target="RFC6454">origin</xref> concurrently.
+        </t>
+        <t>
+          Note that it is possible for one HTTP/2.0 session to be finishing (e.g. a GOAWAY message
+          has been sent, but not all streams have finished), while another HTTP/2.0 session is
+          starting.
+        </t>
         <section title="Use of GOAWAY">
-<t>HTTP/2.0 provides a GOAWAY message which can be used when closing a connection from either the client or server.  Without a server GOAWAY message, HTTP has a race condition where the client sends a request (a new SYN_STREAM)  just as the server is closing the connection, and the client cannot know if the server received the stream or not.  By using the last-stream-id in the GOAWAY, servers can indicate to the client if a request was processed or not.</t>
+          <t>
+            HTTP/2.0 provides a GOAWAY message which can be used when closing a connection from
+            either the client or server.  Without a server GOAWAY message, HTTP has a race condition
+            where the client sends a request (a new SYN_STREAM) just as the server is closing the
+            connection, and the client cannot know if the server received the stream or not.  By
+            using the last-stream-id in the GOAWAY, servers can indicate to the client if a request
+            was processed or not.
+          </t>
 
-<t>Note that some servers will choose to send the GOAWAY and immediately terminate the connection without waiting for active streams to finish.  The client will be able to determine this because HTTP/2.0 streams are determinstically closed.  This abrupt termination will force the client to heuristically decide whether to retry the pending requests.  Clients always need to be capable of dealing with this case because they must deal with accidental connection termination cases, which are the same as the server never having sent a GOAWAY.</t>
+          <t>
+            Note that some servers will choose to send the GOAWAY and immediately terminate the
+            connection without waiting for active streams to finish.  The client will be able to
+            determine this because HTTP/2.0 streams are determinstically closed.  This abrupt
+            termination will force the client to heuristically decide whether to retry the pending
+            requests.  Clients always need to be capable of dealing with this case because they must
+            deal with accidental connection termination cases, which are the same as the server
+            never having sent a GOAWAY.
+          </t>
 
-<t>More sophisticated servers will use GOAWAY to implement a graceful teardown. They will send the GOAWAY and provide some time for the active streams to finish before terminating the connection.</t>
+          <t>
+            More sophisticated servers will use GOAWAY to implement a graceful teardown. They will
+            send the GOAWAY and provide some time for the active streams to finish before
+            terminating the connection.
+          </t>
 
-<t>If a HTTP/2.0 client closes the connection, it should also send a GOAWAY message.  This allows the server to know if any server-push streams were received by the client.</t>
+          <t>
+            If a HTTP/2.0 client closes the connection, it should also send a GOAWAY message.  This
+            allows the server to know if any server-push streams were received by the client.
+          </t>
 
-<t>If the endpoint closing the connection has not received any SYN_STREAMs from the remote, the GOAWAY will contain a last-stream-id of 0.</t>
+          <t>
+            If the endpoint closing the connection has not received any SYN_STREAMs from the remote,
+            the GOAWAY will contain a last-stream-id of 0.
+          </t>
 
         </section>
       </section>
 
       <section title="HTTP Request/Response">
         <section title="Request">
-<t>The client initiates a request by sending a SYN_STREAM frame.  For requests which do not contain a body, the SYN_STREAM frame MUST set the FLAG_FIN, indicating that the client intends to send no further data on this stream.  For requests which do contain a body, the SYN_STREAM will not contain the FLAG_FIN, and the body will follow the SYN_STREAM in a series of DATA frames. The last DATA frame will set the FLAG_FIN to indicate the end of the body.</t>
+          <t>
+            The client initiates a request by sending a SYN_STREAM frame.  For requests which do not
+            contain a body, the SYN_STREAM frame MUST set the FLAG_FIN, indicating that the client
+            intends to send no further data on this stream.  For requests which do contain a body,
+            the SYN_STREAM will not contain the FLAG_FIN, and the body will follow the SYN_STREAM in
+            a series of DATA frames. The last DATA frame will set the FLAG_FIN to indicate the end
+            of the body.
+          </t>
 
-<t>The SYN_STREAM Name/Value section will contain all of the HTTP headers which are associated with an HTTP request. The header block in HTTP/2.0 is mostly unchanged from today's HTTP header block, with the following differences:
-<list>
-<t>The first line of the request is unfolded into name/value pairs like other HTTP headers and MUST be present:
-<list>
-<t>":method" - the HTTP method for this request (e.g. "GET", "POST", "HEAD", etc)</t>
-<t>":path" - the url-path for this url with "/" prefixed. (See <xref target="RFC1738">RFC1738</xref>).  For example, for "http://www.google.com/search?q=dogs" the path would be "/search?q=dogs".</t>
-<t>":version" - the HTTP version of this request (e.g. "HTTP/1.1")</t>
-</list>
-</t>
-<t>In addition, the following two name/value pairs must also be present in every request:
-<list>
-<t>":host" - the hostport (See <xref target="RFC1738">RFC1738</xref>) portion of the URL for this request (e.g. "www.google.com:1234"). This header is the same as the HTTP 'Host' header. </t>
-<t>":scheme" - the scheme portion of the URL for this request (e.g. "https"))</t>
-</list></t>
-<t>Header names are all lowercase.</t>
-<t>The Connection, Host, Keep-Alive, Proxy-Connection, and Transfer-Encoding headers are not valid and MUST not be sent.</t>
-<t>User-agents MUST support gzip compression. Regardless of the Accept-Encoding sent by the user-agent, the server may always send content encoded with gzip or deflate encoding.</t>
-<t>If a server receives a request where the sum of the data frame payload lengths does not equal the size of the Content-Length header, the server MUST return a 400 (Bad Request) error.</t>
-<t>POST-specific changes:
-<list>
-<t>Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a Content-Length header.  There are two reasons for this:  First, it assists with upload progress meters for an improved user experience.  More importantly, failure to send a Content-Length header is incompatible with many existing HTTP server implementations.  Existing user agents do not omit the Content-Length header, and server implementations have come to depend upon this.</t>
-</list>
-</t>
-</list>
-</t>
+          <t>
+            The SYN_STREAM Name/Value section will contain all of the HTTP headers which are
+            associated with an HTTP request. The header block in HTTP/2.0 is mostly unchanged from
+            today's HTTP header block, with the following differences:
+            <list>
+              <t>
+                The first line of the request is unfolded into name/value pairs like other HTTP
+                headers and MUST be present:
+                <list>
+                  <t>
+                    ":method" - the HTTP method for this request (e.g. "GET", "POST", "HEAD", etc)
+                  </t>
+                  <t>
+                    ":path" - the url-path for this url with "/" prefixed. (See <xref
+                    target="RFC1738">RFC1738</xref>).  For example, for
+                    "http://www.google.com/search?q=dogs" the path would be "/search?q=dogs".
+                  </t>
+                  <t>
+                    ":version" - the HTTP version of this request (e.g. "HTTP/1.1")
+                  </t>
+                </list>
+              </t>
+              <t>
+                In addition, the following two name/value pairs must also be present in every
+                request:
+                <list>
+                  <t>
+                  ":host" - the hostport (See <xref target="RFC1738">RFC1738</xref>) portion of the
+                  URL for this request (e.g. "www.google.com:1234"). This header is the same as the
+                  HTTP 'Host' header. </t>
+                  <t>
+                    ":scheme" - the scheme portion of the URL for this request (e.g. "https"))
+                  </t>
+                </list>
+              </t>
+              <t>
+                Header names are all lowercase.
+              </t>
+              <t>
+                The Connection, Host, Keep-Alive, Proxy-Connection, and Transfer-Encoding headers
+                are not valid and MUST not be sent.
+              </t>
+              <t>
+                User-agents MUST support gzip compression. Regardless of the Accept-Encoding sent by
+                the user-agent, the server may always send content encoded with gzip or deflate
+                encoding.
+              </t>
+              <t>
+                If a server receives a request where the sum of the data frame payload lengths does
+                not equal the size of the Content-Length header, the server MUST return a 400 (Bad
+                Request) error.
+              </t>
+              <t>
+                POST-specific changes:
+                <list>
+                  <t>
+                    Although POSTs are inherently chunked, POST requests SHOULD also be accompanied
+                    by a Content-Length header.  There are two reasons for this: First, it assists
+                    with upload progress meters for an improved user experience.  More importantly,
+                    failure to send a Content-Length header is incompatible with many existing HTTP
+                    server implementations.  Existing user agents do not omit the Content-Length
+                    header, and server implementations have come to depend upon this.
+                  </t>
+                </list>
+              </t>
+            </list>
+          </t>
 
-<t>The user-agent is free to prioritize requests as it sees fit. If the user-agent cannot make progress without receiving a resource, it should attempt to raise the priority of that resource. Resources such as images, SHOULD generally use the lowest priority.</t>
+          <t>
+            The user-agent is free to prioritize requests as it sees fit. If the user-agent cannot
+            make progress without receiving a resource, it should attempt to raise the priority of
+            that resource. Resources such as images, SHOULD generally use the lowest priority.
+          </t>
 
-<t>If a client sends a SYN_STREAM without all of the method, host, path, scheme, and version headers, the server MUST reply with a HTTP 400 Bad Request reply.</t>
+          <t>
+            If a client sends a SYN_STREAM without all of the method, host, path, scheme, and
+            version headers, the server MUST reply with a HTTP 400 Bad Request reply.
+          </t>
         </section>
 
         <section title="Response">
-<t>The server responds to a client request with a SYN_REPLY frame. Symmetric to the client's upload stream, server will send data after the SYN_REPLY frame via a series of DATA frames, and the last data frame will contain the FLAG_FIN to indicate successful end-of-stream.  If a response (like a 202 or 204 response) contains no body, the SYN_REPLY frame may contain the FLAG_FIN flag to indicate no further data will be sent on the stream.</t>
+          <t>
+            The server responds to a client request with a SYN_REPLY frame. Symmetric to the
+            client's upload stream, server will send data after the SYN_REPLY frame via a series of
+            DATA frames, and the last data frame will contain the FLAG_FIN to indicate successful
+            end-of-stream.  If a response (like a 202 or 204 response) contains no body, the
+            SYN_REPLY frame may contain the FLAG_FIN flag to indicate no further data will be sent
+            on the stream.
+          </t>
 
-<t>
-<list>
-<t>The response status line is unfolded into name/value pairs like other HTTP headers and must be present:
-<list>
-<t>":status" - The HTTP response status code (e.g. "200" or "200 OK")</t>
-<t>":version" - The HTTP response version (e.g. "HTTP/1.1")</t>
-</list>
-</t>
-<t>All header names must be lowercase.</t>
-<t>The Connection, Keep-Alive, Proxy-Connection, and Transfer-Encoding headers are not valid and MUST not be sent.</t>
-<t>Responses MAY be accompanied by a Content-Length header for advisory purposes.  (e.g. for UI progress meters)</t>
-<t>If a client receives a response where the sum of the data frame payload lengths does not equal the size of the Content-Length header, the client MUST ignore the content length header.</t>
-</list>
-</t>
+          <t>
+            <list>
+              <t>
+                The response status line is unfolded into name/value pairs like other HTTP headers
+                and must be present:
+                <list>
+                  <t>
+                    ":status" - The HTTP response status code (e.g. "200" or "200 OK")
+                  </t>
+                  <t>
+                    ":version" - The HTTP response version (e.g. "HTTP/1.1")
+                  </t>
+                </list>
+              </t>
+              <t>
+                All header names must be lowercase.
+              </t>
+              <t>
+                The Connection, Keep-Alive, Proxy-Connection, and Transfer-Encoding headers are not
+                valid and MUST not be sent.
+              </t>
+              <t>
+                Responses MAY be accompanied by a Content-Length header for advisory purposes.
+                (e.g. for UI progress meters)
+              </t>
+              <t>
+                If a client receives a response where the sum of the data frame payload lengths does
+                not equal the size of the Content-Length header, the client MUST ignore the content
+                length header.
+              </t>
+            </list>
+          </t>
 
-<t>If a client receives a SYN_REPLY without a status or without a version header, the client must reply with a RST_STREAM frame indicating a PROTOCOL ERROR.</t>
+          <t>
+            If a client receives a SYN_REPLY without a status or without a version header, the
+            client must reply with a RST_STREAM frame indicating a PROTOCOL ERROR.
+          </t>
         </section>
 
         <section title="Authentication" anchor="Authentication">
-<t>When a client sends a request to an origin server that requires authentication, the server can reply with a "401 Unauthorized" response, and include a WWW-Authenticate challenge header that defines the authentication scheme to be used.  The client then retries the request with an Authorization header appropriate to the specified authentication scheme.</t>
+          <t>
+            When a client sends a request to an origin server that requires authentication, the
+            server can reply with a "401 Unauthorized" response, and include a WWW-Authenticate
+            challenge header that defines the authentication scheme to be used.  The client then
+            retries the request with an Authorization header appropriate to the specified
+            authentication scheme.
+          </t>
 
-<t>There are four options for proxy authentication, Basic, Digest, NTLM and Negotiate (SPNEGO).  The first two options were defined in <xref target="RFC2617">RFC2617</xref>, and are stateless.  The second two options were developed by Microsoft and specified in <xref target="RFC4559">RFC4559</xref>, and are stateful; otherwise known as multi-round authentication, or connection authentication.</t>
+          <t>
+            There are four options for proxy authentication, Basic, Digest, NTLM and Negotiate
+            (SPNEGO).  The first two options were defined in <xref target="RFC2617">RFC2617</xref>,
+            and are stateless.  The second two options were developed by Microsoft and specified in
+            <xref target="RFC4559">RFC4559</xref>, and are stateful; otherwise known as multi-round
+            authentication, or connection authentication.
+          </t>
 
           <section title="Stateless Authentication">
-<t>Stateless Authentication over HTTP/2.0 is identical to how it is performed over HTTP. If multiple HTTP/2.0 streams are concurrently sent to a single server, each will authenticate independently, similar to how two HTTP connections would independently authenticate to a proxy server.</t>
+            <t>
+              Stateless Authentication over HTTP/2.0 is identical to how it is performed over
+              HTTP. If multiple HTTP/2.0 streams are concurrently sent to a single server, each will
+              authenticate independently, similar to how two HTTP connections would independently
+              authenticate to a proxy server.
+            </t>
           </section>
 
           <section title="Stateful Authentication">
-<t>Unfortunately, the stateful authentication mechanisms were implemented and defined in a such a way that directly violates RFC2617 - they do not include a "realm" as part of the request.  This is problematic in HTTP/2.0 because it makes it impossible for a client to disambiguate two concurrent server authentication challenges.</t>
+            <t>
+              Unfortunately, the stateful authentication mechanisms were implemented and defined in
+              a such a way that directly violates RFC2617 - they do not include a "realm" as part of
+              the request.  This is problematic in HTTP/2.0 because it makes it impossible for a
+              client to disambiguate two concurrent server authentication challenges.
+            </t>
 
-<t>To deal with this case, HTTP/2.0 servers using Stateful Authentication MUST implement one of two changes:
-<list>
-<t>Servers can add a "realm=&lt;desired realm&gt;" header so that the two authentication requests can be disambiguated and run concurrently.  Unfortunately, given how these mechanisms work, this is probably not practical.</t>
-<t>Upon sending the first stateful challenge response, the server MUST buffer and defer all further frames which are not part of completing the challenge until the challenge has completed.  Completing the authentication challenge may take multiple round trips.  Once the client receives a "401 Authenticate" response for a stateful authentication type, it MUST stop sending new requests to the server until the authentication has completed by receiving a non-401 response on at least one stream.</t>
-</list>
-</t>
+            <t>
+              To deal with this case, HTTP/2.0 servers using Stateful Authentication MUST implement
+              one of two changes:
+              <list>
+                <t>
+                  Servers can add a "realm=&lt;desired realm&gt;" header so that the two
+                  authentication requests can be disambiguated and run concurrently.  Unfortunately,
+                  given how these mechanisms work, this is probably not practical.
+                </t>
+                <t>
+                  Upon sending the first stateful challenge response, the server MUST buffer and
+                  defer all further frames which are not part of completing the challenge until the
+                  challenge has completed.  Completing the authentication challenge may take
+                  multiple round trips.  Once the client receives a "401 Authenticate" response for
+                  a stateful authentication type, it MUST stop sending new requests to the server
+                  until the authentication has completed by receiving a non-401 response on at least
+                  one stream.
+                </t>
+              </list>
+            </t>
           </section>
         </section>
       </section>
@@ -1653,99 +2034,285 @@ const unsigned char http2_dictionary_txt[] = {
           permitted to push a response for <spanx style="verb">www.example.org</spanx>.
         </t>
 
-<t>If the browser accepts a pushed response (e.g. it does not send a RST_STREAM), the browser MUST attempt to cache the pushed response in same way that it would cache any other response.  This means validating the response headers and inserting into the disk cache.</t>
+        <t>
+          If the browser accepts a pushed response (e.g. it does not send a RST_STREAM), the browser
+          MUST attempt to cache the pushed response in same way that it would cache any other
+          response.  This means validating the response headers and inserting into the disk cache.
+        </t>
 
-<t>Because pushed responses have no request, they have no request headers associated with them.  At the framing layer, HTTP/2.0 pushed streams contain an "associated-stream-id" which indicates the requested stream for which the pushed stream is related.  The pushed stream inherits all of the headers from the associated-stream-id with the exception of ":host", ":scheme", and ":path", which are provided as part of the pushed response stream headers.  The browser MUST store these inherited and implied request headers with the cached resource.</t>
+        <t>
+          Because pushed responses have no request, they have no request headers associated with
+          them.  At the framing layer, HTTP/2.0 pushed streams contain an "associated-stream-id"
+          which indicates the requested stream for which the pushed stream is related.  The pushed
+          stream inherits all of the headers from the associated-stream-id with the exception of
+          ":host", ":scheme", and ":path", which are provided as part of the pushed response stream
+          headers.  The browser MUST store these inherited and implied request headers with the
+          cached resource.
+        </t>
 
-<t>Implementation note:  With server push, it is theoretically possible for servers to push unreasonable amounts of content or resources to the user-agent.  Browsers MUST implement throttles to protect against unreasonable push attacks.</t>
+        <t>
+          Implementation note: With server push, it is theoretically possible for servers to push
+          unreasonable amounts of content or resources to the user-agent.  Browsers MUST implement
+          throttles to protect against unreasonable push attacks.
+        </t>
 
         <section title="Server implementation">
-<t>When the server intends to push a resource to the user-agent, it opens a new stream by sending a unidirectional SYN_STREAM.  The SYN_STREAM MUST include an Associated-To-Stream-ID, and MUST set the FLAG_UNIDIRECTIONAL flag.  The SYN_STREAM MUST include headers for ":scheme", ":host", ":path", which represent the URL for the resource being pushed. Subsequent headers may follow in HEADERS frames. The purpose of the association is so that the user-agent can differentiate which request induced the pushed stream; without it, if the user-agent had two tabs open to the same page, each pushing unique content under a fixed URL, the user-agent would not be able to differentiate the requests.</t>
+          <t>
+            When the server intends to push a resource to the user-agent, it opens a new stream by
+            sending a unidirectional SYN_STREAM.  The SYN_STREAM MUST include an
+            Associated-To-Stream-ID, and MUST set the FLAG_UNIDIRECTIONAL flag.  The SYN_STREAM MUST
+            include headers for ":scheme", ":host", ":path", which represent the URL for the
+            resource being pushed. Subsequent headers may follow in HEADERS frames. The purpose of
+            the association is so that the user-agent can differentiate which request induced the
+            pushed stream; without it, if the user-agent had two tabs open to the same page, each
+            pushing unique content under a fixed URL, the user-agent would not be able to
+            differentiate the requests.
+          </t>
 
-<t>The Associated-To-Stream-ID must be the ID of an existing, open stream.  The reason for this restriction is to have a clear endpoint for pushed content.  If the user-agent requested a resource on stream 11, the server replies on stream 11.  It can push any number of additional streams to the client before sending a FLAG_FIN on stream 11.  However, once the originating stream is closed no further push streams may be associated with it.  The pushed streams do not need to be closed (FIN set) before the originating stream is closed, they only need to be created before the originating stream closes.</t>
+          <t>
+            The Associated-To-Stream-ID must be the ID of an existing, open stream.  The reason for
+            this restriction is to have a clear endpoint for pushed content.  If the user-agent
+            requested a resource on stream 11, the server replies on stream 11.  It can push any
+            number of additional streams to the client before sending a FLAG_FIN on stream 11.
+            However, once the originating stream is closed no further push streams may be associated
+            with it.  The pushed streams do not need to be closed (FIN set) before the originating
+            stream is closed, they only need to be created before the originating stream closes.
+          </t>
 
-<t>It is illegal for a server to push a resource with the Associated-To-Stream-ID of 0.</t>
+          <t>
+            It is illegal for a server to push a resource with the Associated-To-Stream-ID of 0.
+          </t>
 
-<t>To minimize race conditions with the client, the SYN_STREAM for the pushed resources MUST be sent prior to sending any content which could allow the client to discover the pushed resource and request it.</t>
+          <t>
+            To minimize race conditions with the client, the SYN_STREAM for the pushed resources
+            MUST be sent prior to sending any content which could allow the client to discover the
+            pushed resource and request it.
+          </t>
 
-<t>The server MUST only push resources which would have been returned from a GET request.</t>
+          <t>
+            The server MUST only push resources which would have been returned from a GET request.
+          </t>
 
-<t>Note:  If the server does not have all of the Name/Value Response headers available at the time it issues the HEADERS frame for the pushed resource, it may later use an additional HEADERS frame to augment the name/value pairs to be associated with the pushed stream.  The subsequent HEADERS frame(s) must not contain a header for ':host', ':scheme', or ':path' (e.g. the server can't change the identity of the resource to be pushed).  The HEADERS frame must not contain duplicate headers with a previously sent HEADERS frame.  The server must send a HEADERS frame including the scheme/host/port headers before sending any data frames on the stream.</t>
+          <t>
+            Note: If the server does not have all of the Name/Value Response headers available at
+            the time it issues the HEADERS frame for the pushed resource, it may later use an
+            additional HEADERS frame to augment the name/value pairs to be associated with the
+            pushed stream.  The subsequent HEADERS frame(s) must not contain a header for ':host',
+            ':scheme', or ':path' (e.g. the server can't change the identity of the resource to be
+            pushed).  The HEADERS frame must not contain duplicate headers with a previously sent
+            HEADERS frame.  The server must send a HEADERS frame including the scheme/host/port
+            headers before sending any data frames on the stream.
+          </t>
         </section>
 
         <section title="Client implementation">
-<t>When fetching a resource the client has 3 possibilities:
-<list>
-<t>the resource is not being pushed</t>
-<t>the resource is being pushed, but the data has not yet arrived</t>
-<t>the resource is being pushed, and the data has started to arrive</t>
-</list>
-</t>
+          <t>
+            When fetching a resource the client has 3 possibilities:
+            <list>
+              <t>
+                the resource is not being pushed
+              </t>
+              <t>
+                the resource is being pushed, but the data has not yet arrived
+              </t>
+              <t>
+                the resource is being pushed, and the data has started to arrive
+              </t>
+            </list>
+          </t>
 
-<t>When a SYN_STREAM and HEADERS frame which contains an Associated-To-Stream-ID is received, the client must not issue GET requests for the resource in the pushed stream, and instead wait for the pushed stream to arrive.  </t>
+          <t>
+          When a SYN_STREAM and HEADERS frame which contains an Associated-To-Stream-ID is received,
+          the client must not issue GET requests for the resource in the pushed stream, and instead
+          wait for the pushed stream to arrive.  </t>
 
-<t>If a client receives a server push stream with stream-id 0, it
- MUST issue a <xref target="SessionErrorHandler">session error</xref> with the error code PROTOCOL_ERROR.</t>
+          <t>
+            If a client receives a server push stream with stream-id 0, it MUST issue a <xref
+            target="SessionErrorHandler">session error</xref> with the error code PROTOCOL_ERROR.
+          </t>
 
-<t>When a client receives a SYN_STREAM from the server without a the ':host', ':scheme', and ':path' headers in the Name/Value section, it MUST reply with a RST_STREAM with error code HTTP_PROTOCOL_ERROR.</t>
+          <t>
+            When a client receives a SYN_STREAM from the server without a the ':host', ':scheme',
+            and ':path' headers in the Name/Value section, it MUST reply with a RST_STREAM with
+            error code HTTP_PROTOCOL_ERROR.
+          </t>
 
-<t>To cancel individual server push streams, the client can issue a <xref target="StreamErrorHandler">stream error</xref> with error code CANCEL.  Upon receipt, the server MUST stop sending on this stream immediately (this is an Abrupt termination).</t> 
+          <t>
+            To cancel individual server push streams, the client can issue a <xref
+            target="StreamErrorHandler">stream error</xref> with error code CANCEL.  Upon receipt,
+            the server MUST stop sending on this stream immediately (this is an Abrupt termination).
+          </t> 
 
-<t>To cancel all server push streams related to a request, the client may issue a <xref target="StreamErrorHandler">stream error</xref> with error code CANCEL on the associated-stream-id.  By cancelling that stream, the server MUST immediately stop sending frames for any streams with in-association-to for the original stream.</t>
+          <t>
+            To cancel all server push streams related to a request, the client may issue a <xref
+            target="StreamErrorHandler">stream error</xref> with error code CANCEL on the
+            associated-stream-id.  By cancelling that stream, the server MUST immediately stop
+            sending frames for any streams with in-association-to for the original stream.
+          </t>
 
-<t>If the server sends a HEADER frame containing duplicate headers with a previous HEADERS frame for the same stream, the client must issue a <xref target="StreamErrorHandler">stream error</xref> with error code PROTOCOL ERROR.</t>
+          <t>
+            If the server sends a HEADER frame containing duplicate headers with a previous HEADERS
+            frame for the same stream, the client must issue a <xref
+            target="StreamErrorHandler">stream error</xref> with error code PROTOCOL ERROR.
+          </t>
 
-<t>If the server sends a HEADERS frame after sending a data frame for the same stream, the client MAY ignore the HEADERS frame.  Ignoring the HEADERS frame after a data frame prevents handling of HTTP's trailing headers (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.40).</t>
+          <t>
+            If the server sends a HEADERS frame after sending a data frame for the same stream, the
+            client MAY ignore the HEADERS frame.  Ignoring the HEADERS frame after a data frame
+            prevents handling of HTTP's trailing headers
+            (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.40).
+          </t>
         </section>
       </section>
 
     </section>
 
     <section title="Design Rationale and Notes">
-<t>Authors' notes:  The notes in this section have no bearing on the HTTP/2.0 protocol as specified within this document, and none of these notes should be considered authoritative about how the protocol works.  However, these notes may prove useful in future debates about how to resolve protocol ambiguities or how to evolve the protocol going forward.  They may be removed before the final draft.</t>
+      <t>
+        Authors' notes: The notes in this section have no bearing on the HTTP/2.0 protocol as
+        specified within this document, and none of these notes should be considered authoritative
+        about how the protocol works.  However, these notes may prove useful in future debates about
+        how to resolve protocol ambiguities or how to evolve the protocol going forward.  They may
+        be removed before the final draft.
+      </t>
 
       <section title="Separation of Framing Layer and Application Layer">
-<t>Readers may note that this specification sometimes blends the <xref target="FramingLayer">framing layer</xref> with requirements of a specific application - <xref target="HTTPLayer">HTTP</xref>.  This is reflected in the request/response nature of the streams, the definition of the HEADERS and compression contexts which are very similar to HTTP, and other areas as well.</t>
+        <t>
+          Readers may note that this specification sometimes blends the <xref
+          target="FramingLayer">framing layer</xref> with requirements of a specific application -
+          <xref target="HTTPLayer">HTTP</xref>.  This is reflected in the request/response nature of
+          the streams, the definition of the HEADERS and compression contexts which are very similar
+          to HTTP, and other areas as well.
+        </t>
 
-<t>This blending is intentional - the primary goal of this protocol is to create a low-latency protocol for use with HTTP.  Isolating the two layers is convenient for description of the protocol and how it relates to existing HTTP implementations.  However, the ability to reuse the HTTP/2.0 framing layer is a non goal.</t>
+        <t>
+          This blending is intentional - the primary goal of this protocol is to create a
+          low-latency protocol for use with HTTP.  Isolating the two layers is convenient for
+          description of the protocol and how it relates to existing HTTP implementations.  However,
+          the ability to reuse the HTTP/2.0 framing layer is a non goal.
+        </t>
       </section>
 
       <section title="Error handling - Framing Layer">
-<t>Error handling at the HTTP/2.0 layer splits errors into two groups:  Those that affect an individual HTTP/2.0 stream, and those that do not.</t>
+        <t>
+          Error handling at the HTTP/2.0 layer splits errors into two groups: Those that affect an
+          individual HTTP/2.0 stream, and those that do not.
+        </t>
 
-<t>When an error is confined to a single stream, but general framing is in tact, HTTP/2.0 attempts to use the RST_STREAM as a mechanism to invalidate the stream but move forward without aborting the connection altogether.</t>
+        <t>
+          When an error is confined to a single stream, but general framing is in tact, HTTP/2.0
+          attempts to use the RST_STREAM as a mechanism to invalidate the stream but move forward
+          without aborting the connection altogether.
+        </t>
 
-<t>For errors occuring outside of a single stream context, HTTP/2.0 assumes the entire session is hosed.  In this case, the endpoint detecting the error should initiate a connection close.</t>
+        <t>
+          For errors occuring outside of a single stream context, HTTP/2.0 assumes the entire
+          session is hosed.  In this case, the endpoint detecting the error should initiate a
+          connection close.
+        </t>
       </section>
       <section title="One Connection Per Domain">
-<t>HTTP/2.0 attempts to use fewer connections than other protocols have traditionally used.  The rationale for this behavior is because it is very difficult to provide a consistent level of service (e.g. TCP slow-start), prioritization, or optimal compression when the client is connecting to the server through multiple channels.</t>
+        <t>
+          HTTP/2.0 attempts to use fewer connections than other protocols have traditionally used.
+          The rationale for this behavior is because it is very difficult to provide a consistent
+          level of service (e.g. TCP slow-start), prioritization, or optimal compression when the
+          client is connecting to the server through multiple channels.
+        </t>
 
-<t>Through lab measurements, we have seen consistent latency benefits by using fewer connections from the client.  The overall number of packets sent by HTTP/2.0 can be as much as 40% less than HTTP.  Handling large numbers of concurrent connections on the server also does become a scalability problem, and HTTP/2.0 reduces this load.</t>
+        <t>
+          Through lab measurements, we have seen consistent latency benefits by using fewer
+          connections from the client.  The overall number of packets sent by HTTP/2.0 can be as
+          much as 40% less than HTTP.  Handling large numbers of concurrent connections on the
+          server also does become a scalability problem, and HTTP/2.0 reduces this load.
+        </t>
 
-<t>The use of multiple connections is not without benefit, however.  Because HTTP/2.0 multiplexes multiple, independent streams onto a single stream, it creates a potential for head-of-line blocking problems at the transport level.  In tests so far, the negative effects of head-of-line blocking (especially in the presence of packet loss) is outweighed by the benefits of compression and prioritization.</t>
+        <t>
+          The use of multiple connections is not without benefit, however.  Because HTTP/2.0
+          multiplexes multiple, independent streams onto a single stream, it creates a potential for
+          head-of-line blocking problems at the transport level.  In tests so far, the negative
+          effects of head-of-line blocking (especially in the presence of packet loss) is outweighed
+          by the benefits of compression and prioritization.
+        </t>
       </section>
       <section title="Fixed vs Variable Length Fields">
-<t>HTTP/2.0 favors use of fixed length 32bit fields in cases where smaller, variable length encodings could have been used.  To some, this seems like a tragic waste of bandwidth.  HTTP/2.0 choses the simple encoding for speed and simplicity.</t>
+        <t>
+          HTTP/2.0 favors use of fixed length 32bit fields in cases where smaller, variable length
+          encodings could have been used.  To some, this seems like a tragic waste of bandwidth.
+          HTTP/2.0 choses the simple encoding for speed and simplicity.
+        </t>
 
-<t>The goal of HTTP/2.0 is to reduce latency on the network.  The overhead of HTTP/2.0 frames is generally quite low.  Each data frame is only an 8 byte overhead for a 1452 byte payload (~0.6%).  At the time of this writing, bandwidth is already plentiful, and there is a strong trend indicating that bandwidth will continue to increase.  With an average worldwide bandwidth of 1Mbps, and assuming that a variable length encoding could reduce the overhead by 50%, the latency saved by using a variable length encoding would be less than 100 nanoseconds.  More interesting are the effects when the larger encodings force a packet boundary, in which case a round-trip could be induced.  However, by addressing other aspects of HTTP/2.0 and TCP interactions, we believe this is completely mitigated.</t>
+        <t>
+          The goal of HTTP/2.0 is to reduce latency on the network.  The overhead of HTTP/2.0 frames
+          is generally quite low.  Each data frame is only an 8 byte overhead for a 1452 byte
+          payload (~0.6%).  At the time of this writing, bandwidth is already plentiful, and there
+          is a strong trend indicating that bandwidth will continue to increase.  With an average
+          worldwide bandwidth of 1Mbps, and assuming that a variable length encoding could reduce
+          the overhead by 50%, the latency saved by using a variable length encoding would be less
+          than 100 nanoseconds.  More interesting are the effects when the larger encodings force a
+          packet boundary, in which case a round-trip could be induced.  However, by addressing
+          other aspects of HTTP/2.0 and TCP interactions, we believe this is completely mitigated.
+        </t>
       </section>
       <section title="Compression Context(s)">
-<t>When isolating the compression contexts used for communicating with multiple origins, we had a few choices to make.  We could have maintained a map (or list) of compression contexts usable for each origin.  The basic case is easy - each HEADERS frame would need to identify the context to use for that frame.  However, compression contexts are not cheap, so the lifecycle of each context would need to be bounded.  For proxy servers, where we could churn through many contexts, this would be a concern.  We considered using a static set of contexts, say 16 of them, which would bound the memory use.  We also considered dynamic contexts, which could be created on the fly, and would need to be subsequently destroyed.  All of these are complicated, and ultimately we decided that such a mechanism creates too many problems to solve.</t>
+        <t>
+          When isolating the compression contexts used for communicating with multiple origins, we
+          had a few choices to make.  We could have maintained a map (or list) of compression
+          contexts usable for each origin.  The basic case is easy - each HEADERS frame would need
+          to identify the context to use for that frame.  However, compression contexts are not
+          cheap, so the lifecycle of each context would need to be bounded.  For proxy servers,
+          where we could churn through many contexts, this would be a concern.  We considered using
+          a static set of contexts, say 16 of them, which would bound the memory use.  We also
+          considered dynamic contexts, which could be created on the fly, and would need to be
+          subsequently destroyed.  All of these are complicated, and ultimately we decided that such
+          a mechanism creates too many problems to solve.
+        </t>
 
-<t>Alternatively, we've chosen the simple approach, which is to simply provide a flag for resetting the compression context.  For the common case (no proxy), this fine because most requests are to the same origin and we never need to reset the context.  For cases where we are using two different origins over a single HTTP/2.0 session, we simply reset the compression state between each transition.</t>
+        <t>
+          Alternatively, we've chosen the simple approach, which is to simply provide a flag for
+          resetting the compression context.  For the common case (no proxy), this fine because most
+          requests are to the same origin and we never need to reset the context.  For cases where
+          we are using two different origins over a single HTTP/2.0 session, we simply reset the
+          compression state between each transition.
+        </t>
       </section>
       <section title="Unidirectional streams">
-<t>Many readers notice that unidirectional streams are both a bit confusing in concept and also somewhat redundant.  If the recipient of a stream doesn't wish to send data on a stream, it could simply send a SYN_REPLY with the FLAG_FIN bit set.  The FLAG_UNIDIRECTIONAL is, therefore, not necessary.</t>
+        <t>
+          Many readers notice that unidirectional streams are both a bit confusing in concept and
+          also somewhat redundant.  If the recipient of a stream doesn't wish to send data on a
+          stream, it could simply send a SYN_REPLY with the FLAG_FIN bit set.  The
+          FLAG_UNIDIRECTIONAL is, therefore, not necessary.
+        </t>
 
-<t>It is true that we don't need the UNIDIRECTIONAL markings.  It is added because it avoids the recipient of pushed streams from needing to send a set of empty frames (e.g. the SYN_STREAM w/ FLAG_FIN) which otherwise serve no purpose.</t>
+        <t>
+          It is true that we don't need the UNIDIRECTIONAL markings.  It is added because it avoids
+          the recipient of pushed streams from needing to send a set of empty frames (e.g. the
+          SYN_STREAM w/ FLAG_FIN) which otherwise serve no purpose.
+        </t>
       </section>
       <section title="Data Compression">
-<t>Generic compression of data portion of the streams (as opposed to compression of the headers) without knowing the content of the stream is redundant.  There is no value in compressing a stream which is already compressed.  Because of this, HTTP/2.0 does allow data compression to be optional.  We included it because study of existing websites shows that many sites are not using compression as they should, and users suffer because of it.  We wanted a mechanism where, at the HTTP/2.0 layer, site administrators could simply force compression - it is better to compress twice than to not compress.</t>
+        <t>
+          Generic compression of data portion of the streams (as opposed to compression of the
+          headers) without knowing the content of the stream is redundant.  There is no value in
+          compressing a stream which is already compressed.  Because of this, HTTP/2.0 does allow
+          data compression to be optional.  We included it because study of existing websites shows
+          that many sites are not using compression as they should, and users suffer because of it.
+          We wanted a mechanism where, at the HTTP/2.0 layer, site administrators could simply force
+          compression - it is better to compress twice than to not compress.
+        </t>
 
-<t>Overall, however, with this feature being optional and sometimes redundant, it is unclear if it is useful at all.  We will likely remove it from the specification.</t>
+        <t>
+          Overall, however, with this feature being optional and sometimes redundant, it is unclear
+          if it is useful at all.  We will likely remove it from the specification.
+        </t>
       </section>
       <section title="Server Push">
-<t>A subtle but important point is that server push streams must be declared before the associated stream is closed.  The reason for this is so that proxies have a lifetime for which they can discard information about previous streams.  If a pushed stream could associate itself with an already-closed stream, then endpoints would not have a specific lifecycle for when they could disavow knowledge of the streams which went before.</t>
+        <t>
+          A subtle but important point is that server push streams must be declared before the
+          associated stream is closed.  The reason for this is so that proxies have a lifetime for
+          which they can discard information about previous streams.  If a pushed stream could
+          associate itself with an already-closed stream, then endpoints would not have a specific
+          lifecycle for when they could disavow knowledge of the streams which went before.
+        </t>
       </section>
     </section>
 
@@ -1770,8 +2337,10 @@ const unsigned char http2_dictionary_txt[] = {
 
       <section title="Cross-Protocol Attacks">
         <t>
-          By utilizing TLS, we believe that HTTP/2.0 introduces no new cross-protocol attacks.  TLS encrypts the contents of all transmission (except the handshake itself), making it difficult for attackers to control the data which could be used in a cross-protocol attack.
-          [[Issue: This is no longer true]]
+          By utilizing TLS, we believe that HTTP/2.0 introduces no new cross-protocol attacks.  TLS
+          encrypts the contents of all transmission (except the handshake itself), making it
+          difficult for attackers to control the data which could be used in a cross-protocol
+          attack.  [[Issue: This is no longer true]]
         </t>
       </section>
 
@@ -1783,16 +2352,17 @@ const unsigned char http2_dictionary_txt[] = {
           headers from the associated stream for the push.  This includes the Cookie header field.
         </t>
         <t>
-          Caching resources that are pushed is possible, based on the guidance provided by the origin
-          server in the Cache-Control header field.  However, this can cause issues if a single server
-          hosts more than one tenant.  For example, a server might offer multiple users each a small
-          portion of its URI space.
+          Caching resources that are pushed is possible, based on the guidance provided by the
+          origin server in the Cache-Control header field.  However, this can cause issues if a
+          single server hosts more than one tenant.  For example, a server might offer multiple
+          users each a small portion of its URI space.
         </t>
         <t>
-          Where multiple tenants share space on the same server, that server MUST ensure that tenants
-          are not able to push representations of resources that they do not have authority over.
-          Failure to enforce this would allow a tenant to provide a representation that would be served
-          out of cache, overriding the actual representation that the authoritative tenant provides.
+          Where multiple tenants share space on the same server, that server MUST ensure that
+          tenants are not able to push representations of resources that they do not have authority
+          over.  Failure to enforce this would allow a tenant to provide a representation that would
+          be served out of cache, overriding the actual representation that the authoritative tenant
+          provides.
         </t>
         <t>
           Pushed resources for which an origin server is not authoritative are never cached or used.
@@ -1814,7 +2384,10 @@ const unsigned char http2_dictionary_txt[] = {
 
       <section title="SETTINGS frame">
         <t>
-          The HTTP/2.0 SETTINGS frame allows servers to store out-of-band transmitted information about the communication between client and server on the client.  Although this is intended only to be used to reduce latency, renegade servers could use it as a mechanism to store identifying information about the client in future requests.
+          The HTTP/2.0 SETTINGS frame allows servers to store out-of-band transmitted information
+          about the communication between client and server on the client.  Although this is
+          intended only to be used to reduce latency, renegade servers could use it as a mechanism
+          to store identifying information about the client in future requests.
         </t>
 
         <t>
@@ -1828,318 +2401,358 @@ const unsigned char http2_dictionary_txt[] = {
     </section>
 
     <section title="Acknowledgements">
-      <t>This document includes substantial input from the following individuals:
-      <list style="symbols">
-        <t>
-          Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk, Costin Manolache,
-          William Chan, Vitaliy Lvin, Joe Chan, Adam Barth, Ryan Hamilton, Gavin Peters, Kent Alstad,
-          Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton (SPDY contributors).
-        </t>
-        <t>
-          Gabriel Montenegro and Willy Tarreau (Upgrade mechanism)
-        </t>
-        <t>
-          William Chan, Salvatore Loreto, Osama Mazahir, Gabriel Montenegro, Jitu Padhye, Roberto Peon,
-          Rob Trace (Flow control)
-        </t>
-        <t>
-          Mark Nottingham and Julian Reschke
-        </t>
-      </list>
+      <t>
+        This document includes substantial input from the following individuals:
+        <list style="symbols">
+          <t>
+            Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk, Costin
+            Manolache, William Chan, Vitaliy Lvin, Joe Chan, Adam Barth, Ryan Hamilton, Gavin
+            Peters, Kent Alstad, Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton (SPDY
+            contributors).
+          </t>
+          <t>
+            Gabriel Montenegro and Willy Tarreau (Upgrade mechanism)
+          </t>
+          <t>
+            William Chan, Salvatore Loreto, Osama Mazahir, Gabriel Montenegro, Jitu Padhye, Roberto
+            Peon, Rob Trace (Flow control)
+          </t>
+          <t>
+            Mark Nottingham and Julian Reschke
+          </t>
+        </list>
       </t>
     </section>
   </middle>
 
   <back>
-  <references title="Normative References">
+    <references title="Normative References">
 
-    <reference anchor='RFC0793'>
-      <front>
-        <title abbrev='Transmission Control Protocol'>Transmission Control Protocol</title>
-        <author initials='J.' surname='Postel' fullname='Jon Postel'>
-          <organization>University of Southern California (USC)/Information Sciences Institute</organization>
-        </author>
-        <date year='1981' day='1' month='September' />
-      </front>
-      <seriesInfo name='STD' value='7' />
-      <seriesInfo name='RFC' value='793' />
-    </reference>
+      <reference anchor='RFC0793'>
+        <front>
+          <title abbrev='Transmission Control Protocol'>
+          Transmission Control Protocol</title>
+          <author initials='J.' surname='Postel' fullname='Jon Postel'>
+            <organization>University of Southern California (USC)/Information Sciences
+            Institute</organization>
+          </author>
+          <date year='1981' day='1' month='September' />
+        </front>
+        <seriesInfo name='STD' value='7' />
+        <seriesInfo name='RFC' value='793' />
+      </reference>
 
-    <reference anchor='RFC1738'>
-      <front>
-        <title>Uniform Resource Locators (URL)</title>
-        <author initials='T.' surname='Berners-Lee' fullname='Tim Berners-Lee'>
-          <organization>CERN, World-Wide Web project</organization>
-        </author>
-        <author initials='L.' surname='Masinter' fullname='Larry Masinter'>
-          <organization>Xerox PARC</organization>
-        </author>
-        <author initials='M.' surname='McCahill' fullname='Mark McCahill'>
-          <organization>University of Minnesota, Computer and Information Services</organization>
-        </author>
-        <date year='1994' month='December' />
-      </front>
-      <seriesInfo name='RFC' value='1738' />
-    </reference>
+      <reference anchor='RFC1738'>
+        <front>
+          <title>
+          Uniform Resource Locators (URL)</title>
+          <author initials='T.' surname='Berners-Lee' fullname='Tim Berners-Lee'>
+            <organization>CERN, World-Wide Web project</organization>
+          </author>
+          <author initials='L.' surname='Masinter' fullname='Larry Masinter'>
+            <organization>Xerox PARC</organization>
+          </author>
+          <author initials='M.' surname='McCahill' fullname='Mark McCahill'>
+            <organization>University of Minnesota, Computer and Information Services</organization>
+          </author>
+          <date year='1994' month='December' />
+        </front>
+        <seriesInfo name='RFC' value='1738' />
+      </reference>
 
-    <reference anchor="RFC1950">
-      <front>
-        <title>ZLIB Compressed Data Format Specification version 3.3</title>
-        <author initials="L.P." surname="Deutsch" fullname="L. Peter Deutsch">
-          <organization>Aladdin Enterprises</organization>
-          <address><email>ghost@aladdin.com</email></address>
-        </author>
-        <author initials="J.-L." surname="Gailly" fullname="Jean-Loup Gailly"/>
-        <date month="May" year="1996"/>
-      </front>
-      <seriesInfo name="RFC" value="1950"/>
-    </reference>
+      <reference anchor="RFC1950">
+        <front>
+          <title>
+          ZLIB Compressed Data Format Specification version 3.3</title>
+          <author initials="L.P." surname="Deutsch" fullname="L. Peter Deutsch">
+            <organization>Aladdin Enterprises</organization>
+            <address><email>ghost@aladdin.com</email></address>
+          </author>
+          <author initials="J.-L." surname="Gailly" fullname="Jean-Loup Gailly"/>
+          <date month="May" year="1996"/>
+        </front>
+        <seriesInfo name="RFC" value="1950"/>
+      </reference>
 
-    <reference anchor="RFC2119">
-      <front>
-        <title>Key words for use in RFCs to Indicate Requirement Levels</title>
-        <author initials="S." surname="Bradner" fullname="Scott Bradner">
-          <organization>Harvard University</organization>
-          <address><email>sob@harvard.edu</email></address>
-        </author>
-        <date month="March" year="1997"/>
-      </front>
-      <seriesInfo name="BCP" value="14"/>
-      <seriesInfo name="RFC" value="2119"/>
-    </reference>
+      <reference anchor="RFC2119">
+        <front>
+          <title>
+          Key words for use in RFCs to Indicate Requirement Levels</title>
+          <author initials="S." surname="Bradner" fullname="Scott Bradner">
+            <organization>Harvard University</organization>
+            <address><email>sob@harvard.edu</email></address>
+          </author>
+          <date month="March" year="1997"/>
+        </front>
+        <seriesInfo name="BCP" value="14"/>
+        <seriesInfo name="RFC" value="2119"/>
+      </reference>
 
-    <reference anchor="RFC2616">
-      <front>
-        <title>Hypertext Transfer Protocol -- HTTP/1.1</title>
-        <author initials="R." surname="Fielding" fullname="R. Fielding">
-          <organization>University of California, Irvine</organization>
-          <address><email>fielding@ics.uci.edu</email></address>
-        </author>
-        <author initials="J." surname="Gettys" fullname="J. Gettys">
-          <organization>W3C</organization>
-          <address><email>jg@w3.org</email></address>
-        </author>
-        <author initials="J." surname="Mogul" fullname="J. Mogul">
-          <organization>Compaq Computer Corporation</organization>
-          <address><email>mogul@wrl.dec.com</email></address>
-        </author>
-        <author initials="H." surname="Frystyk" fullname="H. Frystyk">
-          <organization>MIT Laboratory for Computer Science</organization>
-          <address><email>frystyk@w3.org</email></address>
-        </author>
-        <author initials="L." surname="Masinter" fullname="L. Masinter">
-          <organization>Xerox Corporation</organization>
-          <address><email>masinter@parc.xerox.com</email></address>
-        </author>
-        <author initials="P." surname="Leach" fullname="P. Leach">
-          <organization>Microsoft Corporation</organization>
-          <address><email>paulle@microsoft.com</email></address>
-        </author>
-        <author initials="T." surname="Berners-Lee" fullname="T. Berners-Lee">
-          <organization>W3C</organization>
-          <address><email>timbl@w3.org</email></address>
-        </author>
-        <date month="June" year="1999"/>
-      </front>
-      <seriesInfo name="RFC" value="2616"/>
-    </reference>
+      <reference anchor="RFC2616">
+        <front>
+          <title>
+          Hypertext Transfer Protocol -- HTTP/1.1</title>
+          <author initials="R." surname="Fielding" fullname="R. Fielding">
+            <organization>University of California, Irvine</organization>
+            <address><email>fielding@ics.uci.edu</email></address>
+          </author>
+          <author initials="J." surname="Gettys" fullname="J. Gettys">
+            <organization>W3C</organization>
+            <address><email>jg@w3.org</email></address>
+          </author>
+          <author initials="J." surname="Mogul" fullname="J. Mogul">
+            <organization>Compaq Computer Corporation</organization>
+            <address><email>mogul@wrl.dec.com</email></address>
+          </author>
+          <author initials="H." surname="Frystyk" fullname="H. Frystyk">
+            <organization>MIT Laboratory for Computer Science</organization>
+            <address><email>frystyk@w3.org</email></address>
+          </author>
+          <author initials="L." surname="Masinter" fullname="L. Masinter">
+            <organization>Xerox Corporation</organization>
+            <address><email>masinter@parc.xerox.com</email></address>
+          </author>
+          <author initials="P." surname="Leach" fullname="P. Leach">
+            <organization>Microsoft Corporation</organization>
+            <address><email>paulle@microsoft.com</email></address>
+          </author>
+          <author initials="T." surname="Berners-Lee" fullname="T. Berners-Lee">
+            <organization>W3C</organization>
+            <address><email>timbl@w3.org</email></address>
+          </author>
+          <date month="June" year="1999"/>
+        </front>
+        <seriesInfo name="RFC" value="2616"/>
+      </reference>
 
-    <reference anchor="RFC2617">
-      <front>
-        <title abbrev="HTTP Authentication">HTTP Authentication: Basic and Digest Access Authentication</title>
-        <author initials="J." surname="Franks" fullname="John Franks">
-          <organization>Northwestern University, Department of Mathematics</organization>
-          <address><email>john@math.nwu.edu</email></address>
-        </author>
-        <author initials="P.M." surname="Hallam-Baker" fullname="Phillip M. Hallam-Baker">
-          <organization>Verisign Inc.</organization>
-          <address><email>pbaker@verisign.com</email></address>
-        </author>
-        <author initials="J.L." surname="Hostetler" fullname="Jeffery L. Hostetler">
-          <organization>AbiSource, Inc.</organization>
-          <address><email>jeff@AbiSource.com</email></address>
-        </author>
-        <author initials="S.D." surname="Lawrence" fullname="Scott D. Lawrence">
-          <organization>Agranat Systems, Inc.</organization>
-          <address><email>lawrence@agranat.com</email></address>
-        </author>
-        <author initials="P.J." surname="Leach" fullname="Paul J. Leach">
-          <organization>Microsoft Corporation</organization>
-          <address><email>paulle@microsoft.com</email></address>
-        </author>
-        <author initials="A." surname="Luotonen" fullname="Ari Luotonen">
-          <organization>Netscape Communications Corporation</organization>
-        </author>
-        <author initials="L." surname="Stewart" fullname="Lawrence C. Stewart">
-          <organization>Open Market, Inc.</organization>
-          <address><email>stewart@OpenMarket.com</email></address>
-        </author>
-        <date month="June" year="1999"/>
-      </front>
-      <seriesInfo name="RFC" value="2617"/>
-    </reference>
+      <reference anchor="RFC2617">
+        <front>
+          <title abbrev="HTTP Authentication">
+          HTTP Authentication: Basic and Digest Access Authentication</title>
+          <author initials="J." surname="Franks" fullname="John Franks">
+            <organization>Northwestern University, Department of Mathematics</organization>
+            <address><email>john@math.nwu.edu</email></address>
+          </author>
+          <author initials="P.M." surname="Hallam-Baker" fullname="Phillip M. Hallam-Baker">
+            <organization>Verisign Inc.</organization>
+            <address><email>pbaker@verisign.com</email></address>
+          </author>
+          <author initials="J.L." surname="Hostetler" fullname="Jeffery L. Hostetler">
+            <organization>AbiSource, Inc.</organization>
+            <address><email>jeff@AbiSource.com</email></address>
+          </author>
+          <author initials="S.D." surname="Lawrence" fullname="Scott D. Lawrence">
+            <organization>Agranat Systems, Inc.</organization>
+            <address><email>lawrence@agranat.com</email></address>
+          </author>
+          <author initials="P.J." surname="Leach" fullname="Paul J. Leach">
+            <organization>Microsoft Corporation</organization>
+            <address><email>paulle@microsoft.com</email></address>
+          </author>
+          <author initials="A." surname="Luotonen" fullname="Ari Luotonen">
+            <organization>Netscape Communications Corporation</organization>
+          </author>
+          <author initials="L." surname="Stewart" fullname="Lawrence C. Stewart">
+            <organization>Open Market, Inc.</organization>
+            <address><email>stewart@OpenMarket.com</email></address>
+          </author>
+          <date month="June" year="1999"/>
+        </front>
+        <seriesInfo name="RFC" value="2617"/>
+      </reference>
 
-    <reference anchor="RFC4559">
-      <front>
-        <title>SPNEGO-based Kerberos and NTLM HTTP Authentication in Microsoft Windows</title>
-        <author initials="K." surname="Jaganathan" fullname="K. Jaganathan"/>
-        <author initials="L." surname="Zhu" fullname="L. Zhu"/>
-        <author initials="J." surname="Brezak" fullname="J. Brezak"/>
-        <date year="2006" month="June"/>
-      </front>
-      <seriesInfo name="RFC" value="4559"/>
-    </reference>
+      <reference anchor="RFC4559">
+        <front>
+          <title>
+          SPNEGO-based Kerberos and NTLM HTTP Authentication in Microsoft Windows</title>
+          <author initials="K." surname="Jaganathan" fullname="K. Jaganathan"/>
+          <author initials="L." surname="Zhu" fullname="L. Zhu"/>
+          <author initials="J." surname="Brezak" fullname="J. Brezak"/>
+          <date year="2006" month="June"/>
+        </front>
+        <seriesInfo name="RFC" value="4559"/>
+      </reference>
 
-    <reference anchor='RFC5246'>
-      <front>
-        <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
-        <author initials='T.' surname='Dierks' fullname='T. Dierks'/>
-        <author initials='E.' surname='Rescorla' fullname='E. Rescorla'/>
-        <date year='2008' month='August' />
-      </front>
-      <seriesInfo name='RFC' value='5246' />
-    </reference>
+      <reference anchor='RFC5246'>
+        <front>
+          <title>
+          The Transport Layer Security (TLS) Protocol Version 1.2</title>
+          <author initials='T.' surname='Dierks' fullname='T. Dierks'/>
+          <author initials='E.' surname='Rescorla' fullname='E. Rescorla'/>
+          <date year='2008' month='August' />
+        </front>
+        <seriesInfo name='RFC' value='5246' />
+      </reference>
 
-    <reference anchor='RFC6454'>
-      <front>
-        <title>The Web Origin Concept</title>
-        <author initials='A.' surname='Barth' fullname='A. Barth'/>
-        <date year='2011' month='December' />
-      </front>
-      <seriesInfo name='RFC' value='6454' />
-    </reference>
+      <reference anchor='RFC6454'>
+        <front>
+          <title>
+          The Web Origin Concept</title>
+          <author initials='A.' surname='Barth' fullname='A. Barth'/>
+          <date year='2011' month='December' />
+        </front>
+        <seriesInfo name='RFC' value='6454' />
+      </reference>
 
-    <reference anchor="TLSNPN">
-      <front>
-        <title>TLS Next Protocol Negotiation</title>
-        <author initials="A." surname="Langley"/>
-        <date year='2010' month='August' />
-      </front>
-      <seriesInfo name='Internet-Draft' value='draft-agl-tls-nextprotoneg-01' />
-    </reference>
+      <reference anchor="TLSNPN">
+        <front>
+          <title>
+          TLS Next Protocol Negotiation</title>
+          <author initials="A." surname="Langley"/>
+          <date year='2010' month='August' />
+        </front>
+        <seriesInfo name='Internet-Draft' value='draft-agl-tls-nextprotoneg-01' />
+      </reference>
 
-    <reference anchor="ASCII">
-      <front>
-        <title>US-ASCII. Coded Character Set - 7-Bit American Standard Code for Information Interchange. Standard ANSI X3.4-1986, ANSI, 1986.</title>
-        <author/>
-        <date/>
-      </front>
-    </reference>
+      <reference anchor="ASCII">
+        <front>
+          <title>
+          US-ASCII. Coded Character Set - 7-Bit American Standard Code for Information
+          Interchange. Standard ANSI X3.4-1986, ANSI, 1986.</title>
+          <author/>
+          <date/>
+        </front>
+      </reference>
 
-    <reference anchor="UDELCOMPRESSION" target="http://www.eecis.udel.edu/~amer/PEL/poc/pdf/SPDY-Fan.pdf">
-      <front>
-        <title>A Methodology to Derive SPDY's Initial Dictionary for Zlib Compression</title>
-        <author initials="F." surname="Yang"></author>
-        <author initials="P." surname="Amer"></author>
-        <author initials="J." surname="Leighton"></author>
-        <date/>
-      </front>
-    </reference> 
-    <reference anchor='HTTP-p1'>
-      <front>
-        <title>Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
-        <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
-        <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
-        <date month='October' day='4' year='2012' />
-        <abstract><t>The Hypertext Transfer Protocol (HTTP) is an application-level protocol for distributed, collaborative, hypertext information systems.  HTTP has been in use by the World Wide Web global information initiative since 1990.  This document provides an overview of HTTP architecture and its associated terminology, defines the "http" and "https" Uniform Resource Identifier (URI) schemes, defines the HTTP/1.1 message syntax and parsing requirements, and describes general security concerns for implementations.</t></abstract>
-      </front>
-      <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p1-messaging-21' />
-      <format type='TXT'
-              target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p1-messaging-21.txt' />
-    </reference>
-    <reference anchor='HTTP-p2'>
-      <front>
-        <title>Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</title>
-        <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
-        <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
-        <date month='October' day='4' year='2012' />
-        <abstract><t>The Hypertext Transfer Protocol (HTTP) is an application-level protocol for distributed, collaborative, hypertext information systems.  This document defines the semantics of HTTP/1.1 messages, as expressed by request methods, request header fields, response status codes, and response header fields, along with the payload of messages (metadata and body content) and mechanisms for content negotiation.</t></abstract>
-      </front>
-      <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p2-semantics-21' />
-      <format type='TXT'
-              target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p2-semantics-21.txt' />
-    </reference>
-  </references>
+      <reference anchor="UDELCOMPRESSION" target="http://www.eecis.udel.edu/~amer/PEL/poc/pdf/SPDY-Fan.pdf">
+        <front>
+          <title>
+          A Methodology to Derive SPDY's Initial Dictionary for Zlib Compression</title>
+          <author initials="F." surname="Yang"></author>
+          <author initials="P." surname="Amer"></author>
+          <author initials="J." surname="Leighton"></author>
+          <date/>
+        </front>
+      </reference> 
+      <reference anchor='HTTP-p1'>
+        <front>
+          <title>
+          Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
+          <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
+          <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
+          <date month='October' day='4' year='2012' />
+          <abstract><t> The Hypertext Transfer Protocol (HTTP) is an application-level protocol for
+          distributed, collaborative, hypertext information systems.  HTTP has been in use by the
+          World Wide Web global information initiative since 1990.  This document provides an
+          overview of HTTP architecture and its associated terminology, defines the "http" and
+          "https" Uniform Resource Identifier (URI) schemes, defines the HTTP/1.1 message syntax and
+          parsing requirements, and describes general security concerns for implementations.
+          </t></abstract>
+        </front>
+        <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p1-messaging-21' />
+        <format type='TXT'
+                target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p1-messaging-21.txt' />
+      </reference>
+      <reference anchor='HTTP-p2'>
+        <front>
+          <title>
+          Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</title>
+          <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
+          <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
+          <date month='October' day='4' year='2012' />
+          <abstract><t> The Hypertext Transfer Protocol (HTTP) is an application-level protocol for
+          distributed, collaborative, hypertext information systems.  This document defines the
+          semantics of HTTP/1.1 messages, as expressed by request methods, request header fields,
+          response status codes, and response header fields, along with the payload of messages
+          (metadata and body content) and mechanisms for content negotiation.  </t></abstract>
+        </front>
+        <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p2-semantics-21' />
+        <format type='TXT'
+                target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p2-semantics-21.txt' />
+      </reference>
+    </references>
 
-  <references title="Informative References">
-    <reference anchor="RFC1323">
-      <front>
-        <title>TCP Extensions for High Performance</title>
-        <author initials='V.' surname='Jacobson' fullname='Van Jacobson'></author>
-        <author initials='B.' surname='Braden' fullname='Bob Braden'></author>
-        <author initials='D.' surname='Borman' fullname='Dave Borman'></author>
-        <date year='1992' month='May' />
-        <abstract>
-          <t>This memo presents a set of TCP extensions to improve performance over large bandwidth*delay product paths and to provide reliable operation over very high-speed paths.  It defines new TCP options for scaled windows and timestamps, which are designed to provide compatible interworking with TCP's that do not implement the extensions.  The timestamps are used for two distinct mechanisms: RTTM (Round Trip Time Measurement) and PAWS (Protect Against Wrapped Sequences).  Selective acknowledgments are not included in this memo.</t>
-      <t>This memo combines and supersedes RFC-1072 and RFC-1185, adding additional clarification and more detailed specification.  Appendix C summarizes the changes from the earlier RFCs.</t></abstract></front>
+    <references title="Informative References">
+      <reference anchor="RFC1323">
+        <front>
+          <title>
+          TCP Extensions for High Performance</title>
+          <author initials='V.' surname='Jacobson' fullname='Van Jacobson'></author>
+          <author initials='B.' surname='Braden' fullname='Bob Braden'></author>
+          <author initials='D.' surname='Borman' fullname='Dave Borman'></author>
+          <date year='1992' month='May' />
+          <abstract>
+            <t>
+              This memo presents a set of TCP extensions to improve performance over large
+              bandwidth*delay product paths and to provide reliable operation over very high-speed
+              paths.  It defines new TCP options for scaled windows and timestamps, which are
+              designed to provide compatible interworking with TCP's that do not implement the
+              extensions.  The timestamps are used for two distinct mechanisms: RTTM (Round Trip
+              Time Measurement) and PAWS (Protect Against Wrapped Sequences).  Selective
+              acknowledgments are not included in this memo.
+            </t>
+            <t>
+              This memo combines and supersedes RFC-1072 and RFC-1185, adding additional
+              clarification and more detailed specification.  Appendix C summarizes the changes from
+              the earlier RFCs.  </t></abstract></front>
 
-      <seriesInfo name='RFC' value='1323' />
-      <format type='TXT' octets='84558' target='http://www.rfc-editor.org/rfc/rfc1323.txt' />
-    </reference>
-  </references>
+        <seriesInfo name='RFC' value='1323' />
+        <format type='TXT' octets='84558' target='http://www.rfc-editor.org/rfc/rfc1323.txt' />
+      </reference>
+    </references>
 
-  <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
+    <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
-    <section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
-      <t>
-        Added advice against naive implementation of flow control.
-      </t>
-      <t>
-        Added session header section.
-      </t>
-      <t>
-        Restructured frame header.  Removed distinction between data and control frames.
-      </t>
-      <t>
-        Altered flow control properties to include session-level limits.
-      </t>
-      <t>
-        Added note on cacheability of pushed resources and multiple tenant servers.
-      </t>
-      <t>
-        Changed protocol label form based on discussions.
-      </t>
+      <section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
+        <t>
+          Added advice against naive implementation of flow control.
+        </t>
+        <t>
+          Added session header section.
+        </t>
+        <t>
+          Restructured frame header.  Removed distinction between data and control frames.
+        </t>
+        <t>
+          Altered flow control properties to include session-level limits.
+        </t>
+        <t>
+          Added note on cacheability of pushed resources and multiple tenant servers.
+        </t>
+        <t>
+          Changed protocol label form based on discussions.
+        </t>
+      </section>
+
+      <section title="Since draft-ietf-httpbis-http2-00" anchor="changes.since.draft-ietf-httpbis-http2-00">
+        <t>
+          Changed title throughout.
+        </t>
+        <t>
+          Removed section on Incompatibilities with SPDY draft#2.
+        </t>
+        <t>
+          Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref
+          target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
+        </t>
+        <t>
+          Replaced abstract and introduction.
+        </t>
+        <t>
+          Added section on starting HTTP/2.0, including upgrade mechanism.
+        </t>
+        <t>
+          Removed unused references.
+        </t>
+        <t>
+          Added <xref target="fc-principles">flow control principles</xref> based on <eref
+          target="http://tools.ietf.org/html/draft-montenegro-httpbis-http2-fc-principles-01"/>.
+        </t>
+      </section>
+
+      <section title="Since draft-mbelshe-httpbis-spdy-00" anchor="changes.since.draft-mbelshe-httpbis-spdy-00">
+        <t>
+          Adopted as base for draft-ietf-httpbis-http2.
+        </t>
+        <t>
+          Updated authors/editors list.
+        </t>
+        <t>
+          Added status note.
+        </t>
+      </section>
     </section>
 
-    <section title="Since draft-ietf-httpbis-http2-00" anchor="changes.since.draft-ietf-httpbis-http2-00">
-      <t>
-        Changed title throughout.
-      </t>
-      <t>
-        Removed section on Incompatibilities with SPDY draft#2.
-      </t>
-      <t>
-        Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref
-        target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
-      </t>
-      <t>
-        Replaced abstract and introduction.
-      </t>
-      <t>
-        Added section on starting HTTP/2.0, including upgrade mechanism.
-      </t>
-      <t>
-        Removed unused references.
-      </t>
-      <t>
-        Added <xref target="fc-principles">flow control principles</xref> based on <eref
-        target="http://tools.ietf.org/html/draft-montenegro-httpbis-http2-fc-principles-01"/>.
-      </t>
-    </section>
-
-    <section title="Since draft-mbelshe-httpbis-spdy-00" anchor="changes.since.draft-mbelshe-httpbis-spdy-00">
-      <t>
-        Adopted as base for draft-ietf-httpbis-http2.
-      </t>
-      <t>
-        Updated authors/editors list.
-      </t>
-      <t>
-        Added status note.
-      </t>
-    </section>
-  </section>
-
-</back>
+  </back>
 </rfc>
 
