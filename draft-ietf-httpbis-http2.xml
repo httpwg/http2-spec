@@ -141,24 +141,62 @@
   entities that process many messages).
 </t>
 
-      <section title="Document Organization">
-<t>The HTTP/2.0 Specification is split into three parts: <xref target="starting">starting HTTP/2.0</xref>, which covers how a HTTP/2.0 is started; <xref target="FramingLayer">a framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed frames; and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism for overlaying HTTP request/response pairs on top of the framing layer. While some of the framing layer concepts are isolated from the HTTP layer, building a generic framing layer has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and server push.</t>
-      </section>
-      <section title="Definitions">
-<t>
-<list>
-<t>client: The endpoint initiating the HTTP/2.0 session.</t>
-<t>connection: A transport-level connection between two endpoints.</t>
-<t>endpoint: Either the client or server of a connection.</t>
-<t>frame: A header-prefixed sequence of bytes sent over a HTTP/2.0 session.</t>
-<t>server: The endpoint which did not initiate the HTTP/2.0 session.</t>
-<t>session: A synonym for a connection.</t>
-<t>session error: An error on the HTTP/2.0 session.</t>
-<t>stream: A bi-directional flow of bytes across a virtual channel within a HTTP/2.0 session.</t>
-<t>stream error: An error on an individual HTTP/2.0 stream.</t>
-</list>
-</t>
-      </section>
+<section title="Document Organization">
+  <t>
+    The HTTP/2.0 Specification is split into three parts: <xref target="starting">starting HTTP/2.0</xref>, which covers how a HTTP/2.0 is started; <xref target="FramingLayer">a framing layer</xref>, which multiplexes a TCP connection into independent, length-prefixed frames; and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism for overlaying HTTP request/response pairs on top of the framing layer. While some of the framing layer concepts are isolated from the HTTP layer, building a generic framing layer has not been a goal. The framing layer is tailored to the needs of the HTTP protocol and server push.
+  </t>
+</section>
+<section title="Conventions and Terminology">
+  <t>
+    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT",
+    "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in
+    <xref target="RFC2119">RFC 2119</xref>.
+  </t>
+  <t>
+    All numeric values are in network byte order.  Values are unsigned unless otherwise indicated.  Literal values are provided in decimal or hexadecimal as appropriate.  Hexadecimal literals are prefixed with <spanx style="verb">0x</spanx> to distinguish them from decimal literals.  
+  </t>
+  <t>
+    The following terms are used:
+    <list style="hanging">
+      <t hangText="client:">
+        The endpoint initiating the HTTP/2.0 session.
+      </t>
+      <t hangText="connection:">
+        A transport-level connection between two endpoints.
+      </t>
+      <t hangText="endpoint:">
+        Either the client or server of a connection.
+      </t>
+      <t hangText="frame:">
+        The smallest unit of communication, each containing a frame header.
+      </t>
+      <t hangText="message:">
+        A complete sequence of frames.
+      </t>
+      <t hangText="receiver:">
+        An endpoint that is receiving frames.
+      </t>
+      <t hangText="sender:">
+        An endpoint that is transmitting frames.
+      </t>
+      <t hangText="server:">
+        The endpoint which did not initiate the HTTP/2.0 session.
+      </t>
+      <t hangText="session:">
+        A synonym for a connection.
+      </t>
+      <t hangText="session error:">
+        An error on the HTTP/2.0 session.
+      </t>
+      <t hangText="stream:">
+        A bi-directional flow of bytes across a virtual channel within a HTTP/2.0 session.
+      </t>
+      <t hangText="stream error:">
+        An error on an individual HTTP/2.0 stream.
+      </t>
+    </list>
+  </t>
+</section>
     </section>
 
 <section anchor="starting" title="Starting HTTP/2.0">
@@ -243,32 +281,31 @@ For example:
    Connection: Upgrade
    Upgrade: HTTP/2.0
 
-   [ magic ]
-   [ HTTP/2.0 frames ...
+   [ HTTP/2.0 session ...
 ]]></artwork></figure>
 
 <t>
-  Once the server returns 101 status code, both the client and the server MUST send "magic" [[TBD]] followed by a SETTINGS control frame (see <target xref="SETTINGS"/>).
+  Once the server returns the 101 response, both the client and the server send a <xref
+  target="SessionHeader">session header</xref>.
 </t>
 
 <t>
   A client can learn that a particular server supports HTTP/2.0 by other means.  A client MAY
-  immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0.  [[Open Issue:
+  immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0.  [[Issue #29:
   This is not definite.  We may yet choose to perform negotiation for every connection.  Reasons
-  include intermediaries; phased upgrade of load-balanced server farms; etc...]] [[Open Issue: We
+  include intermediaries; phased upgrade of load-balanced server farms; etc...]] [[Issue #1: We
   need to enumerate the ways that clients can learn of HTTP/2.0 support.]]
 </t>
 </section>
 <section anchor="discover-https" title="Starting HTTP/2.0 for &quot;https:&quot; URIs">
 <t>
-  A client that makes a request to an "https:" URI without prior knowledge about support for HTTP/2.0
-  uses TLS with <xref target="TLSNPN">TLS-NPN</xref> extension.
-  [[TBD, maybe NPN]]
+  A client that makes a request to an "https:" URI without prior knowledge about support for
+  HTTP/2.0 uses TLS with <xref target="TLSNPN">TLS-NPN</xref> extension.  [[TBD, maybe NPN]]
 </t>
 
 <t>
-  Once TLS negotiation is complete both the client and the server MUST send "magic" [[TBD]] followed by a SETTINGS control frame (see <target xref="SETTINGS"/>).
-  These 2 steps are the same as for <target xref="discover-http"/>.
+  Once TLS negotiation is complete, both the client and the server send a <xref
+  target="SessionHeader">session header</xref>.
 </t>
 
 </section>
@@ -276,88 +313,132 @@ For example:
     </section>
 
     <section anchor="FramingLayer" title="HTTP/2.0 Framing Layer">
-      <section title="Session (Connections)">
-<t>The HTTP/2.0 framing layer (or "session") runs atop a reliable transport layer such as <xref target="RFC0793">TCP</xref>. The client is the TCP connection initiator. HTTP/2.0 connections are persistent connections.</t>
-
-<t>For best performance, it is expected that clients will not close open connections until the user navigates away from all web pages referencing a connection, or until the server closes the connection. Servers are encouraged to leave connections open for as long as possible, but can terminate idle connections if necessary.  When either endpoint closes the transport-level connection, it MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame so that the endpoints can reliably determine if requests finished before the close.</t>
+      <section title="Session">
+        <t>
+          The HTTP/2.0 session runs atop <xref target="RFC0793">TCP</xref>. The client is the TCP
+          connection initiator.
+        </t>
+        <t>
+          HTTP/2.0 connections are persistent connections.  For best performance, it is expected
+          that clients will not close open connections until the user navigates away from all web
+          pages referencing a connection, or until the server closes the connection. Servers are
+          encouraged to leave connections open for as long as possible, but can terminate idle
+          connections if necessary.  When either endpoint closes the transport-level connection, it
+          MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame so that the endpoints can
+          reliably determine if requests finished before the close.
+        </t>
       </section>
+
+      <section anchor="SessionHeader" title="Session Header">
+        <t>
+          After opening a TCP connection and performing either an HTTP/1.1 Upgrade or TLS handshake,
+          the client sends the client session header.  The server replies with a server session
+          header.
+        </t>
+        <t>
+          The session header provides a final confirmation that both peers agree to use the HTTP/2.0
+          protocol.  The SETTINGS frame ensures that client or server configuration is known as
+          quickly as possible.
+        </t>
+        <t>
+          The client session header is the 8 byte sequence 0x535044590d0a0d0a followed by a <xref
+          target="SETTINGS">SETTINGS frame</xref>.  The client sends the client session header
+          immediately after receiving an HTTP/1.1 Upgrade, or after receiving a TLS Finished message
+          from the server.
+        </t>
+        <t>
+          The server session header is the 8 byte sequence 0x736c6f770d0a0d0a followed by a <xref
+          target="SETTINGS">SETTINGS frame</xref>.  The server sends the server session header
+          immediately after receiving and validating the client session header.
+        </t>
+        <t>
+          The client sends requests immediately after sending the session header, without waiting to
+          receive a server session header.  This ensures that confirming session headers does not
+          add latency.
+        </t>
+        <t>
+          A client or server MUST close the connection if it does not begin with a valid session
+          header.  A <xref target="GOAWAY">GOAWAY frame</xref> MAY be omitted if it is clear that
+          the peer is not using HTTP/2.0.
+        </t>
+      </section>
+
       <section title="Framing">
-<t>Once the connection is established, clients and servers exchange framed messages. There are two types of frames: <xref target="ControlFrames">control frames</xref> and <xref target="DataFrames">data frames</xref>.  Frames always have a common header which is 8 bytes in length.</t>
-
-<t>The first bit is a control bit indicating whether a frame is a control frame or data frame. Control frames carry a frame type, flags, and a length. Data frames contain the stream ID, flags, and the length for the payload carried after the common header. The simple header is designed to make reading and writing of frames easy.</t>
-
-<t>All integer values, including length and type, are in network byte order.  HTTP/2.0 does not enforce alignment of types in dynamically sized frames.</t>
-        <section anchor="ControlFrames" title="Control frames">
-<figure>
-  <artwork>
-+----------------------------------+
-|C| Unused (15bits) | Type(16bits) |
-+----------------------------------+
-| Flags (8)  |  Length (24 bits)   |
-+----------------------------------+
-|               Data               |
-+----------------------------------+
-  </artwork>
-</figure>
-<t>Control bit: The 'C' bit is a single bit indicating if this is a control message. For control frames this value is always 1.</t>
-
-<t>
-  Unused: these 15 bits are unused.
-</t>
-
-<t>Type: The type of control frame. See Control Frames for the complete list of control frames.</t>
-
-<t>Flags: Flags related to this frame. Flags for control frames and data frames are different.</t>
-
-<t>Length: An unsigned 24-bit value representing the number of bytes after the length field.</t>
-
-<t>Data: data associated with this control frame. The format and length of this data is controlled by the control frame type.</t>
-
-<t>Control frame processing requirements:
-<list>
-<t>Note that full length control frames (16MB) can be large for implementations running on resource-limited hardware.  In such cases, implementations MAY limit the maximum length frame supported.  However, all implementations MUST be able to receive control frames of at least 8192 octets in length.</t>
-</list>
-</t>
+        <t>
+          Once the connection is established, clients and servers exchange HTTP/2.0 frames.  Frames
+          are the basic unit of communication.
+        </t>
+        
+        <section anchor="frame-header" title="Frame Header">
+          <t>
+            HTTP/2.0 frames share a common header format.  Frames have an 8 byte header with between
+            0 and 65535 bytes of data.
+          </t>
+          <figure>
+            <artwork><![CDATA[
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|         Length (16)           |   Type (8)    |   Flags (8)   |
++-+-------------+---------------+-------------------------------+
+|R|                   Identifier (31)                           |
++-+-------------------------------------------------------------+
+|                     Frame Data (0...)                       ...
++---------------------------------------------------------------+
+]]></artwork>
+          </figure>
+          <t>The fields of the frame header are defined as:
+          <list style="hanging">
+            <t hangText="Length:">
+              The 16-bit length of the frame payload in bytes.  The length of the frame header is
+              not included in this sum.
+            </t>
+            <t hangText="Type:">
+              The 8-bit type of the frame.  The frame type determines how the remainder of the frame
+              header and payload are interpreted.
+            </t>
+            <t hangText="Flags:">
+              An 8-bit field reserved for flags.  The semantics of each bit in flags depends on the
+              frame type.  Bits that have undefined semantics are reserved.
+            </t>
+            <t hangText="R:">
+              A reserved 1-bit field.  The semantics of this bit are not defined.
+            </t>
+            <t hangText="Identifier:">
+              A 31-bit identifier for the frame.  The frame type determines how this identifier is
+              intepreted.  For many frame types, this field includes a stream number.
+            </t>
+            <t hangText="Frame Data:">
+              Frames contain between 0 and 65535 bytes of data.
+            </t>
+          </list>
+          </t>
+          <t>
+            Reserved bits in the frame header MUST be set to zero when sending and MUST be ignored
+            when receiving frames, unless the semantics of the bit are known.
+          </t>
         </section>
 
-        <section anchor="DataFrames" title="Data frames">
-<figure>
-  <artwork>
-+----------------------------------+
-|C|       Stream-ID (31bits)       |
-+----------------------------------+
-| Flags (8)  |  Length (24 bits)   |
-+----------------------------------+
-|               Data               |
-+----------------------------------+
-  </artwork>
-</figure>
-<t>Control bit: For data frames this value is always 0.</t>
-
-<t>Stream-ID: A 31-bit value identifying the stream.</t>
-
-<t>Flags: Flags related to this frame. Valid flags are:
-<list>
-<t>0x01 = FLAG_FIN - signifies that this frame represents the last frame to be transmitted on this stream.  See <xref target="StreamClose">Stream Close</xref> below.</t>
-<t>0x02 = FLAG_COMPRESS - indicates that the data in this frame has been compressed.</t>
-</list>
-</t>
-
-<t>Length: An unsigned 24-bit value representing the number of bytes after the length field. The total size of a data frame is 8 bytes + length. It is valid to have a zero-length data frame.</t>
-
-<t>Data: The variable-length data payload; the length was defined in the length field.</t>
-
-<t>Data frame processing requirements:
-<list>
-<t>If an endpoint receives a data frame for a stream-id which is not open and the endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send issue a <xref target="StreamErrorHandler">stream error</xref> with the error code INVALID_STREAM for the stream-id.</t>
-<t>If the endpoint which created the stream receives a data frame before receiving a SYN_REPLY on that stream, it is a protocol error, and the recipient MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for the stream-id.</t>
-<t>Implementors note: If an endpoint receives multiple data frames for invalid stream-ids, it MAY close the session.</t>
-<t>All HTTP/2.0 endpoints MUST accept compressed data frames.  Compression of data frames is always done using zlib compression.  Each stream initializes and uses its own compression context dedicated to use within that stream.  Endpoints are encouraged to use application level compression rather than HTTP/2.0 stream level compression.</t>
-<t>Each HTTP/2.0 stream sending compressed frames creates its own zlib context for that stream, and these compression contexts MUST be distinct from the compression contexts used with SYN_STREAM/SYN_REPLY/HEADER compression. (Thus, if both endpoints of a stream are compressing data on the stream, there will be two zlib contexts, one for sending and one for receiving).</t>
-</list>
-</t>
+        <section anchor="FrameSize" title="Frame Processing">
+          <t>
+            A frame of the maximum size might be too large for implementations with limited
+            resources to process.  Implementations MAY choose to support frames smaller than the
+            maximum possible size.  However, implementations MUST be able to receive frames
+            containing at least 8192 octets of payload.
+          </t>
+          <t>
+            An implementation MUST immediately close a stream if it is unable to process a frame
+            related to that stream due to it exceeding a size limit.  The implementation MUST send a
+            <xref target="RST_STREAM">RST_STREAM frame</xref> containing FRAME_TOO_LARGE error code
+            if the frame size limit is exceeded.
+          </t>
+          <t>
+            [[ISSUE https://github.com/http2/http2-spec/issues/28: Need a way to signal the
+            maximum frame size; no way to RST_STREAM on non-stream-related frames.]]
+          </t>
         </section>
       </section>
+
 
       <section title="Streams">
 <t>Streams are independent sequences of bi-directional data divided into frames with several properties:
@@ -400,9 +481,15 @@ For example:
         </section>
 
         <section anchor="StreamPriority" title="Stream priority">
-<t>The creator of a stream assigns a priority for that stream.  Priority is represented as a 31 bit integer.  0 represents the highest priority and 2^31-1 represents the lowest priority.</t>
-
-<t>The sender and recipient SHOULD use best-effort to process streams in the order of highest priority to lowest priority.</t>
+          <t>
+            The creator of a stream assigns a priority for that stream.  Priority is represented as
+            a 31 bit integer.  0 represents the highest priority and 2^31-1 represents the lowest
+            priority.
+          </t>
+          <t>
+            The sender and recipient SHOULD use best-effort to process streams in the order of
+            highest priority to lowest priority. [[ED: toothless, useless "SHOULD": reword]]
+          </t>
         </section>
 
         <section title="Stream headers">
@@ -450,451 +537,674 @@ For example:
         </section>
       </section>
 
-<section anchor="flowcontrol" title="Stream Flow Control">
-<t>
-  Multiplexing streams introduces contention for access to the shared TCP connection.  Stream
-  contention can result in streams being blocked by other streams.  A flow control scheme ensures
-  that streams do not destructively interfere with other streams on the same TCP connection.
-</t>
+      <section anchor="flowcontrol" title="Stream Flow Control">
+        <t>
+          Multiplexing streams introduces contention for access to the shared TCP connection.  Stream
+          contention can result in streams being blocked by other streams.  A flow control scheme ensures
+          that streams do not destructively interfere with other streams on the same TCP connection.
+        </t>
 
-<section anchor="fc-principles" title="Flow Control Principles">
-<t>
-  Experience with TCP congestion control has shown that algorithms can evolve over time
-  to become more sophisticated without requiring protocol changes.  TCP congestion control and its
-  evolution is clearly different from HTTP/2.0 flow control, though the evolution of TCP congestion
-  control algorithms shows that a similar approach could be feasible for HTTP/2.0 flow control.
-</t>
-<t>
-  HTTP/2.0 stream flow control aims to allow for future improvements to flow control algorithms
-  without requiring protocol changes.  Flow control in HTTP/2.0 has the following characteristics:
-  <list style="numbers">
-    <t>
-      Flow control is hop-by-hop, not end-to-end.
-    </t>
-    <t>
-      Flow control is based on window update messages.  Receivers advertise how many octets they
-      are prepared to receive on a stream.  This is a credit-based scheme.
-    </t>
-    <t>
-      Flow control is directional with overall control provided by the receiver.  A receiver MAY
-      choose to set any window size that it desires for each stream and for the entire
-      connection.  A sender MUST respect flow control limits imposed by a receiver.  Clients,
-      servers and intermediaries all independently advertise their flow control preferences as a
-      receiver and abide by the flow control limits set by their peer when sending.
-    </t>
-    <t>
-      The initial value for the flow control window is 65536 bytes for both new streams and the
-      overall connection.
-    </t>
-    <t>
-      Flow control only applies to data frames.  Control frames do not consume space in the
-      advertised flow control window.
-    </t>
-    <t>
-      Flow control can be disabled by a receiver.  A receiver can choose to either disable flow
-      control for a stream or connection by declaring an infinite flow control limit.
-    </t>
-    <t>
-      HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window update
-      message</xref>.  This does not stipulate how a receiver decides when to send this message or
-      the value that it sends.  Nor does it specify how a sender chooses to send packets.
-      Implementations are able to select any algorithm that suits their needs.  An example flow
-      control algorithm is described in <xref target="fc-basic"/>.
-    </t>
-  </list>
-</t>
-<t>
-  Implementations are also responsible for managing how requests and responses are sent based on
-  priority; choosing how to avoid head of line blocking for requests; and managing the creation of
-  new streams.  Algorithm choices for these could interact with any flow control algorithm.
-</t>
+        <section anchor="fc-principles" title="Flow Control Principles">
+          <t>
+            Experience with TCP congestion control has shown that algorithms can evolve over time
+            to become more sophisticated without requiring protocol changes.  TCP congestion control and its
+            evolution is clearly different from HTTP/2.0 flow control, though the evolution of TCP congestion
+            control algorithms shows that a similar approach could be feasible for HTTP/2.0 flow control.
+          </t>
+          <t>
+            HTTP/2.0 stream flow control aims to allow for future improvements to flow control algorithms
+            without requiring protocol changes.  Flow control in HTTP/2.0 has the following characteristics:
+            <list style="numbers">
+              <t>
+                Flow control is hop-by-hop, not end-to-end.
+              </t>
+              <t>
+                Flow control is based on window update messages.  Receivers advertise how many octets they
+                are prepared to receive on a stream.  This is a credit-based scheme.
+              </t>
+              <t>
+                Flow control is directional with overall control provided by the receiver.  A receiver MAY
+                choose to set any window size that it desires for each stream and for the entire
+                connection.  A sender MUST respect flow control limits imposed by a receiver.  Clients,
+                servers and intermediaries all independently advertise their flow control preferences as a
+                receiver and abide by the flow control limits set by their peer when sending.
+              </t>
+              <t>
+                The initial value for the flow control window is 65536 bytes for both new streams and the
+                overall connection.
+              </t>
+              <t>
+                The frame type determines whether flow control applies to a frame.  Of the frames specified in
+                this document, only data frames are subject to flow control; all other frame types do not
+                consume space in the advertised flow control window.  This ensures that important control
+                frames are not blocked by flow control.
+              </t>
+              <t>
+                Flow control can be disabled by a receiver.  A receiver can choose to either disable flow
+                control for a stream or connection by declaring an infinite flow control limit.
+              </t>
+              <t>
+                HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window update
+                message</xref>.  This does not stipulate how a receiver decides when to send this message or
+                the value that it sends.  Nor does it specify how a sender chooses to send packets.
+                Implementations are able to select any algorithm that suits their needs.  An example flow
+                control algorithm is described in <xref target="fc-basic"/>.
+              </t>
+            </list>
+          </t>
+          <t>
+            Implementations are also responsible for managing how requests and responses are sent based on
+            priority; choosing how to avoid head of line blocking for requests; and managing the creation of
+            new streams.  Algorithm choices for these could interact with any flow control algorithm.
+          </t>
 
-</section>
-<section anchor="fc-basic" title="Basic Flow Control Algorithm">
-<t>
-  This section describes a basic flow control algorithm.  This algorithm is provided as an example,
-  implementations can use any algorithm that complies with flow control requirements.
-</t>
-<t>
-  [[Algorithm TBD]]
-</t>
-</section>
-</section>
+        </section>
+        <section anchor="fc-basic" title="Basic Flow Control Algorithm">
+          <t>
+            This section describes a basic flow control algorithm.  This algorithm is provided as an example,
+            implementations can use any algorithm that complies with flow control requirements.
+          </t>
+          <t>
+            [[Algorithm TBD]]
+          </t>
+        </section>
+      </section>
 
-      <section title="Control frame types">
+      <section title="Frame Types">
+        <section anchor="DataFrames" title="Data Frames">
+          <t>
+            Data frames (type=0) are used to convey HTTP message bodies.  The payload of a data
+            frame contains either a request or response body.
+          </t>
+          <t>
+            Valid flags for data frames are:
+            <list style="hanging">
+              <t hangText="FINAL (0x1):">
+                Bit 1 (the least significant flag bit) being set signifies that this frame is the
+                last frame to be transmitted on this stream (see <xref target="StreamClose">Stream
+                Close</xref>).
+              </t>
+              <t hangText="COMPRESSED (0x2):">
+                Bit 2 being set indicates that the data in the frame has been compressed with <xref
+                target="RFC1950">ZLIB compression</xref>.
+              </t>
+            </list>
+          </t>
+          <t>
+            The identifier field in the data frame header MUST contain a stream identifier for an
+            open stream.
+          </t>
+
+          <t>
+            Data frame processing requirements:
+            <list>
+              <t>
+                If an endpoint receives a data frame for a stream-id which is not open and the
+                endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send
+                issue a <xref target="StreamErrorHandler">stream error</xref> with the error code
+                INVALID_STREAM for the stream-id.
+              </t>
+              <t>
+                If the endpoint which created the stream receives a data frame before receiving a
+                SYN_REPLY on that stream, it is a protocol error, and the recipient MUST issue a
+                <xref target="StreamErrorHandler">stream error</xref> with the error code
+                PROTOCOL_ERROR for the stream-id.
+              </t>
+              <t>
+                Implementors note: If an endpoint receives multiple data frames for invalid
+                stream-ids, it MAY close the session.
+              </t>
+              <t>
+                All HTTP/2.0 endpoints MUST accept compressed data frames.  Compression of data
+                frames is always done using zlib compression.  Each stream initializes and uses its
+                own compression context dedicated to use within that stream.  Endpoints are
+                encouraged to use application level compression rather than HTTP/2.0 stream level
+                compression.
+              </t>
+              <t>
+                Each HTTP/2.0 stream sending compressed frames creates its own zlib context for that
+                stream, and these compression contexts MUST be distinct from the compression
+                contexts used with SYN_STREAM/SYN_REPLY/HEADER compression. (Thus, if both endpoints
+                of a stream are compressing data on the stream, there will be two zlib contexts, one
+                for sending and one for receiving).
+              </t>
+            </list>
+          </t>
+        </section>
+
         <section anchor="SYN_STREAM" title="SYN_STREAM">
-<t>The SYN_STREAM control frame allows the sender to asynchronously create a stream between the endpoints.  See <xref target="StreamCreation">Stream Creation</xref></t>
-          <figure>
-            <artwork>
-+------------------------------------+
-|1|    unused     |         1        |
-+------------------------------------+
-|  Flags (8)  |  Length (24 bits)    |
-+------------------------------------+
-|X|           Stream-ID (31bits)     |
-+------------------------------------+
-|X| Associated-To-Stream-ID (31bits) |
-+------------------------------------+
-|X|          Priority (31bits)       |
-+------------------------------------+
-| Slot |                             |
-+------+                             |
-| Number of Name/Value pairs (int32) |   &lt;+
-+------------------------------------+    |
-|     Length of name (int32)         |    | This section is the
-+------------------------------------+    | "Name/Value Header
-|           Name (string)            |    | Block", and is
-+------------------------------------+    | compressed.
-|     Length of value  (int32)       |    |
-+------------------------------------+    |
-|          Value   (string)          |    |
-+------------------------------------+    |
-|           (repeats)                |   &lt;+
-            </artwork>
+          <t>
+            The SYN_STREAM frame (type=1) allows the sender to asynchronously create a stream
+            between the endpoints.  See <xref target="StreamCreation">Stream Creation</xref>
+          </t>
+          <figure title="SYN_STREAM Frame Payload">
+            <artwork><![CDATA[
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|              Associated-Stream-ID (31)                      |
++-+-------------------------------------------------------------+
+|X|                   Priority (31)                             |
++-+-------------+-----------------------------------------------+
+|   Slot (8)    |    Name/Value Block (*)                     ...
++-+-------------+---------------+-------------------------------+
+]]></artwork>
           </figure>
 
-<t>Flags: Flags related to this frame. Valid flags are:
-<list>
-<t>0x01 = FLAG_FIN - marks this frame as the last frame to be transmitted on this stream and puts the sender in the <xref target="StreamHalfClose">half-closed</xref> state.</t>
-<t>0x02 = FLAG_UNIDIRECTIONAL - a stream created with this flag puts the recipient in the <xref target="StreamHalfClose">half-closed</xref> state.</t>
-</list>
-</t>
-
-<t>Length: The length is the number of bytes which follow the length field in the frame.  For SYN_STREAM frames, this is 10 bytes plus the length of the compressed Name/Value block.</t>
-
-<t>Stream-ID: The 31-bit identifier for this stream.  This stream-id will be used in frames which are part of this stream.</t>
-
-<t>Associated-To-Stream-ID: The 31-bit identifier for a stream which this stream is associated to.  If this stream is independent of all other streams, it should be 0.</t>
-
-<t>Priority: A 31-bit <xref target="StreamPriority">priority</xref> field.</t>
-
-<t>X: 1 bit reserved for future use.</t>
-
-<t>Slot: An 8 bit unsigned integer specifying the index in the server's CREDENTIAL vector of the client certificate to be used for this request. <xref target="CREDENTIAL">see CREDENTIAL frame</xref>.  The value 0 means no client certificate should be associated with this stream.</t>
-
-<t>Name/Value Header Block:  A set of name/value pairs carried as part of the SYN_STREAM.  <xref target="HeaderBlock">see Name/Value Header Block</xref>.</t>
-
-<t>If an endpoint receives a SYN_STREAM which is larger than the implementation supports, it MAY send a RST_STREAM with error code FRAME_TOO_LARGE.  All implementations MUST support the minimum size limits defined in <xref target="ControlFrames">the Control Frames section</xref>.</t>
-
+          <t>
+            Valid flags for the SYN_STREAM frame are:
+            <list style="hanging">
+              <t hangText="FINAL (0x1):">
+                Bit 1 (the least significant bit) being set marks this frame as the last frame to be
+                transmitted on this stream and puts the sender in the <xref
+                target="StreamHalfClose">half-closed</xref> state.
+              </t>
+              <t hangText="UNIDIRECTIONAL (0x2):">
+                Bit 2 being set marks this stream as unidirectional.  The stream creator is the only
+                peer that can send on the stream.  This flag being set puts the recipient in the
+                <xref target="StreamHalfClose">half-closed</xref> state.
+              </t>
+            </list>
+          </t>
+          <t>
+            The identifier field in the frame header MUST contain an unused stream identifier, see
+            <xref target="StreamCreation"/>.
+          </t>
+          <t>
+            The SYN_STREAM payload contains the following fields:
+            <list style="hanging">
+              <t>
+                Associated-To-Stream-ID: The 31-bit identifier for a stream which this stream is
+                associated to.  If this stream is independent of all other streams, it should be 0.
+                [[ED: This will be moved to the push promise.]]
+              </t>
+              <t>
+                X: A 1-bit field reserved for future use.
+              </t>
+              <t>
+                Priority: A 31-bit <xref target="StreamPriority">priority</xref> field.
+              </t>
+              <t>
+                Slot: An 8 bit unsigned integer specifying the index in the server's CREDENTIAL
+                vector of the client certificate to be used for this request. <xref
+                target="CREDENTIAL">see CREDENTIAL frame</xref>.  The value 0 means no client
+                certificate should be associated with this stream.
+              </t>
+              <t>
+                Name/Value Header Block: A set of name/value pairs carried as part of the
+                SYN_STREAM.  <xref target="HeaderBlock">see Name/Value Header Block</xref>.
+              </t>
+            </list>
+          </t>
         </section>
 
         <section anchor="SYN_REPLY" title="SYN_REPLY">
-<t>SYN_REPLY indicates the acceptance of a stream creation by the recipient of a SYN_STREAM frame.</t>
-          <figure>
-            <artwork>
-+------------------------------------+
-|1|    unused     |         2        |
-+------------------------------------+
-|  Flags (8)  |  Length (24 bits)    |
-+------------------------------------+
-|X|           Stream-ID (31bits)     |
-+------------------------------------+
-| Number of Name/Value pairs (int32) |   &lt;+
-+------------------------------------+    |
-|     Length of name (int32)         |    | This section is the
-+------------------------------------+    | "Name/Value Header
-|           Name (string)            |    | Block", and is
-+------------------------------------+    | compressed.
-|     Length of value  (int32)       |    |
-+------------------------------------+    |
-|          Value   (string)          |    |
-+------------------------------------+    |
-|           (repeats)                |   &lt;+
-            </artwork>
-          </figure>
-
-<t>Flags: Flags related to this frame. Valid flags are:
-<list>
-<t>0x01 = FLAG_FIN - marks this frame as the last frame to be transmitted on this stream and puts the sender in the <xref target="StreamHalfClose">half-closed</xref> state.</t>
-</list>
-</t>
-
-<t>Length: The length is the number of bytes which follow the length field in the frame.  For SYN_REPLY frames, this is 4 bytes plus the length of the compressed Name/Value block.</t>
-
-<t>Stream-ID: The 31-bit identifier for this stream.</t>
-
-<t>If an endpoint receives multiple SYN_REPLY frames for the same active stream ID, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code STREAM_IN_USE.</t>
-
-<t>Name/Value Header Block:  A set of name/value pairs carried as part of the SYN_STREAM.  <xref target="HeaderBlock">see Name/Value Header Block</xref>.</t>
-
-<t>If an endpoint receives a SYN_REPLY which is larger than the implementation supports, it MAY send a RST_STREAM with error code FRAME_TOO_LARGE.  All implementations MUST support the minimum size limits defined in <xref target="ControlFrames">the Control Frames section</xref>.</t>
+          <t>
+            The SYN_REPLY frame (type=2) indicates the acceptance of a stream creation by the
+            recipient of a SYN_STREAM frame.
+          </t>
+          <t>
+            Valid flags for the SYN_REPLY frame are:
+            <list style="hanging">
+              <t hangText="FINAL (0x1):">
+                Bit 1 (the least significant bit) being set marks this frame as the last frame to be
+                transmitted on this stream and puts the sender in the <xref
+                target="StreamHalfClose">half-closed</xref> state.
+              </t>
+            </list>
+          </t>
+          <t>
+            The identifier field in the frame header MUST contain the stream identifier that was
+            included in the corresponding SYN_STREAM, see <xref target="StreamCreation"/>.
+          </t>
+          <t>
+            If an endpoint receives multiple SYN_REPLY frames for the same active stream ID, it MUST
+            issue a <xref target="StreamErrorHandler">stream error</xref> with the error code
+            STREAM_IN_USE.
+          </t>
+          <t>
+            The body of a SYN_REPLY contains a Name/Value Header Block, which is the set of
+            name/value pairs carried as part of the SYN_REPLY.  <xref target="HeaderBlock">see
+            Name/Value Header Block</xref>.
+          </t>
         </section>
 
         <section anchor="RST_STREAM" title="RST_STREAM">
-<t>The RST_STREAM frame allows for abnormal termination of a stream.  When sent by the creator of a stream, it indicates the creator wishes to cancel the stream.  When sent by the recipient of a stream, it indicates an error or that the recipient did not want to accept the stream, so the stream should be closed.</t>
-          <figure>
+          <t>
+            The RST_STREAM frame (type=3) allows for abnormal termination of a stream.  When sent by
+            the creator of a stream, it indicates the creator wishes to cancel the stream.  When
+            sent by the recipient of a stream, it indicates an error or that the recipient did not
+            want to accept the stream, so the stream should be closed.
+          </t>
+          <figure title="RST_STREAM Frame Payload">
             <artwork>
-+----------------------------------+
-|1|   unused     |         3       |
-+----------------------------------+
-| Flags (8)  |         8           |
-+----------------------------------+
-|X|          Stream-ID (31bits)    |
-+----------------------------------+
-|           Error code             |
-+----------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                         Error Code (32)                       |
++---------------------------------------------------------------+
             </artwork>
           </figure>
-<t>Flags: Flags related to this frame. RST_STREAM does not define any flags.  This value must be 0.</t>
+          <t>
+            The RST_STREAM frame does not define any valid flags.
+          </t>
+          <t>
+            The identifier field in the frame header MUST contain the stream identifier for an open
+            stream.
+          </t>
 
-<t>Length: An unsigned 24-bit value representing the number of bytes after the length field. For RST_STREAM  control frames, this value is always 8.</t>
-
-<t>Stream-ID: The 31-bit identifier for this stream.</t>
-
-<t>Error code: (32 bits) An indicator for why the stream is being terminated. The following error codes are defined:
-<list>
-<t>1 - PROTOCOL_ERROR. This is a generic error, and should only be used if a more specific error is not available.</t>
-<t>2 - INVALID_STREAM. This is returned when a frame is received for a stream which is not active.</t>
-<t>3 - REFUSED_STREAM.  Indicates that the stream was refused before any processing has been done on the stream.</t>
-<t>4 - (UNUSED)</t>
-<t>5 - CANCEL.  Used by the creator of a stream to indicate that the stream is no longer needed.</t>
-<t>6 - INTERNAL_ERROR.  This is a generic error which can be used when the implementation has internally failed, not due to anything in the protocol.</t>
-<t>7 - FLOW_CONTROL_ERROR.  The endpoint detected that its peer violated the flow control protocol.</t>
-<t>8 - STREAM_IN_USE.  The endpoint received a SYN_REPLY for a stream already open.</t>
-<t>9 - STREAM_ALREADY_CLOSED.  The endpoint received a data or SYN_REPLY frame for a stream which is half closed.</t>
-<t>10 - INVALID_CREDENTIALS.  The server received a request for a resource whose origin does not have valid credentials in the client certificate vector.</t>
-<t>11 - FRAME_TOO_LARGE.  The endpoint received a frame which this implementation could not support.  If FRAME_TOO_LARGE is sent for a SYN_STREAM, HEADERS, or SYN_REPLY frame without fully processing the compressed portion of those frames, then the compression state will be out-of-sync with the other endpoint.  In this case, senders of FRAME_TOO_LARGE MUST close the session.</t>
-<t>Note:  0 is not a valid error code for a RST_STREAM.</t>
-</list>
-</t>
-
-<t>After receiving a RST_STREAM on a stream, the recipient must not send additional frames for that stream, and the stream moves into the closed state.</t>
+          <t>
+            The RST_STREAM frame contains a single 32-bit error code.  The error code indicates why
+            the stream is being terminated. The following error codes are defined:
+            <list>
+              <t hangText="PROTOCOL_ERROR (1):">
+                This is a generic error, and should only be used if a more specific error is not
+                available.  [[ED: Doesn't sound so generic.  Someone committed a protocol violation.
+                Might need to change the name.]]
+              </t>
+              <t hangText="INVALID_STREAM (2):">
+                This is returned when a frame is received for a stream which is not active.
+              </t>
+              <t hangText="REFUSED_STREAM (3):">
+                Indicates that the stream was refused before any processing has been done on the
+                stream.
+              </t>
+              <t hangText="CANCEL (5):">  
+                Used by the creator of a stream to indicate that the stream is no longer needed.
+              </t>
+              <t hangText="INTERNAL_ERROR (6):">  
+                This is a generic error which can be used when the implementation has internally
+                failed, not due to anything in the protocol.
+              </t>
+              <t hangText="FLOW_CONTROL_ERROR (7):">
+                The endpoint detected that its peer violated the flow control protocol.
+              </t>
+              <t hangText="STREAM_IN_USE (8):">
+                The endpoint received a SYN_REPLY for a stream already open.
+              </t>
+              <t hangText="STREAM_ALREADY_CLOSED (9):">
+                The endpoint received a data or SYN_REPLY frame for a stream which is half closed.
+              </t>
+              <t hangText="INVALID_CREDENTIALS (10):">
+                The server received a request for a resource whose origin does not have valid
+                credentials in the client certificate vector.
+              </t>
+              <t hangText="FRAME_TOO_LARGE (11):">
+                The endpoint received a frame which this implementation could not support.  If
+                FRAME_TOO_LARGE is sent for a SYN_STREAM, HEADERS, or SYN_REPLY frame without fully
+                processing the compressed portion of those frames, then the compression state will
+                be out-of-sync with the other endpoint.  In this case, senders of FRAME_TOO_LARGE
+                MUST close the session.
+              </t>
+            </list>
+          </t>
+          <t>
+            After receiving a RST_STREAM on a stream, the recipient must not send additional frames
+            for that stream, and the stream moves into the closed state.
+          </t>
         </section>
 
         <section anchor="SETTINGS" title="SETTINGS">
-<t>A SETTINGS frame contains a set of id/value pairs for communicating configuration data about how the two endpoints may communicate. SETTINGS frames can be sent at any time by either endpoint, are optionally sent, and are fully asynchronous.  When the server is the sender, the sender can request that configuration data be persisted by the client across HTTP/2.0 sessions and returned to the server in future communications.
-[[Note that persistence of settings is under discussion in the WG and might be removed in a future version of this document.]]</t>
-
-<t>Persistence of SETTINGS ID/Value pairs is done on a per origin/IP pair (the "origin" is the set of scheme, host, and port from the URI.  See <xref target="RFC6454"></xref>).  That is, when a client connects to a server, and the server persists settings within the client, the client SHOULD return the persisted settings on future connections to the same origin AND IP address and TCP port. Clients MUST NOT request servers to use the persistence features of the SETTINGS frames, and servers MUST ignore persistence related flags sent by a client.</t>
-          <figure>
-            <artwork>
-+----------------------------------+
-|1|   unused     |         4       |
-+----------------------------------+
-| Flags (8)  |  Length (24 bits)   |
-+----------------------------------+
-|         Number of entries        |
-+----------------------------------+
-|          ID/Value Pairs          |
-|             ...                  |
-            </artwork>
+          <t>
+            A SETTINGS frame (type=4) contains a set of id/value pairs for communicating
+            configuration data about how the two endpoints may communicate. SETTINGS frames MUST be
+            sent at the start of a session, but they can be sent at any other time by either
+            endpoint.  Settings are declarative, not negotiated, each peer indicates their own
+            configuration.
+          </t>
+          <t>
+            [[Note that persistence of settings is under discussion in the WG and might be removed
+            in a future version of this document.]]
+          </t>
+          <t>
+            When the server is the sender, the sender can request that configuration data be
+            persisted by the client across HTTP/2.0 sessions and returned to the server in future
+            communications.
+          </t>
+          <t>
+            Clients persist settings on a per origin basis (see <xref target="RFC6454"/> for a
+            definition of web origins).  That is, when a client connects to a server, and the server
+            persists settings within the client, the client SHOULD return the persisted settings on
+            future connections to the same origin AND IP address and TCP port. Clients MUST NOT
+            request servers to use the persistence features of the SETTINGS frames, and servers MUST
+            ignore persistence related flags sent by a client.
+          </t>
+          <t>
+            Valid flags for the SYN_REPLY frame are:
+            <list style="hanging">
+              <t hangText="CLEAR_PERSISTED:">
+                Bit 1 (the least significant bit) being set indicates a request to clear any
+                previously persisted settings before processing the settings.  Clients MUST NOT set
+                this flag.
+              </t>
+            </list>
+          </t>
+          <t>
+            SETTINGS frames always apply to a session, never a single stream.  The identifier field in the frame header carries a count of the number of settings contained in the payload.  [[ED: this seems totally unnecessary.]]
+          </t>
+          
+          <figure title="SETTINGS ID/Value Pair">
+            <artwork><![CDATA[
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|SettingFlags(8)|             Setting Identifier (24)           |
++---------------+-----------------------------------------------+
+|                        Value (32)                             |
++---------------------------------------------------------------+
+]]></artwork>
           </figure>
-<t>Control bit: The control bit is always 1 for this message.</t>
+          <t>
+            The payload of a SETTINGS frame contains zero or more settings.  Each setting is
+            comprised of the following
+            <list style="hanging">
+              <t hangText="Settings Flags:">
+                An 8-bit flags field containing per-setting instructions.  The following flags are
+                valid:
+                <list style="hanging">
+                  <t hangText="PERSIST_VALUE (0x1):">
+                    Bit 1 (the least significant bit) being set indicates a request from the server
+                    to the client to persist this setting.  A client MUST NOT set this flag.
+                  </t>
+                  <t hangText="PERSISTED (0x2):">
+                    Bit 2 being set indicates that this setting is a persisted setting being
+                    returned by the client to the server.  This also indicates that this setting is
+                    not a client setting, but a value previously set by the server.  A server MUST
+                    NOT set this flag.
+                  </t>
+                </list>
+                All other settings flags are reserved.
+              </t>
+              <t hangText="Setting Identifier:">
+                A 24-bit field that identifies the setting.
+              </t>
+              <t hangText="Value:">
+                A 32-bit value for the setting.
+              </t>
+            </list>
+          </t>
 
-<t>
-  Unused
-</t>
+          <t>The following settings are defined:
+          <list style="hanging">
+            <t hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
+              allows the sender to send its expected upload bandwidth on this channel. This number is an estimate. The value should be the integral number of kilobytes per second that the sender predicts as an expected maximum upload channel capacity.
+            </t>
+            <t hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
+              allows the sender to send its expected download bandwidth on this channel. This number is an estimate. The value should be the integral number of kilobytes per second that the sender predicts as an expected maximum download channel capacity.
+            </t>
+            <t hangText="SETTINGS_ROUND_TRIP_TIME (3):">
+              allows the sender to send its expected round-trip-time on this channel. The round trip time is defined as the minimum amount of time to send a control frame from this client to the remote and receive a response. The value is represented in milliseconds.
+            </t>
+            <t hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
+              allows the sender to inform the remote endpoint the maximum number of concurrent streams which it will allow. By default there is no limit. For implementors it is recommended that this value be no smaller than 100.
+            </t>
+            <t hangText="SETTINGS_CURRENT_CWND (5):">
+              allows the sender to inform the remote endpoint of the current TCP CWND value.
+            </t>
+            <t hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
+              allows the sender to inform the remote endpoint the retransmission rate (bytes retransmitted / total bytes transmitted).
+            </t>
+            <t hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
+              allows the sender to inform the remote endpoint the initial window size (in bytes) for new streams.
+            </t>
+            <t hangText="SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE (8):">
+              allows the server to inform the client of the new size of the client certificate vector.
+            </t>
+          </list>
+          </t>
 
-<t>Type: The message type for a SETTINGS message is 4.</t>
+          <t>
+            The message is intentionally extensible for future information which may improve
+            client-server communications. The sender does not need to send every type of
+            ID/value. It must only send those for which it has accurate values to convey. When
+            multiple ID/value pairs are sent, they should be sent in order of lowest id to highest
+            id.  A single SETTINGS frame MUST not contain multiple values for the same ID.  If the
+            recipient of a SETTINGS frame discovers multiple values for the same ID, it MUST ignore
+            all values except the first one.
+          </t>
 
-<t>Flags: FLAG_SETTINGS_CLEAR_SETTINGS (0x1): When set, the client should clear any previously persisted SETTINGS ID/Value pairs.  If this frame contains ID/Value pairs with the FLAG_SETTINGS_PERSIST_VALUE set, then the client will first clear its existing, persisted settings, and then persist the values with the flag set which are contained within this frame.  Because persistence is only implemented on the client, this flag can only be used when the sender is the server.</t>
-
-<t>Length: An unsigned 24-bit value representing the number of bytes after the length field. The total size of a SETTINGS frame is 8 bytes + length.</t>
-
-<t>Number of entries: A 32-bit value representing the number of ID/value pairs in this message.</t>
-
-<t>ID: A 32-bit ID number, comprised of 8 bits of flags and 24 bits of unique ID.
-<list>
-  <t>ID.flags:
-  <list>
-    <t>FLAG_SETTINGS_PERSIST_VALUE (0x1):   When set, the sender of this SETTINGS frame is requesting that the recipient persist the ID/Value and return it in future SETTINGS frames sent from the sender to this recipient.  Because persistence is only implemented on the client, this flag is only sent by the server.</t>
-    <t>FLAG_SETTINGS_PERSISTED (0x2):  When set, the sender is notifying the recipient that this ID/Value pair was previously sent to the sender by the recipient with the FLAG_SETTINGS_PERSIST_VALUE, and the sender is returning it.  Because persistence is only implemented on the client, this flag is only sent by the client.</t>
-  </list>
-  </t>
-
-  <t>Defined IDs:
-  <list>
-<t>1 - SETTINGS_UPLOAD_BANDWIDTH allows the sender to send its expected upload bandwidth on this channel. This number is an estimate. The value should be the integral number of kilobytes per second that the sender predicts as an expected maximum upload channel capacity.</t>
-<t>2 - SETTINGS_DOWNLOAD_BANDWIDTH allows the sender to send its expected download bandwidth on this channel. This number is an estimate. The value should be the integral number of kilobytes per second that the sender predicts as an expected maximum download channel capacity.</t>
-<t>3 - SETTINGS_ROUND_TRIP_TIME allows the sender to send its expected round-trip-time on this channel. The round trip time is defined as the minimum amount of time to send a control frame from this client to the remote and receive a response. The value is represented in milliseconds.</t>
-<t>4 - SETTINGS_MAX_CONCURRENT_STREAMS allows the sender to inform the remote endpoint the maximum number of concurrent streams which it will allow. By default there is no limit. For implementors it is recommended that this value be no smaller than 100.</t>
-<t>5 - SETTINGS_CURRENT_CWND allows the sender to inform the remote endpoint of the current TCP CWND value.</t>
-<t>6 - SETTINGS_DOWNLOAD_RETRANS_RATE allows the sender to inform the remote endpoint the retransmission rate (bytes retransmitted / total bytes transmitted).</t>
-<t>7 - SETTINGS_INITIAL_WINDOW_SIZE allows the sender to inform the remote endpoint the initial window size (in bytes) for new streams.</t>
-<t>8 - SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE allows the server to inform the client of the new size of the client certificate vector.</t>
-  </list>
-  </t>
-</list>
-</t>
-
-<t>Value: A 32-bit value.</t>
-
-<t>The message is intentionally extensible for future information which may improve client-server communications. The sender does not need to send every type of ID/value. It must only send those for which it has accurate values to convey. When multiple ID/value pairs are sent, they should be sent in order of lowest id to highest id.  A single SETTINGS frame MUST not contain multiple values for the same ID.  If the recipient of a SETTINGS frame discovers multiple values for the same ID, it MUST ignore all values except the first one.</t>
-
-<t>A server may send multiple SETTINGS frames containing different ID/Value pairs.  When the same ID/Value is sent twice, the most recent value overrides any previously sent values.  If the server sends IDs 1, 2, and 3 with the FLAG_SETTINGS_PERSIST_VALUE in a first SETTINGS frame, and then sends IDs 4 and 5 with the FLAG_SETTINGS_PERSIST_VALUE, when the client returns the persisted state on its next SETTINGS frame, it SHOULD send all 5 settings (1, 2, 3, 4, and 5 in this example) to the server.</t>
+          <t>
+            A server may send multiple SETTINGS frames containing different ID/Value pairs.  When
+            the same ID/Value is sent twice, the most recent value overrides any previously sent
+            values.  If the server sends IDs 1, 2, and 3 with the FLAG_SETTINGS_PERSIST_VALUE in a
+            first SETTINGS frame, and then sends IDs 4 and 5 with the FLAG_SETTINGS_PERSIST_VALUE,
+            when the client returns the persisted state on its next SETTINGS frame, it SHOULD send
+            all 5 settings (1, 2, 3, 4, and 5 in this example) to the server.
+          </t>
         </section>
 
         <section anchor="PING" title="PING">
-<t>The PING control frame is a mechanism for measuring a minimal round-trip time from the sender.  It can be sent from the client or the server.  Recipients of a PING frame should send an identical frame to the sender as soon as possible (if there is other pending data waiting to be sent, PING should take highest priority).  Each ping sent by a sender should use a unique ID.</t>
-          <figure>
-            <artwork>
-+----------------------------------+
-|1|   unused     |         6       |
-+----------------------------------+
-| 0 (flags) |     4 (length)       |
-+----------------------------------|
-|            32-bit ID             |
-+----------------------------------+
-            </artwork>
-          </figure>
-<t>Control bit: The control bit is always 1 for this message.</t>
-
-<t>
-  Unused
-</t>
-
-<t>Type: The message type for a PING message is 6.</t>
-
-<t>Length: This frame is always 4 bytes long.</t>
-
-<t>ID: A unique ID for this ping, represented as an unsigned 32 bit value.  When the client initiates a ping, it must use an odd numbered ID.  When the server initiates a ping, it must use an even numbered ping.  Use of odd/even IDs is required in order to avoid accidental looping on PINGs (where each side initiates an identical PING at the same time).</t>
-
-<t>Note: If a sender uses all possible PING ids (e.g. has sent all 2^31 possible IDs), it can wrap and start re-using IDs.</t>
-
-<t>If a server receives an even numbered PING which it did not initiate, it must ignore the PING.
-If a client receives an odd numbered PING which it did not initiate, it must ignore the PING.</t>
+          <t>
+            The PING frame (type=6) is a mechanism for measuring a minimal round-trip time from the
+            sender.  PING frames can be sent from the client or the server.
+          </t>
+          <t>
+            Recipients of a PING frame send an identical frame to the sender as soon as possible.
+            PING should take highest priority if there is other data waiting to be sent.
+          </t>
+          <t>
+            The PING frame does not define any valid flags.
+          </t>
+          <t>
+            A client MUST populate the identifier field in the frame header of a PING frame with an
+            odd numbered value.  A server MUST populate the identifier field in the frame header of
+            a PING frame with an even numbered value.  A client MUST reply to PING frames with
+            even numbered identifiers; a server MUST only reply to PING frames with odd numbered
+            identifiers.  These measures ensure that accidental looping of PINGs cannot occur.
+          </t>
+          <t>
+            The payload of a PING frame contains any value.  A PING response MUST contain the
+            contents of the PING request.
+          </t>
         </section>
 
         <section anchor="GOAWAY" title="GOAWAY">
-<t>The GOAWAY control frame is a mechanism to tell the remote side of the connection to stop creating streams on this session.  It can be sent from the client or the server. Once sent, the sender will not respond to any new SYN_STREAMs on this session. Recipients of a GOAWAY frame must not send additional streams on this session, although a new session can be established for new streams.  The purpose of this message is to allow an endpoint to gracefully stop accepting new streams (perhaps for a reboot or maintenance), while still finishing processing of previously established streams.</t>
+          <t>
+            The GOAWAY frame (type=7) informs the remote side of the connection to stop creating
+            streams on this session.  It can be sent from the client or the server. Once sent, the
+            sender will not respond to any new SYN_STREAMs on this session. Recipients of a GOAWAY
+            frame must not owen additional streams on this session, although a new session can be
+            established for new streams.  The purpose of this message is to allow an endpoint to
+            gracefully stop accepting new streams (perhaps for a reboot or maintenance), while still
+            finishing processing of previously established streams.
+          </t>
+          <t>
+            There is an inherent race condition between an endpoint sending SYN_STREAMs and the
+            remote sending a GOAWAY message.  To deal with this case, the GOAWAY contains a
+            last-stream-id indicating the stream-id of the last stream which was created on the
+            sending endpoint in this session.  If the receiver of the GOAWAY sent new SYN_STREAMs
+            for sessions after this last-stream-id, they were not processed by the server and the
+            receiver may treat the stream as though it had never been created at all (hence the
+            receiver may want to re-create the stream later on a new session).
+          </t>
+          <t>
+            Endpoints should always send a GOAWAY message before closing a connection so that the
+            remote can know whether a stream has been partially processed or not.  (For example, if
+            an HTTP client sends a POST at the same time that a server closes a connection, the
+            client cannot know if the server started to process that POST request if the server does
+            not send a GOAWAY frame to indicate where it stopped working).
+          </t>
 
-<t>There is an inherent race condition between an endpoint sending SYN_STREAMs and the remote sending a GOAWAY message.  To deal with this case, the GOAWAY contains a last-stream-id indicating the stream-id of the last stream which was created on the sending endpoint in this session.  If the receiver of the GOAWAY sent new SYN_STREAMs for sessions after this last-stream-id, they were not processed by the server and the receiver may treat the stream as though it had never been created at all (hence the receiver may want to re-create the stream later on a new session).</t>
-
-<t>Endpoints should always send a GOAWAY message before closing a connection so that the remote can know whether a stream has been partially processed or not.  (For example, if an HTTP client sends a POST at the same time that a server closes a connection, the client cannot know if the server started to process that POST request if the server does not send a GOAWAY frame to indicate where it stopped working).</t>
-
-<t>After sending a GOAWAY message, the sender must ignore all SYN_STREAM frames for new streams.</t>
-          <figure>
-            <artwork>
-+----------------------------------+
-|1|   unused     |         7       |
-+----------------------------------+
-| 0 (flags) |     8 (length)       |
-+----------------------------------|
-|X|  Last-good-stream-ID (31 bits) |
-+----------------------------------+
-|           Error code             |
-+----------------------------------+
-            </artwork>
-          </figure>
-<t>Control bit: The control bit is always 1 for this message.</t>
-
-<t>
-  Unused
-</t>
-
-<t>Type: The message type for a GOAWAY message is 7.</t>
-
-<t>Length: This frame is always 8 bytes long.</t>
-
-<t>Last-good-stream-Id: The last stream id which was replied to (with either a SYN_REPLY or RST_STREAM) by the sender of the GOAWAY message.  If no streams were replied to, this value MUST be 0.</t>
-
-<t>Error code: The reason for closing the session.
-<list>
-<t>0 - OK. This is a normal session teardown.</t>
-<t>1 - PROTOCOL_ERROR. This is a generic error, and should only be used if a more specific error is not available.</t>
-<t>2 - INTERNAL_ERROR.  This is a generic error which can be used when the implementation has internally failed, not due to anything in the protocol.</t>
-</list>
-</t>
+          <t>
+            After sending a GOAWAY message, the sender must ignore all SYN_STREAM frames for new streams.
+          </t>
+          <t>
+            The GOAWAY frame does not define any valid flags.
+          </t>
+          <t>
+            The GOAWAY message applies to the session, not a specific stream.  The identifier field
+            of the frame header contains the identifier for the last stream that the sender of the
+            GOAWAY frame is prepared to provide replies to.  If no streams were replied to, this
+            value MUST be 0.
+          </t>
+          <t>
+            The payload of a GOAWAY frame contains a 32-bit error code that contains the reason for
+            closing the session:
+            <list style="hanging">
+              <t hangText="OK (0):">
+                The session is closing normally.
+              </t>
+              <t hangText="PROTOCOL_ERROR (1):">
+                This is a generic error, and should only be used if a more specific error is not
+                available.  [[ED: bad name]]
+              </t>
+              <t hangText="INTERNAL_ERROR (2):">The implementation has internally failed, not due to anything in the protocol.</t>
+            </list>
+          </t>
         </section>
 
         <section anchor="HEADERS" title="HEADERS">
-<t>The HEADERS frame augments a stream with additional headers. It may be optionally sent on an existing stream at any time.  Specific application of the headers in this frame is application-dependent.  The name/value header block within this frame is compressed.</t>
-          <figure>
-            <artwork>
-+------------------------------------+
-|1|   unused      |          8       |
-+------------------------------------+
-| Flags (8)  |   Length (24 bits)    |
-+------------------------------------+
-|X|          Stream-ID (31bits)      |
-+------------------------------------+
-| Number of Name/Value pairs (int32) |   &lt;+
-+------------------------------------+    |
-|     Length of name (int32)         |    | This section is the
-+------------------------------------+    | "Name/Value Header
-|           Name (string)            |    | Block", and is
-+------------------------------------+    | compressed.
-|     Length of value  (int32)       |    |
-+------------------------------------+    |
-|          Value   (string)          |    |
-+------------------------------------+    |
-|           (repeats)                |   &lt;+
-            </artwork>
-          </figure>
-<t>Flags: Flags related to this frame. Valid flags are:
-<list>
-<t>0x01 = FLAG_FIN - marks this frame as the last frame to be transmitted on this stream and puts the sender in the <xref target="StreamHalfClose">half-closed</xref> state.</t>
-</list>
-</t>
+          <t>
+            The HEADERS frame (type=8) augments a stream with additional headers. It may be optionally sent
+            on an existing stream at any time.  Specific application of the headers in this frame is
+            application-dependent.  The name/value header block within this frame is compressed.
+          </t>
+          <t>
+            Valid flags for the HEADERS frame are:
+            <list style="hanging">
+              <t hangText="FINAL (0x1):">
+                Bit 1 (the least significant bit) being set indicates that this is the last frame to
+                be transmitted on this stream.  Setting this bit puts the sender in the <xref
+                target="StreamHalfClose">half-closed</xref> state.
+              </t>
+            </list>
+          </t>
+          <t>
+            The identifier field in the HEADERS frame header MUST contain a stream identifier for an open stream.
+          </t>
+          <t>
+            The body of a HEADERS frame contains a <xref target="HeaderBlock">Name/Value Header Block</xref>.
+          </t>
+        </section>
 
-<t>Length: An unsigned 24 bit value representing the number of bytes after the length field. The minimum length of the length field is 4 (when the number of name value pairs is 0).</t>
+        <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
+          <t>
+            The WINDOW_UPDATE frame (type=9) is used to implement per stream flow control in
+            HTTP/2.0. Flow control in HTTP/2.0 is per hop, that is, only between the two endpoints
+            of a HTTP/2.0 connection. If there are one or more intermediaries between the client and
+            the origin server, flow control signals are not explicitly forwarded by the
+            intermediaries. (However, throttling of data transfer by any recipient may have the
+            effect of indirectly propagating flow control information upstream back to the original
+            sender.) Flow control only applies to the data portion of data frames. Recipients must
+            buffer all control frames. If a recipient fails to buffer an entire control frame, it
+            MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code
+            FLOW_CONTROL_ERROR for the stream.
+          </t>
+          <t>
+            Flow control in HTTP/2.0 is implemented by a data transfer window kept by the sender of
+            each stream. The data transfer window is a simple uint32 that indicates how many bytes
+            of data the sender can transmit. After a stream is created, but before any data frames
+            have been transmitted, the sender begins with the initial window size. This window size
+            is a measure of the buffering capability of the recipient. The sender must not send a
+            data frame with data length greater than the transfer window size. After sending each
+            data frame, the sender decrements its transfer window size by the amount of data
+            transmitted. When the window size becomes less than or equal to 0, the sender must pause
+            transmitting data frames. At the other end of the stream, the recipient sends a
+            WINDOW_UPDATE control back to notify the sender that it has consumed some data and freed
+            up buffer space to receive more data.
+          </t>
+          <t>
+            The WINDOW_UPDATE frame does not define any valid flags.
+          </t>
+          <t>
+            The identifier field in the WINDOW_UPDATE frame header MUST contain a stream identifier
+            for an open stream.
+          </t>
+          <t>
+            The payload of a WINDOW_UPDATE frame contains a 32-bit value.  This value is the
+            additional number of bytes that the sender can transmit in addition to the existing flow
+            control window.  The legal range for this field is 1 to 2^31 - 1 (0x7fffffff) bytes; the
+            most significant bit is reserved.
+          </t>
+          <t>
+            The window size as kept by the sender must never exceed 2^31 (although it can become
+            negative in one special case). If a sender receives a WINDOW_UPDATE that causes the its
+            window size to exceed this limit, it must send RST_STREAM with error code
+            FLOW_CONTROL_ERROR to terminate the stream.
+          </t>
 
-<t>Stream-ID: The stream this HEADERS block is associated with.</t>
-
-<t>Name/Value Header Block:  A set of name/value pairs carried as part of the SYN_STREAM.  <xref target="HeaderBlock">see Name/Value Header Block</xref>.</t>
-
-          </section>
-
-          <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
-<t>The WINDOW_UPDATE control frame is used to implement per stream flow control in HTTP/2.0. Flow control in HTTP/2.0 is per hop, that is, only between the two endpoints of a HTTP/2.0 connection. If there are one or more intermediaries between the client and the origin server, flow control signals are not explicitly forwarded by the intermediaries. (However, throttling of data transfer by any recipient may have the effect of indirectly propagating flow control information upstream back to the original sender.) Flow control only applies to the data portion of data frames. Recipients must buffer all control frames. If a recipient fails to buffer an entire control frame, it MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code FLOW_CONTROL_ERROR for the stream.</t>
-
-<t>Flow control in HTTP/2.0 is implemented by a data transfer window kept by the sender of each stream. The data transfer window is a simple uint32 that indicates how many bytes of data the sender can transmit. After a stream is created, but before any data frames have been transmitted, the sender begins with the initial window size. This window size is a measure of the buffering capability of the recipient. The sender must not send a data frame with data length greater than the transfer window size. After sending each data frame, the sender decrements its transfer window size by the amount of data transmitted. When the window size becomes less than or equal to 0, the sender must pause transmitting data frames. At the other end of the stream, the recipient sends a WINDOW_UPDATE control back to notify the sender that it has consumed some data and freed up buffer space to receive more data.</t>
-          <figure>
-            <artwork>
-+----------------------------------+
-|1|   unused     |         9       |
-+----------------------------------+
-| 0 (flags) |     8 (length)       |
-+----------------------------------+
-|X|     Stream-ID (31-bits)        |
-+----------------------------------+
-|X|  Delta-Window-Size (31-bits)   |
-+----------------------------------+
-            </artwork>
-          </figure>
-<t>Control bit: The control bit is always 1 for this message.</t>
-
-<t>
-  Unused
-</t>
-
-<t>Type: The message type for a WINDOW_UPDATE message is 9.</t>
-
-<t>Length: The length field is always 8 for this frame (there are 8 bytes after the length field).</t>
-
-<t>Stream-ID: The stream ID that this WINDOW_UPDATE control frame is for.</t>
-
-<t>Delta-Window-Size: The additional number of bytes that the sender can transmit in addition to existing remaining window size. The legal range for this field is 1 to 2^31 - 1 (0x7fffffff) bytes.</t>
-
-<t>The window size as kept by the sender must never exceed 2^31 (although it can become negative in one special case). If a sender receives a WINDOW_UPDATE that causes the its window size to exceed this limit, it must send RST_STREAM with error code FLOW_CONTROL_ERROR to terminate the stream.</t>
-
-<t>When a HTTP/2.0 connection is first established, the default initial window size for all streams is 64KB. An endpoint can use the SETTINGS control frame to adjust the initial window size for the connection. That is, its peer can start out using the 64KB default initial window size when sending data frames before receiving the SETTINGS. Because SETTINGS  is asynchronous, there may be a race condition if the recipient wants to decrease the initial window size, but its peer immediately sends 64KB on the creation of a new connection, before waiting for the SETTINGS to arrive. This is one case where the window size kept by the sender will become negative. Once the sender detects this condition, it must stop sending data frames and wait for the recipient to catch up. The recipient has two choices:
-<list>
-<t>immediately send RST_STREAM with FLOW_CONTROL_ERROR error code.</t>
-<t>allow the head of line blocking (as there is only one stream for the session and the amount of data in flight is bounded by the default initial window size), and send WINDOW_UPDATE as it consumes data.</t>
-</list>
-</t>
-
-<t>In the case of option 2, both sides must compute the window size based on the initial window size in the SETTINGS. For example, if the recipient sets the initial window size to be 16KB, and the sender sends 64KB immediately on connection establishment, the sender will discover its window size is -48KB on receipt of the SETTINGS. As the recipient consumes the first 16KB, it must send a WINDOW_UPDATE of 16KB back to the sender. This interaction continues until the sender's window size becomes positive again, and it can resume transmitting data frames.</t>
-
-<t>After the recipient reads in a data frame with FLAG_FIN that marks the end of the data stream, it should not send WINDOW_UPDATE frames as it consumes the last data frame. A sender should ignore all the WINDOW_UPDATE frames associated with the stream after it send the last frame for the stream.</t>
-
-<t>The data frames from the sender and the WINDOW_UPDATE frames from the recipient are completely asynchronous with respect to each other. This property allows a recipient to aggressively update the window size kept by the sender to prevent the stream from stalling.</t>
+          <t>
+            When a HTTP/2.0 connection is first established, the default initial window size for all
+            streams is 64KB. An endpoint can use the SETTINGS control frame to adjust the initial
+            window size for the connection. That is, its peer can start out using the 64KB default
+            initial window size when sending data frames before receiving the SETTINGS.  Because
+            SETTINGS is asynchronous, there may be a race condition if the recipient wants to
+            decrease the initial window size, but its peer immediately sends 64KB on the creation of
+            a new connection, before waiting for the SETTINGS to arrive. This is one case where the
+            window size kept by the sender will become negative. Once the sender detects this
+            condition, it must stop sending data frames and wait for the recipient to catch up. The
+            recipient has two choices:
+            <list>
+              <t>
+                immediately send RST_STREAM with FLOW_CONTROL_ERROR error code.
+              </t>
+              <t>
+                allow the head of line blocking (as there is only one stream for the session and the
+                amount of data in flight is bounded by the default initial window size), and send
+                WINDOW_UPDATE as it consumes data.
+              </t>
+            </list>
+          </t>
+          <t>
+            In the case of option 2, both sides must compute the window size based on the initial
+            window size in the SETTINGS. For example, if the recipient sets the initial window size
+            to be 16KB, and the sender sends 64KB immediately on connection establishment, the
+            sender will discover its window size is -48KB on receipt of the SETTINGS. As the
+            recipient consumes the first 16KB, it must send a WINDOW_UPDATE of 16KB back to the
+            sender. This interaction continues until the sender's window size becomes positive
+            again, and it can resume transmitting data frames.
+          </t>
+          <t>
+            After the recipient reads in a data frame with FLAG_FIN that marks the end of the data
+            stream, it should not send WINDOW_UPDATE frames as it consumes the last data frame. A
+            sender should ignore all the WINDOW_UPDATE frames associated with the stream after it
+            send the last frame for the stream.
+          </t>
+          <t>
+            The data frames from the sender and the WINDOW_UPDATE frames from the recipient are
+            completely asynchronous with respect to each other. This property allows a recipient to
+            aggressively update the window size kept by the sender to prevent the stream from
+            stalling.
+          </t>
           </section>
 
           <section anchor="CREDENTIAL" title="CREDENTIAL">
-<t>The CREDENTIAL control frame is used by the client to send additional client certificates to the server.  A HTTP/2.0 client may decide to send requests for resources from different origins on the same HTTP/2.0 session if it decides that that server handles both origins.  For example if the IP address associated with both hostnames matches and the SSL server certificate presented in the initial handshake is valid for both hostnames.  However, because the SSL connection can contain at most one client certificate, the client needs a mechanism to send additional client certificates to the server.</t>
+            <t>
+              The CREDENTIAL frame (type=11) is used by the client to send additional client
+              certificates to the server.  A HTTP/2.0 client may decide to send requests for
+              resources from different origins on the same HTTP/2.0 session if it decides that that
+              server handles both origins.  For example if the IP address associated with both
+              hostnames matches and the SSL server certificate presented in the initial handshake is
+              valid for both hostnames.  However, because the SSL connection can contain at most one
+              client certificate, the client needs a mechanism to send additional client
+              certificates to the server.
+            </t>
 
-<t>The server is required to maintain a vector of client certificates associated with a HTTP/2.0 session.  When the client needs to send a client certificate to the server, it will send a CREDENTIAL frame that specifies the index of the slot in which to store the certificate as well as proof that the client posesses the corresponding private key.  The initial size of this vector must be 8.  If the client provides a client certificate during the first TLS handshake, the contents of this certificate must be copied into the first slot (index 1) in the CREDENTIAL vector, though it may be overwritten by subsequent CREDENTIAL frames.  The server must exclusively use the CREDENTIAL vector when evaluating the client certificates associated with an origin.  The server may change the size of this vector by sending a SETTINGS frame with the setting SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE value specified.  In the event that the new size is smaller than the current size, truncation occurs preserving lower-index slots as possible.</t>  
+            <t>
+              The server is required to maintain a vector of client certificates associated with a HTTP/2.0
+              session.  When the client needs to send a client certificate to the server, it will send a
+              CREDENTIAL frame that specifies the index of the slot in which to store the certificate as well as
+              proof that the client posesses the corresponding private key.  The initial size of this vector must
+              be 8.  If the client provides a client certificate during the first TLS handshake, the contents of
+              this certificate must be copied into the first slot (index 1) in the CREDENTIAL vector, though it
+              may be overwritten by subsequent CREDENTIAL frames.  The server must exclusively use the CREDENTIAL
+              vector when evaluating the client certificates associated with an origin.  The server may change the
+              size of this vector by sending a SETTINGS frame with the setting
+              SETTINGS_CLIENT_CERTIFICATE_VECTOR_SIZE value specified.  In the event that the new size is smaller
+              than the current size, truncation occurs preserving lower-index slots as possible.
+            </t>  
 
-<t>TLS renegotiation with client authentication is incompatible with HTTP/2.0 given the multiplexed nature of HTTP/2.0.  Specifically, imagine that the client has 2 requests outstanding to the server for two different pages (in different tabs).  When the renegotiation + client certificate request comes in, the browser is unable to determine which resource triggered the client certificate request, in order to prompt the user accordingly.</t>
+            <t>
+              TLS renegotiation with client authentication is incompatible with HTTP/2.0 given the
+              multiplexed nature of HTTP/2.0.  Specifically, imagine that the client has 2 requests
+              outstanding to the server for two different pages (in different tabs).  When the
+              renegotiation + client certificate request comes in, the browser is unable to
+              determine which resource triggered the client certificate request, in order to prompt
+              the user accordingly.
+            </t>
 
-          <figure>
+          <figure title="CREDENTIAL Frame Payload">
             <artwork>
-+----------------------------------+
-|1|000000000000001|0000000000001011|
-+----------------------------------+
-| flags (8)  |  Length (24 bits)   |
 +----------------------------------+
 |  Slot (16 bits) |                |
 +-----------------+                |
@@ -909,55 +1219,82 @@ If a client receives an odd numbered PING which it did not initiate, it must ign
             </artwork>
           </figure>
 
-<t>
-  Slot: The index in the server's client certificate vector where this
-  certificate should be stored.  If there is already a certificate stored at
-  this index, it will be overwritten.  The index is one based, not zero based;
-  zero is an invalid slot index.
-</t>
-<t>
-  Proof: Cryptographic proof that the client has possession of the private key
-  associated with the certificate.  The format is a TLS digitally-signed
-  element (<xref target="RFC5246" x:fmt="," x:sec="4.7"/>).  The signature
-  algorithm must be the same as that used in the CertificateVerify message.
-  However, since the MD5+SHA1 signature type used in TLS 1.0 connections can
-  not be correctly encoded in a digitally-signed element, SHA1 must be used
-  when MD5+SHA1 was used in the SSL connection.  The signature is calculated
-  over a 32 byte TLS extractor value (http://tools.ietf.org/html/rfc5705) with
-  a label of "EXPORTER HTTP/2.0 certificate proof" using the empty string as
-  context. ForRSA certificates the signature would be a PKCS#1 v1.5 signature.
-  For ECDSA, it would be an ECDSA-Sig-Value
-  (http://tools.ietf.org/html/rfc5480#appendix-A).  For a 1024-bit RSA key,
-  the CREDENTIAL message would be ~500 bytes.
-</t>
-<t>Certificate: The certificate chain, starting with the leaf certificate.  Each certificate must be encoded as a 32 bit length, followed by a DER encoded certificate.  The certificate must be of the same type (RSA, ECDSA, etc) as the client certificate associated with the SSL connection.</t>
-<t>If the server receives a request for a resource with unacceptable credential (either missing or invalid), it must reply with a RST_STREAM frame with the error code INVALID_CREDENTIALS. Upon receipt of a RST_STREAM frame with INVALID_CREDENTIALS, the client should initiate a new stream directly to the requested origin and resend the request.  Note, HTTP/2.0 does not allow the server to request different client authentication for different resources in the same origin.</t>
-<t>If the server receives an invalid CREDENTIAL frame, it MUST respond with a GOAWAY frame and shutdown the session.  </t>
-          </section>
+          <t>
+            Slot: The index in the server's client certificate vector where this certificate should
+            be stored.  If there is already a certificate stored at this index, it will be
+            overwritten.  The index is one based, not zero based; zero is an invalid slot index.
+          </t>
+          <t>
+            Proof: Cryptographic proof that the client has possession of the private key associated
+            with the certificate.  The format is a TLS digitally-signed element (<xref
+            target="RFC5246" x:fmt="," x:sec="4.7"/>).  The signature algorithm must be the same as
+            that used in the CertificateVerify message.  However, since the MD5+SHA1 signature type
+            used in TLS 1.0 connections can not be correctly encoded in a digitally-signed element,
+            SHA1 must be used when MD5+SHA1 was used in the SSL connection.  The signature is
+            calculated over a 32 byte TLS extractor value (http://tools.ietf.org/html/rfc5705) with
+            a label of "EXPORTER HTTP/2.0 certificate proof" using the empty string as
+            context. ForRSA certificates the signature would be a PKCS#1 v1.5 signature.  For ECDSA,
+            it would be an ECDSA-Sig-Value (http://tools.ietf.org/html/rfc5480#appendix-A).  For a
+            1024-bit RSA key, the CREDENTIAL message would be ~500 bytes.
+          </t>
+          <t>
+            Certificate: The certificate chain, starting with the leaf certificate.  Each
+            certificate must be encoded as a 32 bit length, followed by a DER encoded certificate.
+            The certificate must be of the same type (RSA, ECDSA, etc) as the client certificate
+            associated with the SSL connection.
+          </t>
+          <t>
+            If the server receives a request for a resource with unacceptable credential (either
+            missing or invalid), it must reply with a RST_STREAM frame with the error code
+            INVALID_CREDENTIALS. Upon receipt of a RST_STREAM frame with INVALID_CREDENTIALS, the
+            client should initiate a new stream directly to the requested origin and resend the
+            request.  Note, HTTP/2.0 does not allow the server to request different client
+            authentication for different resources in the same origin.
+          </t>
+          <t>
+            If the server receives an invalid CREDENTIAL frame, it MUST respond with a GOAWAY frame
+            and shutdown the session.
+          </t>
+        </section>
 
-          <section anchor="HeaderBlock" title="Name/Value Header Block">
-            <t>The Name/Value Header Block is found in the SYN_STREAM, SYN_REPLY
-            and HEADERS control frames, and shares a common format:</t>
-          <figure>
-            <artwork>
-+------------------------------------+
-| Number of Name/Value pairs (int32) |
-+------------------------------------+
-|     Length of name (int32)         |
-+------------------------------------+
-|           Name (string)            |
-+------------------------------------+
-|     Length of value  (int32)       |
-+------------------------------------+
-|          Value   (string)          |
-+------------------------------------+
-|           (repeats)                |
-            </artwork>
+        <section anchor="HeaderBlock" title="Name/Value Header Block">
+          <t>
+            The Name/Value Header Block is found in the SYN_STREAM, SYN_REPLY and HEADERS frames,
+            and shares a common format:
+          </t>
+          <figure title="Format of Name/Value Header Block">
+            <artwork><![CDATA[
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                Number of Name/Value Pairs (32)                |
++---------------------------------------------------------------+
+|                      Name/Value Pairs (*)                   ...
++---------------------------------------------------------------+
+]]></artwork>
           </figure>
 
-<t>Number of Name/Value pairs: The number of repeating name/value pairs following this field.</t>
+          <t>
+            Number of Name/Value pairs: The number of repeating name/value pairs following this field.
+            [[ED: this field is not necessary]]
+          </t>
 
-<t>List of Name/Value pairs:
+          <figure title="Name/Value Pair Format">
+            <artwork><![CDATA[
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|                       Length of Name (32)                     |
++---------------------------------------------------------------+
+|                            Name (*)                         ...
++---------------------------------------------------------------+
+|                       Length of Value (32)                    |
++---------------------------------------------------------------+
+|                            Value (*)                        ...
++---------------------------------------------------------------+
+]]></artwork>
+          </figure>
+<t>Each Name/Value pair consists of:
 <list>
 <t>Length of Name: a 32-bit value containing the number of octets in the name field.  Note that in practice, this length must not exceed 2^24, as that is the maximum size of a HTTP/2.0 frame.</t>
 <t>Name: 0 or more octets, 8-bit sequences of data, excluding 0.</t>
@@ -1369,87 +1706,104 @@ const unsigned char http2_dictionary_txt[] = {
 
     <section title="Security Considerations">
       <section title="Use of Same-origin constraints">
-<t>This specification uses the <xref target="RFC6454">same-origin policy</xref> in all cases where verification of content is required.</t>
+        <t>
+          This specification uses the <xref target="RFC6454">same-origin policy</xref> in all cases
+          where verification of content is required.
+        </t>
       </section>
 
       <section title="HTTP Headers and HTTP/2.0 Headers">
-<t>At the application level, HTTP uses name/value pairs in its headers.  Because HTTP/2.0 merges the existing HTTP headers with HTTP/2.0 headers, there is a possibility that some HTTP applications already use a particular header name.  To avoid any conflicts, all headers introduced for layering HTTP over HTTP/2.0 are prefixed with ":".  ":" is not a valid sequence in HTTP header naming, preventing any possible conflict.</t>
+        <t>
+          At the application level, HTTP uses name/value pairs in its headers.  Because HTTP/2.0
+          merges the existing HTTP headers with HTTP/2.0 headers, there is a possibility that some
+          HTTP applications already use a particular header name.  To avoid any conflicts, all
+          headers introduced for layering HTTP over HTTP/2.0 are prefixed with ":".  ":" is not a
+          valid sequence in HTTP header naming, preventing any possible conflict.  [[ED: Not a
+          security consideration.]]
+        </t>
       </section>
 
       <section title="Cross-Protocol Attacks">
-<t>By utilizing TLS, we believe that HTTP/2.0 introduces no new cross-protocol attacks.  TLS encrypts the contents of all transmission (except the handshake itself), making it difficult for attackers to control the data which could be used in a cross-protocol attack.</t>
+        <t>
+          By utilizing TLS, we believe that HTTP/2.0 introduces no new cross-protocol attacks.  TLS encrypts the contents of all transmission (except the handshake itself), making it difficult for attackers to control the data which could be used in a cross-protocol attack.
+          [[Issue: This is no longer true]]
+        </t>
       </section>
 
-      <section title="Server Push Implicit Headers">
-<t>Pushed resources do not have an associated request.  In order for existing HTTP cache control validations (such as the Vary header) to work, however, all cached resources must have a set of request headers.  For this reason, browsers MUST be careful to inherit request headers from the associated stream for the push.  This includes the 'Cookie' header.</t>
+      <section title="Cacheability of Pushed Resources">
+        <t>
+          Pushed resources do not have an associated request.  In order for existing HTTP cache
+          control validations (such as the Vary header) to work, all cached resources must have a
+          set of request headers.  For this reason, caches MUST be careful to inherit request
+          headers from the associated stream for the push.  This includes the Cookie header field.
+        </t>
+        <t>
+          Caching resources that are pushed is possible, based on the guidance provided by the origin
+          server in the Cache-Control header field.  However, this can cause issues if a single server
+          hosts more than one tenant.  For example, a server might offer multiple users each a small
+          portion of its URI space.
+        </t>
+        <t>
+          Where multiple tenants share space on the same server, that server MUST ensure that tenants
+          are not able to push representations of resources that they do not have authority over.
+          Failure to enforce this would allow a tenant to provide a representation that would be served
+          out of cache, overriding the actual representation that the authoritative tenant provides.
+        </t>
+        <t>
+          Pushed resources for which an origin server is not authoritative are never cached or used.
+        </t>
       </section>
-      
-<section title="Cacheability of Pushed Resources">
-<t>
-  Caching resources that are pushed is possible, based on the guidance provided by the origin
-  server in the Cache-Control header field.  However, this can cause issues if a single server
-  hosts more than one tenant.  For example, a server might offer multiple users each a small
-  portion of its URI space.
-</t>
-<t>
-  Where multiple tenants share space on the same server, that server MUST ensure that tenants
-  are not able to push representations of resources that they do not have authority over.
-  Failure to enforce this would allow a tenant to provide a representation that would be served
-  out of cache, overriding the actual representation that the authoritative tenant provides.
-</t>
-<t>
-  Pushed resources for which an origin server is not authoritative are never cached or used.
-</t>
-</section>
     </section>
 
     <section title="Privacy Considerations">
       <section title="Long Lived Connections">
-<t>HTTP/2.0 aims to keep connections open longer between clients and servers in order to reduce the latency when a user makes a request.  The maintenance of these connections over time could be used to expose private information.  For example, a user using a browser hours after the previous user stopped using that browser may be able to learn about what the previous user was doing.  This is a problem with HTTP in its current form as well, however the short lived connections make it less of a risk.</t>
+        <t>
+          HTTP/2.0 aims to keep connections open longer between clients and servers in order to
+          reduce the latency when a user makes a request.  The maintenance of these connections over
+          time could be used to expose private information.  For example, a user using a browser
+          hours after the previous user stopped using that browser may be able to learn about what
+          the previous user was doing.  This is a problem with HTTP in its current form as well,
+          however the short lived connections make it less of a risk.
+        </t>
       </section>
 
       <section title="SETTINGS frame">
-<t>The HTTP/2.0 SETTINGS frame allows servers to store out-of-band transmitted information about the communication between client and server on the client.  Although this is intended only to be used to reduce latency, renegade servers could use it as a mechanism to store identifying information about the client in future requests.</t>
+        <t>
+          The HTTP/2.0 SETTINGS frame allows servers to store out-of-band transmitted information about the communication between client and server on the client.  Although this is intended only to be used to reduce latency, renegade servers could use it as a mechanism to store identifying information about the client in future requests.
+        </t>
 
-<t>Clients implementing privacy modes, such as Google Chrome's "incognito mode", may wish to disable client-persisted SETTINGS storage.</t>
+        <t>
+          Clients implementing privacy modes can disable client-persisted SETTINGS storage.
+        </t>
 
-<t>Clients MUST clear persisted SETTINGS information when clearing the cookies.</t>
-
-<t>TODO: Put range maximums on each type of setting to limit inappropriate uses.</t>
+        <t>
+          Clients MUST clear persisted SETTINGS information when clearing the cookies.
+        </t>
       </section>
     </section>
 
-<section title="Requirements Notation">
-  <t>
-    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT",
-    "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in
-    <xref target="RFC2119">RFC 2119</xref>.
-  </t>
-</section>
-
-<section title="Acknowledgements">
-  <t>This document includes substantial input from the following individuals:
-  <list style="symbols">
-    <t>
-      Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk, Costin Manolache,
-      William Chan, Vitaliy Lvin, Joe Chan, Adam Barth, Ryan Hamilton, Gavin Peters, Kent Alstad,
-      Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton (SPDY contributors).
-    </t>
-    <t>
-      Gabriel Montenegro and Willy Tarreau (Upgrade mechanism)
-    </t>
-    <t>
-      William Chan, Salvatore Loreto, Osama Mazahir, Gabriel Montenegro, Jitu Padhye, Roberto Peon,
-      Rob Trace (Flow control principles)
-    </t>
-    <t>
-      Mark Nottingham and Julian Reschke
-    </t>
-  </list>
-  </t>
-
-</section>
-</middle>
+    <section title="Acknowledgements">
+      <t>This document includes substantial input from the following individuals:
+      <list style="symbols">
+        <t>
+          Adam Langley, Wan-Teh Chang, Jim Morrison, Mark Nottingham, Alyssa Wilk, Costin Manolache,
+          William Chan, Vitaliy Lvin, Joe Chan, Adam Barth, Ryan Hamilton, Gavin Peters, Kent Alstad,
+          Kevin Lindsay, Paul Amer, Fan Yang, Jonathan Leighton (SPDY contributors).
+        </t>
+        <t>
+          Gabriel Montenegro and Willy Tarreau (Upgrade mechanism)
+        </t>
+        <t>
+          William Chan, Salvatore Loreto, Osama Mazahir, Gabriel Montenegro, Jitu Padhye, Roberto Peon,
+          Rob Trace (Flow control)
+        </t>
+        <t>
+          Mark Nottingham and Julian Reschke
+        </t>
+      </list>
+      </t>
+    </section>
+  </middle>
 
   <back>
   <references title="Normative References">
@@ -1662,61 +2016,65 @@ const unsigned char http2_dictionary_txt[] = {
     </reference>
   </references>
 
-<section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
+  <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
-<section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
-<t>
-  Removed per-frame version field.
-</t>
-<t>
-  Altered flow control properties to include session-level limits.
-</t>
-<t>
-  Added note on cacheability of pushed resources and multiple tenant servers.
-</t>
-<t>
-  Changed protocol label form based on discussions.
-</t>
-</section>
-<section title="Since draft-ietf-httpbis-http2-00" anchor="changes.since.draft-ietf-httpbis-http2-00">
-<t>
-  Changed title throughout.
-</t>
-<t>
-  Removed section on Incompatibilities with SPDY draft#2.
-</t>
-<t>
-  Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref
-  target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
-</t>
-<t>
-  Replaced abstract and introduction.
-</t>
-<t>
-  Added section on starting HTTP/2.0, including upgrade mechanism.
-</t>
-<t>
-  Removed unused references.
-</t>
-<t>
-  Added <xref target="fc-principles">flow control principles</xref> based on <eref
-  target="http://tools.ietf.org/html/draft-montenegro-httpbis-http2-fc-principles-01"/>.
-</t>
-</section>
-<section title="Since draft-mbelshe-httpbis-spdy-00" anchor="changes.since.draft-mbelshe-httpbis-spdy-00">
-<t>
-  Adopted as base for draft-ietf-httpbis-http2.
-</t>
-<t>
-  Updated authors/editors list.
-</t>
-<t>
-  Added status note.
-</t>
-</section>
+    <section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
+      <t>
+        Added session header section.
+      </t>
+      <t>
+        Restructured frame header.  Removed distinction between data and control frames.
+      </t>
+      <t>
+        Altered flow control properties to include session-level limits.
+      </t>
+      <t>
+        Added note on cacheability of pushed resources and multiple tenant servers.
+      </t>
+      <t>
+        Changed protocol label form based on discussions.
+      </t>
+    </section>
 
-</section>
+    <section title="Since draft-ietf-httpbis-http2-00" anchor="changes.since.draft-ietf-httpbis-http2-00">
+      <t>
+        Changed title throughout.
+      </t>
+      <t>
+        Removed section on Incompatibilities with SPDY draft#2.
+      </t>
+      <t>
+        Changed INTERNAL_ERROR on GOAWAY to have a value of 2 <eref
+        target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
+      </t>
+      <t>
+        Replaced abstract and introduction.
+      </t>
+      <t>
+        Added section on starting HTTP/2.0, including upgrade mechanism.
+      </t>
+      <t>
+        Removed unused references.
+      </t>
+      <t>
+        Added <xref target="fc-principles">flow control principles</xref> based on <eref
+        target="http://tools.ietf.org/html/draft-montenegro-httpbis-http2-fc-principles-01"/>.
+      </t>
+    </section>
 
-  </back>
+    <section title="Since draft-mbelshe-httpbis-spdy-00" anchor="changes.since.draft-mbelshe-httpbis-spdy-00">
+      <t>
+        Adopted as base for draft-ietf-httpbis-http2.
+      </t>
+      <t>
+        Updated authors/editors list.
+      </t>
+      <t>
+        Added status note.
+      </t>
+    </section>
+  </section>
+
+</back>
 </rfc>
 
