@@ -1243,6 +1243,9 @@
               <t hangText="INTERNAL_ERROR (2):">
                 The implementation has internally failed, not due to anything in the protocol.
               </t>
+              <t hangText="FLOW_CONTROL_ERROR (7):">
+                The endpoint detected that its peer violated the flow control protocol.
+              </t>
             </list>
           </t>
         </section>
@@ -1276,93 +1279,142 @@
 
         <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
           <t>
-            The WINDOW_UPDATE frame (type=9) is used to implement per stream flow control in
-            HTTP/2.0. Flow control in HTTP/2.0 is per hop, that is, only between the two endpoints
-            of a HTTP/2.0 connection. If there are one or more intermediaries between the client and
-            the origin server, flow control signals are not explicitly forwarded by the
-            intermediaries. (However, throttling of data transfer by any recipient may have the
-            effect of indirectly propagating flow control information upstream back to the original
-            sender.) Flow control only applies to the data portion of data frames. Recipients must
-            buffer all control frames. If a recipient fails to buffer an entire control frame, it
-            MUST issue a <xref target="StreamErrorHandler">stream error</xref> with the error code
-            FLOW_CONTROL_ERROR for the stream.
+            The WINDOW_UPDATE frame (type=9) is used to implement flow control in HTTP/2.0.
           </t>
           <t>
-            Flow control in HTTP/2.0 is implemented by a data transfer window kept by the sender of
-            each stream. The data transfer window is a simple uint32 that indicates how many bytes
-            of data the sender can transmit. After a stream is created, but before any data frames
-            have been transmitted, the sender begins with the initial window size. This window size
-            is a measure of the buffering capability of the recipient. The sender must not send a
-            data frame with data length greater than the transfer window size. After sending each
-            data frame, the sender decrements its transfer window size by the amount of data
-            transmitted. When the window size becomes less than or equal to 0, the sender must pause
-            transmitting data frames. At the other end of the stream, the recipient sends a
-            WINDOW_UPDATE control back to notify the sender that it has consumed some data and freed
-            up buffer space to receive more data.
+            Flow control in HTTP/2.0 operates at two levels: on each individual stream and on the
+            entire session.
+          </t>
+          <t>
+            Flow control in HTTP/2.0 is hop by hop, that is, only between the two endpoints of a
+            HTTP/2.0 connection. Intermediaries do not forward WINDOW_UPDATE messages between
+            dependent sessions.  However, throttling of data transfer by any recipient can
+            indirectly cause the propagation of flow control information toward the original
+            sender.
+          </t>
+          <t>
+            Flow control only applies to frames that are identified as being subject to flow
+            control. Of the frames defined in this document, only data frames are subject to flow
+            control.  Receivers MUST either buffer or process all other frames, terminate the
+            corresponding stream, or terminate the session.  The stream or session is terminated
+            with a FLOW_CONTROL_ERROR code.
           </t>
           <t>
             The WINDOW_UPDATE frame does not define any valid flags.
           </t>
           <t>
             The identifier field in the WINDOW_UPDATE frame header MUST contain a stream identifier
-            for an open stream.
+            for an open stream, or the value 0.  A zero value indicates that the WINDOW_UPDATE
+            applies to the session level flow control window.
           </t>
           <t>
             The payload of a WINDOW_UPDATE frame contains a 32-bit value.  This value is the
             additional number of bytes that the sender can transmit in addition to the existing flow
             control window.  The legal range for this field is 1 to 2^31 - 1 (0x7fffffff) bytes; the
-            most significant bit is reserved.
-          </t>
-          <t>
-            The window size as kept by the sender must never exceed 2^31 (although it can become
-            negative in one special case). If a sender receives a WINDOW_UPDATE that causes the its
-            window size to exceed this limit, it must send RST_STREAM with error code
-            FLOW_CONTROL_ERROR to terminate the stream.
+            most significant bit of this value is reserved.
           </t>
 
-          <t>
-            When a HTTP/2.0 connection is first established, the default initial window size for all
-            streams is 64KB. An endpoint can use the SETTINGS control frame to adjust the initial
-            window size for the connection. That is, its peer can start out using the 64KB default
-            initial window size when sending data frames before receiving the SETTINGS.  Because
-            SETTINGS is asynchronous, there may be a race condition if the recipient wants to
-            decrease the initial window size, but its peer immediately sends 64KB on the creation of
-            a new connection, before waiting for the SETTINGS to arrive. This is one case where the
-            window size kept by the sender will become negative. Once the sender detects this
-            condition, it must stop sending data frames and wait for the recipient to catch up. The
-            recipient has two choices:
-            <list>
-              <t>
-                immediately send RST_STREAM with FLOW_CONTROL_ERROR error code.
-              </t>
-              <t>
-                allow the head of line blocking (as there is only one stream for the session and the
-                amount of data in flight is bounded by the default initial window size), and send
-                WINDOW_UPDATE as it consumes data.
-              </t>
-            </list>
-          </t>
-          <t>
-            In the case of option 2, both sides must compute the window size based on the initial
-            window size in the SETTINGS. For example, if the recipient sets the initial window size
-            to be 16KB, and the sender sends 64KB immediately on connection establishment, the
-            sender will discover its window size is -48KB on receipt of the SETTINGS. As the
-            recipient consumes the first 16KB, it must send a WINDOW_UPDATE of 16KB back to the
-            sender. This interaction continues until the sender's window size becomes positive
-            again, and it can resume transmitting data frames.
-          </t>
-          <t>
-            After the recipient reads in a data frame with FLAG_FIN that marks the end of the data
-            stream, it should not send WINDOW_UPDATE frames as it consumes the last data frame. A
-            sender should ignore all the WINDOW_UPDATE frames associated with the stream after it
-            send the last frame for the stream.
-          </t>
-          <t>
-            The data frames from the sender and the WINDOW_UPDATE frames from the recipient are
-            completely asynchronous with respect to each other. This property allows a recipient to
-            aggressively update the window size kept by the sender to prevent the stream from
-            stalling.
-          </t>
+          <section title="The Flow Control Window">
+            <t>
+              Flow control in HTTP/2.0 is implemented by a flow control window kept by the sender of
+              each stream. The flow control window is a simple integer value that indicates how many
+              bytes of data the sender is permitted to transmit.  The flow control window size is a
+              measure of the buffering capability of the recipient.
+            </t>
+            <t>
+              Two flow control windows apply to the sending of every message: the stream flow
+              control window and the session flow control window.  The sender MUST NOT send a flow
+              controlled frame with a length that exceeds the space available in either of the flow
+              control windows advertised by the receiver.   Frames with zero length that also end a
+              stream (for example, a data frame with the FINAL flag set) MAY be sent if there is no
+              available space in either flow control window.  
+            </t>
+            <t>
+              For flow control calculations, the 8 byte frame header is not counted.
+            </t>
+            <t>
+              After sending a flow controlled frame, the sender reduces the space available in both
+              windows by the length of the transmitted frame.
+            </t>
+            <t>
+              The receiver of a message sends a WINDOW_UPDATE frame as it consumes data and frees up
+              space in flow control windows.  Separate WINDOW_UPDATE messages are sent for the
+              stream and session level flow control windows.
+            </t>
+            <t>
+              A sender MUST NOT allow a flow control window to exceed 2^31 - 1 bytes.  If a sender
+              receives a WINDOW_UPDATE that causes a flow control window to exceed this maximum it
+              MUST terminate either the stream or the session, as appropriate.  For streams, the
+              sender sends a RST_STREAM with the error code of FLOW_CONTROL_ERROR code; for the
+              session, a GOAWAY message with a FLOW_CONTROL_ERROR code.
+            </t>
+            <t>
+              Flow controlled frames from the sender and WINDOW_UPDATE frames from the receiver are
+              completely asynchronous with respect to each other. This property allows a receiver to
+              aggressively update the window size kept by the sender to prevent streams from
+              stalling.
+            </t>
+          </section>
+
+          <section title="Flow Control for New Sessions">
+            <t>
+              When a HTTP/2.0 connection is first established, new streams are created with an
+              initial flow control window size of 65535 bytes. The session flow control window is
+              also 65536 bytes.  Both endpoints can adjust the initial window size for new streams
+              by including a value for SETTINGS_INITIAL_WINDOW_SIZE in the SETTINGS frame that forms
+              part of the session header.
+            </t>
+            <t>
+              Prior to receiving a SETTINGS frame that sets a value for
+              SETTINGS_INITIAL_WINDOW_SIZE, a client can only use the default initial window size
+              when sending flow controlled frames.  Similarly, the session flow control window is
+              set to the default initial window size until a WINDOW_UPDATE message is received.
+            </t>
+          </section>
+
+          <section title="Reducing the Stream Initial Window Size">
+            <t>
+              A server that wishes to use a smaller flow control window than the default MUST be
+              prepared to receive the entire amount for the default initial window size, since the
+              client could immediately send the full default amount on every stream it opens. After
+              the SETTINGS frame from the server is received by the client, the window size
+              maintained by the client can become negative. A client MUST allow the available window
+              to become negative, refraining from sending new flow controlled frames until it
+              receives a WINDOW_UPDATE.  The server has two options for handling any streams that
+              might have already exceeded this lower limit:
+              <list style="numbers">
+                <t>
+                  The server can immediately send RST_STREAM with FLOW_CONTROL_ERROR error code for
+                  the affected streams.
+                </t>
+                <t>
+                  The server can accept the streams and tolerate the resulting head of line
+                  blocking, sending WINDOW_UPDATE messages as it consumes data.
+                </t>
+              </list>
+            </t>
+            <t>
+              If a server decides to accept streams, both sides must recompute the available flow
+              control window based on the initial window size sent in the SETTINGS. For example, if
+              the server sets the initial window size to be 16KB, and the client sends 64KB
+              immediately on connection establishment, the client will recalculate the available
+              flow control window to be -48KB on receipt of the SETTINGS frame.  The client retains
+              a negative flow control window until WINDOW_UPDATE frames restore the window to being
+              positive, after which the client can resume sending.
+            </t>
+          </section>
+
+          <section title="Ending Flow Control">
+            <t>
+              After a recipient reads in a frame that marks the end of a stream (for example, a data
+              stream with a FINAL flag set), it ceases transmission of WINDOW_UPDATE frames. A
+              sender is not required to maintain the available flow control window for streams that
+              it is no longer sending on.
+            </t>
+            <t>
+              [[TBD: text on disabling flow control.]]
+            </t>
+          </section>
         </section>
 
         <section anchor="CREDENTIAL" title="CREDENTIAL">
