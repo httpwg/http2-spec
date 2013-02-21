@@ -466,9 +466,9 @@
         <t>
           Streams are independent sequences of bi-directional data divided into frames with several
           properties:
-          <list>
+          <list style="symbols">
             <t>
-              Streams may be created by either the client or server.
+              Streams can be created by either the client or server.
             </t>
             <t>
               Streams optionally carry a set of name/value header pairs.
@@ -477,62 +477,62 @@
               Streams can concurrently send data interleaved with other streams.
             </t>
             <t>
-              Streams may be cancelled.
+              Streams can be established and used unilaterally.
+            </t>
+            <t>
+              Streams can be cancelled.
             </t>
           </list>
         </t>
 
-        <section anchor="StreamFrames" title="Stream frames">
+        <section anchor="StreamFrames" title="Stream Frames">
           <t>
             HTTP/2.0 defines 3 control frames to manage the lifecycle of a stream:
-            <list>
-              <t>
-                SYN_STREAM - Open a new stream
+            <list style="hanging">
+              <t hangText="SYN_STREAM:">
+                Open a new stream <xref target="SYN_STREAM"/>
               </t>
-              <t>
-                SYN_REPLY - Remote acknowledgement of a new, open stream
+              <t hangText="SYN_REPLY:">
+                Remote acknowledgement of a new, open stream <xref target="SYN_REPLY"/>
               </t>
-              <t>
-                RST_STREAM - Close a stream
+              <t hangText="RST_STREAM:">
+                Close a stream <xref target="RST_STREAM"/>
               </t>
             </list>
           </t>
         </section>
 
-        <section anchor="StreamCreation" title="Stream creation">
+        <section anchor="StreamCreation" title="Stream Creation">
           <t>
             A stream is created by sending a control frame with the type set to <xref
-            target="SYN_STREAM">SYN_STREAM</xref>.  If the server is initiating the stream, the
-            Stream-ID must be even.  If the client is initiating the stream, the Stream-ID must be
-            odd.  0 is not a valid Stream-ID. Stream-IDs from each side of the connection must
-            increase monotonically as new streams are created.  E.g. Stream 2 may be created after
-            stream 3, but stream 7 must not be created after stream 9. Stream IDs do not wrap: when
-            a client or server cannot create a new stream id without exceeding a 31 bit value, it
-            MUST NOT create a new stream.
+            target="SYN_STREAM">SYN_STREAM</xref>.
           </t>
-
           <t>
-            The stream-id MUST increase with each new stream.  If an endpoint receives a SYN_STREAM
-            with a stream id which is less than any previously received SYN_STREAM, it MUST issue a
-            <xref target="SessionErrorHandler">session error</xref> with the status PROTOCOL_ERROR.
+            Streams initiated by a client use odd numbered stream identifiers.  Streams initiated by
+            the server use odd numbered stream identifiers.  A stream identifier of zero MUST NOT be
+            used to create a new stream.
           </t>
-
           <t>
-            It is a protocol error to send two SYN_STREAMs with the same stream-id.  If a recipient
-            receives a second SYN_STREAM for the same stream, it MUST issue a <xref
-            target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR.
+            The stream identifier of a new stream MUST be greater than all other streams from that
+            endpoint.  If an endpoint receives a SYN_STREAM with a stream identifier which is less
+            than or equal to a previously received SYN_STREAM, it MUST issue a <xref
+            target="SessionErrorHandler">session error</xref> with the status PROTOCOL_ERROR.
           </t>
-
           <t>
-            Upon receipt of a SYN_STREAM, the recipient can reject the stream by sending a <xref
-            target="StreamErrorHandler">stream error</xref> with the error code
-            REFUSED_STREAM. Note, however, that the creating endpoint may have already sent
-            additional frames for that stream which cannot be immediately stopped.
+            A long-lived session can result in available stream identifiers being exhausted. An
+            endpoint that is unable to create a new stream identifier can establish a new session
+            for any new streams.
           </t>
-
           <t>
-            Once the stream is created, the creator may immediately send HEADERS or DATA frames for
-            that stream, without needing to wait for the recipient to acknowledge.
+            An endpoint cannot prevent the creation of a new stream, but it can request the early
+            termination of an unwanted stream.  Upon receipt of a SYN_STREAM frame, the recipient
+            can terminate the stream by sending a <xref target="StreamErrorHandler">stream
+            error</xref> with the error code REFUSED_STREAM. This cannot prevent the initiating
+            endpoint from sending frames for that stream prior to receiving this request.
+          </t>
+          <t>
+            New streams do not require confirmation from a peer.  A stream creator is able to send
+            frames on a newly created stream immediately after the SYN_STREAM frame.
           </t>
 
           <section title="Unidirectional streams">

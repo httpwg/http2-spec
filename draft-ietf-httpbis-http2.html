@@ -550,8 +550,8 @@ ul.ind li li {
                   </ul>
                </li>
                <li><a href="#rfc.section.3.4">3.4</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.3.4">Streams</a><ul>
-                     <li><a href="#rfc.section.3.4.1">3.4.1</a>&nbsp;&nbsp;&nbsp;<a href="#StreamFrames">Stream frames</a></li>
-                     <li><a href="#rfc.section.3.4.2">3.4.2</a>&nbsp;&nbsp;&nbsp;<a href="#StreamCreation">Stream creation</a><ul>
+                     <li><a href="#rfc.section.3.4.1">3.4.1</a>&nbsp;&nbsp;&nbsp;<a href="#StreamFrames">Stream Frames</a></li>
+                     <li><a href="#rfc.section.3.4.2">3.4.2</a>&nbsp;&nbsp;&nbsp;<a href="#StreamCreation">Stream Creation</a><ul>
                            <li><a href="#rfc.section.3.4.2.1">3.4.2.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.3.4.2.1">Unidirectional streams</a></li>
                            <li><a href="#rfc.section.3.4.2.2">3.4.2.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.3.4.2.2">Bidirectional streams</a></li>
                         </ul>
@@ -871,36 +871,44 @@ ul.ind li li {
       <h2 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4</a>&nbsp;Streams
       </h2>
       <p id="rfc.section.3.4.p.1">Streams are independent sequences of bi-directional data divided into frames with several properties: </p>
-      <ul class="empty">
-         <li>Streams may be created by either the client or server.</li>
+      <ul>
+         <li>Streams can be created by either the client or server.</li>
          <li>Streams optionally carry a set of name/value header pairs.</li>
          <li>Streams can concurrently send data interleaved with other streams.</li>
-         <li>Streams may be cancelled.</li>
+         <li>Streams can be established and used unilaterally.</li>
+         <li>Streams can be cancelled.</li>
       </ul>
-      <h3 id="rfc.section.3.4.1"><a href="#rfc.section.3.4.1">3.4.1</a>&nbsp;<a id="StreamFrames" href="#StreamFrames">Stream frames</a></h3>
+      <h3 id="rfc.section.3.4.1"><a href="#rfc.section.3.4.1">3.4.1</a>&nbsp;<a id="StreamFrames" href="#StreamFrames">Stream Frames</a></h3>
       <p id="rfc.section.3.4.1.p.1">HTTP/2.0 defines 3 control frames to manage the lifecycle of a stream: </p>
-      <ul class="empty">
-         <li>SYN_STREAM - Open a new stream</li>
-         <li>SYN_REPLY - Remote acknowledgement of a new, open stream</li>
-         <li>RST_STREAM - Close a stream</li>
-      </ul>
-      <h3 id="rfc.section.3.4.2"><a href="#rfc.section.3.4.2">3.4.2</a>&nbsp;<a id="StreamCreation" href="#StreamCreation">Stream creation</a></h3>
-      <p id="rfc.section.3.4.2.p.1">A stream is created by sending a control frame with the type set to SYN_STREAM (<a href="#SYN_STREAM" title="SYN_STREAM">Section&nbsp;3.7.2</a>). If the server is initiating the stream, the Stream-ID must be even. If the client is initiating the stream, the Stream-ID
-         must be odd. 0 is not a valid Stream-ID. Stream-IDs from each side of the connection must increase monotonically as new streams
-         are created. E.g. Stream 2 may be created after stream 3, but stream 7 must not be created after stream 9. Stream IDs do not
-         wrap: when a client or server cannot create a new stream id without exceeding a 31 bit value, it MUST NOT create a new stream.
+      <dl>
+         <dt>SYN_STREAM:</dt>
+         <dd>Open a new stream <a href="#SYN_STREAM" title="SYN_STREAM">Section&nbsp;3.7.2</a> 
+         </dd>
+         <dt>SYN_REPLY:</dt>
+         <dd>Remote acknowledgement of a new, open stream <a href="#SYN_REPLY" title="SYN_REPLY">Section&nbsp;3.7.3</a> 
+         </dd>
+         <dt>RST_STREAM:</dt>
+         <dd>Close a stream <a href="#RST_STREAM" title="RST_STREAM">Section&nbsp;3.7.4</a> 
+         </dd>
+      </dl>
+      <h3 id="rfc.section.3.4.2"><a href="#rfc.section.3.4.2">3.4.2</a>&nbsp;<a id="StreamCreation" href="#StreamCreation">Stream Creation</a></h3>
+      <p id="rfc.section.3.4.2.p.1">A stream is created by sending a control frame with the type set to SYN_STREAM (<a href="#SYN_STREAM" title="SYN_STREAM">Section&nbsp;3.7.2</a>).
       </p>
-      <p id="rfc.section.3.4.2.p.2">The stream-id MUST increase with each new stream. If an endpoint receives a SYN_STREAM with a stream id which is less than
-         any previously received SYN_STREAM, it MUST issue a session error (<a href="#SessionErrorHandler" title="Session Error Handling">Section&nbsp;3.5.1</a>) with the status PROTOCOL_ERROR.
+      <p id="rfc.section.3.4.2.p.2">Streams initiated by a client use odd numbered stream identifiers. Streams initiated by the server use odd numbered stream
+         identifiers. A stream identifier of zero MUST NOT be used to create a new stream.
       </p>
-      <p id="rfc.section.3.4.2.p.3">It is a protocol error to send two SYN_STREAMs with the same stream-id. If a recipient receives a second SYN_STREAM for the
-         same stream, it MUST issue a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code PROTOCOL_ERROR.
+      <p id="rfc.section.3.4.2.p.3">The stream identifier of a new stream MUST be greater than all other streams from that endpoint. If an endpoint receives a
+         SYN_STREAM with a stream identifier which is less than or equal to a previously received SYN_STREAM, it MUST issue a session error (<a href="#SessionErrorHandler" title="Session Error Handling">Section&nbsp;3.5.1</a>) with the status PROTOCOL_ERROR.
       </p>
-      <p id="rfc.section.3.4.2.p.4">Upon receipt of a SYN_STREAM, the recipient can reject the stream by sending a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code REFUSED_STREAM. Note, however, that the creating endpoint may have already sent additional frames for
-         that stream which cannot be immediately stopped.
+      <p id="rfc.section.3.4.2.p.4">A long-lived session can result in available stream identifiers being exhausted. An endpoint that is unable to create a new
+         stream identifier can establish a new session for any new streams.
       </p>
-      <p id="rfc.section.3.4.2.p.5">Once the stream is created, the creator may immediately send HEADERS or DATA frames for that stream, without needing to wait
-         for the recipient to acknowledge.
+      <p id="rfc.section.3.4.2.p.5">An endpoint cannot prevent the creation of a new stream, but it can request the early termination of an unwanted stream. Upon
+         receipt of a SYN_STREAM frame, the recipient can terminate the stream by sending a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code REFUSED_STREAM. This cannot prevent the initiating endpoint from sending frames for that stream prior
+         to receiving this request.
+      </p>
+      <p id="rfc.section.3.4.2.p.6">New streams do not require confirmation from a peer. A stream creator is able to send frames on a newly created stream immediately
+         after the SYN_STREAM frame.
       </p>
       <h4 id="rfc.section.3.4.2.1"><a href="#rfc.section.3.4.2.1">3.4.2.1</a>&nbsp;Unidirectional streams
       </h4>
@@ -1074,7 +1082,7 @@ ul.ind li li {
          </li>
       </ul>
       <h3 id="rfc.section.3.7.2"><a href="#rfc.section.3.7.2">3.7.2</a>&nbsp;<a id="SYN_STREAM" href="#SYN_STREAM">SYN_STREAM</a></h3>
-      <p id="rfc.section.3.7.2.p.1">The SYN_STREAM frame (type=1) allows the sender to asynchronously create a stream between the endpoints. See Stream Creation (<a href="#StreamCreation" title="Stream creation">Section&nbsp;3.4.2</a>) 
+      <p id="rfc.section.3.7.2.p.1">The SYN_STREAM frame (type=1) allows the sender to asynchronously create a stream between the endpoints. See Stream Creation (<a href="#StreamCreation" title="Stream Creation">Section&nbsp;3.4.2</a>) 
       </p>
       <div id="rfc.figure.2"></div> <pre> 0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1098,7 +1106,7 @@ ul.ind li li {
             flag being set puts the recipient in the half-closed (<a href="#StreamHalfClose" title="Stream half-close">Section&nbsp;3.4.6</a>) state.
          </dd>
       </dl>
-      <p id="rfc.section.3.7.2.p.4">The identifier field in the frame header MUST contain an unused stream identifier, see <a href="#StreamCreation" title="Stream creation">Section&nbsp;3.4.2</a>.
+      <p id="rfc.section.3.7.2.p.4">The identifier field in the frame header MUST contain an unused stream identifier, see <a href="#StreamCreation" title="Stream Creation">Section&nbsp;3.4.2</a>.
       </p>
       <p id="rfc.section.3.7.2.p.5">The SYN_STREAM payload contains the following fields: </p>
       <dl>
@@ -1121,7 +1129,7 @@ ul.ind li li {
          </dd>
       </dl>
       <p id="rfc.section.3.7.3.p.3">The identifier field in the frame header MUST contain the stream identifier that was included in the corresponding SYN_STREAM,
-         see <a href="#StreamCreation" title="Stream creation">Section&nbsp;3.4.2</a>.
+         see <a href="#StreamCreation" title="Stream Creation">Section&nbsp;3.4.2</a>.
       </p>
       <p id="rfc.section.3.7.3.p.4">If an endpoint receives multiple SYN_REPLY frames for the same active stream ID, it MUST issue a stream error (<a href="#StreamErrorHandler" title="Stream Error Handling">Section&nbsp;3.5.2</a>) with the error code STREAM_IN_USE.
       </p>
