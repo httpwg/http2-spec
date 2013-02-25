@@ -1,6 +1,6 @@
 
-HTTP/2.0 Specification
-======================
+HTTP/2.0 Draft Specification
+============================
 
 This is the working area for the [IETF HTTPbis Working
 Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of HTTP/2.0.
