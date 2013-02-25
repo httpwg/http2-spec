@@ -14,7 +14,8 @@ The source for our current draft is
 [RFC2629 format](http://xml.resource.org/public/rfc/html/rfc2629.html).
 
 An HTML copy of the current (unsubmitted) draft can be found
-[here](http://http2.github.com/http2-spec/).
+[here](http://http2.github.com/http2-spec/), and the text version can be found
+[here](http://http2.github.com/http2-spec/index.txt).
 
 
 Providing Feedback
