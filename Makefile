@@ -21,6 +21,10 @@ $(draft_title)-$(next_rev).xml:
 	cp $(draft_title).xml $(draft_title)-$(next_rev).xml
 	sed -i '' -e"s/$(draft_title)-latest/$(draft_title)-$(next_rev)/" $(draft_title)-$(next_rev).xml
 
+.PHONY: idnits
+idnits: $(draft_title)-$(next_rev).txt
+	idnits $(draft_title)-$(next_rev).txt
+
 clean:
 	rm -f $(draft_title).redxml
 	rm -f $(draft_title)-*.xml
