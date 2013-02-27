@@ -19,18 +19,21 @@
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
   <front>
     <title abbrev="HTTP/2.0">Hypertext Transfer Protocol version 2.0</title>
+
     <author initials="M." surname="Belshe" fullname="Mike Belshe">
       <organization>Twist</organization>
       <address>
         <email>mbelshe@chromium.org</email>
       </address>
     </author>
+
     <author initials="R." surname="Peon" fullname="Roberto Peon">
       <organization>Google, Inc</organization>
       <address>
         <email>fenix@google.com</email>
       </address>
     </author>
+
     <author initials="M." surname="Thomson" fullname="Martin Thomson" role="editor">
       <organization>Microsoft</organization>
       <address>
@@ -59,6 +62,7 @@
         <email>Alexey.Melnikov@isode.com</email>
       </address>
     </author>
+
     <date year="2013" />
     <area>Applications</area>
     <workgroup>HTTPbis Working Group</workgroup>
@@ -473,7 +477,7 @@
               Streams can be created by either the client or server.
             </t>
             <t>
-              Streams optionally carry a set of name/value header pairs.
+              Streams optionally carry a set of name-value header pairs.
             </t>
             <t>
               Streams can concurrently send data interleaved with other streams.
@@ -568,8 +572,8 @@
 
         <section title="Stream headers">
           <t>
-            Streams carry optional sets of name/value pair headers which carry metadata about the
-            stream.  After the stream has been created, and as long as the sender is not <xref
+            Streams carry optional sets of pair headers which carry metadata about the stream.
+            After the stream has been created, and as long as the sender is not <xref
             target="StreamClose">closed</xref> or <xref target="StreamHalfClose">half-closed</xref>,
             each side may send HEADERS frame(s) containing the header data.  Header data can be sent
             in multiple HEADERS frames, and HEADERS frames may be interleaved with data frames.
@@ -836,11 +840,10 @@
                 compression.
               </t>
               <t>
-                Each HTTP/2.0 stream sending compressed frames creates its own zlib context for that
-                stream, and these compression contexts MUST be distinct from the compression
-                contexts used with SYN_STREAM/SYN_REPLY/HEADER compression. (Thus, if both endpoints
-                of a stream are compressing data on the stream, there will be two zlib contexts, one
-                for sending and one for receiving).
+                Each HTTP/2.0 stream sending compressed frames creates a separate zlib context for
+                the data streams on that stream.  Thus, if both endpoints of a stream are
+                compressing data on the stream, there will be two zlib contexts, one for sending and
+                one for receiving.
               </t>
             </list>
           </t>
@@ -860,7 +863,7 @@
 +-+-------------------------------------------------------------+
 |X|                   Priority (31)                             |
 +-+-------------------------------------------------------------+
-|                  Name/Value Block (*)                       ...
+|                    Header Block (*)                         ...
 +---------------------------------------------------------------+
 
 ]]></artwork>
@@ -900,8 +903,8 @@
                 Priority: A 31-bit <xref target="StreamPriority">priority</xref> field.
               </t>
               <t>
-                Name/Value Header Block: A set of name/value pairs carried as part of the
-                SYN_STREAM.  <xref target="HeaderBlock">see Name/Value Header Block</xref>.
+                Headers Block: A set of name-value pairs carried as part of the SYN_STREAM.  <xref
+                target="HeaderBlock">See Header Block</xref>.
               </t>
             </list>
           </t>
@@ -932,9 +935,8 @@
             STREAM_IN_USE.
           </t>
           <t>
-            The body of a SYN_REPLY contains a Name/Value Header Block, which is the set of
-            name/value pairs carried as part of the SYN_REPLY.  <xref target="HeaderBlock">see
-            Name/Value Header Block</xref>.
+            The body of a SYN_REPLY contains a Header Block.  <xref target="HeaderBlock">see Header
+            Block</xref>.
           </t>
         </section>
 
@@ -996,11 +998,8 @@
                 The endpoint received a data or SYN_REPLY frame for a stream which is half closed.
               </t>
               <t hangText="FRAME_TOO_LARGE (11):">
-                The endpoint received a frame which this implementation could not support.  If
-                FRAME_TOO_LARGE is sent for a SYN_STREAM, HEADERS, or SYN_REPLY frame without fully
-                processing the compressed portion of those frames, then the compression state will
-                be out-of-sync with the other endpoint.  In this case, senders of FRAME_TOO_LARGE
-                MUST close the session.
+                The endpoint received a frame that was larger than the maximum size that it
+                supports.
               </t>
             </list>
           </t>
@@ -1242,8 +1241,7 @@
           <t>
             The HEADERS frame (type=8) augments a stream with additional headers. It may be
             optionally sent on an existing stream at any time.  Specific application of the headers
-            in this frame is application-dependent.  The name/value header block within this frame
-            is compressed.
+            in this frame is application-dependent.
           </t>
           <t>
             Valid flags for the HEADERS frame are:
@@ -1260,8 +1258,7 @@
             open stream.
           </t>
           <t>
-            The body of a HEADERS frame contains a <xref target="HeaderBlock">Name/Value Header
-            Block</xref>.
+            The body of a HEADERS frame contains a <xref target="HeaderBlock">Headers Block</xref>.
           </t>
         </section>
 
@@ -1405,297 +1402,14 @@
           </section>
         </section>
 
-        <section anchor="HeaderBlock" title="Name/Value Header Block">
+        <section anchor="HeaderBlock" title="Header Block">
           <t>
-            The Name/Value Header Block is found in the SYN_STREAM, SYN_REPLY and HEADERS frames,
-            and shares a common format:
+            The Header Block is found in the SYN_STREAM, SYN_REPLY and HEADERS frames.  Headers
+            consist of a set of name-value pairs.  Headers are compressed using TBD.
           </t>
-          <figure title="Format of Name/Value Header Block">
-            <artwork><![CDATA[
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                Number of Name/Value Pairs (32)                |
-+---------------------------------------------------------------+
-|                      Name/Value Pairs (*)                   ...
-+---------------------------------------------------------------+
-]]></artwork>
-          </figure>
-
           <t>
-            Number of Name/Value pairs: The number of repeating name/value pairs following this
-            field.  [[ED: this field is not necessary]]
+            Compression of headers is a work in progress, as is the format of this block.
           </t>
-
-          <figure title="Name/Value Pair Format">
-            <artwork><![CDATA[
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|                       Length of Name (32)                     |
-+---------------------------------------------------------------+
-|                            Name (*)                         ...
-+---------------------------------------------------------------+
-|                       Length of Value (32)                    |
-+---------------------------------------------------------------+
-|                            Value (*)                        ...
-+---------------------------------------------------------------+
-]]></artwork>
-          </figure>
-          <t>
-            Each Name/Value pair consists of:
-            <list>
-              <t>
-                Length of Name: a 32-bit value containing the number of octets in the name field.
-                Note that in practice, this length must not exceed 2^24, as that is the maximum size
-                of a HTTP/2.0 frame.
-              </t>
-              <t>
-                Name: 0 or more octets, 8-bit sequences of data, excluding 0.
-              </t>
-              <t>
-                Length of Value: a 32-bit value containing the number of octets in the value field.
-                Note that in practice, this length must not exceed 2^24, as that is the maximum size
-                of a HTTP/2.0 frame.
-              </t>
-              <t>
-                Value: 0 or more octets, 8-bit sequences of data, excluding 0.
-              </t>
-            </list>
-          </t>
-
-          <t>
-            Each header name must have at least one value.  Header names are encoded using the <xref
-            target="ASCII">US-ASCII character set</xref> and must be all lower case.  The length of
-            each name must be greater than zero.  A recipient of a zero-length name MUST issue a
-            <xref target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR
-            for the stream-id.
-          </t>
-
-          <t>
-            Duplicate header names are not allowed.  To send two identically named headers, send a
-            header with two values, where the values are separated by a single NUL (0) byte.  A
-            header value can either be empty (e.g. the length is zero) or it can contain multiple,
-            NUL-separated values, each with length greater than zero.  The value never starts nor
-            ends with a NUL character.  Recipients of illegal value fields MUST issue a <xref
-            target="StreamErrorHandler">stream error</xref> with the error code PROTOCOL_ERROR for
-            the stream-id.
-          </t>
-
-          <section title="Compression" anchor="Compression">
-            <t>
-              The Name/Value Header Block is a section of the SYN_STREAM, SYN_REPLY, and HEADERS
-              frames used to carry header meta-data.  This block is always compressed using zlib
-              compression.  Within this specification, any reference to 'zlib' is referring to the
-              <xref target="ZLIB">ZLIB Compressed Data Format Specification Version 3.3 as part
-              of RFC1950.</xref>
-            </t>
-
-            <t>
-              For each HEADERS compression instance, the initial state is initialized using the
-              following <xref target="UDELCOMPRESSION">dictionary</xref>:
-            </t>
-
-            <figure>
-              <artwork type="code" x:isCodeComponent="yes"><![CDATA[
-const unsigned char http2_dictionary_txt[] = {
-  0x00, 0x00, 0x00, 0x07, 0x6f, 0x70, 0x74, 0x69,  \\ - - - - o p t i
-  0x6f, 0x6e, 0x73, 0x00, 0x00, 0x00, 0x04, 0x68,  \\ o n s - - - - h
-  0x65, 0x61, 0x64, 0x00, 0x00, 0x00, 0x04, 0x70,  \\ e a d - - - - p
-  0x6f, 0x73, 0x74, 0x00, 0x00, 0x00, 0x03, 0x70,  \\ o s t - - - - p
-  0x75, 0x74, 0x00, 0x00, 0x00, 0x06, 0x64, 0x65,  \\ u t - - - - d e
-  0x6c, 0x65, 0x74, 0x65, 0x00, 0x00, 0x00, 0x05,  \\ l e t e - - - -
-  0x74, 0x72, 0x61, 0x63, 0x65, 0x00, 0x00, 0x00,  \\ t r a c e - - -
-  0x06, 0x61, 0x63, 0x63, 0x65, 0x70, 0x74, 0x00,  \\ - a c c e p t -
-  0x00, 0x00, 0x0e, 0x61, 0x63, 0x63, 0x65, 0x70,  \\ - - - a c c e p
-  0x74, 0x2d, 0x63, 0x68, 0x61, 0x72, 0x73, 0x65,  \\ t - c h a r s e
-  0x74, 0x00, 0x00, 0x00, 0x0f, 0x61, 0x63, 0x63,  \\ t - - - - a c c
-  0x65, 0x70, 0x74, 0x2d, 0x65, 0x6e, 0x63, 0x6f,  \\ e p t - e n c o
-  0x64, 0x69, 0x6e, 0x67, 0x00, 0x00, 0x00, 0x0f,  \\ d i n g - - - -
-  0x61, 0x63, 0x63, 0x65, 0x70, 0x74, 0x2d, 0x6c,  \\ a c c e p t - l
-  0x61, 0x6e, 0x67, 0x75, 0x61, 0x67, 0x65, 0x00,  \\ a n g u a g e -
-  0x00, 0x00, 0x0d, 0x61, 0x63, 0x63, 0x65, 0x70,  \\ - - - a c c e p
-  0x74, 0x2d, 0x72, 0x61, 0x6e, 0x67, 0x65, 0x73,  \\ t - r a n g e s
-  0x00, 0x00, 0x00, 0x03, 0x61, 0x67, 0x65, 0x00,  \\ - - - - a g e -
-  0x00, 0x00, 0x05, 0x61, 0x6c, 0x6c, 0x6f, 0x77,  \\ - - - a l l o w
-  0x00, 0x00, 0x00, 0x0d, 0x61, 0x75, 0x74, 0x68,  \\ - - - - a u t h
-  0x6f, 0x72, 0x69, 0x7a, 0x61, 0x74, 0x69, 0x6f,  \\ o r i z a t i o
-  0x6e, 0x00, 0x00, 0x00, 0x0d, 0x63, 0x61, 0x63,  \\ n - - - - c a c
-  0x68, 0x65, 0x2d, 0x63, 0x6f, 0x6e, 0x74, 0x72,  \\ h e - c o n t r
-  0x6f, 0x6c, 0x00, 0x00, 0x00, 0x0a, 0x63, 0x6f,  \\ o l - - - - c o
-  0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e,  \\ n n e c t i o n
-  0x00, 0x00, 0x00, 0x0c, 0x63, 0x6f, 0x6e, 0x74,  \\ - - - - c o n t
-  0x65, 0x6e, 0x74, 0x2d, 0x62, 0x61, 0x73, 0x65,  \\ e n t - b a s e
-  0x00, 0x00, 0x00, 0x10, 0x63, 0x6f, 0x6e, 0x74,  \\ - - - - c o n t
-  0x65, 0x6e, 0x74, 0x2d, 0x65, 0x6e, 0x63, 0x6f,  \\ e n t - e n c o
-  0x64, 0x69, 0x6e, 0x67, 0x00, 0x00, 0x00, 0x10,  \\ d i n g - - - -
-  0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74, 0x2d,  \\ c o n t e n t -
-  0x6c, 0x61, 0x6e, 0x67, 0x75, 0x61, 0x67, 0x65,  \\ l a n g u a g e
-  0x00, 0x00, 0x00, 0x0e, 0x63, 0x6f, 0x6e, 0x74,  \\ - - - - c o n t
-  0x65, 0x6e, 0x74, 0x2d, 0x6c, 0x65, 0x6e, 0x67,  \\ e n t - l e n g
-  0x74, 0x68, 0x00, 0x00, 0x00, 0x10, 0x63, 0x6f,  \\ t h - - - - c o
-  0x6e, 0x74, 0x65, 0x6e, 0x74, 0x2d, 0x6c, 0x6f,  \\ n t e n t - l o
-  0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x00, 0x00,  \\ c a t i o n - -
-  0x00, 0x0b, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e,  \\ - - c o n t e n
-  0x74, 0x2d, 0x6d, 0x64, 0x35, 0x00, 0x00, 0x00,  \\ t - m d 5 - - -
-  0x0d, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e, 0x74,  \\ - c o n t e n t
-  0x2d, 0x72, 0x61, 0x6e, 0x67, 0x65, 0x00, 0x00,  \\ - r a n g e - -
-  0x00, 0x0c, 0x63, 0x6f, 0x6e, 0x74, 0x65, 0x6e,  \\ - - c o n t e n
-  0x74, 0x2d, 0x74, 0x79, 0x70, 0x65, 0x00, 0x00,  \\ t - t y p e - -
-  0x00, 0x04, 0x64, 0x61, 0x74, 0x65, 0x00, 0x00,  \\ - - d a t e - -
-  0x00, 0x04, 0x65, 0x74, 0x61, 0x67, 0x00, 0x00,  \\ - - e t a g - -
-  0x00, 0x06, 0x65, 0x78, 0x70, 0x65, 0x63, 0x74,  \\ - - e x p e c t
-  0x00, 0x00, 0x00, 0x07, 0x65, 0x78, 0x70, 0x69,  \\ - - - - e x p i
-  0x72, 0x65, 0x73, 0x00, 0x00, 0x00, 0x04, 0x66,  \\ r e s - - - - f
-  0x72, 0x6f, 0x6d, 0x00, 0x00, 0x00, 0x04, 0x68,  \\ r o m - - - - h
-  0x6f, 0x73, 0x74, 0x00, 0x00, 0x00, 0x08, 0x69,  \\ o s t - - - - i
-  0x66, 0x2d, 0x6d, 0x61, 0x74, 0x63, 0x68, 0x00,  \\ f - m a t c h -
-  0x00, 0x00, 0x11, 0x69, 0x66, 0x2d, 0x6d, 0x6f,  \\ - - - i f - m o
-  0x64, 0x69, 0x66, 0x69, 0x65, 0x64, 0x2d, 0x73,  \\ d i f i e d - s
-  0x69, 0x6e, 0x63, 0x65, 0x00, 0x00, 0x00, 0x0d,  \\ i n c e - - - -
-  0x69, 0x66, 0x2d, 0x6e, 0x6f, 0x6e, 0x65, 0x2d,  \\ i f - n o n e -
-  0x6d, 0x61, 0x74, 0x63, 0x68, 0x00, 0x00, 0x00,  \\ m a t c h - - -
-  0x08, 0x69, 0x66, 0x2d, 0x72, 0x61, 0x6e, 0x67,  \\ - i f - r a n g
-  0x65, 0x00, 0x00, 0x00, 0x13, 0x69, 0x66, 0x2d,  \\ e - - - - i f -
-  0x75, 0x6e, 0x6d, 0x6f, 0x64, 0x69, 0x66, 0x69,  \\ u n m o d i f i
-  0x65, 0x64, 0x2d, 0x73, 0x69, 0x6e, 0x63, 0x65,  \\ e d - s i n c e
-  0x00, 0x00, 0x00, 0x0d, 0x6c, 0x61, 0x73, 0x74,  \\ - - - - l a s t
-  0x2d, 0x6d, 0x6f, 0x64, 0x69, 0x66, 0x69, 0x65,  \\ - m o d i f i e
-  0x64, 0x00, 0x00, 0x00, 0x08, 0x6c, 0x6f, 0x63,  \\ d - - - - l o c
-  0x61, 0x74, 0x69, 0x6f, 0x6e, 0x00, 0x00, 0x00,  \\ a t i o n - - -
-  0x0c, 0x6d, 0x61, 0x78, 0x2d, 0x66, 0x6f, 0x72,  \\ - m a x - f o r
-  0x77, 0x61, 0x72, 0x64, 0x73, 0x00, 0x00, 0x00,  \\ w a r d s - - -
-  0x06, 0x70, 0x72, 0x61, 0x67, 0x6d, 0x61, 0x00,  \\ - p r a g m a -
-  0x00, 0x00, 0x12, 0x70, 0x72, 0x6f, 0x78, 0x79,  \\ - - - p r o x y
-  0x2d, 0x61, 0x75, 0x74, 0x68, 0x65, 0x6e, 0x74,  \\ - a u t h e n t
-  0x69, 0x63, 0x61, 0x74, 0x65, 0x00, 0x00, 0x00,  \\ i c a t e - - -
-  0x13, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x2d, 0x61,  \\ - p r o x y - a
-  0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x7a, 0x61,  \\ u t h o r i z a
-  0x74, 0x69, 0x6f, 0x6e, 0x00, 0x00, 0x00, 0x05,  \\ t i o n - - - -
-  0x72, 0x61, 0x6e, 0x67, 0x65, 0x00, 0x00, 0x00,  \\ r a n g e - - -
-  0x07, 0x72, 0x65, 0x66, 0x65, 0x72, 0x65, 0x72,  \\ - r e f e r e r
-  0x00, 0x00, 0x00, 0x0b, 0x72, 0x65, 0x74, 0x72,  \\ - - - - r e t r
-  0x79, 0x2d, 0x61, 0x66, 0x74, 0x65, 0x72, 0x00,  \\ y - a f t e r -
-  0x00, 0x00, 0x06, 0x73, 0x65, 0x72, 0x76, 0x65,  \\ - - - s e r v e
-  0x72, 0x00, 0x00, 0x00, 0x02, 0x74, 0x65, 0x00,  \\ r - - - - t e -
-  0x00, 0x00, 0x07, 0x74, 0x72, 0x61, 0x69, 0x6c,  \\ - - - t r a i l
-  0x65, 0x72, 0x00, 0x00, 0x00, 0x11, 0x74, 0x72,  \\ e r - - - - t r
-  0x61, 0x6e, 0x73, 0x66, 0x65, 0x72, 0x2d, 0x65,  \\ a n s f e r - e
-  0x6e, 0x63, 0x6f, 0x64, 0x69, 0x6e, 0x67, 0x00,  \\ n c o d i n g -
-  0x00, 0x00, 0x07, 0x75, 0x70, 0x67, 0x72, 0x61,  \\ - - - u p g r a
-  0x64, 0x65, 0x00, 0x00, 0x00, 0x0a, 0x75, 0x73,  \\ d e - - - - u s
-  0x65, 0x72, 0x2d, 0x61, 0x67, 0x65, 0x6e, 0x74,  \\ e r - a g e n t
-  0x00, 0x00, 0x00, 0x04, 0x76, 0x61, 0x72, 0x79,  \\ - - - - v a r y
-  0x00, 0x00, 0x00, 0x03, 0x76, 0x69, 0x61, 0x00,  \\ - - - - v i a -
-  0x00, 0x00, 0x07, 0x77, 0x61, 0x72, 0x6e, 0x69,  \\ - - - w a r n i
-  0x6e, 0x67, 0x00, 0x00, 0x00, 0x10, 0x77, 0x77,  \\ n g - - - - w w
-  0x77, 0x2d, 0x61, 0x75, 0x74, 0x68, 0x65, 0x6e,  \\ w - a u t h e n
-  0x74, 0x69, 0x63, 0x61, 0x74, 0x65, 0x00, 0x00,  \\ t i c a t e - -
-  0x00, 0x06, 0x6d, 0x65, 0x74, 0x68, 0x6f, 0x64,  \\ - - m e t h o d
-  0x00, 0x00, 0x00, 0x03, 0x67, 0x65, 0x74, 0x00,  \\ - - - - g e t -
-  0x00, 0x00, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75,  \\ - - - s t a t u
-  0x73, 0x00, 0x00, 0x00, 0x06, 0x32, 0x30, 0x30,  \\ s - - - - 2 0 0
-  0x20, 0x4f, 0x4b, 0x00, 0x00, 0x00, 0x07, 0x76,  \\ - O K - - - - v
-  0x65, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x00, 0x00,  \\ e r s i o n - -
-  0x00, 0x08, 0x48, 0x54, 0x54, 0x50, 0x2f, 0x31,  \\ - - H T T P - 1
-  0x2e, 0x31, 0x00, 0x00, 0x00, 0x03, 0x75, 0x72,  \\ - 1 - - - - u r
-  0x6c, 0x00, 0x00, 0x00, 0x06, 0x70, 0x75, 0x62,  \\ l - - - - p u b
-  0x6c, 0x69, 0x63, 0x00, 0x00, 0x00, 0x0a, 0x73,  \\ l i c - - - - s
-  0x65, 0x74, 0x2d, 0x63, 0x6f, 0x6f, 0x6b, 0x69,  \\ e t - c o o k i
-  0x65, 0x00, 0x00, 0x00, 0x0a, 0x6b, 0x65, 0x65,  \\ e - - - - k e e
-  0x70, 0x2d, 0x61, 0x6c, 0x69, 0x76, 0x65, 0x00,  \\ p - a l i v e -
-  0x00, 0x00, 0x06, 0x6f, 0x72, 0x69, 0x67, 0x69,  \\ - - - o r i g i
-  0x6e, 0x31, 0x30, 0x30, 0x31, 0x30, 0x31, 0x32,  \\ n 1 0 0 1 0 1 2
-  0x30, 0x31, 0x32, 0x30, 0x32, 0x32, 0x30, 0x35,  \\ 0 1 2 0 2 2 0 5
-  0x32, 0x30, 0x36, 0x33, 0x30, 0x30, 0x33, 0x30,  \\ 2 0 6 3 0 0 3 0
-  0x32, 0x33, 0x30, 0x33, 0x33, 0x30, 0x34, 0x33,  \\ 2 3 0 3 3 0 4 3
-  0x30, 0x35, 0x33, 0x30, 0x36, 0x33, 0x30, 0x37,  \\ 0 5 3 0 6 3 0 7
-  0x34, 0x30, 0x32, 0x34, 0x30, 0x35, 0x34, 0x30,  \\ 4 0 2 4 0 5 4 0
-  0x36, 0x34, 0x30, 0x37, 0x34, 0x30, 0x38, 0x34,  \\ 6 4 0 7 4 0 8 4
-  0x30, 0x39, 0x34, 0x31, 0x30, 0x34, 0x31, 0x31,  \\ 0 9 4 1 0 4 1 1
-  0x34, 0x31, 0x32, 0x34, 0x31, 0x33, 0x34, 0x31,  \\ 4 1 2 4 1 3 4 1
-  0x34, 0x34, 0x31, 0x35, 0x34, 0x31, 0x36, 0x34,  \\ 4 4 1 5 4 1 6 4
-  0x31, 0x37, 0x35, 0x30, 0x32, 0x35, 0x30, 0x34,  \\ 1 7 5 0 2 5 0 4
-  0x35, 0x30, 0x35, 0x32, 0x30, 0x33, 0x20, 0x4e,  \\ 5 0 5 2 0 3 - N
-  0x6f, 0x6e, 0x2d, 0x41, 0x75, 0x74, 0x68, 0x6f,  \\ o n - A u t h o
-  0x72, 0x69, 0x74, 0x61, 0x74, 0x69, 0x76, 0x65,  \\ r i t a t i v e
-  0x20, 0x49, 0x6e, 0x66, 0x6f, 0x72, 0x6d, 0x61,  \\ - I n f o r m a
-  0x74, 0x69, 0x6f, 0x6e, 0x32, 0x30, 0x34, 0x20,  \\ t i o n 2 0 4 -
-  0x4e, 0x6f, 0x20, 0x43, 0x6f, 0x6e, 0x74, 0x65,  \\ N o - C o n t e
-  0x6e, 0x74, 0x33, 0x30, 0x31, 0x20, 0x4d, 0x6f,  \\ n t 3 0 1 - M o
-  0x76, 0x65, 0x64, 0x20, 0x50, 0x65, 0x72, 0x6d,  \\ v e d - P e r m
-  0x61, 0x6e, 0x65, 0x6e, 0x74, 0x6c, 0x79, 0x34,  \\ a n e n t l y 4
-  0x30, 0x30, 0x20, 0x42, 0x61, 0x64, 0x20, 0x52,  \\ 0 0 - B a d - R
-  0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x34, 0x30,  \\ e q u e s t 4 0
-  0x31, 0x20, 0x55, 0x6e, 0x61, 0x75, 0x74, 0x68,  \\ 1 - U n a u t h
-  0x6f, 0x72, 0x69, 0x7a, 0x65, 0x64, 0x34, 0x30,  \\ o r i z e d 4 0
-  0x33, 0x20, 0x46, 0x6f, 0x72, 0x62, 0x69, 0x64,  \\ 3 - F o r b i d
-  0x64, 0x65, 0x6e, 0x34, 0x30, 0x34, 0x20, 0x4e,  \\ d e n 4 0 4 - N
-  0x6f, 0x74, 0x20, 0x46, 0x6f, 0x75, 0x6e, 0x64,  \\ o t - F o u n d
-  0x35, 0x30, 0x30, 0x20, 0x49, 0x6e, 0x74, 0x65,  \\ 5 0 0 - I n t e
-  0x72, 0x6e, 0x61, 0x6c, 0x20, 0x53, 0x65, 0x72,  \\ r n a l - S e r
-  0x76, 0x65, 0x72, 0x20, 0x45, 0x72, 0x72, 0x6f,  \\ v e r - E r r o
-  0x72, 0x35, 0x30, 0x31, 0x20, 0x4e, 0x6f, 0x74,  \\ r 5 0 1 - N o t
-  0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65,  \\ - I m p l e m e
-  0x6e, 0x74, 0x65, 0x64, 0x35, 0x30, 0x33, 0x20,  \\ n t e d 5 0 3 -
-  0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x20,  \\ S e r v i c e -
-  0x55, 0x6e, 0x61, 0x76, 0x61, 0x69, 0x6c, 0x61,  \\ U n a v a i l a
-  0x62, 0x6c, 0x65, 0x4a, 0x61, 0x6e, 0x20, 0x46,  \\ b l e J a n - F
-  0x65, 0x62, 0x20, 0x4d, 0x61, 0x72, 0x20, 0x41,  \\ e b - M a r - A
-  0x70, 0x72, 0x20, 0x4d, 0x61, 0x79, 0x20, 0x4a,  \\ p r - M a y - J
-  0x75, 0x6e, 0x20, 0x4a, 0x75, 0x6c, 0x20, 0x41,  \\ u n - J u l - A
-  0x75, 0x67, 0x20, 0x53, 0x65, 0x70, 0x74, 0x20,  \\ u g - S e p t -
-  0x4f, 0x63, 0x74, 0x20, 0x4e, 0x6f, 0x76, 0x20,  \\ O c t - N o v -
-  0x44, 0x65, 0x63, 0x20, 0x30, 0x30, 0x3a, 0x30,  \\ D e c - 0 0 - 0
-  0x30, 0x3a, 0x30, 0x30, 0x20, 0x4d, 0x6f, 0x6e,  \\ 0 - 0 0 - M o n
-  0x2c, 0x20, 0x54, 0x75, 0x65, 0x2c, 0x20, 0x57,  \\ - - T u e - - W
-  0x65, 0x64, 0x2c, 0x20, 0x54, 0x68, 0x75, 0x2c,  \\ e d - - T h u -
-  0x20, 0x46, 0x72, 0x69, 0x2c, 0x20, 0x53, 0x61,  \\ - F r i - - S a
-  0x74, 0x2c, 0x20, 0x53, 0x75, 0x6e, 0x2c, 0x20,  \\ t - - S u n - -
-  0x47, 0x4d, 0x54, 0x63, 0x68, 0x75, 0x6e, 0x6b,  \\ G M T c h u n k
-  0x65, 0x64, 0x2c, 0x74, 0x65, 0x78, 0x74, 0x2f,  \\ e d - t e x t -
-  0x68, 0x74, 0x6d, 0x6c, 0x2c, 0x69, 0x6d, 0x61,  \\ h t m l - i m a
-  0x67, 0x65, 0x2f, 0x70, 0x6e, 0x67, 0x2c, 0x69,  \\ g e - p n g - i
-  0x6d, 0x61, 0x67, 0x65, 0x2f, 0x6a, 0x70, 0x67,  \\ m a g e - j p g
-  0x2c, 0x69, 0x6d, 0x61, 0x67, 0x65, 0x2f, 0x67,  \\ - i m a g e - g
-  0x69, 0x66, 0x2c, 0x61, 0x70, 0x70, 0x6c, 0x69,  \\ i f - a p p l i
-  0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2f, 0x78,  \\ c a t i o n - x
-  0x6d, 0x6c, 0x2c, 0x61, 0x70, 0x70, 0x6c, 0x69,  \\ m l - a p p l i
-  0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x2f, 0x78,  \\ c a t i o n - x
-  0x68, 0x74, 0x6d, 0x6c, 0x2b, 0x78, 0x6d, 0x6c,  \\ h t m l - x m l
-  0x2c, 0x74, 0x65, 0x78, 0x74, 0x2f, 0x70, 0x6c,  \\ - t e x t - p l
-  0x61, 0x69, 0x6e, 0x2c, 0x74, 0x65, 0x78, 0x74,  \\ a i n - t e x t
-  0x2f, 0x6a, 0x61, 0x76, 0x61, 0x73, 0x63, 0x72,  \\ - j a v a s c r
-  0x69, 0x70, 0x74, 0x2c, 0x70, 0x75, 0x62, 0x6c,  \\ i p t - p u b l
-  0x69, 0x63, 0x70, 0x72, 0x69, 0x76, 0x61, 0x74,  \\ i c p r i v a t
-  0x65, 0x6d, 0x61, 0x78, 0x2d, 0x61, 0x67, 0x65,  \\ e m a x - a g e
-  0x3d, 0x67, 0x7a, 0x69, 0x70, 0x2c, 0x64, 0x65,  \\ - g z i p - d e
-  0x66, 0x6c, 0x61, 0x74, 0x65, 0x2c, 0x73, 0x64,  \\ f l a t e - s d
-  0x63, 0x68, 0x63, 0x68, 0x61, 0x72, 0x73, 0x65,  \\ c h c h a r s e
-  0x74, 0x3d, 0x75, 0x74, 0x66, 0x2d, 0x38, 0x63,  \\ t - u t f - 8 c
-  0x68, 0x61, 0x72, 0x73, 0x65, 0x74, 0x3d, 0x69,  \\ h a r s e t - i
-  0x73, 0x6f, 0x2d, 0x38, 0x38, 0x35, 0x39, 0x2d,  \\ s o - 8 8 5 9 -
-  0x31, 0x2c, 0x75, 0x74, 0x66, 0x2d, 0x2c, 0x2a,  \\ 1 - u t f - - -
-  0x2c, 0x65, 0x6e, 0x71, 0x3d, 0x30, 0x2e         \\ - e n q - 0 -
-};
-]]></artwork>
-            </figure>
-
-            <t>
-              The entire contents of the name/value header block is compressed using zlib.  There is
-              a single zlib stream for all name value pairs in one direction on a connection.
-              HTTP/2.0 uses a SYNC_FLUSH between each compressed frame.
-            </t>
-
-            <t>
-              Implementation notes: the compression engine can be tuned to favor speed or
-              size. Optimizing for size increases memory use and CPU consumption.  Because header
-              blocks are generally small, implementors may want to reduce the window-size of the
-              compression engine from the default 15bits (a 32KB window) to more like 11bits (a 2KB
-              window).  The exact setting is chosen by the compressor, the decompressor will work
-              with any setting.
-            </t>
-          </section>
         </section>
       </section>
     </section>
@@ -1771,12 +1485,12 @@ const unsigned char http2_dictionary_txt[] = {
           </t>
 
           <t>
-            The SYN_STREAM Name/Value section will contain all of the HTTP headers which are
-            associated with an HTTP request. The header block in HTTP/2.0 is mostly unchanged from
-            today's HTTP header block, with the following differences:
+            The SYN_STREAM headers block will contain all of the HTTP headers which are associated
+            with an HTTP request. The header block in HTTP/2.0 is mostly unchanged from today's HTTP
+            header block, with the following differences:
             <list>
               <t>
-                The first line of the request is unfolded into name/value pairs like other HTTP
+                The first line of the request is unfolded into name-value pairs like other HTTP
                 headers and MUST be present:
                 <list>
                   <t>
@@ -1793,7 +1507,7 @@ const unsigned char http2_dictionary_txt[] = {
                 </list>
               </t>
               <t>
-                In addition, the following two name/value pairs must also be present in every
+                In addition, the following two name-value pairs must also be present in every
                 request:
                 <list>
                   <t>
@@ -1863,7 +1577,7 @@ const unsigned char http2_dictionary_txt[] = {
           <t>
             <list>
               <t>
-                The response status line is unfolded into name/value pairs like other HTTP headers
+                The response status line is unfolded into name-value pairs like other HTTP headers
                 and must be present:
                 <list>
                   <t>
@@ -2043,14 +1757,14 @@ const unsigned char http2_dictionary_txt[] = {
           </t>
 
           <t>
-            Note: If the server does not have all of the Name/Value Response headers available at
-            the time it issues the HEADERS frame for the pushed resource, it may later use an
-            additional HEADERS frame to augment the name/value pairs to be associated with the
-            pushed stream.  The subsequent HEADERS frame(s) must not contain a header for ':host',
-            ':scheme', or ':path' (e.g. the server can't change the identity of the resource to be
-            pushed).  The HEADERS frame must not contain duplicate headers with a previously sent
-            HEADERS frame.  The server must send a HEADERS frame including the scheme/host/port
-            headers before sending any data frames on the stream.
+            Note: If the server does not have all of the Response headers available at the time it
+            issues the HEADERS frame for the pushed resource, it may later use an additional HEADERS
+            frame to augment the name-value pairs to be associated with the pushed stream.  The
+            subsequent HEADERS frame(s) must not contain a header for ':host', ':scheme', or ':path'
+            (e.g. the server can't change the identity of the resource to be pushed).  The HEADERS
+            frame must not contain duplicate headers with a previously sent HEADERS frame.  The
+            server must send a HEADERS frame including the scheme/host/port headers before sending
+            any data frames on the stream.
           </t>
         </section>
 
@@ -2082,8 +1796,8 @@ const unsigned char http2_dictionary_txt[] = {
 
           <t>
             When a client receives a SYN_STREAM from the server without a the ':host', ':scheme',
-            and ':path' headers in the Name/Value section, it MUST reply with a RST_STREAM with
-            error code HTTP_PROTOCOL_ERROR.
+            and ':path' headers, it MUST reply with a RST_STREAM with error code
+            HTTP_PROTOCOL_ERROR.
           </t>
 
           <t>
@@ -2130,8 +1844,8 @@ const unsigned char http2_dictionary_txt[] = {
           Readers may note that this specification sometimes blends the <xref
           target="FramingLayer">framing layer</xref> with requirements of a specific application -
           <xref target="HTTPLayer">HTTP</xref>.  This is reflected in the request/response nature of
-          the streams, the definition of the HEADERS and compression contexts which are very similar
-          to HTTP, and other areas as well.
+          the streams and the definition of the HEADERS which are very similar to HTTP, and other
+          areas as well.
         </t>
 
         <t>
@@ -2202,28 +1916,6 @@ const unsigned char http2_dictionary_txt[] = {
           other aspects of HTTP/2.0 and TCP interactions, we believe this is completely mitigated.
         </t>
       </section>
-      <section title="Compression Context(s)">
-        <t>
-          When isolating the compression contexts used for communicating with multiple origins, we
-          had a few choices to make.  We could have maintained a map (or list) of compression
-          contexts usable for each origin.  The basic case is easy - each HEADERS frame would need
-          to identify the context to use for that frame.  However, compression contexts are not
-          cheap, so the lifecycle of each context would need to be bounded.  For proxy servers,
-          where we could churn through many contexts, this would be a concern.  We considered using
-          a static set of contexts, say 16 of them, which would bound the memory use.  We also
-          considered dynamic contexts, which could be created on the fly, and would need to be
-          subsequently destroyed.  All of these are complicated, and ultimately we decided that such
-          a mechanism creates too many problems to solve.
-        </t>
-
-        <t>
-          Alternatively, we've chosen the simple approach, which is to simply provide a flag for
-          resetting the compression context.  For the common case (no proxy), this fine because most
-          requests are to the same origin and we never need to reset the context.  For cases where
-          we are using two different origins over a single HTTP/2.0 session, we simply reset the
-          compression state between each transition.
-        </t>
-      </section>
       <section title="Unidirectional streams">
         <t>
           Many readers notice that unidirectional streams are both a bit confusing in concept and
@@ -2275,7 +1967,7 @@ const unsigned char http2_dictionary_txt[] = {
 
       <section title="HTTP Headers and HTTP/2.0 Headers">
         <t>
-          At the application level, HTTP uses name/value pairs in its headers.  Because HTTP/2.0
+          At the application level, HTTP uses name-value pairs in its headers.  Because HTTP/2.0
           merges the existing HTTP headers with HTTP/2.0 headers, there is a possibility that some
           HTTP applications already use a particular header name.  To avoid any conflicts, all
           headers introduced for layering HTTP over HTTP/2.0 are prefixed with ":".  ":" is not a
@@ -2534,27 +2226,6 @@ const unsigned char http2_dictionary_txt[] = {
         <seriesInfo name='Internet-Draft' value='draft-agl-tls-nextprotoneg-04' />
       </reference>
 
-      <reference anchor="ASCII">
-        <front>
-          <title>Coded Character Set -- 7-bit American Standard Code for
-          Information Interchange</title>
-          <author>
-            <organization>American National Standards Institute</organization>
-          </author>
-          <date year="1986"/>
-        </front>
-        <seriesInfo name="ANSI" value="X3.4"/>
-      </reference>
-
-      <reference anchor="UDELCOMPRESSION" target="http://www.eecis.udel.edu/~amer/PEL/poc/pdf/SPDY-Fan.pdf">
-        <front>
-          <title>
-          A Methodology to Derive SPDY's Initial Dictionary for Zlib Compression</title>
-          <author initials="F." surname="Yang"></author>
-          <author initials="P." surname="Amer"></author>
-          <author initials="J." surname="Leighton"></author>
-        </front>
-      </reference> 
       <reference anchor='HTTP-p1'>
         <front>
           <title>
@@ -2594,6 +2265,9 @@ const unsigned char http2_dictionary_txt[] = {
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
+        <t>
+          Removed zlib-based header compression mechanism.
+        </t>
         <t>
           Updated references.
         </t>
