@@ -1134,6 +1134,16 @@
                 allows the sender to inform the remote endpoint the initial window size (in bytes)
                 for new streams.
               </t>
+              <t hangText="SETTINGS_END_FLOW_CONTROL (10):">
+                This setting allows an endpoint to indicate that streams directed to them will not
+                be subject to flow control.  The least significant bit (0x1) is set to indicate that
+                new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
+                session is not flow controlled.  All other bits are reserved.
+                <vspace blankLines="1"/>
+                This setting applies to all streams, including existing streams.
+                <vspace blankLines="1"/>
+                These bits cannot be cleared once set, see <xref target="EndFlowControl"/>.
+              </t>
             </list>
           </t>
 
@@ -1291,8 +1301,14 @@
             with a FLOW_CONTROL_ERROR code.
           </t>
           <t>
-            The WINDOW_UPDATE frame does not define any valid flags.
-          </t>
+            Valid flags for the WINDOW_UPDATE frame are:
+              <list style="hanging">
+              <t hangText="END_FLOW_CONTROL (0x2):">
+                Bit 2 being set indicates that flow control for the identified stream or session is
+                ended and subsequent frames do not need to be flow controlled.
+              </t>
+            </list>
+        </t>
           <t>
             The identifier field in the WINDOW_UPDATE frame header MUST contain a stream identifier
             for an open stream, or the value 0.  A zero value indicates that the WINDOW_UPDATE
@@ -1395,7 +1411,7 @@
             </t>
           </section>
 
-          <section title="Ending Flow Control">
+          <section anchor="EndFlowControl" title="Ending Flow Control">
             <t>
               After a recipient reads in a frame that marks the end of a stream (for example, a data
               stream with a FINAL flag set), it ceases transmission of WINDOW_UPDATE frames. A
@@ -1403,7 +1419,20 @@
               it is no longer sending on.
             </t>
             <t>
-              [[TBD: text on disabling flow control.]]
+              Flow control can be disabled for all streams or the session using the
+              SETTINGS_END_FLOW_CONTROL setting.  An implementation that does not wish to
+              perform flow control can use this in the initial SETTINGS exchange.
+            </t>
+            <t>
+              Flow control can be disabled for an individual stream or the overall session by
+              sending a WINDOW_UPDATE with the END_FLOW_CONTROL flag set.  The payload of a
+              WINDOW_UPDATE frame that has the END_FLOW_CONTROL flag set is ignored.
+            </t>
+            <t>
+              Flow control cannot be enabled again once disabled.  Any attempt to re-enable flow
+              control - by sending a WINDOW_UPDATE or by clearing the bits on the
+              SETTINGS_END_FLOW_CONTROL setting - MUST be rejected with a FLOW_CONTROL_ERROR error
+              code.
             </t>
           </section>
         </section>
@@ -1420,7 +1449,7 @@
       </section>
     </section>
 
-    <section anchor="HTTPLayer" title="HTTP Layering over HTTP/2.0">
+    <section anchor="HTTPLayer" title="HTTP Message Exchanges">
       <t>
         HTTP/2.0 is intended to be as compatible as possible with current web-based
         applications. This means that, from the perspective of the server business logic or
