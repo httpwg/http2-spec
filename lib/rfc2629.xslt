@@ -1,7 +1,7 @@
 <!--
     XSLT transformation from RFC2629 XML format to HTML
 
-    Copyright (c) 2006-2012, Julian Reschke (julian.reschke@greenbytes.de)
+    Copyright (c) 2006-2013, Julian Reschke (julian.reschke@greenbytes.de)
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -444,7 +444,7 @@
   </xsl:choose>
   
   <!-- sanity check on @consensus -->
-  <xsl:if test="/rfc/@consensus and (/rfc/@submissionType='IAB' or /rfc/@submissionType='independent')">
+  <xsl:if test="/rfc/@consensus and /rfc/@submissionType='independent'">
     <xsl:call-template name="warning">
       <xsl:with-param name="msg" select="concat('/rfc/@consensus meaningless with a /rfc/@submissionType value of ', /rfc/@submissionType)"/>
     </xsl:call-template>
@@ -1362,7 +1362,11 @@
 <!-- same for t(ext) elements -->
 
 <xsl:template match="list[@style='empty' or not(@style)]/t | list[@style='empty' or not(@style)]/ed:replace/ed:*/t">
-  <!-- Inherited through CSS now <dd style="margin-top: .5em">-->
+  <xsl:if test="@hangText">
+    <xsl:call-template name="warning">
+      <xsl:with-param name="msg" select="'t/@hangText used on unstyled list'"/>
+    </xsl:call-template>
+  </xsl:if>
   <li>
     <xsl:call-template name="copy-anchor"/>
     <xsl:call-template name="insertInsDelClass"/>
@@ -1378,6 +1382,11 @@
 </xsl:template>
 
 <xsl:template match="list[@style='numbers' or @style='symbols' or @style='letters']/t | list[@style='numbers' or @style='symbols' or @style='letters']/ed:replace/ed:*/t">
+  <xsl:if test="@hangText">
+    <xsl:call-template name="warning">
+      <xsl:with-param name="msg" select="'t/@hangText used on non-hanging list'"/>
+    </xsl:call-template>
+  </xsl:if>
   <li>
     <xsl:call-template name="copy-anchor"/>
     <xsl:call-template name="insertInsDelClass"/>
@@ -4603,6 +4612,9 @@ dd, li, p {
           This document is a product of the Internet Architecture Board (IAB)
           and represents information that the IAB has deemed valuable to
           provide for permanent record.
+          <xsl:if test="$consensus='yes'">
+            It represents the consensus of the Internet Architecture Board (IAB).
+          </xsl:if>
         </xsl:when>
         <xsl:when test="$submissionType='IRTF'">
           This document is a product of the Internet Research Task Force (IRTF).
@@ -6616,11 +6628,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.589 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.589 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.591 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.591 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2012-11-30 14:23:31 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2012-11-30 14:23:31 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2013/02/27 12:53:51 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/02/27 12:53:51 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
