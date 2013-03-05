@@ -1033,7 +1033,7 @@ Upgrade: HTTP/2.0
                 allows the sender to inform the remote endpoint the initial window size (in bytes)
                 for new streams.
               </t>
-              <t hangText="SETTINGS_END_FLOW_CONTROL (10):">
+              <t hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
                 This setting allows an endpoint to indicate that streams directed to them will not
                 be subject to flow control.  The least significant bit (0x1) is set to indicate that
                 new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
@@ -1265,7 +1265,7 @@ Upgrade: HTTP/2.0
             </t>
           </section>
 
-          <section title="Flow Control for New Sessions">
+          <section title="Initial Flow Control Window Size">
             <t>
               When a HTTP/2.0 connection is first established, new streams are created with an
               initial flow control window size of 65535 bytes. The session flow control window is
@@ -1279,37 +1279,48 @@ Upgrade: HTTP/2.0
               when sending flow controlled frames.  Similarly, the session flow control window is
               set to the default initial window size until a WINDOW_UPDATE message is received.
             </t>
+            <t>
+              A SETTINGS frame can alter the initial flow control window size for all current
+              streams. When the value of SETTINGS_INITIAL_WINDOW_SIZE changes, a receiver MUST
+              adjust the size of all flow control windows that it maintains by the difference
+              between the new value and the old value.
+            </t>
+            <t>
+              A change to SETTINGS_INITIAL_WINDOW_SIZE could cause the available space in a flow
+              control window to become negative.  A sender MUST track the negative flow control
+              window and not send new flow controlled frames until it receives WINDOW_UPDATE
+              messages that cause the flow control window to become positive.
+            </t>
+            <t>
+              For example, if the server sets the initial window size to be 16KB, and the client
+              sends 64KB immediately on connection establishment, the client will recalculate the
+              available flow control window to be -48KB on receipt of the SETTINGS frame.  The
+              client retains a negative flow control window until WINDOW_UPDATE frames restore the
+              window to being positive, after which the client can resume sending.
+            </t>
           </section>
 
-          <section title="Reducing the Stream Initial Window Size">
+          <section title="Reducing the Stream Window Size">
             <t>
-              A server that wishes to use a smaller flow control window than the default MUST be
-              prepared to receive the entire amount for the default initial window size, since the
-              client could immediately send the full default amount on every stream it opens. After
-              the SETTINGS frame from the server is received by the client, the window size
-              maintained by the client can become negative. A client MUST allow the available window
-              to become negative, refraining from sending new flow controlled frames until it
-              receives a WINDOW_UPDATE.  The server has two options for handling any streams that
-              might have already exceeded this lower limit:
+              A receiver that wishes to use a smaller flow control window than the current size
+              sends a new SETTINGS frame.  However, the receiver MUST be prepared to receive data
+              that exceeds this window size, since the sender might send data that exceeds the lower
+              limit prior to processing the SETTINGS frame.
+            </t>
+            <t>
+              A receiver has two options for handling streams that exceed flow control limits:
               <list style="numbers">
                 <t>
-                  The server can immediately send RST_STREAM with FLOW_CONTROL_ERROR error code for
-                  the affected streams.
+                  The receiver can immediately send RST_STREAM with FLOW_CONTROL_ERROR error code
+                  for the affected streams.
                 </t>
                 <t>
-                  The server can accept the streams and tolerate the resulting head of line
+                  The receiver can accept the streams and tolerate the resulting head of line
                   blocking, sending WINDOW_UPDATE messages as it consumes data.
                 </t>
               </list>
-            </t>
-            <t>
-              If a server decides to accept streams, both sides must recompute the available flow
-              control window based on the initial window size sent in the SETTINGS. For example, if
-              the server sets the initial window size to be 16KB, and the client sends 64KB
-              immediately on connection establishment, the client will recalculate the available
-              flow control window to be -48KB on receipt of the SETTINGS frame.  The client retains
-              a negative flow control window until WINDOW_UPDATE frames restore the window to being
-              positive, after which the client can resume sending.
+              If a receiver decides to accept streams, both sides must recompute the available flow
+              control window based on the initial window size sent in the SETTINGS. 
             </t>
           </section>
 
@@ -1322,7 +1333,7 @@ Upgrade: HTTP/2.0
             </t>
             <t>
               Flow control can be disabled for all streams or the session using the
-              SETTINGS_END_FLOW_CONTROL setting.  An implementation that does not wish to
+              SETTINGS_FLOW_CONTROL_OPTIONS setting.  An implementation that does not wish to
               perform flow control can use this in the initial SETTINGS exchange.
             </t>
             <t>
@@ -1333,8 +1344,8 @@ Upgrade: HTTP/2.0
             <t>
               Flow control cannot be enabled again once disabled.  Any attempt to re-enable flow
               control - by sending a WINDOW_UPDATE or by clearing the bits on the
-              SETTINGS_END_FLOW_CONTROL setting - MUST be rejected with a FLOW_CONTROL_ERROR error
-              code.
+              SETTINGS_FLOW_CONTROL_OPTIONS setting - MUST be rejected with a FLOW_CONTROL_ERROR
+              error code.
             </t>
           </section>
         </section>
