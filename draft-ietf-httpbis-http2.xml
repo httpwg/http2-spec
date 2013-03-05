@@ -573,19 +573,32 @@ Upgrade: HTTP/2.0
         <section anchor="StreamClose" title="Stream close">
           <t>
             Streams can be terminated in the following ways:
+          </t>
+          <t>
+            Normal termination:
             <list>
               <t>
-                Normal termination: Normal stream termination occurs when both sender and recipient
+                 Normal stream termination occurs when both sender and recipient
                 have half-closed the stream by sending a frame containing a FINAL flag.
               </t>
+            </list>
+          </t>
+          <t>
+            Half-close on unidirectional stream:
+            <list>
               <t>
-                Half-close on unidirectional stream: A stream that only has frames sent in one
+                A stream that only has frames sent in one
                 direction can be tentatively considered to be closed once a frame containing a FINAL
                 flag is sent.  The active sender on the stream MUST be prepared to receive frames
                 after closing the stream.
               </t>
+            </list>
+          </t>
+          <t>
+            Abrupt termination: 
+            <list>
               <t>
-                Abrupt termination: Either the client or server can send a RST_STREAM control frame
+                Either the client or server can send a RST_STREAM control frame
                 at any time. A RST_STREAM contains an error code to indicate the reason for failure.
                 When a RST_STREAM is sent from the stream originator, it indicates a failure to
                 complete the stream and that no further data will be sent on the stream.  When a
@@ -596,8 +609,13 @@ Upgrade: HTTP/2.0
                 <cref>ED: confusing: streams are bidirectional, and both peers might be sending
                 concurrently</cref>
               </t>
+            </list>
+          </t>
+          <t>
+            TCP connection teardown:
+            <list>
               <t>
-                TCP connection teardown: If the TCP connection is torn down while un-closed streams
+                If the TCP connection is torn down while un-closed streams
                 exist, then the endpoint must assume that the stream was abnormally interrupted and
                 may be incomplete.
               </t>
@@ -781,7 +799,7 @@ Upgrade: HTTP/2.0
 
           <t>
             Data frame processing requirements:
-            <list>
+            <list style="symbols">
               <t>
                 If an endpoint receives a data frame for a stream-id which is not open and the
                 endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send
@@ -891,7 +909,6 @@ Upgrade: HTTP/2.0
                 stream.
               </t>
               <t hangText="CANCEL (5):">
-                
                 Used by the creator of a stream to indicate that the stream is no longer needed.
               </t>
               <t hangText="INTERNAL_ERROR (6):">
@@ -1001,50 +1018,68 @@ Upgrade: HTTP/2.0
           <t>
             The following settings are defined:
             <list style="hanging">
-              <t hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
-                allows the sender to send its expected upload bandwidth on this channel. This number
-                is an estimate. The value should be the integral number of kilobytes per second that
-                the sender predicts as an expected maximum upload channel capacity.
-              </t>
-              <t hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
-                allows the sender to send its expected download bandwidth on this channel. This
-                number is an estimate. The value should be the integral number of kilobytes per
-                second that the sender predicts as an expected maximum download channel capacity.
-              </t>
-              <t hangText="SETTINGS_ROUND_TRIP_TIME (3):">
-                allows the sender to send its expected round-trip-time on this channel. The round
-                trip time is defined as the minimum amount of time to send a control frame from this
-                client to the remote and receive a response. The value is represented in
-                milliseconds.
-              </t>
-              <t hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
-                allows the sender to inform the remote endpoint the maximum number of concurrent
-                streams which it will allow. This limit is directional: it applies to the number of
-                streams that the sender permits the receiver to create. By default there is no
-                limit.  For implementers it is recommended that this value be no smaller than 100,
-                so as to not unnecessarily limit parallelism.
-              </t>
-              <t hangText="SETTINGS_CURRENT_CWND (5):">
-                allows the sender to inform the remote endpoint of the current TCP CWND value.
-              </t>
-              <t hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
-                allows the sender to inform the remote endpoint the retransmission rate (bytes
-                retransmitted / total bytes transmitted).
-              </t>
-              <t hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
-                allows the sender to inform the remote endpoint the initial window size (in bytes)
-                for new streams.
-              </t>
-              <t hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
-                This setting allows an endpoint to indicate that streams directed to them will not
-                be subject to flow control.  The least significant bit (0x1) is set to indicate that
-                new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
-                session is not flow controlled.  All other bits are reserved.
-                <vspace blankLines="1"/>
-                This setting applies to all streams, including existing streams.
-                <vspace blankLines="1"/>
-                These bits cannot be cleared once set, see <xref target="EndFlowControl"/>.
-              </t>
+              <x:lt hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
+                <t>
+                  allows the sender to send its expected upload bandwidth on this channel. This number
+                  is an estimate. The value should be the integral number of kilobytes per second that
+                  the sender predicts as an expected maximum upload channel capacity.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
+                <t>
+                  allows the sender to send its expected download bandwidth on this channel. This
+                  number is an estimate. The value should be the integral number of kilobytes per
+                  second that the sender predicts as an expected maximum download channel capacity.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_ROUND_TRIP_TIME (3):">
+                <t>
+                  allows the sender to send its expected round-trip-time on this channel. The round
+                  trip time is defined as the minimum amount of time to send a control frame from this
+                  client to the remote and receive a response. The value is represented in
+                  milliseconds.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
+                <t>
+                  allows the sender to inform the remote endpoint the maximum number of concurrent
+                  streams which it will allow. This limit is directional: it applies to the number of
+                  streams that the sender permits the receiver to create. By default there is no
+                  limit.  For implementers it is recommended that this value be no smaller than 100,
+                  so as to not unnecessarily limit parallelism.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_CURRENT_CWND (5):">
+                <t>
+                  allows the sender to inform the remote endpoint of the current TCP CWND value.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
+                <t>
+                  allows the sender to inform the remote endpoint the retransmission rate (bytes
+                  retransmitted / total bytes transmitted).
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
+                <t>
+                  allows the sender to inform the remote endpoint the initial window size (in bytes)
+                  for new streams.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
+                <t>
+                  This setting allows an endpoint to indicate that streams directed to them will not
+                  be subject to flow control.  The least significant bit (0x1) is set to indicate that
+                  new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
+                  session is not flow controlled.  All other bits are reserved.
+                </t>
+                <t>
+                  This setting applies to all streams, including existing streams.
+                </t>
+                <t>
+                  These bits cannot be cleared once set, see <xref target="EndFlowControl"/>.
+                </t>
+              </x:lt>
             </list>
           </t>
 
@@ -1206,7 +1241,7 @@ Upgrade: HTTP/2.0
           </t>
           <t>
             Valid flags for the WINDOW_UPDATE frame are:
-              <list style="hanging">
+            <list style="hanging">
               <t hangText="END_FLOW_CONTROL (0x2):">
                 Bit 2 being set indicates that flow control for the identified stream or session is
                 ended and subsequent frames do not need to be flow controlled.
@@ -1719,7 +1754,7 @@ Upgrade: HTTP/2.0
         <section title="Client implementation">
           <t>
             When fetching a resource the client has 3 possibilities:
-            <list>
+            <list style="numbers">
               <t>
                 the resource is not being pushed
               </t>
