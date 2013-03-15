@@ -857,8 +857,6 @@ Upgrade: HTTP/2.0
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|X|              Associated-Stream-ID (31)                      |
-+-+-------------------------------------------------------------+
 |X|                   Priority (31)                             |
 +-+-------------------------------------------------------------+
 |                    Header Block (*)                         ...
@@ -873,11 +871,6 @@ Upgrade: HTTP/2.0
           <t>
             The most significant bit of the priority is reserved.  The 31-bit priority indicates the
             priority for the stream, as assigned by the sender, see <xref target="StreamPriority"/>.
-          </t>
-          <t>
-            Associated-To-Stream-ID: The 31-bit identifier for a stream which this stream is
-            associated to.  If this stream is independent of all other streams, it should be 0.
-            <cref>ED: This will be moved to the push promise.</cref>
           </t>
         </section>
 
@@ -945,6 +938,67 @@ Upgrade: HTTP/2.0
             for that stream, and the stream moves into the closed state.
           </t>
         </section>
+
+
+        <section anchor="PUSH_PROMISE" title="PUSH_PROMISE">
+
+          <t>The PUSH_PROMISE frame (type=5) allows the sender to signal a promise to create
+            a stream and serve the referenced resource. Minimal data allowing the receiver
+            to understand which resource(s) are to be pushed are to be included.
+          </t>
+
+
+          <figure title="SETTINGS ID/Value Pair">
+            <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|              Associated-Stream-ID (31)                      |
++-+-------------------------------------------------------------+
+|X|                Promised-Stream-ID (31)                      |
++-+-------------------------------------------------------------+
+|                    Header Block (*)                         ...
++---------------------------------------------------------------+
+</artwork>
+          </figure>
+
+          <t><cref>Should this paragraph be moved or removed?</cref>
+            Flags: Flags related to this frame. Valid flags are:
+            <list>
+              <t>0x01 = FLAG_FIN - marks this frame as the last frame to be transmitted on this stream and puts the sender in the <xref target="StreamHalfClose">half-closed</xref> state.</t>
+            </list>
+          </t>
+
+          <t>
+            Associated-To-Stream-ID: The 31-bit identifier for a stream which this stream
+            is associated to.  If this stream is independent of all other streams, it should
+            be 0.
+          </t>
+
+          <t>
+            Promised-Stream-ID: The 31-bit identifier indicating the stream-id on which
+            the resource will be pushed. If multiple headers are indicated within the
+            Header Block, each subsequent resource as indicated in the Header Block will increment
+            the Promised-Stream-Id by two. The Promised-Stream-ID is subject to the same rules as
+            any other stream-id-- when defined and transmitted, the Promised-Stream-ID MUST be part
+            of a monotonically increasing sequence of stream-ids. There is no requirement that
+            the streams referred to by the this frame are created in the order referenced.
+          </t>
+
+          <t>
+            Header Block:  A set of name/value pairs carried as part of the PUSH_PROMISE.
+            <xref target="HeaderBlock">see Header Block</xref>.
+          </t>
+
+          <t>
+            If an endpoint receives a PUSH_PROMISE which is larger than the implementation supports,
+            it MAY send a RST_STREAM with error code FRAME_TOO_LARGE.  All implementations MUST
+            support the minimum size limits defined in <xref target="FrameSize">.</xref>.
+          </t>
+
+        </section>
+
+
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
@@ -1720,8 +1774,9 @@ Upgrade: HTTP/2.0
 
         <t>
           Because pushed responses have no request, they have no request headers associated with
-          them.  At the framing layer, HTTP/2.0 pushed streams contain an "associated-stream-id"
-          which indicates the requested stream for which the pushed stream is related.  The pushed
+          them. <cref>Is the following sentence still correct?</cref>
+          At the framing layer, HTTP/2.0 pushed streams contain an "associated-stream-id"
+          which indicates the requested stream for which the pushed stream is related. The pushed
           stream inherits all of the headers from the associated-stream-id with the exception of
           ":host", ":scheme", and ":path", which are provided as part of the pushed response stream
           headers.  The browser MUST store these inherited and implied request headers with the
