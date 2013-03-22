@@ -1680,63 +1680,6 @@ Upgrade: HTTP/2.0
             client must reply with a RST_STREAM frame indicating a PROTOCOL ERROR.
           </t>
         </section>
-
-        <section title="Authentication" anchor="Authentication">
-          <t>
-            When a client sends a request to an origin server that requires authentication, the
-            server can reply with a "401 Unauthorized" response, and include a WWW-Authenticate
-            challenge header field that defines the authentication scheme to be used.  The client then
-            retries the request with an Authorization header field appropriate to the specified
-            authentication scheme (<xref target="HTTP-p7"/>).
-          </t>
-
-          <t>
-            There are four options for proxy authentication, Basic, Digest, NTLM and Negotiate
-            (SPNEGO).  The first two options were defined in <xref target="RFC2617"/>,
-            and are stateless.  The second two options were developed by Microsoft and specified in
-            <xref target="RFC4559"/>, and are stateful; otherwise known as multi-round
-            authentication, or connection authentication.
-          </t>
-
-          <section title="Stateless Authentication">
-            <t>
-              Stateless Authentication over HTTP/2.0 is identical to how it is performed over
-              HTTP/1.1. If multiple HTTP/2.0 streams are concurrently sent to a single server, each will
-              authenticate independently, similar to how two HTTP connections would independently
-              authenticate to a proxy server.
-            </t>
-          </section>
-
-          <section title="Stateful Authentication">
-            <t>
-              Unfortunately, the stateful authentication mechanisms were implemented and defined in
-              a such a way that directly violates RFC2617 - they do not include a "realm" as part of
-              the request.  This is problematic in HTTP/2.0 because it makes it impossible for a
-              client to disambiguate two concurrent server authentication challenges.
-            </t>
-
-            <t>
-              To deal with this case, HTTP/2.0 servers using Stateful Authentication MUST implement
-              one of two changes:
-              <list>
-                <t>
-                  Servers can add a "realm=&lt;desired realm&gt;" header so that the two
-                  authentication requests can be disambiguated and run concurrently.  Unfortunately,
-                  given how these mechanisms work, this is probably not practical.
-                </t>
-                <t>
-                  Upon sending the first stateful challenge response, the server MUST buffer and
-                  defer all further frames which are not part of completing the challenge until the
-                  challenge has completed.  Completing the authentication challenge may take
-                  multiple round trips.  Once the client receives a "401 Authenticate" response for
-                  a stateful authentication type, it MUST stop sending new requests to the server
-                  until the authentication has completed by receiving a non-401 response on at least
-                  one stream.
-                </t>
-              </list>
-            </t>
-          </section>
-        </section>
       </section>
 
       <section title="Server Push Transactions">
@@ -2155,42 +2098,6 @@ Upgrade: HTTP/2.0
         <seriesInfo name="RFC" value="2119"/>
       </reference>
 
-      <reference anchor="RFC2617">
-        <front>
-          <title abbrev="HTTP Authentication">
-          HTTP Authentication: Basic and Digest Access Authentication</title>
-          <author initials="J." surname="Franks" fullname="John Franks">
-            <organization>Northwestern University, Department of Mathematics</organization>
-            <address><email>john@math.nwu.edu</email></address>
-          </author>
-          <author initials="P.M." surname="Hallam-Baker" fullname="Phillip M. Hallam-Baker">
-            <organization>Verisign Inc.</organization>
-            <address><email>pbaker@verisign.com</email></address>
-          </author>
-          <author initials="J.L." surname="Hostetler" fullname="Jeffery L. Hostetler">
-            <organization>AbiSource, Inc.</organization>
-            <address><email>jeff@AbiSource.com</email></address>
-          </author>
-          <author initials="S.D." surname="Lawrence" fullname="Scott D. Lawrence">
-            <organization>Agranat Systems, Inc.</organization>
-            <address><email>lawrence@agranat.com</email></address>
-          </author>
-          <author initials="P.J." surname="Leach" fullname="Paul J. Leach">
-            <organization>Microsoft Corporation</organization>
-            <address><email>paulle@microsoft.com</email></address>
-          </author>
-          <author initials="A." surname="Luotonen" fullname="Ari Luotonen">
-            <organization>Netscape Communications Corporation</organization>
-          </author>
-          <author initials="L." surname="Stewart" fullname="Lawrence C. Stewart">
-            <organization>Open Market, Inc.</organization>
-            <address><email>stewart@OpenMarket.com</email></address>
-          </author>
-          <date month="June" year="1999"/>
-        </front>
-        <seriesInfo name="RFC" value="2617"/>
-      </reference>
-
       <reference anchor="RFC3986">
         <front>
           <title abbrev='URI Generic Syntax'>Uniform Resource Identifier (URI): Generic Syntax</title>
@@ -2203,16 +2110,6 @@ Upgrade: HTTP/2.0
         <seriesInfo name='RFC' value='3986' />
       </reference>
 
-      <reference anchor="RFC4559">
-        <front>
-          <title>SPNEGO-based Kerberos and NTLM HTTP Authentication in Microsoft Windows</title>
-          <author initials="K." surname="Jaganathan" fullname="K. Jaganathan"/>
-          <author initials="L." surname="Zhu" fullname="L. Zhu"/>
-          <author initials="J." surname="Brezak" fullname="J. Brezak"/>
-          <date year="2006" month="June"/>
-        </front>
-        <seriesInfo name="RFC" value="4559"/>
-      </reference>
       <reference anchor="RFC5246">
         <front>
           <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
