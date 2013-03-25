@@ -868,10 +868,24 @@ Upgrade: HTTP/2.0
 
           <t>
             The HEADERS+PRIORITY frame is identical to the <xref target="HEADERS">HEADERS
-            frame</xref>, with a 32-bit field containing priority included before the header block.
+            frame</xref>, with two additional fields prior to the header block.
           </t>
           <t>
-            The most significant bit of the priority is reserved.  The 31-bit priority indicates the
+              The flags for the HEADERS+PRIORITY frame are the same as for the <xref target="HEADERS">HEADERS frame</xref>.
+          </t>
+          <t>
+              The identifier field in the frame header MUST contain the stream identifier of the new stream being created.
+          </t>
+          <t>
+            The payload of the HEADERS+PRIORITY frame contains two fields.
+          </t>
+          <t>
+            Associated-To-Stream-ID: The 31-bit identifier for a stream which this stream is
+            associated to.  If this stream is independent of all other streams, it should be 0.
+            <cref>ED: This will be moved to the push promise.</cref>
+          </t>
+          <t>
+            Priority: The most significant bit of the priority is reserved.  The 31-bit priority indicates the
             priority for the stream, as assigned by the sender, see <xref target="StreamPriority"/>.
           </t>
         </section>
@@ -1211,12 +1225,11 @@ Upgrade: HTTP/2.0
           </t>
           <t>
             There is an inherent race condition between an endpoint starting new streams and the
-            remote sending a GOAWAY message.  To deal with this case, the GOAWAY contains a
-            last-stream-id indicating the stream identifier of the last stream which was created on
+            remote sending a GOAWAY message.  To deal with this case, the GOAWAY contains the stream identifier of the last stream which was created on
             the sending endpoint in this session.  If the receiver of the GOAWAY used streams that
-            are newer than the indicated last-stream-id, they were not processed by the server and
-            the receiver may treat the stream as though it had never been created at all (hence the
-            receiver may want to re-create the stream later on a new session).
+            are newer than the indicated stream identifier, they were not processed by the sender and
+            the receiver may treat the streams as though they had never been created at all (hence the
+            receiver may want to re-create the streams later on a new session).
           </t>
           <t>
             Endpoints should always send a GOAWAY message before closing a connection so that the
@@ -1359,11 +1372,14 @@ Upgrade: HTTP/2.0
               stream and session level flow control windows.
             </t>
             <t>
-              A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup> - 1 bytes.
-              If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
-              maximum it MUST terminate either the stream or the session, as appropriate.  For
-              streams, the sender sends a RST_STREAM with the error code of FLOW_CONTROL_ERROR code;
-              for the session, a GOAWAY message with a FLOW_CONTROL_ERROR code.
+              The receiver of a WINDOW_UPDATE frame updates the corresponding window by the amount specified in the frame.
+            </t>
+            <t>
+              A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup> - 1 bytes.  If a sender
+              receives a WINDOW_UPDATE that causes a flow control window to exceed this maximum it
+              MUST terminate either the stream or the session, as appropriate.  For streams, the
+              sender sends a RST_STREAM with the error code of FLOW_CONTROL_ERROR code; for the
+              session, a GOAWAY message with a FLOW_CONTROL_ERROR code.
             </t>
             <t>
               Flow controlled frames from the sender and WINDOW_UPDATE frames from the receiver are
