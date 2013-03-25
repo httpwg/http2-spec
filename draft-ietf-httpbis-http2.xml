@@ -627,50 +627,73 @@ Upgrade: HTTP/2.0
 
       <section title="Error Handling">
         <t>
-          The HTTP/2.0 framing layer has only two types of errors, and they are always handled
-          consistently.  Any reference in this specification to "issue a session error" refers to
-          <xref target="SessionErrorHandler"></xref>.  Any reference to "issue a stream error"
-          refers to <xref target="StreamErrorHandler"></xref>.
+          HTTP/2.0 framing permits two classes of error: 
+          <list style="symbols">
+            <t>
+              An error condition that renders the entire session unusable is a session error.
+            </t>
+            <t>
+              An error in an individual stream is a stream error.
+            </t>
+          </list>
         </t>
 
         <section anchor="SessionErrorHandler" title="Session Error Handling">
           <t>
             A session error is any error which prevents further processing of the framing layer or
-            which corrupts any session state.  When a session error occurs, the endpoint
-            encountering the error MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame with
-            the stream identifier of the most recently received stream from the remote endpoint, and
-            the error code for why the session is terminating.  After sending the GOAWAY frame, the
-            endpoint MUST close the TCP connection.
+            which corrupts any session state.
           </t>
-
           <t>
-            Note that because this GOAWAY is sent during a session error case, it is possible that
-            the GOAWAY will not be reliably received by the receiving endpoint.  It is a best-effort
-            attempt to communicate with the remote about why the session is going down.
+            An endpoint that encounters a session error MUST first send a <xref
+            target="GOAWAY">GOAWAY</xref> frame with the stream identifier of the last stream that
+            it successfully received from its peer.  The GOAWAY frame includes an error code that
+            indicates why the session is terminating.  After sending the GOAWAY frame, the endpoint
+            MUST close the TCP connection.
+          </t>
+          <t>
+            It is possible that the GOAWAY will not be reliably received by the receiving endpoint.
+            In the event of a session error, GOAWAY only provides a best-effort attempt to
+            communicate with the peer about why the session is going down.
+          </t>
+          <t>
+            An endpoint can end a session at any time.  In particular, an endpoint MAY choose to
+            treat a stream error as a session error if the error is recurrent.  Endpoints SHOULD
+            send a GOAWAY frame when ending a session, as long as circumstances permit it.
           </t>
         </section>
 
         <section anchor="StreamErrorHandler" title="Stream Error Handling">
           <t>
-            A stream error is an error related to a specific stream identifier which does not affect
-            processing of other streams at the framing layer.  Upon a stream error, the endpoint
-            MUST send a <xref target="RST_STREAM">RST_STREAM</xref> frame which contains the stream
-            identifier of the stream where the error occurred and a code indicating the type of
-            error.  After sending the RST_STREAM, the stream is closed to the sending endpoint.
-            After sending the RST_STREAM, if the sender receives any frames other than a RST_STREAM
-            for that stream identifier, it will result in sending additional RST_STREAM frames.  An
-            endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM, as doing so would lead
-            to RST_STREAM loops.  Sending a RST_STREAM does not cause the HTTP/2.0 session to be
-            closed.
+            A stream error is an error related to a specific stream identifier that does not affect
+            processing of other streams at the framing layer.
           </t>
-
           <t>
-            If an endpoint has multiple RST_STREAM frames to send in succession for the same stream
-            identifier and the same error code, it MAY coalesce them into a single RST_STREAM frame.
-            (This can happen if a stream is closed, but the remote sends multiple data frames.
-            There is no reason to send a RST_STREAM for each frame in succession).  <cref>Ed: why
-            not suggest that endpoints stop sending RST_STREAM?  One is probably enough, except for
-            diagnosing strange error scenarios.  Needs better justification.</cref>
+            An endpoint that detects a stream error sends a <xref
+            target="RST_STREAM">RST_STREAM</xref> frame that contains the stream identifier of the
+            stream where the error occurred.  The RST_STREAM frame includes an error code that
+            indicates the type of error.
+          </t>
+          <t>
+            A RST_STREAM is the last frame that an endpoint can send on a stream.  The peer that
+            sends the RST_STREAM frame MUST be prepared to receive any frames that were sent or
+            enqueued for sending by the remote peer.  These frames can be ignored, except where they
+            modify session state (such as the header compression state).
+          </t>
+          <t>
+            An endpoint SHOULD NOT send more than one RST_STREAM frame for any stream.  An endpoint
+            MAY send additional RST_STREAM frames if it receives frames on a closed stream after
+            more than a round trip time.  This behaviour is permitted to deal with misbehaving
+            implementations where treating this as a session error is inappropriate.
+          </t>
+          <t>
+            An endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM frame.  This could
+            trigger infinite loops of RST_STREAM frames.
+          </t>
+        </section>
+
+        <section anchor="ErrorCodes" title="Error Codes">
+          <t>
+            <cref>TBD: consolidated error codes here.</cref>
           </t>
         </section>
       </section>
