@@ -531,8 +531,8 @@ Upgrade: HTTP/2.0
             An endpoint cannot prevent the creation of a new stream, but it can request the early
             termination of an unwanted stream.  Upon receipt of a frame, the recipient can terminate
             the corresponding stream by sending a <xref target="StreamErrorHandler">stream
-            error</xref> with the error code REFUSED_STREAM. This cannot prevent the initiating
-            endpoint from sending frames for that stream prior to receiving this request.
+            error</xref> of type REFUSED_STREAM. This cannot prevent the initiating endpoint
+            from sending frames for that stream prior to receiving this request.
           </t>
         </section>
 
@@ -577,7 +577,7 @@ Upgrade: HTTP/2.0
           <t>
             If an endpoint receives a data frame after the stream is half-closed from the sender
             (e.g. the endpoint has already received a prior frame for the stream with the FINAL flag
-            set), it MUST send a RST_STREAM to the sender with the status STREAM_ALREADY_CLOSED.
+            set), it MUST send a RST_STREAM to the sender with the status STREAM_CLOSED.
           </t>
           <t>
             Streams that have never received packets can be considered to be half-closed in the
@@ -693,7 +693,50 @@ Upgrade: HTTP/2.0
 
         <section anchor="ErrorCodes" title="Error Codes">
           <t>
-            <cref>TBD: consolidated error codes here.</cref>
+            Error codes are 32-bit fields that are used in RST_STREAM and GOAWAY frames to convey
+            the reasons for the stream or session error.
+          </t>
+
+          <t>
+            Error codes share a common code space.  Some error codes only apply to specific
+            conditions and have no defined semantics in certain frame types.
+          </t>
+
+          <t>
+            The following error codes are defined:
+            <list style="hanging">
+              <t hangText="NO_ERROR (0):">
+                The associated condition is not as a result of an error.  For example, a GOAWAY
+                might include this code to indicate graceful shutdown of a session.
+              </t>
+              <t hangText="PROTOCOL_ERROR (1):">
+                An unspecific protocol error was detected.  This error is for use when a more
+                specific error code is not available.
+              </t>
+              <t hangText="INTERNAL_ERROR (2):">
+                The implementation encountered an unexpected internal error.
+              </t>
+              <t hangText="FLOW_CONTROL_ERROR (3):">
+                The endpoint detected that its peer violated the flow control protocol.
+              </t>
+              <t hangText="INVALID_STREAM (4):">
+                A frame was received for an inactive stream.
+              </t>
+              <t hangText="STREAM_CLOSED (5):">
+                The endpoint received a frame after a stream was half-closed.
+              </t>
+              <t hangText="FRAME_TOO_LARGE (6):">
+                The endpoint received a frame that was larger than the maximum size that it
+                supports.
+              </t>
+              <t hangText="REFUSED_STREAM (7):">
+                Indicates that the stream was refused before any processing has been done on the
+                stream.
+              </t>
+              <t hangText="CANCEL (8):">
+                Used by the creator of a stream to indicate that the stream is no longer needed.
+              </t>
+            </list>
           </t>
         </section>
       </section>
@@ -820,21 +863,11 @@ Upgrade: HTTP/2.0
             Data frame processing requirements:
             <list style="symbols">
               <t>
-                If an endpoint receives a data frame for a stream-id which is not open and the
-                endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send
+                If an endpoint receives a data frame for a stream identifier which is not open and
+                the endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send
                 issue a <xref target="StreamErrorHandler">stream error</xref> with the error code
-                INVALID_STREAM for the stream-id.
-              </t>
-              <t>
-                If the endpoint that created the stream receives a data frame before receiving a
-                HEADERS frame on that stream, it is a protocol error, and the recipient MUST issue a
-                <xref target="StreamErrorHandler">stream error</xref> with the error code
-                PROTOCOL_ERROR for the stream-id.  <cref>ED: isn't this a usage problem?  doesn't
-                this belong in the HTTP-mapping section?</cref>
-              </t>
-              <t>
-                Implementers note: If an endpoint receives multiple data frames for invalid
-                stream-ids, it MAY close the session.
+                INVALID_STREAM.  <cref>INVALID_STREAM called into question: usage pattern will
+                determine this, see next part.</cref>
               </t>
               <t>
                 All HTTP/2.0 endpoints MUST accept compressed data frames.  Compression of data
@@ -905,39 +938,8 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            The RST_STREAM frame contains a single 32-bit error code.  The error code indicates why
-            the stream is being terminated. The following error codes are defined:
-            <list style="hanging">
-              <t hangText="PROTOCOL_ERROR (1):">
-                This is a generic error, and should only be used if a more specific error is not
-                available.  <cref>ED: Doesn't sound so generic.  Someone committed a protocol
-                violation.  Might need to change the name.</cref>
-              </t>
-              <t hangText="INVALID_STREAM (2):">
-                This is returned when a frame is received for a stream which is not active.
-              </t>
-              <t hangText="REFUSED_STREAM (3):">
-                Indicates that the stream was refused before any processing has been done on the
-                stream.
-              </t>
-              <t hangText="CANCEL (5):">
-                Used by the creator of a stream to indicate that the stream is no longer needed.
-              </t>
-              <t hangText="INTERNAL_ERROR (6):">
-                This is a generic error which can be used when the implementation has internally
-                failed, not due to anything in the protocol.
-              </t>
-              <t hangText="FLOW_CONTROL_ERROR (7):">
-                The endpoint detected that its peer violated the flow control protocol.
-              </t>
-              <t hangText="STREAM_ALREADY_CLOSED (9):">
-                The endpoint received a frame after a stream was half closed.
-              </t>
-              <t hangText="FRAME_TOO_LARGE (11):">
-                The endpoint received a frame that was larger than the maximum size that it
-                supports.
-              </t>
-            </list>
+            The RST_STREAM frame contains a single 32-bit <xref target="ErrorCodes">error
+            code</xref>.  The error code indicates why the stream is being terminated.
           </t>
           <t>
             After receiving a RST_STREAM on a stream, the recipient must not send additional frames
@@ -1247,23 +1249,8 @@ Upgrade: HTTP/2.0
             value MUST be 0.
           </t>
           <t>
-            The payload of a GOAWAY frame contains a 32-bit error code that contains the reason for
-            closing the session:
-            <list style="hanging">
-              <t hangText="OK (0):">
-                The session is closing normally.
-              </t>
-              <t hangText="PROTOCOL_ERROR (1):">
-                This is a generic error, and should only be used if a more specific error is not
-                available.  <cref>ED: bad name</cref>
-              </t>
-              <t hangText="INTERNAL_ERROR (2):">
-                The implementation has internally failed, not due to anything in the protocol.
-              </t>
-              <t hangText="FLOW_CONTROL_ERROR (7):">
-                The endpoint detected that its peer violated the flow control protocol.
-              </t>
-            </list>
+            The payload of a GOAWAY frame contains a 32-bit <xref target="ErrorCodes">error
+            code</xref> that contains the reason for closing the session.
           </t>
         </section>
 
@@ -1588,15 +1575,15 @@ Upgrade: HTTP/2.0
               </t>
               <t>
                 In addition, the following two name-value pairs MUST be present in every request:
-                <list>
-                  <t>
-                    ":host" - the host and options port portions (see <xref target="RFC3986"
-                    x:fmt="," x:sec="3.2"/>) of the URI for this request
-                    (e.g. "www.google.com:1234"). This header field is the same as the HTTP 'Host'
-                    header field (<xref target="HTTP-p1" x:fmt="," x:rel="#header.host"/>).
+                <list style="hanging">
+                  <t hangText="&quot;:host&quot;:">
+                    the host and optional port portions (see <xref target="RFC3986" x:fmt=","
+                    x:sec="3.2"/>) of the URI for this request (e.g. "www.google.com:1234"). This
+                    header field is the same as the HTTP 'Host' header field (<xref target="HTTP-p1"
+                    x:fmt="," x:rel="#header.host"/>).
                   </t>
-                  <t>
-                    ":scheme" - the scheme portion of the URI for this request (e.g. "https")
+                  <t hangText="&quot;:scheme&quot;:">
+                    the scheme portion of the URI for this request (e.g. "https")
                   </t>
                 </list>
               </t>
@@ -1645,7 +1632,13 @@ Upgrade: HTTP/2.0
           </t>
           <t>
             If a client sends a HEADERS+PRIORITY frame that omits a mandatory header, the server
-            MUST reply with a HTTP 400 Bad Request reply.
+            MUST reply with a HTTP 400 Bad Request reply.  <cref>Ed: why PROTOCOL_ERROR on missing
+            ":status" in the response, but HTTP 400 here?</cref>
+          </t>
+          <t>
+            If the server receives a data frame prior to a HEADERS or HEADERS+PRIORITY frame the
+            server MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of
+            type PROTOCOL_ERROR.
           </t>
         </section>
 
@@ -1696,8 +1689,15 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            If a client receives a response without a status or without a version header, the
-            client must reply with a RST_STREAM frame indicating a PROTOCOL ERROR.
+            If a client receives a response with an absent or duplicated status header, the client
+            MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of type
+            PROTOCOL_ERROR.
+          </t>
+
+          <t>
+            If the client receives a data frame prior to a HEADERS or HEADERS+PRIORITY frame the
+            client MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of
+            type PROTOCOL_ERROR.
           </t>
         </section>
       </section>
@@ -1814,40 +1814,46 @@ Upgrade: HTTP/2.0
 
           <t>
             When a HEADERS+PRIORITY frame that contains an Associated-To-Stream-ID is received, the
-            client MUST NOT issue GET requests for the resource in the pushed stream, and instead
-            wait for the pushed stream to arrive.
+            client MUST NOT<cref>SHOULD NOT?</cref> issue GET requests for the resource in the
+            pushed stream, and instead wait for the pushed stream to arrive.
           </t>
 
 
           <t>
-            A server MUST NOT push a resource with the Associated-To-Stream-ID of 0.  Clients MUST
-            treat this as a <xref target="SessionErrorHandler">session error</xref> and send a
-            GOAWAY frame of type PROTOCOL_ERROR.
+            A server MUST NOT push a resource with an Associated-To-Stream-ID of 0.  Clients MUST
+            treat this as a <xref target="SessionErrorHandler">session error</xref> of type
+            PROTOCOL_ERROR.
           </t>
 
           <t>
-            When a client receives a HEADERS+PRIORITY frame from the server without a the ':host',
-            ':scheme', and ':path' headers, it MUST reply with a RST_STREAM with error code
-            HTTP_PROTOCOL_ERROR.
+            When a client receives a HEADERS+PRIORITY<cref>TODO: PUSH_PROMISE</cref> frame from the
+            server without a the <spanx style="verb">:host</spanx>, <spanx
+            style="verb">:scheme</spanx>, and <spanx style="verb">:path</spanx> headers, it MUST
+            treat this as a <xref target="StreamErrorHandler">stream error</xref> of type
+            PROTOCOL_ERROR.
           </t>
 
           <t>
             To cancel individual server push streams, the client can issue a <xref
-            target="StreamErrorHandler">stream error</xref> with error code CANCEL.  Upon receipt,
-            the server MUST stop sending on this stream immediately (this is an Abrupt termination).
+            target="StreamErrorHandler">stream error</xref> of type CANCEL.  Upon receipt, the
+            server ceases transmission of the pushed data.
           </t> 
 
           <t>
             To cancel all server push streams related to a request, the client may issue a <xref
-            target="StreamErrorHandler">stream error</xref> with error code CANCEL on the
+            target="StreamErrorHandler">stream error</xref> of type CANCEL on the
             associated-stream-id.  By cancelling that stream, the server MUST immediately stop
             sending frames for any streams with in-association-to for the original stream.
+            <cref>Ed: Triggering side-effects on stream reset is going to be problematic for the
+            framing layer.  Purely from a design perspective, it's a layering violation.  More
+            practically speaking, the base request stream might already be removed.  Special
+            handling logic would be required.</cref>
           </t>
 
           <t>
             If the server sends a HEADERS frame containing headers that duplicate values on a
-            previous HEADERS frame for the same stream, the client must issue a <xref
-            target="StreamErrorHandler">stream error</xref> with error code PROTOCOL ERROR.
+            previous HEADERS frame for the same stream, the client MUST treat this as a <xref
+            target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
           </t>
 
           <t>
