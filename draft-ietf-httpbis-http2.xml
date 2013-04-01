@@ -410,7 +410,7 @@ Upgrade: HTTP/2.0
           are the basic unit of communication.
         </t>
         
-        <section anchor="frame-header" title="Frame Header">
+        <section anchor="FrameHeader" title="Frame Header">
           <t>
             HTTP/2.0 frames share a common header format.  Frames have an 8 byte header with between
             0 and 65535 bytes of data.
@@ -440,8 +440,17 @@ Upgrade: HTTP/2.0
                 frame header and payload are interpreted.
               </t>
               <t hangText="Flags:">
-                An 8-bit field reserved for flags.  The semantics of each bit in flags depends on
-                the frame type.  Bits that have undefined semantics are reserved.
+                An 8-bit field reserved for flags.  Bits that have undefined semantics are reserved.  The following
+                flags are defined for all frame types:
+                <list style="hanging">
+                  <t hangText="FINAL (0x1):">
+                    Bit 1 (the least significant bit) indicates that this is the last frame in a
+                    stream.  This places the stream into a <xref
+                    target="StreamHalfClose">half-closed state</xref>.  No further frames follow in
+                    the direction of the carrying frame.
+                  </t>
+                </list>
+                Frame types can define semantics for frame-specific flags.
               </t>
               <t hangText="R:">
                 A reserved 1-bit field.  The semantics of this bit are not defined.
@@ -563,8 +572,8 @@ Upgrade: HTTP/2.0
           <t>
             Once a stream is created, it can be used to send arbitrary amounts of data.  Generally
             this means that a series of data frames will be sent on the stream until a frame
-            containing the FINAL flag is set.  Once the FINAL flag has been set on a message, the
-            stream is considered to be half-closed.
+            containing the <xref target="FrameHeader">FINAL flag</xref> is set.  Once the FINAL flag
+            has been set on any frame, the stream is considered to be half-closed.
           </t>
         </section>
 
@@ -575,9 +584,8 @@ Upgrade: HTTP/2.0
             frames on that stream. When both sides have half-closed, the stream is closed.
           </t>
           <t>
-            If an endpoint receives a data frame after the stream is half-closed from the sender
-            (e.g. the endpoint has already received a prior frame for the stream with the FINAL flag
-            set), it MUST send a RST_STREAM to the sender with the status STREAM_CLOSED.
+            An endpoint MUST treat the receipt of a data frame on a half-closed stream as a <xref
+            target="StreamErrorHandler">stream error</xref> of type STREAM_CLOSED.
           </t>
           <t>
             Streams that have never received packets can be considered to be half-closed in the
@@ -591,8 +599,8 @@ Upgrade: HTTP/2.0
             Streams can be terminated in the following ways:
             <list style="hanging">
               <t hangText="Normal termination:">
-                Normal stream termination occurs when both sender and recipient
-                have half-closed the stream by sending a frame containing a FINAL flag.
+                Normal stream termination occurs when both sender and recipient have half-closed the
+                stream by sending a frame containing a <xref target="FrameHeader">FINAL flag</xref>.
               </t>
               <t hangText="Half-close on unidirectional stream:">
                 A stream that only has frames sent in one direction can be tentatively considered to
@@ -841,13 +849,8 @@ Upgrade: HTTP/2.0
             frame contains either a request or response body.
           </t>
           <t>
-            Valid flags for data frames are:
+            Valid frame-specific flags for data frames are:
             <list style="hanging">
-              <t hangText="FINAL (0x1):">
-                Bit 1 (the least significant flag bit) being set signifies that this frame is the
-                last frame to be transmitted on this stream (see <xref target="StreamClose">Stream
-                Close</xref>).
-              </t>
               <t hangText="COMPRESSED (0x2):">
                 Bit 2 being set indicates that the data in the frame has been compressed with ZLIB
                 compression (<xref target="RFC1950"/>).
@@ -1261,14 +1264,7 @@ Upgrade: HTTP/2.0
             in this frame is application-dependent.
           </t>
           <t>
-            Valid flags for the HEADERS frame are:
-            <list style="hanging">
-              <t hangText="FINAL (0x1):">
-                Bit 1 (the least significant bit) being set indicates that this is the last frame to
-                be transmitted on this stream.  Setting this bit puts the sender in the <xref
-                target="StreamHalfClose">half-closed</xref> state.
-              </t>
-            </list>
+            No frame-specific flags are defined for the HEADERS frame.
           </t>
           <t>
             The identifier field in the HEADERS frame header MUST contain a stream identifier for an
@@ -1333,9 +1329,9 @@ Upgrade: HTTP/2.0
               Two flow control windows apply to the sending of every message: the stream flow
               control window and the session flow control window.  The sender MUST NOT send a flow
               controlled frame with a length that exceeds the space available in either of the flow
-              control windows advertised by the receiver.   Frames with zero length that also end a
-              stream (for example, a data frame with the FINAL flag set) MAY be sent if there is no
-              available space in either flow control window.  
+              control windows advertised by the receiver.  Frames with zero length with the FINAL
+              flag set (for example, an empty data frame) MAY be sent if there is no available space
+              in either flow control window.
             </t>
             <t>
               For flow control calculations, the 8 byte frame header is not counted.
@@ -1541,12 +1537,12 @@ Upgrade: HTTP/2.0
 
         <section title="Request">
           <t>
-            The client initiates a request by sending a HEADERS+PRIORITY frame.  For requests that
-            do not contain a body, the frame MUST set the FINAL flag, indicating that the client
-            intends to send no further data on this stream.  For requests that do contain a body,
-            the HEADERS+PRIORITY frame does not contain the FINAL flag, and the body follows as a
-            series of DATA frames. The last DATA frame sets the FINAL flag to indicate the end of
-            the body.
+            The client initiates a request by sending a HEADERS+PRIORITY frame.  Requests that do
+            not contain a body MUST set the FINAL flag, indicating that the client intends to send
+            no further data on this stream, unless the server intends to push resources (see <xref
+            target="PushResources">).  HEADERS+PRIORITY frame does not contain the FINAL flag for
+            requests that contain a body.  The body of a request follows as a series of DATA
+            frames. The last DATA frame sets the FINAL flag to indicate the end of the body.
           </t>
 
           <t>
@@ -1702,7 +1698,7 @@ Upgrade: HTTP/2.0
         </section>
       </section>
 
-      <section title="Server Push Transactions">
+      <section anchor="PushResources" title="Server Push Transactions">
         <t>
           HTTP/2.0 enables a server to send multiple replies to a client for a single request.  The
           rationale for this feature is that sometimes a server knows that it will need to send
