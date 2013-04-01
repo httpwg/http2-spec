@@ -527,9 +527,10 @@ Upgrade: HTTP/2.0
           </t>
           <t>
             The stream identifier of a new stream MUST be greater than all other streams from that
-            endpoint.  If an endpoint receives the first frame on a stream with an identifier that
-            is less than or equal to a previously used stream, it MUST issue a <xref
-            target="SessionErrorHandler">session error</xref> with the status PROTOCOL_ERROR.
+            endpoint, unless the stream identifier was previously reserved (such as the promised
+            stream identifier in a <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frame).  An
+            endpoint that receives an unexpected stream identifier MUST treat this as a <xref
+            target="SessionErrorHandler">session error</xref> of type PROTOCOL_ERROR.
           </t>
           <t>
             A long-lived session can result in available stream identifiers being exhausted. An
@@ -951,67 +952,6 @@ Upgrade: HTTP/2.0
         </section>
 
 
-        <section anchor="PUSH_PROMISE" title="PUSH_PROMISE">
-
-          <t>The PUSH_PROMISE frame (type=5) allows the sender to signal a promise to create
-            a stream and serve the referenced resource. Minimal data allowing the receiver
-            to understand which resource(s) are to be pushed are to be included.
-          </t>
-
-
-          <figure title="SETTINGS ID/Value Pair">
-            <artwork type="inline">
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|X|              Associated-Stream-ID (31)                      |
-+-+-------------------------------------------------------------+
-|X|                Promised-Stream-ID (31)                      |
-+-+-------------------------------------------------------------+
-|                    Header Block (*)                         ...
-+---------------------------------------------------------------+
-</artwork>
-          </figure>
-
-          <t><cref>Should this paragraph be moved or removed?</cref>
-            Flags: Flags related to this frame. Valid flags are:
-            <list>
-              <t>0x01 = FLAG_FIN - marks this frame as the last frame to be transmitted on this
-              stream and puts the sender in the <xref target="StreamHalfClose">half-closed</xref>
-              state.</t>
-            </list>
-          </t>
-
-          <t>
-            Associated-To-Stream-ID: The 31-bit identifier for a stream which this stream
-            is associated to.  If this stream is independent of all other streams, it should
-            be 0.
-          </t>
-
-          <t>
-            Promised-Stream-ID: The 31-bit identifier indicating the stream-id on which
-            the resource will be pushed. If multiple headers are indicated within the
-            Header Block, each subsequent resource as indicated in the Header Block will increment
-            the Promised-Stream-Id by two. The Promised-Stream-ID is subject to the same rules as
-            any other stream-id-- when defined and transmitted, the Promised-Stream-ID MUST be part
-            of a monotonically increasing sequence of stream-ids. There is no requirement that
-            the streams referred to by the this frame are created in the order referenced.
-          </t>
-
-          <t>
-            Header Block:  A set of name/value pairs carried as part of the PUSH_PROMISE.
-            <xref target="HeaderBlock">see Header Block</xref>.
-          </t>
-
-          <t>
-            If an endpoint receives a PUSH_PROMISE which is larger than the implementation supports,
-            it MAY send a RST_STREAM with error code FRAME_TOO_LARGE.  All implementations MUST
-            support the minimum size limits defined in <xref target="FrameSize">.</xref>.
-          </t>
-
-        </section>
-
-
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
@@ -1039,12 +979,11 @@ Upgrade: HTTP/2.0
             ignore persistence related flags sent by a client.
           </t>
           <t>
-            Valid flags for the SETTINGS frame are:
+            Valid frame-specific flags for the SETTINGS frame are:
             <list style="hanging">
-              <t hangText="CLEAR_PERSISTED:">
-                Bit 1 (the least significant bit) being set indicates a request to clear any
-                previously persisted settings before processing the settings.  Clients MUST NOT set
-                this flag.
+              <t hangText="CLEAR_PERSISTED (0x2):">
+                Bit 2 being set indicates a request to clear any previously persisted settings
+                before processing the settings.  Clients MUST NOT set this flag.
               </t>
             </list>
           </t>
@@ -1180,6 +1119,56 @@ Upgrade: HTTP/2.0
             first SETTINGS frame, and then sends IDs 4 and 5 with the FLAG_SETTINGS_PERSIST_VALUE,
             when the client returns the persisted state on its next SETTINGS frame, it SHOULD send
             all 5 settings (1, 2, 3, 4, and 5 in this example) to the server.
+          </t>
+        </section>
+
+        <section anchor="PUSH_PROMISE" title="PUSH_PROMISE">
+
+          <t>
+            The PUSH_PROMISE frame (type=5) allows the sender to signal a promise to create a stream
+            and serve the referenced resource.  Minimal data allowing the receiver to understand
+            which resource(s) are to be pushed are to be included.
+          </t>
+
+          <t>
+            PUSH_PROMISE frames are sent on an existing stream.  They declare the intent to use
+            another stream for the pushing of a resource.  The PUSH_PROMISE allows the client an
+            opportunity to reject pushed resources.
+          </t>
+
+          <figure title="PUSH_PROMISE Payload Format">
+            <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|                Promised-Stream-ID (31)                      |
++-+-------------------------------------------------------------+
+|                    Header Block (*)                         ...
++---------------------------------------------------------------+
+</artwork>
+          </figure>
+
+          <t>
+            There are no frame-specific flags for the PUSH_PROMISE frame.
+          </t>
+
+          <t>
+            The body of a PUSH_PROMISE includes a "Promised-Stream-ID".  This 31-bit identifier
+            indicates the stream on which the resource will be pushed.  The promised stream
+            identifier MUST be a valid choice for the next stream sent by the sender (see <xref
+            target="StreamCreation">new stream identifier</xref>).
+          </t>
+
+          <t>
+            There is no requirement that the streams referred to by this frame are created in the
+            order referenced.  <cref>Ed: this last statement is problematic for a generic framing
+            layer.  If this is desirable behavior, then maybe the promise should be the first frame
+            of the new stream, rather than a frame on an existing stream.</cref>
+          </t>
+
+          <t>
+            The PUSH_PROMISE also includes a <xref target="HeaderBlock">header block</xref>, which
+            describes the resource that will be pushed.
           </t>
         </section>
 
@@ -1451,8 +1440,8 @@ Upgrade: HTTP/2.0
 
         <section anchor="HeaderBlock" title="Header Block">
           <t>
-            The Header Block is found in the HEADERS and HEADERS+PRIORITY frames.  Headers
-            consist of a set of name-value pairs.  Headers are compressed using TBD.
+            The Header Block is found in the HEADERS, HEADERS+PRIORITY and PUSH_PROMISE frames.
+            Headers consist of a set of name-value pairs.  Headers are compressed using black magic.
           </t>
           <t>
             Compression of headers is a work in progress, as is the format of this block.
@@ -1483,6 +1472,7 @@ Upgrade: HTTP/2.0
           has been sent, but not all streams have finished), while another HTTP/2.0 session is
           starting.
         </t>
+
         <section title="Use of GOAWAY">
           <t>
             HTTP/2.0 provides a GOAWAY message which can be used when closing a connection from
@@ -1535,7 +1525,7 @@ Upgrade: HTTP/2.0
           </t>
         </section>
 
-        <section title="Request">
+        <section anchor="HttpRequest" title="Request">
           <t>
             The client initiates a request by sending a HEADERS+PRIORITY frame.  Requests that do
             not contain a body MUST set the FINAL flag, indicating that the client intends to send
@@ -1633,7 +1623,7 @@ Upgrade: HTTP/2.0
           </t>
         </section>
 
-        <section title="Response">
+        <section anchor="HttpResponse" title="Response">
           <t>
             The server responds to a client request with a HEADERS frame. Symmetric to the client's
             upload stream, server will send any response body in a series of DATA frames.  The last
@@ -1716,61 +1706,66 @@ Upgrade: HTTP/2.0
           Browsers receiving a pushed response MUST validate that the server is authorized to push
           the resource using the same-origin policy (<xref target="RFC6454" x:fmt="," x:sec="3"/>).
           For example, a HTTP/2.0 connection to <spanx style="verb">example.com</spanx> is generally
-          not permitted to push a response for <spanx style="verb">www.example.org</spanx>.
+          <cref>Ed: weaselly use of "generally", needs better definition</cref> not permitted to
+          push a response for <spanx style="verb">www.example.org</spanx>.
         </t>
 
         <t>
-          If the browser accepts a pushed response (e.g. it does not send a RST_STREAM), the browser
-          MUST attempt to cache the pushed response in same way that it would cache any other
-          response.  This means validating the response headers and inserting into the disk cache.
-          <cref>ED: browser this, browser that; <eref
-          target="https://github.com/http2/http2-spec/issues/27">issue 27</eref></cref>
+          A client that accepts pushed resources caches those resources as though they were
+          responses to GET requests.
         </t>
 
         <t>
-          Because pushed responses have no request, they have no request headers associated with
-          them. <cref>Is the following sentence still correct?</cref>
-          At the framing layer, HTTP/2.0 pushed streams contain an "associated-stream-id"
-          which indicates the requested stream for which the pushed stream is related. The pushed
-          stream inherits all of the headers from the associated-stream-id with the exception of
-          ":host", ":scheme", and ":path", which are provided as part of the pushed response stream
-          headers.  The browser MUST store these inherited and implied request headers with the
-          cached resource.
+           Pushed responses are associated with a request at the HTTP/2.0 framing layer.  The
+           PUSH_PROMISE includes a stream identifier for an associated request/response exchange
+           that supplies request headers.  The pushed stream inherits all of the request headers
+           from the associated stream with the exception of resource identification headers (<spanx
+           style="verb">:host</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
+           style="verb">:path</spanx>), which are provided as part of the PUSH_PROMISE frame.
+           Pushed resources always have an associated <spanx style="verb">:method</spanx> of <spanx
+           style="verb">GET</spanx>.  A cache MUST store these inherited and implied request headers
+           with the cached resource.
         </t>
 
         <t>
           Implementation note: With server push, it is theoretically possible for servers to push
           unreasonable amounts of content or resources to the user-agent.  Browsers MUST implement
-          throttles to protect against unreasonable push attacks.
-          <cref>Ed: insufficiently specified to implement</cref>
+          throttles to protect against unreasonable push attacks.  <cref>Ed: insufficiently
+          specified to implement; would like to remove</cref>
         </t>
 
         <section title="Server implementation">
           <t>
-            When the server intends to push a resource to the user-agent, it opens a new stream by
-            sending a HEADERS+PRIORITY frame.  The frame MUST include headers for ":scheme",
-            ":host", ":path", which represent the URI for the resource being pushed. Subsequent
-            headers may follow in HEADERS frames. The purpose of the association is so that the
-            user-agent can differentiate which request induced the pushed stream; without it, if the
-            user-agent had two tabs open to the same page, each pushing unique content under a fixed
-            URI, the user-agent would not be able to differentiate the requests.
+            A server pushes resources in association with a request from the client.  Prior to
+            closing the response stream, the server sends a PUSH_PROMISE for each resource that it
+            intends to push.  The PUSH_PROMISE includes header fields that allow the client to
+            identify the resource (<spanx style="verb">:scheme</spanx>, <spanx
+            style="verb">:host</spanx>, and <spanx style="verb">:port</spanx>).  
+          </t>
+          <t>
+            A server can push multiple resources in response to a request, but these can only be
+            sent while the response stream remains open.  A server MUST NOT send a PUSH_PROMISE on a
+            half-closed stream.
+          </t>
+          <t>
+            The server SHOULD include any header fields in a PUSH_PROMISE that would allow a cache
+            to determine if the resource is already cached (see <xref target="HTTP-p6" x:fmt=","
+            x:sec="4"/>).
+          </t>
+          
+          <t>
+            After sending a PUSH_PROMISE, the server commences transmission of a pushed resource.  A
+            pushed resource uses a server-initiated stream.  The server sends frames on this stream
+            in the same order as an <xref target="HttpResponse">HTTP response</xref>: a HEADERS
+            frame followed by DATA frames.
           </t>
 
           <t>
-            The Associated-To-Stream-ID must be the ID of an existing, open stream.  The reason for
-            this restriction is to have a clear endpoint for pushed content.  If the user-agent
-            requested a resource on stream 11, the server replies on stream 11.  It can push any
-            number of additional streams to the client before sending a frame with the FINAL flag
-            set on stream 11.  However, once the originating stream is closed no further push
-            streams may be associated with it.  The pushed streams do not need to be closed (FINAL
-            flag set) before the originating stream is closed, they only need to be created before
-            the originating stream closes.
-          </t>
-
-          <t>
-            To minimize race conditions with the client, the HEADERS+PRIORITY for the pushed
-            resources MUST be sent prior to sending any content which could allow the client to
-            discover the pushed resource and request it.
+            Many uses of server push are to send content that a client discovers is needed based on
+            the content of a response representation.  To minimize the chances that a client will
+            make a request for resources that are being pushed - causing duplicate copies of a
+            resource to be sent by the server - a PUSH_PROMISE frame SHOULD be sent prior to any
+            content that might allow a client to discover the pushed resource and request it.
           </t>
 
           <t>
@@ -1778,12 +1773,9 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            Note: If the server does not have all of the Response headers available at the time it
-            issues the HEADERS frame for the pushed resource, it may later use an additional HEADERS
-            frame to augment the name-value pairs to be associated with the pushed stream.  All
-            mandatory headers MUST be sent prior to sending any data frames on the stream.  The
-            subsequent HEADERS frame(s) MUST NOT duplicate header values from previous HEADERS
-            frames.
+            Note: A server does not need to have all response header fields available at the time it
+            issues a PUSH_PROMISE frame.  All remaining headers are included in the HEADERS frame.
+            The HEADERS frame MUST NOT duplicate header fields from the PUSH_PROMISE frames.
           </t>
         </section>
 
@@ -1817,11 +1809,10 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            When a client receives a HEADERS+PRIORITY<cref>TODO: PUSH_PROMISE</cref> frame from the
-            server without a the <spanx style="verb">:host</spanx>, <spanx
-            style="verb">:scheme</spanx>, and <spanx style="verb">:path</spanx> headers, it MUST
-            treat this as a <xref target="StreamErrorHandler">stream error</xref> of type
-            PROTOCOL_ERROR.
+            When a client receives a PUSH_PROMISE frame from the server without a the <spanx
+            style="verb">:host</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
+            style="verb">:path</spanx> headers, it MUST treat this as a <xref
+            target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
           </t>
 
           <t>
@@ -1843,8 +1834,8 @@ Upgrade: HTTP/2.0
 
           <t>
             If the server sends a HEADERS frame containing headers that duplicate values on a
-            previous HEADERS frame for the same stream, the client MUST treat this as a <xref
-            target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
+            previous HEADERS or PUSH_PROMISE frames on the same stream, the client MUST treat this
+            as a <xref target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
           </t>
 
           <t>
@@ -2281,6 +2272,9 @@ Upgrade: HTTP/2.0
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
+        <t>
+          Added globally applicable flags to framing.
+        </t>
         <t>
           Removed zlib-based header compression mechanism.
         </t>
