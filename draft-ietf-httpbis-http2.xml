@@ -422,7 +422,7 @@ Upgrade: HTTP/2.0
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 |         Length (16)           |   Type (8)    |   Flags (8)   |
 +-+-------------+---------------+-------------------------------+
-|R|                   Identifier (31)                           |
+|R|                 Stream Identifier (31)                      |
 +-+-------------------------------------------------------------+
 |                     Frame Data (0...)                       ...
 +---------------------------------------------------------------+
@@ -455,9 +455,10 @@ Upgrade: HTTP/2.0
               <t hangText="R:">
                 A reserved 1-bit field.  The semantics of this bit are not defined.
               </t>
-              <t hangText="Identifier:">
-                A 31-bit identifier for the frame.  The frame type determines how this identifier is
-                interpreted.  For many frame types, this field includes a stream number.
+              <t hangText="Stream Identifier:">
+                A 31-bit stream identifier (see <xref target="StreamCreation"/>).  A value 0 is
+                reserved for frames that are directed at the session as a whole instead of a single
+                stream.
               </t>
               <t hangText="Frame Data:">
                 Frames contain between 0 and 65535 bytes of data.
@@ -521,9 +522,10 @@ Upgrade: HTTP/2.0
             by sending a frame on the stream.
           </t>
           <t>
-            Streams initiated by a client use odd numbered stream identifiers.  Streams initiated by
-            the server use odd numbered stream identifiers.  A stream identifier of zero MUST NOT be
-            used to create a new stream.
+            Streams are identified by a 31-bit numeric identifier.  Streams initiated by a client
+            use odd numbered stream identifiers.  Streams initiated by the server use odd numbered
+            stream identifiers.  A stream identifier of zero MUST NOT be used to create a new
+            stream.
           </t>
           <t>
             The stream identifier of a new stream MUST be greater than all other streams from that
@@ -852,10 +854,6 @@ Upgrade: HTTP/2.0
           <t>
             No frame-specific flags are defined for DATA frames.
           </t>
-          <t>
-            The identifier field in the data frame header MUST contain a stream identifier for an
-            open stream.
-          </t>
         </section>
 
         <section anchor="HEADERS_PRIORITY" title="HEADERS+PRIORITY">
@@ -904,10 +902,6 @@ Upgrade: HTTP/2.0
           <t>
             The RST_STREAM frame does not define any valid flags.
           </t>
-          <t>
-            The identifier field in the frame header MUST contain the stream identifier for an open
-            stream.
-          </t>
 
           <t>
             The RST_STREAM frame contains a single 32-bit <xref target="ErrorCodes">error
@@ -918,8 +912,6 @@ Upgrade: HTTP/2.0
             for that stream, and the stream moves into the closed state.
           </t>
         </section>
-
-
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
@@ -956,9 +948,8 @@ Upgrade: HTTP/2.0
             </list>
           </t>
           <t>
-            SETTINGS frames always apply to a session, never a single stream.  The identifier field
-            in the frame header carries a count of the number of settings contained in the payload.
-            <cref>ED: this seems totally unnecessary.</cref>
+            SETTINGS frames always apply to a session, never a single stream.  The stream identifier
+            for a settings frame MUST be zero.
           </t>
           
           <figure title="SETTINGS ID/Value Pair">
@@ -1149,14 +1140,14 @@ Upgrade: HTTP/2.0
             PING should take highest priority if there is other data waiting to be sent.
           </t>
           <t>
-            The PING frame does not define any valid flags.
-          </t>
-          <t>
-            A client MUST populate the identifier field in the frame header of a PING frame with an
-            odd numbered value.  A server MUST populate the identifier field in the frame header of
-            a PING frame with an even numbered value.  A client MUST reply to PING frames with
-            even numbered identifiers; a server MUST only reply to PING frames with odd numbered
-            identifiers.  These measures ensure that accidental looping of PINGs cannot occur.
+            The PING frame defines a frame-specific flag:
+            <list style="hanging">
+              <t hangText="PONG (0x2):">
+                Bit 2 being set indicates that this ping frame is a ping response.  An endpoint MUST
+                set this flag in ping responses.  An endpoint MUST NOT respond to ping frames
+                containing this flag.
+              </t>
+            </list>
           </t>
           <t>
             The payload of a PING frame contains any value.  A PING response MUST contain the
@@ -1198,18 +1189,34 @@ Upgrade: HTTP/2.0
             <cref>Issue: session state that is established by those "ignored" messages cannot be
             ignored without the state in the two peers becoming unsynchronized.</cref>
           </t>
+
+          <figure title="GOAWAY Payload Format">
+            <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|                  Last-Stream-ID (31)                        |
++-+-------------------------------------------------------------+
+|                      Error Code (32)                          |
++---------------------------------------------------------------+
+</artwork>
+          </figure>
           <t>
             The GOAWAY frame does not define any valid flags.
           </t>
           <t>
-            The GOAWAY message applies to the session, not a specific stream.  The identifier field
-            of the frame header contains the identifier for the last stream that the sender of the
-            GOAWAY frame is prepared to provide replies to.  If no streams were replied to, this
-            value MUST be 0.
+            The GOAWAY frame applies to the session, not a specific stream.  The stream identifier
+            MUST be zero.
           </t>
           <t>
-            The payload of a GOAWAY frame contains a 32-bit <xref target="ErrorCodes">error
-            code</xref> that contains the reason for closing the session.
+            The GOAWAY frame contains an identifier of the last stream that the sender of the GOAWAY
+            is prepared to act upon, which can include processing and replies.  This allows an
+            endpoint to discover what streams might have had some effect or what might be safe to
+            automatically retry.  If no streams were acted upon, the last stream ID MUST be 0.
+          </t>
+          <t>
+            The GOAWAY frame contains a 32-bit <xref target="ErrorCodes">error code</xref> that
+            contains the reason for closing the session.
           </t>
         </section>
 
@@ -1221,10 +1228,6 @@ Upgrade: HTTP/2.0
           </t>
           <t>
             No frame-specific flags are defined for the HEADERS frame.
-          </t>
-          <t>
-            The identifier field in the HEADERS frame header MUST contain a stream identifier for an
-            open stream.
           </t>
           <t>
             The body of a HEADERS frame contains a <xref target="HeaderBlock">Headers Block</xref>.
@@ -1263,9 +1266,9 @@ Upgrade: HTTP/2.0
             </list>
         </t>
           <t>
-            The identifier field in the WINDOW_UPDATE frame header MUST contain a stream identifier
-            for an open stream, or the value 0.  A zero value indicates that the WINDOW_UPDATE
-            applies to the session level flow control window.
+             The WINDOW_UPDATE frame can be stream related or session related.  The stream
+             identifier in the WINDOW_UPDATE frame header identifies the affected stream, or
+             includes a value of 0 to indicate that the session flow control window is updated.
           </t>
           <t>
             The payload of a WINDOW_UPDATE frame contains a 32-bit value.  This value is the
