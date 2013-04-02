@@ -561,7 +561,7 @@ Upgrade: HTTP/2.0
 
         <section title="Stream headers">
           <t>
-            Streams carry optional sets of pair headers which carry metadata about the stream.
+            Streams carry optional sets of header fields which carry metadata about the stream.
             After the stream has been created, and as long as the sender is not <xref
             target="StreamClose">closed</xref> or <xref target="StreamHalfClose">half-closed</xref>,
             each side may send HEADERS frame(s) containing the header data.  Header data can be sent
@@ -892,8 +892,8 @@ Upgrade: HTTP/2.0
 
         <section anchor="HEADERS_PRIORITY" title="HEADERS+PRIORITY">
           <t>
-            The HEADERS+PRIORITY frame (type=1) allows the sender to set headers and stream priority
-            at the same time.  This MUST be used for each stream that is created.
+            The HEADERS+PRIORITY frame (type=1) allows the sender to set header fields and stream
+            priority at the same time.  This MUST be used for each stream that is created.
           </t>
           <figure title="HEADERS+PRIORITY Frame Payload">
             <artwork type="inline">
@@ -1161,9 +1161,8 @@ Upgrade: HTTP/2.0
 
           <t>
             There is no requirement that the streams referred to by this frame are created in the
-            order referenced.  <cref>Ed: this last statement is problematic for a generic framing
-            layer.  If this is desirable behavior, then maybe the promise should be the first frame
-            of the new stream, rather than a frame on an existing stream.</cref>
+            order referenced.  The PUSH_PROMISE reserves stream identifiers for later use; these
+            reserved identifiers can be used as prioritization needs dictate.
           </t>
 
           <t>
@@ -1248,9 +1247,9 @@ Upgrade: HTTP/2.0
 
         <section anchor="HEADERS" title="HEADERS">
           <t>
-            The HEADERS frame (type=8) augments a stream with additional headers. It may be
-            optionally sent on an existing stream at any time.  Specific application of the headers
-            in this frame is application-dependent.
+            The HEADERS frame (type=8) provides header fields for a stream. It may be optionally
+            sent on an existing stream at any time.  Specific application of the headers in this
+            frame is application-dependent.
           </t>
           <t>
             No frame-specific flags are defined for the HEADERS frame.
@@ -1440,11 +1439,12 @@ Upgrade: HTTP/2.0
 
         <section anchor="HeaderBlock" title="Header Block">
           <t>
-            The Header Block is found in the HEADERS, HEADERS+PRIORITY and PUSH_PROMISE frames.
-            Headers consist of a set of name-value pairs.  Headers are compressed using black magic.
+            The header block is found in the HEADERS, HEADERS+PRIORITY and PUSH_PROMISE frames.  The
+            header block consists of a set of header fields, which are name-value pairs.  Headers
+            are compressed using black magic.
           </t>
           <t>
-            Compression of headers is a work in progress, as is the format of this block.
+            Compression of header fields is a work in progress, as is the format of this block.
           </t>
         </section>
       </section>
@@ -1519,9 +1519,9 @@ Upgrade: HTTP/2.0
             At the application level, HTTP uses name-value pairs in its header fields.  Because
             HTTP/2.0 merges the existing HTTP header fields with HTTP/2.0 headers, there is a
             possibility that some HTTP applications already use a particular header field name.  To
-            avoid any conflicts, all headers introduced for layering HTTP over HTTP/2.0 are prefixed
-            with ":".  ":" is not a valid sequence in HTTP/1.* header field naming, preventing any
-            possible conflict.
+            avoid any conflicts, all header fields introduced for layering HTTP over HTTP/2.0 are
+            prefixed with ":".  ":" is not a valid sequence in HTTP/1.* header field naming,
+            preventing any possible conflict.
           </t>
         </section>
 
@@ -1536,8 +1536,8 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            The headers included in the HEADERS+PRIORITY frame contain all of the HTTP header fields
-            that are associated with an HTTP request. The header block in HTTP/2.0 is mostly
+            The header fields included in the HEADERS+PRIORITY frame contain all of the HTTP header
+            fields that are associated with an HTTP request. The header block in HTTP/2.0 is mostly
             unchanged from today's HTTP header block, with the following differences:
             <list>
               <t>
@@ -1718,13 +1718,13 @@ Upgrade: HTTP/2.0
         <t>
            Pushed responses are associated with a request at the HTTP/2.0 framing layer.  The
            PUSH_PROMISE includes a stream identifier for an associated request/response exchange
-           that supplies request headers.  The pushed stream inherits all of the request headers
-           from the associated stream with the exception of resource identification headers (<spanx
-           style="verb">:host</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
-           style="verb">:path</spanx>), which are provided as part of the PUSH_PROMISE frame.
-           Pushed resources always have an associated <spanx style="verb">:method</spanx> of <spanx
-           style="verb">GET</spanx>.  A cache MUST store these inherited and implied request headers
-           with the cached resource.
+           that supplies request header fields.  The pushed stream inherits all of the request
+           header fields from the associated stream with the exception of resource identification
+           header fields (<spanx style="verb">:host</spanx>, <spanx style="verb">:scheme</spanx>,
+           and <spanx style="verb">:path</spanx>), which are provided as part of the PUSH_PROMISE
+           frame.  Pushed resources always have an associated <spanx style="verb">:method</spanx> of
+           <spanx style="verb">GET</spanx>.  A cache MUST store these inherited and implied request
+           header fields with the cached resource.
         </t>
 
         <t>
@@ -1761,11 +1761,12 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            Many uses of server push are to send content that a client discovers is needed based on
-            the content of a response representation.  To minimize the chances that a client will
-            make a request for resources that are being pushed - causing duplicate copies of a
-            resource to be sent by the server - a PUSH_PROMISE frame SHOULD be sent prior to any
-            content that might allow a client to discover the pushed resource and request it.
+            Many uses of server push are to send content that a client is likely to discover a need
+            for based on the content of a response representation.  To minimize the chances that a
+            client will make a request for resources that are being pushed - causing duplicate
+            copies of a resource to be sent by the server - a PUSH_PROMISE frame SHOULD be sent
+            prior to any content in the response representation that might allow a client to
+            discover the pushed resource and request it.
           </t>
 
           <t>
@@ -1774,8 +1775,8 @@ Upgrade: HTTP/2.0
 
           <t>
             Note: A server does not need to have all response header fields available at the time it
-            issues a PUSH_PROMISE frame.  All remaining headers are included in the HEADERS frame.
-            The HEADERS frame MUST NOT duplicate header fields from the PUSH_PROMISE frames.
+            issues a PUSH_PROMISE frame.  All remaining header fields are included in the HEADERS
+            frame.  The HEADERS frame MUST NOT duplicate header fields from the PUSH_PROMISE frames.
           </t>
         </section>
 
@@ -1811,7 +1812,7 @@ Upgrade: HTTP/2.0
           <t>
             When a client receives a PUSH_PROMISE frame from the server without a the <spanx
             style="verb">:host</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
-            style="verb">:path</spanx> headers, it MUST treat this as a <xref
+            style="verb">:path</spanx> header fields, it MUST treat this as a <xref
             target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
           </t>
 
@@ -1833,7 +1834,7 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            If the server sends a HEADERS frame containing headers that duplicate values on a
+            If the server sends a HEADERS frame containing header fields that duplicate values on a
             previous HEADERS or PUSH_PROMISE frames on the same stream, the client MUST treat this
             as a <xref target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
           </t>
