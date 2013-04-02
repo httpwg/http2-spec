@@ -844,49 +844,17 @@ Upgrade: HTTP/2.0
       </section>
 
       <section title="Frame Types">
-        <section anchor="DataFrames" title="Data Frames">
+        <section anchor="DataFrames" title="DATA Frames">
           <t>
-            Data frames (type=0) are used to convey HTTP message bodies.  The payload of a data
+            DATA frames (type=0) are used to convey HTTP message bodies.  The payload of a data
             frame contains either a request or response body.
           </t>
           <t>
-            Valid frame-specific flags for data frames are:
-            <list style="hanging">
-              <t hangText="COMPRESSED (0x2):">
-                Bit 2 being set indicates that the data in the frame has been compressed with ZLIB
-                compression (<xref target="RFC1950"/>).
-              </t>
-            </list>
+            No frame-specific flags are defined for DATA frames.
           </t>
           <t>
             The identifier field in the data frame header MUST contain a stream identifier for an
             open stream.
-          </t>
-
-          <t>
-            Data frame processing requirements:
-            <list style="symbols">
-              <t>
-                If an endpoint receives a data frame for a stream identifier which is not open and
-                the endpoint has not sent a <xref target="GOAWAY">GOAWAY</xref> frame, it MUST send
-                issue a <xref target="StreamErrorHandler">stream error</xref> with the error code
-                INVALID_STREAM.  <cref>INVALID_STREAM called into question: usage pattern will
-                determine this, see next part.</cref>
-              </t>
-              <t>
-                All HTTP/2.0 endpoints MUST accept compressed data frames.  Compression of data
-                frames is always done using zlib compression.  Each stream initializes and uses its
-                own compression context dedicated to use within that stream.  Endpoints are
-                encouraged to use application level compression rather than HTTP/2.0 stream level
-                compression.
-              </t>
-              <t>
-                Each HTTP/2.0 stream sending compressed frames creates a separate zlib context for
-                the data streams on that stream.  Thus, if both endpoints of a stream are
-                compressing data on the stream, there will be two zlib contexts, one for sending and
-                one for receiving.
-              </t>
-            </list>
           </t>
         </section>
 
@@ -1587,7 +1555,7 @@ Upgrade: HTTP/2.0
               <t>
                 User-agents MUST support gzip compression. Regardless of the Accept-Encoding sent by
                 the user-agent, the server may always send content encoded with gzip or deflate
-                encoding.
+                encoding.  <cref>Still valid?</cref>
               </t>
               <t>
                 If a server receives a request where the sum of the data frame payload lengths does
@@ -1936,22 +1904,6 @@ Upgrade: HTTP/2.0
           other aspects of HTTP/2.0 and TCP interactions, we believe this is completely mitigated.
         </t>
       </section>
-      <section title="Data Compression">
-        <t>
-          Generic compression of data portion of the streams (as opposed to compression of the
-          headers) without knowing the content of the stream is redundant.  There is no value in
-          compressing a stream which is already compressed.  Because of this, HTTP/2.0 does allow
-          data compression to be optional.  We included it because study of existing websites shows
-          that many sites are not using compression as they should, and users suffer because of it.
-          We wanted a mechanism where, at the HTTP/2.0 layer, site administrators could simply force
-          compression - it is better to compress twice than to not compress.
-        </t>
-
-        <t>
-          Overall, however, with this feature being optional and sometimes redundant, it is unclear
-          if it is useful at all.  We will likely remove it from the specification.
-        </t>
-      </section>
       <section title="Server Push">
         <t>
           A subtle but important point is that server push streams must be declared before the
@@ -2273,6 +2225,9 @@ Upgrade: HTTP/2.0
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-01" anchor="changes.since.draft-ietf-httpbis-http2-01">
+        <t>
+          Removed data frame compression.
+        </t>
         <t>
           Added PUSH_PROMISE.
         </t>
