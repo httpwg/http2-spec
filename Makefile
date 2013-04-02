@@ -17,9 +17,15 @@ latest: $(TARGETS)
 
 submit: $(draft_title)-$(next_rev).xml $(draft_title)-$(next_rev).txt
 
+ifeq "$(shell uname -s 2>/dev/null)" "Darwin"
+    sed_i := sed -i ''
+else
+    sed_i := sed -i
+endif
+
 $(draft_title)-$(next_rev).xml:
 	cp $(draft_title).xml $(draft_title)-$(next_rev).xml
-	sed -i '' -e"s/$(draft_title)-latest/$(draft_title)-$(next_rev)/" $(draft_title)-$(next_rev).xml
+	$(sed_i) -e"s/$(draft_title)-latest/$(draft_title)-$(next_rev)/" $(draft_title)-$(next_rev).xml
 
 .PHONY: idnits
 idnits: $(draft_title)-$(next_rev).txt
