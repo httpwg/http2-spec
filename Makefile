@@ -9,6 +9,8 @@ next_rev = $(shell printf "%.2d" `echo ${current_rev}+1 | bc`)
 stylesheet = lib/myxml2rfc.xslt
 reduction  = lib/clean-for-DTD.xslt
 
+extra_style = $(shell cat lib/style.css)
+
 TARGETS = $(draft_title).html \
           $(draft_title).redxml \
           $(draft_title).txt
@@ -33,11 +35,12 @@ idnits: $(draft_title)-$(next_rev).txt
 
 clean:
 	rm -f $(draft_title).redxml
-	rm -f $(draft_title)-*.xml
-	rm -f $(draft_title)-*.txt
+	rm -f $(draft_title)*.txt
+	rm -f $(draft_title)*.html
 
 %.html: %.xml $(stylesheet)
 	$(saxon) $< $(stylesheet) > $@
+	$(sed_i) -e"s*</style>*</style><style tyle='text/css'>$(extra_style)</style>*" $@
 
 %.redxml: %.xml $(reduction)
 	$(saxon) $< $(reduction) > $@
