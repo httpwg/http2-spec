@@ -950,6 +950,49 @@ Upgrade: HTTP/2.0
             for a settings frame MUST be zero.
           </t>
 
+          <section title="SETTINGS ID/Value Pairs">
+            <figure title="SETTINGS ID/Value Pair Format">
+              <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|SettingFlags(8)|             Setting Identifier (24)           |
++---------------+-----------------------------------------------+
+|                        Value (32)                             |
++---------------------------------------------------------------+
+</artwork>
+            </figure>
+            <t>
+              The payload of a SETTINGS frame contains zero or more settings.  Each setting is
+              comprised of the following
+              <list style="hanging">
+                <t hangText="Settings Flags:">
+                  An 8-bit flags field containing per-setting instructions.  The following flags are
+                  valid:
+                  <list style="hanging">
+                    <t hangText="PERSIST_VALUE (0x1):">
+                      Bit 1 (the least significant bit) being set indicates a request from the server
+                      to the client to persist this setting.  A client MUST NOT set this flag.
+                    </t>
+                    <t hangText="PERSISTED (0x2):">
+                      Bit 2 being set indicates that this setting is a persisted setting being
+                      returned by the client to the server.  This also indicates that this setting is
+                      not a client setting, but a value previously set by the server.  A server MUST
+                      NOT set this flag.
+                    </t>
+                  </list>
+                  All other settings flags are reserved.
+                </t>
+                <t hangText="Setting Identifier:">
+                  A 24-bit field that identifies the setting.
+                </t>
+                <t hangText="Value:">
+                  A 32-bit value for the setting.
+                </t>
+              </list>
+            </t>
+          </section>
+
           <section title="Settings Persistence">
             <t>
               When the server is the sender, the sender can request that configuration data be
@@ -976,117 +1019,78 @@ Upgrade: HTTP/2.0
             </t>          
           </section>
           
-          <figure title="SETTINGS ID/Value Pair Format">
-            <artwork type="inline">
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|SettingFlags(8)|             Setting Identifier (24)           |
-+---------------+-----------------------------------------------+
-|                        Value (32)                             |
-+---------------------------------------------------------------+
-</artwork>
-          </figure>
-          <t>
-            The payload of a SETTINGS frame contains zero or more settings.  Each setting is
-            comprised of the following
-            <list style="hanging">
-              <t hangText="Settings Flags:">
-                An 8-bit flags field containing per-setting instructions.  The following flags are
-                valid:
-                <list style="hanging">
-                  <t hangText="PERSIST_VALUE (0x1):">
-                    Bit 1 (the least significant bit) being set indicates a request from the server
-                    to the client to persist this setting.  A client MUST NOT set this flag.
+          <section title="Defined Settings">
+            <t>
+              The following settings are defined:
+              <list style="hanging">
+                <x:lt hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
+                  <t>
+                    indicates the sender's estimated upload bandwidth for this session. The value 
+                    is an the integral number of kilobytes per
+                    second that the sender predicts as an expected maximum upload channel capacity.
                   </t>
-                  <t hangText="PERSISTED (0x2):">
-                    Bit 2 being set indicates that this setting is a persisted setting being
-                    returned by the client to the server.  This also indicates that this setting is
-                    not a client setting, but a value previously set by the server.  A server MUST
-                    NOT set this flag.
+                </x:lt>
+                <x:lt hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
+                  <t>
+                    indicates the sender's estimated download bandwidth for this session. The value 
+                    is an integral number of kilobytes per
+                    second that the sender predicts as an expected maximum download channel capacity.
                   </t>
-                </list>
-                All other settings flags are reserved.
-              </t>
-              <t hangText="Setting Identifier:">
-                A 24-bit field that identifies the setting.
-              </t>
-              <t hangText="Value:">
-                A 32-bit value for the setting.
-              </t>
-            </list>
-          </t>
+                </x:lt>
+                <x:lt hangText="SETTINGS_ROUND_TRIP_TIME (3):">
+                  <t>
+                    indicates the sender's estimated round-trip-time for this session. The round
+                    trip time is defined as the minimum amount of time to send a control frame from
+                    this client to the remote and receive a response. The value is represented in
+                    milliseconds.
+                  </t>
+                </x:lt>
+                <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
+                  <t>
+                    indicates the maximum number of concurrent streams that the sender will allow. 
+                    This limit is directional: it applies to the number
+                    of streams that the sender permits the receiver to create. By default there is no
+                    limit.  It is recommended that this value be no smaller than 100,
+                    so as to not unnecessarily limit parallelism.
+                  </t>
+                </x:lt>
+                <x:lt hangText="SETTINGS_CURRENT_CWND (5):">
+                  <t>
+                    indicates the sender's current TCP CWND value.
+                  </t>
+                </x:lt>
+                <x:lt hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
+                  <t>
+                    indicates the sender's retransmission rate (bytes retransmitted / total bytes transmitted).
+                  </t>
+                </x:lt>
+                <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
+                  <t>
+                    indicates the sender's initial stream window size (in bytes) for new streams.
+                  </t>
+                </x:lt>
+                <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
+                  <t>
+                    indicates that streams directed to the sender will not
+                    be subject to flow control.  The least significant bit (0x1) is set to indicate
+                    that new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
+                    session is not flow controlled.  All other bits are reserved.
+                  </t>
+                  <t>
+                    This setting applies to all streams, including existing streams.
+                  </t>
+                  <t>
+                    These bits cannot be cleared once set, see <xref target="EndFlowControl"/>.
+                  </t>
+                </x:lt>
+              </list>
+            </t>
 
-          <t>
-            The following settings are defined:
-            <list style="hanging">
-              <x:lt hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
-                <t>
-                  indicates the sender's estimated upload bandwidth for this session. The value 
-                  is an the integral number of kilobytes per
-                  second that the sender predicts as an expected maximum upload channel capacity.
-                </t>
-              </x:lt>
-              <x:lt hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
-                <t>
-                  indicates the sender's estimated download bandwidth for this session. The value 
-                  is an integral number of kilobytes per
-                  second that the sender predicts as an expected maximum download channel capacity.
-                </t>
-              </x:lt>
-              <x:lt hangText="SETTINGS_ROUND_TRIP_TIME (3):">
-                <t>
-                  indicates the sender's estimated round-trip-time for this session. The round
-                  trip time is defined as the minimum amount of time to send a control frame from
-                  this client to the remote and receive a response. The value is represented in
-                  milliseconds.
-                </t>
-              </x:lt>
-              <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
-                <t>
-                  indicates the maximum number of concurrent streams that the sender will allow. 
-                  This limit is directional: it applies to the number
-                  of streams that the sender permits the receiver to create. By default there is no
-                  limit.  It is recommended that this value be no smaller than 100,
-                  so as to not unnecessarily limit parallelism.
-                </t>
-              </x:lt>
-              <x:lt hangText="SETTINGS_CURRENT_CWND (5):">
-                <t>
-                  indicates the sender's current TCP CWND value.
-                </t>
-              </x:lt>
-              <x:lt hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
-                <t>
-                  indicates the sender's retransmission rate (bytes retransmitted / total bytes transmitted).
-                </t>
-              </x:lt>
-              <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
-                <t>
-                  indicates the sender's initial stream window size (in bytes) for new streams.
-                </t>
-              </x:lt>
-              <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
-                <t>
-                  indicates that streams directed to the sender will not
-                  be subject to flow control.  The least significant bit (0x1) is set to indicate
-                  that new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
-                  session is not flow controlled.  All other bits are reserved.
-                </t>
-                <t>
-                  This setting applies to all streams, including existing streams.
-                </t>
-                <t>
-                  These bits cannot be cleared once set, see <xref target="EndFlowControl"/>.
-                </t>
-              </x:lt>
-            </list>
-          </t>
-
-          <t>
-            The SETTINGS frame is extensible for future information which may improve
-            client-server communications.
-          </t>
+            <t>
+              The SETTINGS frame is extensible for future information which may improve
+              client-server communications.
+            </t>
+          </section>
         </section>
 
         <section anchor="PUSH_PROMISE" title="PUSH_PROMISE">
