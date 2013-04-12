@@ -1259,42 +1259,43 @@ Upgrade: HTTP/2.0
 
         <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
           <t>
-            The WINDOW_UPDATE frame (type=9) is used to implement flow control in HTTP/2.0.
+            The WINDOW_UPDATE frame (type=9) is used to implement flow control.
           </t>
           <t>
-            Flow control in HTTP/2.0 operates at two levels: on each individual stream and on the
+            Flow control operates at two levels: on each individual stream and on the
             entire session.
           </t>
           <t>
-            Flow control in HTTP/2.0 is hop by hop, that is, only between the two endpoints of a
-            HTTP/2.0 connection. Intermediaries do not forward WINDOW_UPDATE messages between
+            Both types of flow control are hop by hop; that is, only between the two endpoints. 
+            Intermediaries do not forward WINDOW_UPDATE messages between
             dependent sessions.  However, throttling of data transfer by any receiver can
             indirectly cause the propagation of flow control information toward the original
             sender.
           </t>
           <t>
             Flow control only applies to frames that are identified as being subject to flow
-            control. Of the frames defined in this document, only data frames are subject to flow
-            control.  Receivers MUST either buffer or process all other frames, terminate the
+            control. Of the frames defined in this document, this includes only DATA frame.  
+            Receivers MUST either buffer or process all other frames, terminate the
             corresponding stream, or terminate the session.  The stream or session is terminated
             with a FLOW_CONTROL_ERROR code.
           </t>
           <t>
-            Valid flags for the WINDOW_UPDATE frame are:
+            The following additional flags are defined for the WINDOW_UPDATE frame:
             <list style="hanging">
               <t hangText="END_FLOW_CONTROL (0x2):">
-                Bit 2 being set indicates that flow control for the identified stream or session is
-                ended and subsequent frames do not need to be flow controlled.
+                Bit 2 being set indicates that flow control for the identified stream or session has been
+                ended; subsequent frames do not need to be flow controlled.
               </t>
             </list>
         </t>
           <t>
-             The WINDOW_UPDATE frame can be stream related or session related.  The stream
-             identifier in the WINDOW_UPDATE frame header identifies the affected stream, or
-             includes a value of 0 to indicate that the session flow control window is updated.
+             The WINDOW_UPDATE frame can be specific to a stream or to the entire session. 
+             In the former case, the frame's stream identifier indicates the affected stream;
+             in the latter, the value "0" indicates that the entire session is the subject of 
+             the frame.
           </t>
           <t>
-            The payload of a WINDOW_UPDATE frame contains a 32-bit value.  This value is the
+            The payload of a WINDOW_UPDATE frame is a 32-bit value indicating the
             additional number of bytes that the sender can transmit in addition to the existing flow
             control window.  The legal range for this field is 1 to 2<x:sup>31</x:sup> - 1
             (0x7fffffff) bytes; the most significant bit of this value is reserved.
@@ -1302,13 +1303,13 @@ Upgrade: HTTP/2.0
 
           <section title="The Flow Control Window">
             <t>
-              Flow control in HTTP/2.0 is implemented by a flow control window kept by the sender of
-              each stream. The flow control window is a simple integer value that indicates how many
-              bytes of data the sender is permitted to transmit.  The flow control window size is a
+              Flow control in HTTP/2.0 is implemented using a window kept by each sender on every
+              stream. The flow control window is a simple integer value that indicates how many
+              bytes of data the sender is permitted to transmit; as such, its size is a
               measure of the buffering capability of the receiver.
             </t>
             <t>
-              Two flow control windows apply to the sending of every message: the stream flow
+              Two flow control windows are applicable; the stream flow
               control window and the session flow control window.  The sender MUST NOT send a flow
               controlled frame with a length that exceeds the space available in either of the flow
               control windows advertised by the receiver.  Frames with zero length with the FINAL
@@ -1369,7 +1370,7 @@ Upgrade: HTTP/2.0
             <t>
               A change to SETTINGS_INITIAL_WINDOW_SIZE could cause the available space in a flow
               control window to become negative.  A sender MUST track the negative flow control
-              window and not send new flow controlled frames until it receives WINDOW_UPDATE
+              window, and MUST NOT send new flow controlled frames until it receives WINDOW_UPDATE
               messages that cause the flow control window to become positive.
             </t>
             <t>
@@ -1384,7 +1385,7 @@ Upgrade: HTTP/2.0
           <section title="Reducing the Stream Window Size">
             <t>
               A receiver that wishes to use a smaller flow control window than the current size
-              sends a new SETTINGS frame.  However, the receiver MUST be prepared to receive data
+              can send a new SETTINGS frame.  However, the receiver MUST be prepared to receive data
               that exceeds this window size, since the sender might send data that exceeds the lower
               limit prior to processing the SETTINGS frame.
             </t>
@@ -1400,7 +1401,7 @@ Upgrade: HTTP/2.0
                   blocking, sending WINDOW_UPDATE messages as it consumes data.
                 </t>
               </list>
-              If a receiver decides to accept streams, both sides must recompute the available flow
+              If a receiver decides to accept streams, both sides MUST recompute the available flow
               control window based on the initial window size sent in the SETTINGS. 
             </t>
           </section>
