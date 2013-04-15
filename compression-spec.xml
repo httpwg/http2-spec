@@ -1,0 +1,755 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type='text/xsl' href='lib/rfc2629.xslt' ?>
+
+<!--<?rfc header="Documentation"?>-->
+<!--?rfc private="RFC2629 through XSLT"?-->
+<?rfc toc="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc linkmailto="no"?>
+<?rfc editing="no"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?ref rfcedstyle="yes"?>
+<?rfc-ext allow-markup-in-artwork="yes" ?>
+<?rfc-ext include-index="no" ?>
+<!-- <?rfc topblock="no"?> -->
+<!--<?rfc strict="no"?>-->
+
+<rfc docName="header">
+    <front>
+        <title abbrev="HTTP Header">HTTP Header</title>
+
+        <keyword>HTTP</keyword>
+        <keyword>Header</keyword>
+        <abstract>
+            <t>
+                This document describes a format adapted to efficiently
+                represent HTTP headers in the context of HTTP/2.0.
+            </t>
+        </abstract>
+    </front>
+
+    <middle>
+        <section title="Introduction">
+
+            <t>
+                This document describes a format adapted to efficiently
+                represent HTTP headers in the context of HTTP/2.0.
+            </t>
+        </section>
+
+        <section title="Overview" anchor="overview">
+            <t>
+                HTTP headers can be represented in various ways.  As shown by
+                <xref target="SPDY">SPDY</xref>, Deflate compresses very well
+                HTTP headers.
+
+                But the use of Deflate has been found to cause security
+                issues.  In particular, the compression of sensitive data,
+                together with other data controlled by an attacker, may lead
+                to leakage of the sensitive data.
+
+                The processing and memory costs may also be too high for some
+                classes of devices, for example when doing forward or reverse
+                proxying.
+            </t>
+
+            <section title="Outline">
+                <t>
+                    The HTTP header representation described in this document
+                    is based on indexing tables that store (name,value) pairs,
+                    called header tables in the remainder of this document.
+                    Header tables are incrementally updated during the whole
+                    HTTP/2.0 session.  Two independent header tables are used
+                    during a HTTP/2.0 session, one for HTTP request headers
+                    and one for HTTP response headers.
+                </t>
+                <t>
+                    The encoder is responsible for deciding which headers to
+                    insert as (name,value) pairs in the header table.  The
+                    decoder follows exactly what the encoder prescribes.  This
+                    enables decoders to remain simple and understand a wide
+                    variety of encoders.
+                </t>
+                <t>
+                    A header may be represented as a literal or an index.  If
+                    represented as a literal, the representation specifies
+                    whether this header is used to update the indexing table.
+                    The different representations are described in <xref
+                        target="header.representation" />.
+                </t>
+                <t>
+                    A set of headers is coded as a difference from the
+                    previous set of headers.
+                </t>
+                <t>
+                    An example illustrating the use of the different tables to
+                    represent headers is available in <xref
+                        target="example"/>.
+                </t>
+            </section>
+        </section>
+
+        <section title="Indexing Strategies" anchor="indexing.strategies">
+            <section title="Indexing Tables" anchor="indexing.tables">
+                <section title="Header Table" anchor="header.table">
+                    <t>
+                        A header table consists in an ordered list of (name,
+                        value) pairs.  Once a header pair is inserted in the
+                        header table, its index does not change until the pair
+                        gets removed.  A pair is either inserted at the end of
+                        the table or replaces an existing pair depending on
+                        the chosen representation.
+                    </t>
+                    <t>
+                        Header names should be represented as lower-case
+                        strings.  A header name is matching with a pair name
+                        if they are equal using a character-based, <spanx>case
+                            insensitive</spanx> comparison.  A header value is
+                        matching with a pair value if they are equal using a
+                        character-based, <spanx>case sensitive</spanx>
+                        comparison.  A header is matching with a (name,value)
+                        pair if both name and value are matching.
+                    </t>
+                    <t>
+                        The header table is progressively updated based on
+                        headers represented as literal (as defined in <xref
+                            target="literal" />).  Two update mechanisms are
+                        defined:
+                        <list style="symbols">
+                            <t>
+                                Incremental indexing: the represented header
+                                is inserted at the end of the header table as
+                                a (name, value) pair.  The inserted pair index
+                                is set to the next free index in the table: it
+                                is equal to the number of headers in the table
+                                before its insertion.
+                            </t>
+                            <t>
+                                Substitution indexing: the represented header
+                                contains an index to an existing (name,value)
+                                pair.  The existing pair value is replaced by
+                                the header value.
+                            </t>
+                        </list>
+                        Incremental and substitution indexing are optional.
+                        If none of them is selected in a header
+                        representation, the header table is not updated.  In
+                        particular, no update happens on the header table when
+                        processing an indexed representation.
+                    </t>
+
+                    <t>
+                        The header table size can be bounded so as to limit
+                        the memory requirements.  The header table size is
+                        defined as the sum of the length (as defined in <xref
+                            target="string.literal.representation" />) of the
+                        values of all header table pairs.  Header names are
+                        not counted in the header table size.
+                    </t>
+                </section>
+                <section title="Name Table" anchor="name.table">
+                    <t>
+                        A name table is an ordered list of name entries that
+                        is used to efficiently represent header names.  A
+                        header name is matching a name table entry if they are
+                        equal using a character-based, <spanx>case
+                            insensitive</spanx> comparison.
+                    </t>
+                    <t>
+                        If a header name is matching a name table entry, it is
+                        represented as an integer based on the index of the
+                        entry, as described in <xref
+                            target="integer.representation" />.
+                        If a header name is not matching any of the name table
+                        entry, it is represented as a string, as described in
+                        <xref target="string.literal.representation" />.  A
+                        new entry containing the name is then inserted at the
+                        end of the name table.
+                        Once inserted in the name table, a header name is
+                        never removed and its index is never changing.
+                    </t>
+                    <t>
+                        To optimize the representation of the headers
+                        exchanged at the beginning of the HTTP/2.0 session,
+                        the header name table is initally populated with
+                        common header names.  The initial header names list is
+                        provided in <xref target="initial.headers" />.
+                    </t>
+                </section>
+            </section>
+
+            <section title="Header Representation" anchor="header.representation">
+                <section title="Literal Representation" anchor="literal">
+                    <t>
+                        The literal representation defines a header
+                        independentently of the header table.  A literal
+                        header is represented as:
+                        <list style="symbols">
+                            <t>
+                                A header name, represented using the name
+                                table, as described in <xref
+                                    target="name.table" />.
+                            </t>
+                            <t>
+                                The header value, represented as a literal
+                                string, as described in <xref
+                                    target="string.literal.representation" />.
+                            </t>
+                        </list>
+                    </t>
+                </section>
+
+                <section title="Indexed Representation" anchor="indexed">
+                    <t>
+                        The indexed representation defines a header as a match
+                        to a (name,value) pair in the header table.  An
+                        indexed header is  represented as:
+                        <list style="symbols">
+                            <t>
+                                An integer representing the index of the
+                                matching (name,value) pair, as described in
+                                <xref target="integer.representation" />.
+                            </t>
+                        </list>
+                    </t>
+                </section>
+            </section>
+
+            <section title="Differential Coding" anchor="differential.coding">
+                <cref>TODO</cref>
+            </section>
+        </section>
+
+        <section title="Detailed Format" anchor="detailed.format">
+            <cref>Prefixes for the different representations should be
+                reworked.</cref>
+            <section title="Low-level representations" anchor="string.encoding">
+                <cref>Maybe we can get rid of this section and push it in each
+                    section.</cref>
+
+                <section title="Integer representation" anchor="integer.representation">
+                    <t>
+                        Integers are used to represent name indexes, pair
+                        indexes or string lengths.
+
+                        The integer representation keeps byte-alignment as
+                        much as possible as this allows various processing
+                        optimizations as well as efficient use of DEFLATE.
+                        For that purpose, an integer representation always
+                        finishes at the end of a byte.
+                    </t>
+                    <t>
+                        An integer is represented in two parts: a prefix that
+                        fills the current byte and an optional list of bytes
+                        that are used if the integer value does not fit in the
+                        prefix.  The number of bits of the prefix (called N)
+                        is a parameter of the integer representation.
+                    </t>
+                    <t>
+                        The N-bit prefix allows filling the current byte.  If
+                        the value is small enough (strictly less than 2^N-1),
+                        it is encoded within the N-bit prefix.  Otherwise all
+                        the bits of the prefix are set to 1 and the value is
+                        encoded using an <eref
+                            target="http://en.wikipedia.org/wiki/Variable-length_quantity">
+                            unsigned variable length integer</eref>
+                        representation.
+                    </t>
+                    <t>
+                        The algorithm to represent an integer I is as follows:
+                        <list style="numbers">
+                            <t>If I &lt; 2^N - 1, encode I on N bits</t>
+                            <t>Else, encode 2^N - 1 on N bits and do the
+                                following steps:</t>
+                            <t><list style="numbers">
+                                <t>Set I to (I - (2^N - 1)) and Q to 1</t>
+                                <t>While Q &gt; 0</t>
+                                <t><list style="numbers">
+                                    <t>Compute Q and R, quotient and remainder
+                                        of I divided by 2^7</t>
+                                    <t>If Q is strictly greater than 0, write
+                                        one 1 bit; otherwise, write one 0
+                                        bit</t>
+                                    <t>Encode R on the next 7 bits</t>
+                                    <t>I = Q</t>
+                                </list></t>
+                            </list></t>
+                        </list>
+                    </t>
+
+                    <section title="Example 1: Encoding 10 using a 5-bit prefix"
+                        anchor="integer.representation.example1">
+                        <t>
+                            The value 10 is to be encoded with a 5-bit prefix.
+                            <list style="symbols">
+                                <t>
+                                    10 is less than 31 (= 2^5 - 1) and is
+                                    represented using the 5-bit prefix.
+                                </t>
+                            </list>
+                        </t>
+                        <figure>
+                            <artwork>
++-----+-----+-----+-----+-----+-----+-----+-----+
+|  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
++-----+-----+-----+-----+-----+-----+-----+-----+
+|  X  |  X  |  X  |  0  |  1  |  0  |  1  |  0  | 10 stored on 5 bits
++-----+-----+-----+-----+-----+-----+-----+-----+
+                            </artwork>
+                        </figure>
+                    </section>
+
+                    <section title="Example 2: Encoding 1337 using a 5-bit prefix"
+                        anchor="integer.representation.example2">
+                        <t>
+                            The value I=1337 is to be encoded with a 5-bit
+                            prefix.
+                            <list style="symbols">
+                                <t>1337 is greater than 31 (= 2^5 - 1).</t>
+                                <t><list style="symbols">
+                                    <t>The 5-bit prefix is filled with its max
+                                        value (31).</t>
+                                </list></t>
+                                <t>The value to represent on next bytes is I =
+                                    1337 - (2^5 - 1) = 1306.</t>
+                                <t><list style="symbols">
+                                    <t>1306 = 128*10 + 26, i.e. Q=10 and
+                                        R=26.</t>
+                                    <t>Q is greater than 1, bit 8 is set to
+                                        1.</t>
+                                    <t>The remainder R=26 is encoded on next 7
+                                        bits.</t>
+                                    <t>I is replaced by the quotient Q=10.</t>
+                                </list></t>
+                                <t>The value to represent on next bytes is I =
+                                    10.</t>
+                                <t><list style="symbols">
+                                    <t>10 = 128*0 + 10, i.e. Q=0 and R=10.</t>
+                                    <t>Q is equal to 0, bit 16 is set to
+                                        0.</t>
+                                    <t>The remainder R=10 is encoded on next 7
+                                        bits.</t>
+                                    <t>I is replaced by the quotient Q=0.</t>
+                                </list></t>
+                                <t>The process ends.</t>
+                            </list>
+
+                        </t>
+                        <figure>
+                            <artwork>
+ +----+-----+-----+-----+-----+-----+-----+-----+
+|  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
++-----+-----+-----+-----+-----+-----+-----+-----+
+|  X  |  X  |  X  |  1  |  1  |  1  |  1  |  1  |  Prefix = 31
+|  1  |  0  |  0  |  1  |  1  |  0  |  1  |  0  |  Q>=1, R=26
+|  0  |  0  |  0  |  0  |  1  |  0  |  1  |  0  |  Q=0 , R=10
++-----+-----+-----+-----+-----+-----+-----+-----+
+                            </artwork>
+                        </figure>
+                    </section>
+                </section>
+
+                <section title="String literal representation" anchor="string.literal.representation">
+                    <t>
+                        Literal strings can represent header names or header
+                        values.  They are encoded in two parts:
+                        <list style="numbers">
+                            <t>The string length, defined as the number of
+                                bytes needed to store its UTF-8
+                                representation, is represented as an integer
+                                with a zero bits prefix.  If the string length
+                                is strictly less than 128, it is represented
+                                as one byte.
+                            </t>
+                            <t>
+                                The string value represented as a list of
+                                UTF-8 characters.
+                            </t>
+                        </list>
+                    </t>
+                </section>
+            </section>
+
+            <section title="Indexed Header Representation">
+                <t>
+                    Indexed headers can be represented as short indexed header
+                    if the matching pair index is strictly below 64.
+                    Otherwise it is represented as a long indexed header.
+                </t>
+                <section title="Short Indexed Header">
+                    <figure>
+                        <artwork>
++-------+-------+-------+-------+-------+-------+-------+-------+
+|   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |
++-------+-------+-------+-------+-------+-------+-------+-------+
+|   1   |   0   |             00 0000 - 11 1111                 |
+|       |       |            Matching pair index                |
+|       |       |         (if strictly lower than 64)           |
++-------+-------+-------+-------+-------+-------+-------+-------+
+                        </artwork>
+                    </figure>
+                    <t>
+                        This representation starts with the '10' 2-bit
+                        pattern, followed by the index of the matching pair,
+                        represented on 6 bits.  A short indexed header is
+                        always coded in one byte.
+                    </t>
+                </section>
+                <section title="Long Indexed Header">
+                    <figure>
+                        <artwork>
++-------+-------+-------+-------+-------+-------+-------+-------+
+|   0   |   1   |   2   |   3   |  ...  |  ...  |   e   |   f   |
++-------+-------+-------+-------+-------+-------+-------+-------+
+|   1   |   1   |  00  0000 0000 0000 - 11 1111 1111 1111 1111  |
+|       |       |                Matching pair index            |
+|       |       |        (if equal to or greater than 64)       |
++-------+-------+-------+-------+-------+-------+-------+-------+
+                        </artwork>
+                    </figure>
+
+                    <t>
+                        This representation starts with the '11' 2-bit
+                        pattern, followed by the value of the index of the
+                        matching pair minus 64, represented as an integer with
+                        a 14-bit prefix A long indexed header is coded in two
+                        bytes if the index minus 64 is strictly below 16383.
+                    </t>
+                </section>
+            </section>
+
+            <section title="Literal Header Representation">
+                <section title="Literal Header without Indexing">
+                    <figure>
+                        <artwork>
++-------+-------+-------+-------+-------+-------+-------+-------+
+|   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |
++-------+-------+-------+-------+-------+-------+-------+-------+
+|       |       |       |                0 0000                 |
+|       |       |       |         New header name symbol        |
+|   0   |   0   |   0   |---------------------------------------|
+|       |       |       |             0 0001 - 1 1111           |
+|       |       |       |    Index of matching header name      |
++-------+-------+-------+-------+-------+-------+-------+-------+
+                        </artwork>
+                    </figure>
+                    <t>
+                        This representation, which does not involve updating
+                        the header table, starts with the '000' 3-bit pattern.
+                    </t>
+                    <t>
+                        If the header name matches a header name entry whose
+                        index is IN,  the value (IN+1) is represented as an
+                        integer with a 5-bit prefix.  Note that if the index
+                        is strictly below 30, one byte is used.
+                    </t>
+                    <t>
+                        If the header name does not match a header name entry,
+                        the value 0 is represented on 5 bits followed by the
+                        header name, represented as a literal string.
+                    </t>
+                    <t>
+                        Header name representation is followed by the header
+                        value represented as a literal string.
+                    </t>
+
+                </section>
+
+                <section title="Literal Header with Indexing">
+                    <figure>
+                        <artwork>
++-------+-------+-------+-------+-------+-------+-------+-------+
+|   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |
++-------+-------+-------+-------+-------+-------+-------+-------+
+|       |       |       |       |             0000              |
+|       |       |       |Indexing|     New header name symbol    |
+|   0   |   0   |   1   |       |-------------------------------|
+|       |       |       | Mode  |           0001 - 1111         |
+|       |       |       |       | Index of matching header name |
++-------+-------+-------+-------+-------+-------+-------+-------+
+                        </artwork>
+                    </figure>
+                    <t>
+                        This representation starts with the '001' 3-bit
+                        pattern.  The fourth bit sets the indexing mode: 0 for
+                        incremental indexing, 1 for substitution indexing.
+                    </t>
+                    <t>
+                        If the header name matches a header name entry whose
+                        index is IN,  the value (IN+1) is represented as an
+                        integer with a 4-bit prefix.  Note that if the index
+                        is strictly below 14, one byte is used.
+                    </t>
+                    <t>
+                        If the header name does not match a header name entry,
+                        the value 0 is represented on 4 bits followed by the
+                        header name, represented as a literal string.
+                    </t>
+
+                    <t>
+                        Header name representation is followed by the header
+                        value represented as a string as described in <xref
+                            target="string.literal.representation" />.
+                        In the case of substitution indexing, the substituted
+                        (name,value) pair index is inserted before the header
+                        value as a zero-bit prefix integer.  The header value
+                        is represented as a literal string.
+                    </t>
+
+                </section>
+            </section>
+        </section>
+
+        <section title="Parameter Negotiation">
+            <t>
+                A few parameters can be used to accomodate client and server
+                processing and memory requirements.
+                <list style="hanging">
+                    <t hangText="SETTINGS_MAX_BUFFER_SIZE:">
+                        <t>
+                            Allows the sender to inform the remote endpoint of
+                            the maximum size its accepts for the header table.
+                        </t>
+                        <t>
+                            The default value is 4096 bytes.
+                        </t>
+                        <cref>Is this default value OK?</cref>
+                    </t>
+                </list>
+            </t>
+        </section>
+        <section anchor="Security" title="Security Considerations">
+            <t>TODO?</t>
+        </section>
+        <section anchor="IANA" title="IANA Considerations">
+            <t>This memo includes no request to IANA.</t>
+        </section>
+    </middle>
+
+    <back>
+        <references title="Informative References">
+            <reference anchor="SPDY" target="http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy">
+                <front>
+                    <title>SPDY Protocol</title>
+                    <author initials="M" surname="Belshe" fullname="Mike Belshe">
+                        <organization>Twist</organization>
+                    </author>
+                    <author initials="R" surname="Peon" fullname="Roberto Peon">
+                        <organization>Google</organization>
+                    </author>
+                </front>
+            </reference>
+        </references>
+
+
+        <section title="Initial header names" anchor="initial.headers">
+            <section title="Requests">
+                <t>
+                    Indexes strictly lower than 14 are always encoded on 1
+                    byte.  Hence, the 14 most frequent names should be set in
+                    the 14 first positions.  This table may be updated based
+                    on statistical analysis of header names frequency and
+                    specific HTTP 2.0 header rules (like removal of
+                    'proxy-connection', url being split or not...).
+                </t>
+                <texttable anchor="initial.headers.request">
+                    <ttcol>Index</ttcol><ttcol>Header Name</ttcol>
+                    <c>0</c><c>accept</c>
+                    <c>1</c><c>accept-charset</c>
+                    <c>2</c><c>accept-encoding</c>
+                    <c>3</c><c>accept-language</c>
+                    <c>4</c><c>cookie</c>
+                    <c>5</c><c>:method</c>
+                    <c>6</c><c>host</c>
+                    <c>7</c><c>if-modified-since</c>
+                    <c>8</c><c>keep-alive</c>
+                    <c>9</c><c>:host</c>
+                    <c>10</c><c>:scheme</c>
+                    <c>11</c><c>:path</c>
+                    <c>12</c><c>user-agent</c>
+                    <c>13</c><c>:version</c>
+                    <c>14</c><c>proxy-connection</c>
+                    <c>15</c><c>referer</c>
+                    <c>16</c><c>accept-datetime</c>
+                    <c>17</c><c>authorization</c>
+                    <c>18</c><c>allow</c>
+                    <c>19</c><c>cache-control</c>
+                    <c>20</c><c>connection</c>
+                    <c>21</c><c>content-length</c>
+                    <c>22</c><c>content-md5</c>
+                    <c>23</c><c>content-type</c>
+                    <c>24</c><c>date</c>
+                    <c>25</c><c>expect</c>
+                    <c>26</c><c>from</c>
+                    <c>27</c><c>if-match</c>
+                    <c>28</c><c>if-none-match</c>
+                    <c>29</c><c>if-range</c>
+                    <c>30</c><c>if-unmodified-since</c>
+                    <c>31</c><c>max-forwards</c>
+                    <c>32</c><c>pragma</c>
+                    <c>33</c><c>proxy-authorization</c>
+                    <c>34</c><c>range</c>
+                    <c>35</c><c>te</c>
+                    <c>36</c><c>upgrade</c>
+                    <c>37</c><c>via</c>
+                    <c>38</c><c>warning</c>
+                </texttable>
+            </section>
+
+            <section title="Responses">
+                <t>
+                    Indexes strictly lower than 14 are always encoded on 1
+                    byte.  Hence, the 14 most frequent names should be set in
+                    the 14 first positions.  This table may be updated based
+                    on statistical analysis of header names frequency and
+                    specific HTTP 2.0 header rules.
+                </t>
+                <texttable anchor="initial.headers.response">
+                    <ttcol>Index</ttcol><ttcol>Header Name</ttcol>
+                    <c>0</c><c>age</c>
+                    <c>1</c><c>cache-control</c>
+                    <c>2</c><c>content-length</c>
+                    <c>3</c><c>content-type</c>
+                    <c>4</c><c>date</c>
+                    <c>5</c><c>etag</c>
+                    <c>6</c><c>expires</c>
+                    <c>7</c><c>last-modified</c>
+                    <c>8</c><c>server</c>
+                    <c>9</c><c>set-cookie</c>
+                    <c>10</c><c>:status</c>
+                    <c>11</c><c>vary</c>
+                    <c>12</c><c>:version</c>
+                    <c>13</c><c>via</c>
+                    <c>14</c><c>access-control-allow-origin</c>
+                    <c>15</c><c>accept-ranges</c>
+                    <c>16</c><c>allow</c>
+                    <c>17</c><c>connection</c>
+                    <c>18</c><c>content-disposition</c>
+                    <c>19</c><c>content-encoding</c>
+                    <c>20</c><c>content-language</c>
+                    <c>21</c><c>content-location</c>
+                    <c>22</c><c>content-md5</c>
+                    <c>23</c><c>content-range</c>
+                    <c>24</c><c>link</c>
+                    <c>25</c><c>location</c>
+                    <c>26</c><c>p3p</c>
+                    <c>27</c><c>pragma</c>
+                    <c>28</c><c>proxy-authenticate</c>
+                    <c>29</c><c>refresh</c>
+                    <c>30</c><c>retry-after</c>
+                    <c>31</c><c>strict-transport-security</c>
+                    <c>32</c><c>trailer</c>
+                    <c>33</c><c>transfer-encoding</c>
+                    <c>34</c><c>warning</c>
+                    <c>35</c><c>www-authenticate</c>
+                </texttable>
+            </section>
+        </section>
+
+        <section title="Example" anchor="example">
+            <cref>This example needs to be revised.</cref>
+            <t>
+                Here is an example that illustrates different representations
+                and how tables are updated.
+            </t>
+            <section title="First header set">
+                <t>
+                    The first header set to represent is the following:
+                    <figure><artwork>
+url: http://www.example.org/my-example/index.html
+user-agent: my-user-agent
+x-my-header: first
+                    </artwork></figure>
+                    The header table is empty, all headers are represented as
+                    literal headers with indexing.  The 'x-my-header' header
+                    name is not in the header name table and is encoded
+                    literally.  This gives the following representation:
+                    <figure><artwork>
+0x2A      (literal header with indexing, name index = 9)
+0x2C      (header value string length = 44)
+http://www.example.org/my-example/index.html
+0x2B      (literal header with indexing, name index = 10)
+0x0D      (header value string length = 43)
+my-user-agent
+0x20      (literal header with indexing, new name)
+0x0B      (header name string length = 11)
+x-my-header
+0x05      (header value string length = 5)
+first
+                    </artwork></figure>
+                    The header tables are as follow after the processing of
+                    these headers:
+                    <figure><artwork>
+Name table
++---------+---------------------------------------------+
+|  Index  | Header Name                                 |
++---------+---------------------------------------------+
+|    0    | accept                                      |
++---------+---------------------------------------------+
+|    1    | accept-charset                              |
++---------+---------------------------------------------+
+|   ...   | ...                                         |
++---------+---------------------------------------------+
+|   36    | warning                                     |
++---------+---------------------------------------------+
+|   37    | x-my-header                                 | added name
++---------+---------------------------------------------+
+                    </artwork></figure>
+                    <figure><artwork>
+Header table
++----+-------------+------------------------------------+
+| 0  |     url     | http://www.example.org/            | added pair
+|    |             |       my-example/index.html        |
++----+-------------+------------------------------------+
+| 1  |  user-agent | my-user-agent                      | added pair
++----+-------------+------------------------------------+
+| 2  | x-my-header | first                              | added pair
++----+-------------+------------------------------------+
+                    </artwork></figure>
+                </t>
+            </section>
+            <section title="Second header set">
+                <t>
+                    The second header set to represent is the following:
+                    <figure><artwork>
+url: http://www.example.org/my-example/resources/script.js
+user-agent: my-user-agent
+x-my-header: second
+                    </artwork></figure>
+                    The url header is represented as a delta header with
+                    substitution.  The user-agent header will be represented
+                    as a short header.  The x-my-header will be represented as
+                    a literal header with indexing.
+                    <figure><artwork>
+0x70       (delta header with substitution, header index = 0)
+0x22       (common prefix length = 32)
+0x13       (suffix value length = 19)
+resources/script.js
+0x81       (indexed header, index = 1)
+0x2f 0x17  (literal header with indexing, name index = 37)
+0x05       (header value string length = 5)
+second
+                    </artwork></figure>
+                    The name table remains unchanged. The header table is updated as follow:
+                    <figure><artwork>
++----+-------------+------------------------------------+
+| 0  |     url     | http://www.example.org/            | substituted
+|    |             |     my-example/resources/script.js | pair
++----+-------------+------------------------------------+
+| 1  |  user-agent | my-user-agent                      |
++----+-------------+------------------------------------+
+| 2  | x-my-header | first                              |
++----+-------------+------------------------------------+
+| 3  | x-my-header | second                             | added pair
++----+-------------+------------------------------------+
+                    </artwork></figure>
+                </t>
+            </section>
+        </section>
+
+    </back>
+</rfc>
