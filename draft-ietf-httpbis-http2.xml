@@ -181,7 +181,9 @@
               Either the client or server of the connection.
             </t>
             <t hangText="frame:">
-              The smallest unit of communication, each containing a frame header.
+              The smallest unit of communication within an HTTP/2.0 session, 
+              consisting of a header and a variable-length sequence of bytes
+              structured according to the frame type.
             </t>
             <t hangText="message:">
               A complete sequence of frames.
@@ -206,7 +208,8 @@
               An error on the HTTP/2.0 session.
             </t>
             <t hangText="stream:">
-              A bi-directional flow of bytes across a virtual channel within the HTTP/2.0 session.
+              A bi-directional flow of frames across a virtual channel within 
+              the HTTP/2.0 session.
             </t>
             <t hangText="stream error:">
               An error on the individual HTTP/2.0 stream.
@@ -217,16 +220,18 @@
     </section>
 
     <section anchor="starting" title="Starting HTTP/2.0">
-      <t>
-        Just as HTTP/1.1 does, HTTP/2.0 uses the "http:" and "https:" URI schemes.  An
-        HTTP/2.0-capable client is therefore required to discover whether the upstream server (including intermediaries)
-        supports HTTP/2.0.
-      </t>
-      <t>
-        Different discovery mechanisms are defined for "http:" and "https:" URIs.  Discovery for
-        "http:" URIs is described in <xref target="discover-http"/>; discovery for "https:" URIs is
-        described in <xref target="discover-https"/>.
-      </t>
+      
+      <t>HTTP/2.0 uses the same "http:" and "https:" URI schemes used by 
+        HTTP/1.1. As a result, implementations processing requests for 
+        a target resource URIs like "http://example.org/foo" or 
+        "https://example.com/bar" are required to first discover whether 
+        the upstream server (the immediate peer to which the client wishes
+        to establish a connection) supports HTTP/2.0.</t>
+ 
+      <t>The means by which support for HTTP/2.0 is determined is different
+        for "http" and "https" URIs. Discovery for "https:" URIs is 
+        described in <xref target="discover-https"/>. Discovery for 
+        "http" URIs is described here.</t>
 
       <section anchor="versioning" title="HTTP/2.0 Version Identification">
         <t>
@@ -350,30 +355,32 @@ Upgrade: HTTP/2.0
     <section anchor="FramingLayer" title="HTTP/2.0 Framing Layer">
       <section title="Session">
         <t>
-          The HTTP/2.0 session runs atop TCP (<xref target="RFC0793"/>). The client is the TCP
+          The HTTP/2.0 session is an Application Level protocol running on top
+          of a TCP connection (<xref target="RFC0793"/>). The client is the TCP
           connection initiator.
         </t>
-        <t>
-          HTTP/2.0 connections are persistent.  That is, for best performance, it is expected
-          that clients will not close connections until the user navigates away from all Web
-          pages referencing a connection, or until the server closes the connection. Servers are
-          encouraged to leave connections open for as long as possible, but can terminate idle
-          connections if necessary.  When either endpoint closes the transport-level connection, it
-          MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame so that the endpoints can
-          reliably determine if messages were processed beforehand.
+        <t>HTTP/2.0 connections are persistent. That is, for best performance,
+          it is expected a clients will not close connections until it is 
+          determined that no further communication with a server is necessary
+          (for example, when a user navigates away from a particular web page),
+          or until the server closes the connection.</t>
+        <t>Servers are encouraged to maintain open connections for as long as 
+          possible, but are permitted to terminate idle connections if 
+          necessary. When either endpoint chooses to close the transport-level
+          TCP connection, the terminating endpoint MUST first send a 
+          <xref target="GOAWAY">GOAWAY</xref> frame so that both endpoints can
+          reliably determine whether previously sent frames have been processed
+          and gracefully complete or terminate any necessary remaining tasks.
         </t>
       </section>
 
       <section anchor="SessionHeader" title="Session Header">
-        <t>
-          The first data sent on an HTTP/2.0 session - after opening a TCP connection and performing
-          either an HTTP/1.1 Upgrade or TLS handshake - is a session header.
-        </t>
-        <t>
-          The session header provides a final confirmation that both peers agree to use the HTTP/2.0
-          protocol.  The SETTINGS frame ensures that client or server configuration is known as
-          quickly as possible.
-        </t>
+        
+        <t>Upon establishment of a TCP connection and determination 
+          that HTTP/2.0 will be used by both peers to communicate, each 
+          endpoint MUST send a session header as a final confirmation
+          and to establish the default parameters for the HTTP/2.0 session.</t>
+
         <t>
           The client session header is a sequence of 25 octets (in hex notation)
         </t>
@@ -397,27 +404,29 @@ Upgrade: HTTP/2.0
           </list>
         </t>
         <t>
-          The server session header is a <xref target="SETTINGS">SETTINGS frame</xref>.  The server
-          sends the server session header (i.e., a SETTINGS frame) as the first frame in a new
-          session.
+          The server session header consists of just 
+          a <xref target="SETTINGS">SETTINGS frame</xref> that MUST be the 
+          first frame the server sends in the HTTP/2.0 session.
         </t>
         <t>
-          The client sends requests immediately after sending the session header, without waiting to
-          receive a server session header.  This ensures that confirming session headers does not
-          add latency.
+          In order to avoid unnecessary latency, clients are permitted to send 
+          additional frames to the server immediately after sending the client 
+          session header, without waiting to receive the server session header.
+          However, it is important to note that the server session header 
+          SETTINGS frame might include parameters that necessarily alter 
+          how a client is expected to communicate with the server.
         </t>
         <t>
-          Both clients and servers MUST close the connection if it does not begin with a valid session
-          header.  A <xref target="GOAWAY">GOAWAY frame</xref> MAY be omitted if it is clear that
-          the peer is not using HTTP/2.0.
+          Clients and servers MUST terminate the TCP connection if either
+          peer does not begin with a valid session header.  A 
+          <xref target="GOAWAY">GOAWAY frame</xref> MAY be omitted if it is 
+          clear that the peer is not using HTTP/2.0.
         </t>
       </section>
 
       <section title="Framing">
-        <t>
-          Once the connection is established, clients and servers exchange HTTP/2.0 frames.  Frames
-          are the basic unit of communication.
-        </t>
+        <t>Once the HTTP/2.0 session is established, clients and servers 
+          can begin exchanging frames.</t>
         
         <section anchor="FrameHeader" title="Frame Header">
           <t>
@@ -1525,85 +1534,71 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            The header fields included in the HEADERS+PRIORITY frame contain all of the HTTP header
-            fields that are associated with an HTTP request. The header block in HTTP/2.0 is mostly
-            unchanged from today's HTTP header block, with the following differences:
-            <list>
-              <t>
-                The following fields that are carried in the request line in HTTP/1.1 (<xref
-                target="HTTP-p1" x:fmt="," x:rel="#request.line"/>) are defined as special-valued
-                name-value pairs:
-                <list style="hanging">
-                  <t hangText="&quot;:method&quot;:">
-                    the HTTP method for this request (e.g. "GET", "POST", "HEAD", etc)
-                    (<xref target="HTTP-p2" x:fmt="," x:rel="#methods"/>)
-                  </t>
-                  <t hangText="&quot;:path&quot;:">
-                    ":path" - the request-target for this URI with "/" prefixed (see <xref
-                    target="HTTP-p1" x:fmt="," x:rel="#request.line"/>).  For example, for
-                    "http://www.google.com/search?q=dogs" the path would be
-                    "/search?q=dogs". <cref>what forms of the HTTPbis request-target are allowed
-                    here?</cref>
-                  </t>
-                </list>
-                These header fields MUST be present in HTTP requests.
-              </t>
-              <t>
-                In addition, the following two name-value pairs MUST be present in every request:
-                <list style="hanging">
-                  <t hangText="&quot;:host&quot;:">
-                    the host and optional port portions (see <xref target="RFC3986" x:fmt=","
-                    x:sec="3.2"/>) of the URI for this request (e.g. "www.google.com:1234"). This
-                    header field is the same as the HTTP 'Host' header field (<xref target="HTTP-p1"
-                    x:fmt="," x:rel="#header.host"/>).
-                  </t>
-                  <t hangText="&quot;:scheme&quot;:">
-                    the scheme portion of the URI for this request (e.g. "https")
-                  </t>
-                </list>
-              </t>
-              <t>
-                All header field names starting with ":" (whether defined in this document or future
-                extensions to this document) MUST appear before any other header fields.
-              </t>
-              <t>
-                Header field names MUST be all lowercase.
-              </t>
-              <t>
-                The Connection, Host, Keep-Alive, Proxy-Connection, and Transfer-Encoding header
-                fields are not valid and MUST not be sent.
-              </t>
-              <t>
-                User-agents MUST support gzip compression. Regardless of the Accept-Encoding sent by
-                the user-agent, the server may always send content encoded with gzip or deflate
-                encoding.  <cref>Still valid?</cref>
-              </t>
-              <t>
-                If a server receives a request where the sum of the data frame payload lengths does
-                not equal the size of the Content-Length header field, the server MUST return a 400
-                (Bad Request) error.
-              </t>
-              <t>
-                Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a
-                Content-Length header field.  First, it informs the server of how much data to
-                expect, which the server can used to track overall progress and provide appropriate
-                user feedback.  More importantly, some HTTP server implementations fail to correctly
-                process requests that omit the Content-Length header field.  Many existing clients
-                send a Content-Length header field, which caused server implementations have come to
-                depend upon its presence.
-              </t>
+            The header fields included in the HEADERS+PRIORITY frame contain 
+            all of the HTTP header fields associated with an HTTP request.
+            The definitions of these headers are largely unchanged relative 
+            to HTTP/1.1, with a few notable exceptions:
+            <list style="symbols">
+              <t>The HTTP/1.1 request-line has been split into two separate
+                header fields named :method and :path, whose values 
+                specify the HTTP method for the request and the request-target,
+                respectively. The HTTP-version component of the request-line
+                is removed entirely from the headers.</t>
+              <t>The host and optional port portions of the request URI 
+                (see <xref target="RFC3986"/>, Section 3.2), is specified
+                using the new :host header field. <cref>Ed. Note: it 
+                needs to be clarified whether or not this replaces the
+                existing HTTP/1.1 Host header.</cref></t>
+              <t>A new :scheme header field has been added to specify the 
+                scheme portion of the request-target (e.g. "https")</t>
+              <t>All header field names MUST be lowercased, and the 
+                definitions of all header fields names defined by 
+                HTTP/1.1 are updated to be all lowercase.</t>
+              <t>The Connection, Host, Keep-Alive, Proxy-Connection, and 
+                Transfer-Encoding header fields are no longer valid and 
+                MUST not be sent.</t>
             </list>
+          </t>
+            
+          <t>All HTTP Requests MUST include the ":method", ":path", ":host",
+            and ":scheme" header fields.</t>
+                        
+          <t>Header fields whose names begin with ":" (whether defined in this 
+            document or future extensions to this document) MUST appear before 
+            any other header fields.</t>
+
+          <t>
+            If a client sends a HEADERS+PRIORITY frame that omits a mandatory 
+            header, the server MUST reply with a HTTP 400 Bad Request reply.  
+            <cref>Ed: why PROTOCOL_ERROR on missing ":status" in the response, 
+              but HTTP 400 here?</cref>
+          </t>
+
+          <t>User-agents MUST support gzip compression. Regardless of the Accept-Encoding sent by
+             the user-agent, the server may always send content encoded with gzip or deflate
+             encoding.  <cref>Still valid?</cref>
+          </t>
+          
+          <t>
+             If a server receives a request where the sum of the data frame payload lengths does
+             not equal the size of the Content-Length header field, the server MUST return a 400
+             (Bad Request) error.
+          </t>
+          
+          <t>
+             Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a
+             Content-Length header field.  First, it informs the server of how much data to
+             expect, which the server can used to track overall progress and provide appropriate
+             user feedback.  More importantly, some HTTP server implementations fail to correctly
+             process requests that omit the Content-Length header field.  Many existing clients
+             send a Content-Length header field, which caused server implementations have come to
+             depend upon its presence.
           </t>
 
           <t>
             The user-agent is free to prioritize requests as it sees fit. If the user-agent cannot
             make progress without receiving a resource, it should attempt to raise the priority of
             that resource. Resources such as images, SHOULD generally use the lowest priority.
-          </t>
-          <t>
-            If a client sends a HEADERS+PRIORITY frame that omits a mandatory header, the server
-            MUST reply with a HTTP 400 Bad Request reply.  <cref>Ed: why PROTOCOL_ERROR on missing
-            ":status" in the response, but HTTP 400 here?</cref>
           </t>
           <t>
             If the server receives a data frame prior to a HEADERS or HEADERS+PRIORITY frame the
