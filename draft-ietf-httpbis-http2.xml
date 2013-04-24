@@ -355,30 +355,32 @@ Upgrade: HTTP/2.0
     <section anchor="FramingLayer" title="HTTP/2.0 Framing Layer">
       <section title="Session">
         <t>
-          The HTTP/2.0 session runs atop TCP (<xref target="RFC0793"/>). The client is the TCP
+          The HTTP/2.0 session is an Application Level protocol running on top
+          of a TCP connection (<xref target="RFC0793"/>). The client is the TCP
           connection initiator.
         </t>
-        <t>
-          HTTP/2.0 connections are persistent.  That is, for best performance, it is expected
-          that clients will not close connections until the user navigates away from all Web
-          pages referencing a connection, or until the server closes the connection. Servers are
-          encouraged to leave connections open for as long as possible, but can terminate idle
-          connections if necessary.  When either endpoint closes the transport-level connection, it
-          MUST first send a <xref target="GOAWAY">GOAWAY</xref> frame so that the endpoints can
-          reliably determine if messages were processed beforehand.
+        <t>HTTP/2.0 connections are persistent. That is, for best performance,
+          it is expected a clients will not close connections until it is 
+          determined that no further communication with a server is necessary
+          (for example, when a user navigates away from a particular web page),
+          or until the server closes the connection.</t>
+        <t>Servers are encouraged to maintain open connections for as long as 
+          possible, but are permitted to terminate idle connections if 
+          necessary. When either endpoint chooses to close the transport-level
+          TCP connection, the terminating endpoint MUST first send a 
+          <xref target="GOAWAY">GOAWAY</xref> frame so that both endpoints can
+          reliably determine whether previously sent frames have been processed
+          and gracefully complete or terminate any necessary remaining tasks.
         </t>
       </section>
 
       <section anchor="SessionHeader" title="Session Header">
-        <t>
-          The first data sent on an HTTP/2.0 session - after opening a TCP connection and performing
-          either an HTTP/1.1 Upgrade or TLS handshake - is a session header.
-        </t>
-        <t>
-          The session header provides a final confirmation that both peers agree to use the HTTP/2.0
-          protocol.  The SETTINGS frame ensures that client or server configuration is known as
-          quickly as possible.
-        </t>
+        
+        <t>Immediately upon establishing a TCP connection and determining 
+          that HTTP/2.0 will be used by both peers to communicate, each 
+          endpoint MUST send a session header as a final confirmation
+          and to establish the default parameters for the HTTP/2.0 session.</t>
+
         <t>
           The client session header is a sequence of 25 octets (in hex notation)
         </t>
@@ -402,19 +404,23 @@ Upgrade: HTTP/2.0
           </list>
         </t>
         <t>
-          The server session header is a <xref target="SETTINGS">SETTINGS frame</xref>.  The server
-          sends the server session header (i.e., a SETTINGS frame) as the first frame in a new
-          session.
+          The server session header consists of just the <xref target="SETTINGS">SETTINGS frame</xref>.  
+          The server sends the SETTINGS frame immediately after the establishment
+          of the TCP connection as the first frame of the HTTP/2.0 session.
         </t>
         <t>
-          The client sends requests immediately after sending the session header, without waiting to
-          receive a server session header.  This ensures that confirming session headers does not
-          add latency.
+          In order to avoid unnecessary latency, clients are permitted to send 
+          additional frames to the server immediate after sending the client 
+          session header, without waiting to receive the server session header.
+          However, it is important to note that the server session header 
+          SETTINGS frame might include parameters that necessarily alter 
+          how a client is expected to communicate with the server.
         </t>
         <t>
-          Both clients and servers MUST close the connection if it does not begin with a valid session
-          header.  A <xref target="GOAWAY">GOAWAY frame</xref> MAY be omitted if it is clear that
-          the peer is not using HTTP/2.0.
+          Both clients and servers MUST terminate the TCP connection if either
+          peer does not begin with a valid session header.  A 
+          <xref target="GOAWAY">GOAWAY frame</xref> MAY be omitted if it is 
+          clear that the peer is not using HTTP/2.0.
         </t>
       </section>
 
