@@ -430,8 +430,8 @@ Upgrade: HTTP/2.0
         
         <section anchor="FrameHeader" title="Frame Header">
           <t>
-            HTTP/2.0 frames share a common format, consisting of 8 byte of header with between
-            0 and 65535 bytes of data.
+            HTTP/2.0 frames share a common base format consisting of 
+            an 8-byte header followed by 0 to 65535 bytes of data.
           </t>
           <figure title="Frame Header">
             <artwork type="inline">
@@ -450,8 +450,8 @@ Upgrade: HTTP/2.0
             The fields of the frame header are defined as:
             <list style="hanging">
               <t hangText="Length:">
-                The 16-bit length of the frame data in bytes.  The length of the frame header is
-                not included.
+                The length of the frame data expressed as an unsigned, 16-bit
+                integer. The 8 bytes of the frame header are not included.
               </t>
               <t hangText="Type:">
                 The 8-bit type of the frame.  The frame type determines how the remainder of the
@@ -479,11 +479,8 @@ Upgrade: HTTP/2.0
               </t>
               <t hangText="Stream Identifier:">
                 A 31-bit stream identifier (see <xref target="StreamCreation"/>).  A value 0 is
-                reserved for frames that are directed at the session as a whole instead of a single
-                stream.
-              </t>
-              <t hangText="Frame Data:">
-                Frames contain between 0 and 65535 bytes of data.
+                reserved for frames that are associated with the session as a 
+                whole as opposed to an individual stream.
               </t>
             </list>
           </t>
@@ -491,20 +488,24 @@ Upgrade: HTTP/2.0
             Reserved bits in the frame header MUST be set to zero when sending and MUST be ignored
             when receiving frames, unless the semantics of the bit are known.
           </t>
+          <t>The structure and content of the remaining frame data is 
+            entirely dependent on the frame type.</t>
         </section>
 
         <section anchor="FrameSize" title="Frame Processing">
-          <t>
-            A frame of the maximum size might be too large for implementations with limited
-            resources to process.  Implementations MAY choose to support frames smaller than the
-            maximum possible size.  However, implementations MUST be able to receive frames
-            containing at least 8192 octets of data.
-          </t>
-          <t>
-            An implementation MUST immediately close a stream if it is unable to process a frame
-            related to that stream due to it exceeding a size limit.  The implementation MUST send a
-            <xref target="RST_STREAM">RST_STREAM frame</xref> containing FRAME_TOO_LARGE error code
-            if the frame size limit is exceeded.
+          
+          <t>Implementatins with limited resources might not be capable of 
+            processing large frame sizes. Such implementations MAY choose
+            to place additional limits on the maximum frame size. However,
+            all implementations MUST be capable of receiving and processing
+            frames containing at least 8192 octets of data.
+            <cref>Ed. Question: Does this minimum include the 8-byte header 
+              or just the frame data?</cref></t>
+
+          <t>An implementation MUST terminate a stream immediately if it is
+            unable to process a frame due it's size. This is done by sending 
+            an <xref target="RST_STREAM">RST_STREAM frame</xref> containing 
+            the FRAME_TOO_LARGE error code.
           </t>
           <t>
             <cref><eref target="https://github.com/http2/http2-spec/issues/28">Issue 28</eref>: Need
@@ -514,62 +515,88 @@ Upgrade: HTTP/2.0
         </section>
       </section>
 
-
       <section title="Streams">
         <t>
-          Streams are independent sequences of bi-directional data divided into frames with several
-          properties:
+          A "stream" is an independent, bi-directional sequence of frames 
+          exchanged between the client and server within an HTTP/2.0 session.
+          Streams have several important characteristics:
           <list style="symbols">
             <t>
-              Streams can be created by either the client or server.
+              Streams can be established by either the client or server.
             </t>
             <t>
-              Streams optionally carry a set of name-value header pairs.
+              Multiple different types of frames can be send by 
+              either endpoint within a single stream; there is.
             </t>
             <t>
-              Streams can concurrently send data interleaved with other streams.
+              The order in which frames are sent by an endpoint
+              within a stream is significant. Recipients are required
+              to process frames in the order they are received.
             </t>
             <t>
-              Streams can be established and used unilaterally.
+              Streams optionally carry a set of name-value header pairs
+              that are expressed within the headers block of HEADERS+PRIORITY, 
+              HEADERS, or PUSH_PROMISE frames.
             </t>
             <t>
-              Streams can be cancelled.
+              A single HTTP/2.0 session can contain multiple concurrently
+              active streams, with either endpoint interleaving frames from 
+              multiple streams.
+            </t>
+            <t>
+              Streams can be established and used unilaterally. 
+              <cref>Ed. Note: Really? Can the server unilaterally just start
+                sending unsolicited streams to the client without an
+                associated PUSH_PROMISE or HTTP Request?</cref>
+            </t>
+            <t>
+              Streams can be rejected or cancelled by either endpoint.
             </t>
           </list>
         </t>
 
         <section anchor="StreamCreation" title="Stream Creation">
+
+          <t>There is no coordination or shared action between the client and 
+            server required to create a stream. Rather, new streams are 
+            established by sending a frame that references a previously unused 
+            stream identifier.</t>
+
           <t>
-            Use of streams does not require negotiation.  A stream is not created, streams are used
-            by sending a frame on the stream.
-          </t>
-          <t>
-            Streams are identified by a 31-bit numeric identifier.  Streams initiated by a client
-            use odd numbered stream identifiers; those initiated by the server use even numbered
-            stream identifiers.  A stream identifier of zero MUST NOT be used to create a new
+            All streams are identified by an unsigned 31-bit integer.  Streams 
+            initiated by a client use odd numbered stream identifiers; those 
+            initiated by the server use even numbered stream identifiers.  
+            A stream identifier of zero MUST NOT be used to establish a new
             stream.
           </t>
+          
           <t>
-            The stream identifier of a new stream MUST be greater than all previously streams from
-            that endpoint, unless the stream identifier was reserved (such as the promised stream
-            identifier in a <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frame).  An endpoint
-            that receives an unexpected stream identifier MUST handle it as a <xref
-            target="SessionErrorHandler">session error</xref> of type PROTOCOL_ERROR.
+            The identifier of a newly established stream MUST be numerically 
+            greater than all previously established streams from that endpoint
+            within the HTTP/2.0 session, unless the identifier has been reserved 
+            using a <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frame.  
+            An endpoint that receives an unexpected stream identifier MUST 
+            terminate the stream by responding with a 
+            <xref target="SessionErrorHandler">session error</xref> of type 
+            PROTOCOL_ERROR.
           </t>
+          
+          <t>A peer can limit the total number of concurrently active streams 
+            using the SETTINGS_MAX_CONCURRENT_STREAMS parameters within a 
+            SETTINGS frame. The maximum concurrent streams setting is specific to each 
+            endpoint; that is, clients and servers can each specify their own 
+            maximum number of concurrent streams. A sending endpoint MUST NOT 
+            exceed the limit set by the receiving peer. All concurrently active
+            streams, including streams that are <xref target="StreamHalfClose">half-open</xref> 
+            in any direction, count toward this limit.</t>
+          
           <t>
-            An endpoint MUST NOT create a stream if there are open streams that exceed the
-            SETTINGS_MAX_CONCURRENT_STREAMS setting of its peer.  The maximum concurrent streams
-            setting only applies to streams that an endpoint initiates: a client cannot initiate an
-            odd numbered streams that exceed the setting provided by a server; a server cannot
-            initiate more even numbered streams than permitted by the setting provided by the
-            client.  Streams that are <xref target="StreamHalfClose">half-open</xref> in any
-            direction count toward this limit.
+            Because stream identifiers cannot be reused, long-lived HTTP/2.0 
+            sessions can cause an endpoint to exhaust the available stream 
+            identifiers. An endpoint that is unable to establish a new stream 
+            identifier can establish a new session for any new streams.
           </t>
-          <t>
-            A long-lived session can exhaust the available stream identifiers. An endpoint that is
-            unable to create a new stream identifier can establish a new session for any new
-            streams.
-          </t>
+          
           <t>
             An endpoint can request the early termination of an unwanted stream.  Upon receipt of a
             frame, the receiver can terminate the corresponding stream by sending a <xref
@@ -577,36 +604,48 @@ Upgrade: HTTP/2.0
             prevent the initiating endpoint from sending frames for that stream prior to receiving
             this request.
           </t>
+          
         </section>
 
         <section anchor="StreamPriority" title="Stream priority">
           <t>
-            The creator of a stream can assign a priority for that stream.  Priority is represented as
-            a 31 bit integer.  0 represents the highest priority and 2<x:sup>31</x:sup>-1 represents
+            The endpoint establishing a new stream can assign a priority for 
+            the stream.  Priority is represented as an unsigned 31-bit integer.  
+            0 represents the highest priority and 2<x:sup>31</x:sup>-1 represents
             the lowest priority.
+            <cref>Ed. Note: Is this really true? How is priority established for a 
+              server initiated stream using PUSH_PROMISE? Is Priority really
+              only a client-initiated stream concept?</cref>
           </t>
-          <t>
-            Senders and receivers SHOULD use best-effort to process streams in the order of
-            highest priority to lowest priority. <cref>ED: toothless, useless "SHOULD":
-            reword</cref>
-          </t>
+          <t>Endpoints ought to use a best-effort to process streams in the 
+            order of highest priority to lowest priority.</t>
         </section>
 
         <section anchor="StreamHalfClose" title="Stream half-close">
-          <t>
-            When one side of the stream sends a frame with the FINAL flag set, the stream is
-            half-closed from that endpoint. The sender of the FINAL flag MUST NOT send further
-            frames on that stream. When both sides have half-closed, the stream is closed.
-          </t>
-          <t>
-            Receivers of frames on a half-closed stream MUST handle them as a <xref
-            target="StreamErrorHandler">stream error</xref> of type STREAM_CLOSED.
-          </t>
-          <t>
-            It is not necessary to half-close a stream if no frames have been sent.  This allows an
-            endpoint to create a unidirectional stream that does not require an explicit close from
-            the peer that does not transmit frames.  Endpoints can avoid committing resources for
-            streams until the first frame is received.
+          
+          <t>When an endpoint sends a frame for a stream with the FINAL flag 
+            set, the stream is considered to be half-closed for that endpoint.
+            Subsequent frames MUST NOT be sent by that endpoint for the half
+            closed stream for the remaining duration of the HTTP/2.0 session.
+            When both endpoints have sent frames with the FINAL flag set, the
+            stream is considered to be fully closed.</t>
+
+          <t>If an endpoint receives additional frames for a stream that was 
+            previously half-closed by the sending peer, the recipient MUST 
+            respond with a <xref target="StreamErrorHandler">stream error</xref> 
+            of type STREAM_CLOSED.</t>
+          
+          <t>An endpoint that has not yet sent a frame with the FINAL flag set
+            can continue sending frames to endpoint for which the stream is 
+            half-closed.</t>
+          
+          <t>It is not necessary for an endpoint to half-close a stream 
+            for which it has not sent any frames. This allows endpoints to
+            utilize fully unidirectional streams that do not require explicit
+            action or acknowledgement from the receiver.</t>  
+
+          <t>Endpoints can avoid committing resources for streams until the 
+            first frame is received.
           </t>
         </section>
 
@@ -624,7 +663,7 @@ Upgrade: HTTP/2.0
                 stream MUST be prepared to receive frames after closing the stream.
               </t>
               <t hangText="Abrupt termination:">
-                Either the peer can send a RST_STREAM control frame at any time to terminate an
+                Either peer can send a RST_STREAM control frame at any time to terminate an
                 active stream. RST_STREAM contains an error code to indicate the reason for
                 termination.  A RST_STREAM indicates that the sender will transmit no further data
                 on the stream and that the receiver is advised to cease transmission on it.
