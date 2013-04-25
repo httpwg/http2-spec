@@ -554,10 +554,12 @@ Upgrade: HTTP/2.0
 
         <section anchor="StreamCreation" title="Stream Creation">
 
-          <t>There is no coordination or shared action between the client and 
+          <t>
+            There is no coordination or shared action between the client and 
             server required to create a stream. Rather, new streams are 
             established by sending a frame that references a previously unused 
-            stream identifier.</t>
+            stream identifier.
+          </t>
 
           <t>
             All streams are identified by an unsigned 31-bit integer.  Streams 
@@ -578,14 +580,19 @@ Upgrade: HTTP/2.0
             PROTOCOL_ERROR.
           </t>
           
-          <t>A peer can limit the total number of concurrently active streams 
+          <t>
+            A peer can limit the total number of concurrently active streams 
             using the SETTINGS_MAX_CONCURRENT_STREAMS parameters within a 
-            SETTINGS frame. The maximum concurrent streams setting is specific to each 
-            endpoint; that is, clients and servers can each specify their own 
-            maximum number of concurrent streams. A sending endpoint MUST NOT 
-            exceed the limit set by the receiving peer. All concurrently active
-            streams, including streams that are <xref target="StreamHalfClose">half-open</xref> 
-            in any direction, count toward this limit.</t>
+            SETTINGS frame. The maximum concurrent streams setting is specific 
+            to each endpoint and applies only to the peer. That is, clients 
+            specify the maximum number of concurrent streams the server can 
+            initiate, and servers specify the maximum number of concurrent 
+            streams the client can initiate. Peer endpoints MUST NOT 
+            exceed this limit. All concurrently active
+            streams initiated by an endpoint, including streams that are 
+            <xref target="StreamHalfClose">half-open</xref> in any direction, 
+            count toward that endpoint's limit.
+          </t>
           
           <t>
             Stream identifiers cannot be reused within an HTTP/2.0 session. 
@@ -612,31 +619,57 @@ Upgrade: HTTP/2.0
             0 represents the highest priority and 2<x:sup>31</x:sup>-1 represents
             the lowest priority.
           </t>
-          <t>Endpoints ought to use a best-effort to process streams in the 
-            order of highest priority to lowest priority.</t>
+          
+          <t>
+            The purpose of this value is to allow the initiating
+            endpoint to request that frames for the stream be processed with 
+            higher priority relative to any other concurrently active 
+            streams. That is, if an endpoint receives interleaved frames
+            for multiple streams, the endpoint ought to make a best-effort
+            attempt at processing frames for higher priority streams before 
+            processing those for lower priority streams.
+          </t>
+          
+          <t>
+            Explicitly setting the priority for a stream does not 
+            guarantee any particular processing order for the stream
+            relative to any other stream. Nor is there is any mechanism 
+            provided by which the initiator of a stream can force or require 
+            a receiving endpoint to process frames from one stream before 
+            processing frames from another.
+          </t>
+          
         </section>
 
         <section anchor="StreamHalfClose" title="Stream half-close">
           
-          <t>When an endpoint sends a frame for a stream with the FINAL flag 
+          <t>
+            When an endpoint sends a frame for a stream with the FINAL flag 
             set, the stream is considered to be half-closed for that endpoint.
             Subsequent frames MUST NOT be sent by that endpoint for the half
             closed stream for the remaining duration of the HTTP/2.0 session.
             When both endpoints have sent frames with the FINAL flag set, the
-            stream is considered to be fully closed.</t>
+            stream is considered to be fully closed.
+          </t>
 
-          <t>If an endpoint receives additional frames for a stream that was 
+          <t>
+            If an endpoint receives additional frames for a stream that was 
             previously half-closed by the sending peer, the recipient MUST 
             respond with a <xref target="StreamErrorHandler">stream error</xref> 
-            of type STREAM_CLOSED.</t>
+            of type STREAM_CLOSED.
+          </t>
           
-          <t>An endpoint that has not yet half-closed a stream by sending the
-            FINAL flag can continue sending frames on the stream.</t>
+          <t>
+            An endpoint that has not yet half-closed a stream by sending the
+            FINAL flag can continue sending frames on the stream.
+          </t>
           
-          <t>It is not necessary for an endpoint to half-close a stream 
+          <t>
+            It is not necessary for an endpoint to half-close a stream 
             for which it has not sent any frames. This allows endpoints to
             utilize fully unidirectional streams that do not require explicit
-            action or acknowledgement from the receiver.</t>  
+            action or acknowledgement from the receiver.
+          </t>  
 
         </section>
 
@@ -707,7 +740,7 @@ Upgrade: HTTP/2.0
           <t>
             It is possible that the GOAWAY will not be reliably received by the receiving endpoint.
             In the event of a session error, GOAWAY only provides a best-effort attempt to
-            communicate with the peer about why the session is going down.
+            communicate with the peer about why the session is being terminated.
           </t>
           <t>
             An endpoint can end a session at any time.  In particular, an endpoint MAY choose to
