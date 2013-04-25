@@ -1117,15 +1117,17 @@ Upgrade: HTTP/2.0
         <section anchor="PUSH_PROMISE" title="PUSH_PROMISE">
 
           <t>
-            The PUSH_PROMISE frame (type=5) is a promise to create a stream
-            and serve the referenced resource in the future.  Minimal data allowing the receiver to understand
-            which resource(s) are to be pushed are to be included.
+            The PUSH_PROMISE frame (type=5) is a promise to create a stream and serve the referenced
+            resource in the future.  Minimal data allowing the receiver to understand which
+            resource(s) are to be pushed are to be included.  <xref target="PushResources"/>
+            contains a thorough description of server push.
           </t>
 
           <t>
             PUSH_PROMISE frames are sent on an existing stream.  They declare the intent to use
-            another stream for the pushing of a resource, giving the client an
-            opportunity to reject the pushed resources.
+            another stream for the pushing of a resource, giving the client an opportunity to reject
+            the pushed resources.  Pushed resources are rejected by sending a RST_STREAM frame on
+            the promised stream.
           </t>
 
           <figure title="PUSH_PROMISE Payload Format">
@@ -1673,12 +1675,9 @@ Upgrade: HTTP/2.0
           rationale for this feature is that sometimes a server knows that it will need to send
           multiple resources in response to a single request.  Without server push features, the
           client must first download the primary resource, then discover the secondary resource(s),
-          and request them.  Pushing of resources avoids the round-trip delay, but also creates a
-          potential race where a server can be pushing content which a user-agent is in the process
-          of requesting.  The following mechanics attempt to prevent the race condition while
-          enabling the performance benefit.
+          and request them.
         </t>
-
+       
         <t>
           Server push is an optional feature.  The SETTINGS_MAX_CONCURRENT_STREAMS setting from the
           client limits the number of resources that can be concurrently pushed by a server.  Server
@@ -1699,17 +1698,25 @@ Upgrade: HTTP/2.0
           A client that accepts pushed resources caches those resources as though they were
           responses to GET requests.
         </t>
-
+        <t>
+          Pushing of resources avoids the round-trip delay, but also creates a potential race where
+          a server can be pushing content which a user-agent is in the process of requesting.  The
+          PUSH_PROMISE frame reduces the chances of this condition occurring, while retaining the
+          performance benefit.
+        </t>
         <t>
            Pushed responses are associated with a request at the HTTP/2.0 framing layer.  The
-           PUSH_PROMISE includes a stream identifier for an associated request/response exchange
-           that supplies request header fields.  The pushed stream inherits all of the request
-           header fields from the associated stream with the exception of resource identification
-           header fields (<spanx style="verb">:host</spanx>, <spanx style="verb">:scheme</spanx>,
-           and <spanx style="verb">:path</spanx>), which are provided as part of the PUSH_PROMISE
-           frame.  Pushed resources always have an associated <spanx style="verb">:method</spanx> of
-           <spanx style="verb">GET</spanx>.  A cache MUST store these inherited and implied request
-           header fields with the cached resource.
+           PUSH_PROMISE is sent on the stream for the associated request, which allows a receiver to
+           correlate the pushed resource with a request.  The pushed stream inherits all of the
+           request header fields from the associated stream with the exception of resource
+           identification header fields (<spanx style="verb">:host</spanx>, <spanx
+           style="verb">:scheme</spanx>, and <spanx style="verb">:path</spanx>), which are provided
+           as part of the PUSH_PROMISE frame.
+        </t>
+        <t>
+          Pushed resources always have an associated <spanx style="verb">:method</spanx> of <spanx
+          style="verb">GET</spanx>.  A cache MUST store these inherited and implied request header
+          fields with the cached resource.
         </t>
 
         <t>
@@ -1803,8 +1810,10 @@ Upgrade: HTTP/2.0
 
           <t>
             To cancel individual server push streams, the client can issue a <xref
-            target="StreamErrorHandler">stream error</xref> of type CANCEL.  Upon receipt, the
-            server ceases transmission of the pushed data.
+            target="StreamErrorHandler">stream error</xref> of type CANCEL.  After receiving a
+            PUSH_PROMISE frame, the client is able to cancel the pushed resource before receiving
+            any frames on the promised stream.  The server ceases transmission of the pushed
+            resource; if the server has not commenced transmission, it does not start.
           </t> 
 
           <t>
