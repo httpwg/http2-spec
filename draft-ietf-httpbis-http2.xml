@@ -522,16 +522,20 @@ Upgrade: HTTP/2.0
           Streams have several important characteristics:
           <list style="symbols">
             <t>
-              Streams can be established by either the client or server.
+              Streams can be established and used unilaterally or shared by 
+              either the client or server.
             </t>
             <t>
-              Multiple different types of frames can be send by 
-              either endpoint within a single stream; there is.
+              Streams can be rejected or cancelled by either endpoint.
             </t>
             <t>
-              The order in which frames are sent by an endpoint
-              within a stream is significant. Recipients are required
-              to process frames in the order they are received.
+              Multiple types of frames can be sent by either endpoint within 
+              a single stream.
+            </t>
+            <t>
+              The order in which frames are sent within a stream is 
+              significant. Recipients are required to process frames 
+              in the order they are received.
             </t>
             <t>
               Streams optionally carry a set of name-value header pairs
@@ -542,15 +546,6 @@ Upgrade: HTTP/2.0
               A single HTTP/2.0 session can contain multiple concurrently
               active streams, with either endpoint interleaving frames from 
               multiple streams.
-            </t>
-            <t>
-              Streams can be established and used unilaterally. 
-              <cref>Ed. Note: Really? Can the server unilaterally just start
-                sending unsolicited streams to the client without an
-                associated PUSH_PROMISE or HTTP Request?</cref>
-            </t>
-            <t>
-              Streams can be rejected or cancelled by either endpoint.
             </t>
           </list>
         </t>
@@ -591,10 +586,11 @@ Upgrade: HTTP/2.0
             in any direction, count toward this limit.</t>
           
           <t>
-            Because stream identifiers cannot be reused, long-lived HTTP/2.0 
-            sessions can cause an endpoint to exhaust the available stream 
-            identifiers. An endpoint that is unable to establish a new stream 
-            identifier can establish a new session for any new streams.
+            Stream identifiers cannot be reused within an HTTP/2.0 session. 
+            Accordingly, long-lived sessions can cause an endpoint to exhaust 
+            the available range of stream identifiers. An endpoint that is 
+            unable to establish a new stream identifier can establish a new 
+            session for any new streams.
           </t>
           
           <t>
@@ -613,9 +609,6 @@ Upgrade: HTTP/2.0
             the stream.  Priority is represented as an unsigned 31-bit integer.  
             0 represents the highest priority and 2<x:sup>31</x:sup>-1 represents
             the lowest priority.
-            <cref>Ed. Note: Is this really true? How is priority established for a 
-              server initiated stream using PUSH_PROMISE? Is Priority really
-              only a client-initiated stream concept?</cref>
           </t>
           <t>Endpoints ought to use a best-effort to process streams in the 
             order of highest priority to lowest priority.</t>
@@ -635,18 +628,14 @@ Upgrade: HTTP/2.0
             respond with a <xref target="StreamErrorHandler">stream error</xref> 
             of type STREAM_CLOSED.</t>
           
-          <t>An endpoint that has not yet sent a frame with the FINAL flag set
-            can continue sending frames to endpoint for which the stream is 
-            half-closed.</t>
+          <t>An endpoint that has not yet half-closed a stream by sending the
+            FINAL flag can continue sending frames on the stream.</t>
           
           <t>It is not necessary for an endpoint to half-close a stream 
             for which it has not sent any frames. This allows endpoints to
             utilize fully unidirectional streams that do not require explicit
             action or acknowledgement from the receiver.</t>  
 
-          <t>Endpoints can avoid committing resources for streams until the 
-            first frame is received.
-          </t>
         </section>
 
         <section anchor="StreamClose" title="Stream close">
