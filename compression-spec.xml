@@ -46,16 +46,28 @@
 
         <section title="Overview" anchor="overview">
             <t>
-                HTTP headers can be represented in various ways.  As shown by
-                <xref target="SPDY">SPDY</xref>, Deflate compresses very well
-                HTTP headers.
+                In HTTP/1.X, HTTP headers, which are necessary for the
+                functioning of the protocol, are transmitted with no
+                transformations. Unfortunately, the amount of redundancy in
+                both the keys and the values of these headers is astonishingly
+                high, and is the cause of increased latency on
+                lower bandwidth links. This indicates that an alternate
+                encoding for headers would be beneficial to latency, and that
+                is what is proposed here.
 
-                But the use of Deflate has been found to cause security
-                issues.  In particular, the compression of sensitive data,
-                together with other data controlled by an attacker, may lead
-                to leakage of the sensitive data.
+                As shown by <xref target="SPDY">SPDY</xref>, Deflate
+                compresses HTTP very effectively. However, the use of a
+                compression scheme which allows for arbitrary matches against
+                the previously encoded data (such as Deflate) exposes users to
+                security issues.
 
-                The processing and memory costs may also be too high for some
+                In particular, the compression of sensitive data, together
+                with other data controlled by an attacker, may lead to leakage
+                of that sensitive data, even when the resultant bytes are
+                transmitted over an encrypted channel.
+
+                Another consideration is that processing and memory costs of a
+                compressor such as Deflate may also be too high for some
                 classes of devices, for example when doing forward or reverse
                 proxying.
             </t>
@@ -63,23 +75,26 @@
             <section title="Outline">
                 <t>
                     The HTTP header representation described in this document
-                    is based on indexing tables that store (name,value) pairs,
+                    is based on indexing tables that store (name, value) pairs,
                     called header tables in the remainder of this document.
-                    Header tables are incrementally updated during the whole
-                    HTTP/2.0 session.  Two independent header tables are used
-                    during a HTTP/2.0 session, one for HTTP request headers
-                    and one for HTTP response headers.
+                    This scheme is believed to be safe for all known attacks
+                    against the compression context today.  Header tables are
+                    incrementally updated during the whole HTTP/2.0 session.
+                    Two independent header tables are used during a HTTP/2.0
+                    session, one for HTTP request headers and one for HTTP
+                    response headers.
                 </t>
                 <t>
                     The encoder is responsible for deciding which headers to
-                    insert as (name,value) pairs in the header table.  The
-                    decoder follows exactly what the encoder prescribes.  This
-                    enables decoders to remain simple and understand a wide
-                    variety of encoders.
+                    insert as (name, value) pairs in the header table.  The
+                    decoder then does exactly what the encoder prescribes,
+                    ending in a state that exactly matches the encoder's
+                    state.  This enables decoders to remain simple and
+                    understand a wide variety of encoders.
                 </t>
                 <t>
-                    A header may be represented as a literal or an index.  If
-                    represented as a literal, the representation specifies
+                    A header may be represented as a literal or as an index.
+                    If represented as a literal, the representation specifies
                     whether this header is used to update the indexing table.
                     The different representations are described in <xref
                         target="header.representation" />.
@@ -99,22 +114,26 @@
         <section title="Indexing Strategies" anchor="indexing.strategies">
             <section title="Header Table" anchor="header.table">
                 <t>
-                    A header table consists in an ordered list of (name,
+                    A header table consists of an ordered list of (name,
                     value) pairs.  Once a header pair is inserted in the
                     header table, its index does not change until the pair
-                    gets removed.  A pair is either inserted at the end of the
+                    is removed.  A pair is either inserted at the end of the
                     table or replaces an existing pair depending on the chosen
                     representation.
                 </t>
                 <t>
-                    Header names should be represented as lower-case strings.
-                    A header name is matching with a pair name if they are
+                    Header names are always represented as lower-case strings.
+                    An input header name matches the header name of a (name,
+                    value) pair stored in the Header Table if they are
                     equal using a character-based, <spanx>case
-                        insensitive</spanx> comparison.  A header value is
-                    matching with a pair value if they are equal using a
-                    character-based, <spanx>case sensitive</spanx> comparison.
-                    A header is matching with a (name, value) pair if both name
-                    and value are matching.
+                        insensitive</spanx> comparison.
+                    An input header value matches the header value of a
+                    (name, value) pair stored in the Header Table if they are
+                    equal using a character-based, <spanx>case
+                        sensitive</spanx> comparison. 
+                    An input header (name, value) pair matches a pair in the
+                    Header Table if both the name and value are matching as
+                    per above.
                 </t>
                 <t>
                     The header table is progressively updated based on headers
@@ -148,7 +167,10 @@
                     memory requirements.  The header table size is defined as
                     the sum of the length (as defined in <xref
                         target="string.literal.representation" />) of the name
-                    and the value of all header table pairs.
+                    and the value of all header table pairs. The number of
+                    table entries is also limited.
+                    <cref>Need to defined the limit for the number of table
+                        entries.</cref>
                 </t>
                 <t>
                     To optimize the representation of the headers exchanged at
@@ -223,12 +245,14 @@
                     An indexed representation toggles the presence of the
                     header in the current set of headers. If the header
                     corresponding to the indexed representation was not in the
-                    set, it is added to the set. If the header was in the set,
-                    it is removed from it.
+                    set, it is added to the set. If the header index was in
+                    the set, it is removed from it.
                 </t>
                 <t>
-                    A literal representation adds a header to the current set
-                    of headers.
+                    A literal representation does not add a header to the
+                    current set of headers, rather, it must be turned on
+                    explicitly.
+                    <cref>How do we turn this on?</cref>
                 </t>
                 <t>
                     The current reference set of headers is composed of all the
@@ -514,7 +538,7 @@
                         value represented as a string as described in <xref
                             target="string.literal.representation" />.
                         In the case of substitution indexing, the substituted
-                        (name,value) pair index is inserted before the header
+                        (name, value) pair index is inserted before the header
                         value as a zero-bit prefix integer.  The header value
                         is represented as a literal string.
                     </t>
