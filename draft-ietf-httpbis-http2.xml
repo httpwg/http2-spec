@@ -452,8 +452,9 @@ Upgrade: HTTP/2.0
             The fields of the frame header are defined as:
             <list style="hanging">
               <t hangText="Length:">
-                The length of the frame data expressed as an unsigned, 16-bit
-                integer. The 8 bytes of the frame header are not included.
+                The length of the frame data expressed as an unsigned 16-bit
+                integer. The 8 bytes of the frame header are not included
+                in this value.
               </t>
               <t hangText="Type:">
                 The 8-bit type of the frame.  The frame type determines how the remainder of the
@@ -461,23 +462,24 @@ Upgrade: HTTP/2.0
                 and unrecognized frame types.
               </t>
               <t hangText="Flags:">
-                An 8-bit field reserved for flags.  Bits that have undefined semantics are reserved.
-                The following flags are defined for all frame types:
-                <list style="hanging">
-                  <t hangText="FINAL (0x1):">
-                    Bit 1 (the least significant bit) indicates that this is the last frame in a
-                    stream, placing it into a <xref
-                    target="StreamHalfClose">half-closed state</xref>.  No further frames follow in
-                    the direction of the carrying frame.
-                  </t>
-                </list>
-                Implementations MUST process these flags for all frames, including frames of
-                unsupported types.  The remaining flags can be assigned semantics by the indicated
-                frame type.  The value of other flags MUST be ignored for frame types that are not
-                supported by the implementation.
+                An 8-bit field reserved for frame-type specific boolean flags.
+                The least significant bit (0x1) -- referred to generally as 
+                the "FINAL flag"  -- is defined for all frame types as an
+                indication that this frame is the last the endpoint will send 
+                for the identified stream. Setting this flag causes the stream 
+                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+                Implementations MUST process this flag for all frame types except
+                RST_STREAM and GOAWAY (which are, by definition, always final 
+                and do not require the FINAL flag to be set). The remaining 
+                flags can be assigned semantics specific to the indicated frame 
+                type. Flags that have no defined semantics for a particular 
+                frame type MUST be ignored, and MUST be left unset (0) when 
+                sending.
               </t>
               <t hangText="R:">
-                A reserved 1-bit field.  The semantics of this bit are not defined.
+                A reserved 1-bit field.  The semantics of this bit are undefined
+                and the bit MUST remain unset (0) when sending and MUST be ignored
+                when receiving.
               </t>
               <t hangText="Stream Identifier:">
                 A 31-bit stream identifier (see <xref target="StreamCreation"/>).  A value 0 is
@@ -486,12 +488,8 @@ Upgrade: HTTP/2.0
               </t>
             </list>
           </t>
-          <t>
-            Reserved bits in the frame header MUST be set to zero when sending and MUST be ignored
-            when receiving frames, unless the semantics of the bit are known.
-          </t>
           <t>The structure and content of the remaining frame data is 
-            entirely dependent on the frame type.</t>
+            dependent entirely on the frame type.</t>
         </section>
 
         <section anchor="FrameSize" title="Frame Processing">
