@@ -172,8 +172,6 @@
                     of table entries is also limited (see the
                     SETTINGS_MAX_BUFFER_ENTRIES in <xref
                         target="parameter.negotiation"/>).
-                    <cref>Need to defined the limit for the number of table
-                        entries.</cref>
                 </t>
                 <t>
                     To optimize the representation of the headers exchanged at
@@ -234,7 +232,6 @@
             </section>
 
             <section title="Differential Coding" anchor="differential.coding">
-                <cref>Tentative description of Delta2 mechanism.</cref>
                 <t>
                     A set of headers is encoded as a difference from the
                     previous reference set of headers. The initial reference
@@ -267,16 +264,7 @@
         </section>
 
         <section title="Detailed Format" anchor="detailed.format">
-            <cref>Prefixes for the different representations should be
-                reworked. The prefixes should include the representation type
-            (indexed or literal), the indexing for literal values (no
-            indexing, incremental indexing, or substitution indexing).
-            Possibly, they could include some type information for literal
-            values.</cref>
             <section title="Low-level representations" anchor="string.encoding">
-                <cref>Maybe we can get rid of this section and push it inside
-                    each section.</cref>
-
                 <section title="Integer representation" anchor="integer.representation">
                     <t>
                         Integers are used to represent name indexes, pair
@@ -340,12 +328,10 @@
                         </t>
                         <figure>
                             <artwork>
-+-----+-----+-----+-----+-----+-----+-----+-----+
-|  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
-+-----+-----+-----+-----+-----+-----+-----+-----+
-|  X  |  X  |  X  |  0  |  1  |  0  |  1  |  0  | 10 stored on 5 bits
-+-----+-----+-----+-----+-----+-----+-----+-----+
-                            </artwork>
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 0 | 1 | 0 | 1 | 0 |   10 stored on 5 bits
++---+---+---+---+---+---+---+---+ </artwork>
                         </figure>
                     </section>
 
@@ -387,14 +373,12 @@
                         </t>
                         <figure>
                             <artwork>
- +----+-----+-----+-----+-----+-----+-----+-----+
-|  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |
-+-----+-----+-----+-----+-----+-----+-----+-----+
-|  X  |  X  |  X  |  1  |  1  |  1  |  1  |  1  |  Prefix = 31
-|  1  |  0  |  0  |  1  |  1  |  0  |  1  |  0  |  Q>=1, R=26
-|  0  |  0  |  0  |  0  |  1  |  0  |  1  |  0  |  Q=0 , R=10
-+-----+-----+-----+-----+-----+-----+-----+-----+
-                            </artwork>
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31
+| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   Q>=1, R=26
+| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   Q=0 , R=10
++---+---+---+---+---+---+---+---+ </artwork>
                         </figure>
                     </section>
                 </section>
@@ -421,77 +405,39 @@
             </section>
 
             <section title="Indexed Header Representation">
+                <figure>
+                    <artwork>
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 1 |        Index (7+)         |
++---+---------------------------+ </artwork>
+                </figure>
                 <t>
-                    Indexed headers can be represented as short indexed header
-                    if the matching pair index is strictly below 64.
-                    Otherwise it is represented as a long indexed header.
+                    This representation starts with the '1' 1-bit prefix,
+                    followed by the index of the matching pair, represented as
+                    an integer with a 7-bit prefix.
                 </t>
-                <section title="Short Indexed Header">
-                    <figure>
-                        <artwork>
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|   1   |   0   |             00 0000 - 11 1111                 |
-|       |       |            Matching pair index                |
-|       |       |         (if strictly lower than 64)           |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-                        </artwork>
-                    </figure>
-                    <t>
-                        This representation starts with the '10' 2-bit
-                        pattern, followed by the index of the matching pair,
-                        represented on 6 bits.  A short indexed header is
-                        always coded in one byte.
-                    </t>
-                </section>
-                <section title="Long Indexed Header">
-                    <figure>
-                        <artwork>
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|   0   |   1   |   2   |   3   |  ...  |  ...  |   e   |   f   |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|   1   |   1   |  00  0000 0000 0000 - 11 1111 1111 1111 1111  |
-|       |       |                Matching pair index            |
-|       |       |        (if equal to or greater than 64)       |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-                        </artwork>
-                    </figure>
-
-                    <t>
-                        This representation starts with the '11' 2-bit
-                        pattern, followed by the value of the index of the
-                        matching pair minus 64, represented as an integer with
-                        a 14-bit prefix A long indexed header is coded in two
-                        bytes if the index minus 64 is strictly below 16383.
-                    </t>
-                </section>
             </section>
 
             <section title="Literal Header Representation">
                 <section title="Literal Header without Indexing">
                     <figure>
                         <artwork>
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|       |       |       |                0 0000                 |
-|       |       |       |         New header name symbol        |
-|   0   |   0   |   0   |---------------------------------------|
-|       |       |       |             0 0001 - 1 1111           |
-|       |       |       |    Index of matching header name      |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-                        </artwork>
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 | 1 |    Index (5+)     |
++---+---+---+-------------------+ </artwork>
                     </figure>
                     <t>
                         This representation, which does not involve updating
-                        the header table, starts with the '000' 3-bit pattern.
+                        the header table, starts with the '011' 3-bit pattern.
                     </t>
                     <t>
-                        If the header name matches a header name entry whose
-                        index is IN,  the value (IN+1) is represented as an
-                        integer with a 5-bit prefix.  Note that if the index
-                        is strictly below 30, one byte is used.
+                        If the header name matches the header name of a (name,
+                        value) pair stored in the Header Table, the index of
+                        the pair increased by one (index + 1) is represented
+                        as an integer with a 5-bit prefix.  Note that if the
+                        index is strictly below 30, one byte is used.
                     </t>
                     <t>
                         If the header name does not match a header name entry,
@@ -500,52 +446,76 @@
                     </t>
                     <t>
                         Header name representation is followed by the header
-                        value represented as a literal string.
+                        value represented as a literal string as described in
+                        <xref target="string.literal.representation" />.
                     </t>
 
                 </section>
 
-                <section title="Literal Header with Indexing">
+                <section title="Literal Header with Incremental Indexing">
                     <figure>
                         <artwork>
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|   0   |   1   |   2   |   3   |   4   |   5   |   6   |   7   |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-|       |       |       |       |             0000              |
-|       |       |       | Index |     New header name symbol    |
-|   0   |   0   |   1   |       |-------------------------------|
-|       |       |       | Mode  |           0001 - 1111         |
-|       |       |       |       | Index of matching header name |
-+-------+-------+-------+-------+-------+-------+-------+-------+
-                        </artwork>
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 | 0 |    Index (5+)     |
++---+---+---+-------------------+ </artwork>
                     </figure>
                     <t>
-                        This representation starts with the '001' 3-bit
-                        pattern.  The fourth bit sets the indexing mode: 0 for
-                        incremental indexing, 1 for substitution indexing.
+                        This representation starts with the '010' 3-bit
+                        pattern.
                     </t>
                     <t>
-                        If the header name matches a header name entry whose
-                        index is IN,  the value (IN+1) is represented as an
-                        integer with a 4-bit prefix.  Note that if the index
-                        is strictly below 14, one byte is used.
+                        If the header name matches the header name of a (name,
+                        value) pair stored in the Header Table, the index of
+                        the pair increased by one (index + 1) is represented
+                        as an integer with a 5-bit prefix.  Note that if the
+                        index is strictly below 30, one byte is used.
                     </t>
                     <t>
                         If the header name does not match a header name entry,
-                        the value 0 is represented on 4 bits followed by the
+                        the value 0 is represented on 5 bits followed by the
                         header name, represented as a literal string.
                     </t>
-
                     <t>
                         Header name representation is followed by the header
-                        value represented as a string as described in <xref
-                            target="string.literal.representation" />.
-                        In the case of substitution indexing, the substituted
-                        (name, value) pair index is inserted before the header
-                        value as a zero-bit prefix integer.  The header value
-                        is represented as a literal string.
+                        value represented as a literal string as described in
+                        <xref target="string.literal.representation" />.
                     </t>
-
+                </section>
+                <section title="Literal Header with Substitution Indexing">
+                    <figure>
+                        <artwork>
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 |      Index (6+)       |
++---+---+-----------------------+ </artwork>
+                    </figure>
+                    <t>
+                        This representation starts with the '00' 2-bit
+                        pattern.
+                    </t>
+                    <t>
+                        If the header name matches the header name of a (name,
+                        value) pair stored in the Header Table, the index of
+                        the pair increased by one (index + 1) is represented
+                        as an integer with a 6-bit prefix.  Note that if the
+                        index is strictly below 62, one byte is used.
+                    </t>
+                    <t>
+                        If the header name does not match a header name entry,
+                        the value 0 is represented on 6 bits followed by the
+                        header name, represented as a literal string.
+                    </t>
+                    <t>
+                        The index of the substituted (name, value) pair is
+                        inserted after the header name representation as a
+                        0-bit prefix integer.
+                    </t>
+                    <t>
+                        This index is followed by the header
+                        value represented as a literal string as described in
+                        <xref target="string.literal.representation" />.
+                    </t>
                 </section>
             </section>
         </section>
