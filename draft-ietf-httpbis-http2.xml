@@ -556,8 +556,7 @@ Upgrade: HTTP/2.0
           <t>
             There is no coordination or shared action between the client and 
             server required to create a stream. Rather, new streams are 
-            established by sending a HEADERS, HEADERS+PRIORITY or 
-            PUSH_PROMISE frame whose stream identifier field 
+            established by sending a frame whose stream identifier field 
             references a previously unused stream identifier.
           </t>
 
@@ -965,8 +964,8 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The DATA frame can have the FINAL flag set but does not define 
-            any additional frame-specific flags.
+            The DATA frame can have the FINAL flag set and does not define 
+            any additional type-specific flags.
           </t>
           
           <t>
@@ -979,17 +978,10 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            DATA frames MUST be associated with a stream and MUST be 
-            preceded within the stream by at least one HEADERS or 
-            HEADERS+PRIORITY frame. If a DATA frame is received whose stream 
-            identifier field is 0x0, the recipient MUST respond with a 
-            <xref target="SessionErrorHandler">session error</a> of type 
-            PROTOCOL_ERROR. If a DATA frame is received that references a 
-            previously unused stream identifier, or if no HEADERS or 
-            HEADERS+PRIORITY frame has been previously received 
-            referencing the same stream, the recipient MUST respond 
-            with a <xref target="StreamErrorHandler">stream error</a> of type 
-            PROTOCOL_ERROR.
+            DATA frames MUST be associated with a stream. If a DATA frame is 
+            received whose stream identifier field is 0x0, the recipient MUST 
+            respond with a <xref target="SessionErrorHandler">session error</a> 
+            of type PROTOCOL_ERROR.
           </t>
           
         </section>
@@ -1017,6 +1009,8 @@ Upgrade: HTTP/2.0
             <xref target="StreamPriority"/>.
           </t>
           
+          <t>No type-specific flags are defined.</t>
+          
           <t>
             HEADERS+PRIORITY frames MUST be associated with a stream. If a 
             HEADERS+PRIORITY frame is received whose stream 
@@ -1024,11 +1018,6 @@ Upgrade: HTTP/2.0
             <xref target="SessionErrorHandler">session error</a> of type 
             PROTOCOL_ERROR.
           </t>
-          
-          <t>HEADERS+PRIORITY frames, along with HEADERS and PUSH_PROMISE,
-            can be used to initiate a new stream within a session if the 
-            stream identifier field references a previously unused stream
-            identifier.</t>
             
           <t>
             While parsing and processing of the HEADERS+PRIORITY frame can 
@@ -1110,10 +1099,10 @@ Upgrade: HTTP/2.0
                     
           <t>
             A SETTINGS frame does is not required to include every defined 
-            setting; senders MUST only include those for which it has accurate 
-            values and a need to convey. When multiple parameters are sent, 
-            they SHOULD be sent in order of numerically lowest ID to highest
-            ID.  A single SETTINGS frame MUST NOT contain multiple values for the same ID.  If the
+            setting; senders can include only those parameters for which it 
+            has accurate values and a need to convey. When multiple parameters 
+            are sent, they SHOULD be sent in order of numerically lowest ID to 
+            highest ID.  A single SETTINGS frame MUST NOT contain multiple values for the same ID.  If the
             receiver of a SETTINGS frame discovers multiple values for the same ID, it MUST ignore
             all values for that ID except the first one.
           </t>
@@ -1338,22 +1327,28 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            The FINAL flag can be set on a PUSH_PROMISE frame. If set, 
-            this flag puts the originating stream in a half-closed state
-            for the sender but has no impact on the state of the promised
-            stream. No additional type-specific flags are defined.
-            <cref>Ed. Note: Is this correct?</cref>
-          </t>
-
-          <t>
             PUSH_PROMISE frames are associated with an existing stream. If 
             the stream identifier field specifies the value 0x0, a recipient
             MUST respond with a <xref target="SessionErrorHandler">session 
             error</xref> of type PROTOCOL_ERROR.
           </t>
+          
+          <t>
+            The state of promised streams is bound to the state of the 
+            original associated stream on which the PUSH_PROMISE frame
+            were sent. If the originating stream changes to half or
+            fully closed, all associated promised streams close as well. 
+            More specifically, if the sender of the PUSH_PROMISE half-closes 
+            the original stream, the sender will no longer be permitted to 
+            send frames for any associated promised streams. Accordingly, the 
+            FINAL flag SHOULD NOT be set on a PUSH_PROMISE frame, as doing so 
+            would make it impossible for the sender to use the promised stream.
+          </t>
+          
+          <t>There are no additional type-specific flags defined.</t>
 
           <t>
-            There is no requirement that promised streams are initiated in the
+            There is no requirement that promised streams are utilized in the
             order promised.  The PUSH_PROMISE only reserves stream identifiers 
             for later use.
           </t>
