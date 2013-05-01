@@ -108,6 +108,7 @@
 
   <middle>
     <section anchor="intro" title="Introduction">
+      
       <t>
         The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the HTTP/1.1 message
         encapsulation (<xref target="HTTP-p1" x:fmt="," x:rel="#http.message"/>) is optimized for
@@ -463,19 +464,19 @@ Upgrade: HTTP/2.0
               </t>
               <t hangText="Flags:">
                 An 8-bit field reserved for frame-type specific boolean flags.
+                <vspace blankLines="1"/>
                 The least significant bit (0x1) -- referred to generally as 
                 the "FINAL flag"  -- is defined for all frame types as an
                 indication that this frame is the last the endpoint will send 
                 for the identified stream. Setting this flag causes the stream 
                 to enter the <xref target="StreamHalfClose">half-closed state</xref>.
-                Implementations MUST process this flag for all frame types except
-                RST_STREAM, GOAWAY, PING and SETTINGS (which are, by definition, 
-                either always final and do not require the FINAL flag to be set,
-                or are not associated with any individual stream). The remaining 
-                flags can be assigned semantics specific to the indicated frame 
-                type. Flags that have no defined semantics for a particular 
-                frame type MUST be ignored, and MUST be left unset (0) when 
-                sending.
+                Implementations MUST process this flag for all frames whose 
+                stream identifier field is not 0x0.
+                <vspace blankLines="1"/> 
+                The remaining flags can be assigned semantics specific to the 
+                indicated frame type. Flags that have no defined semantics for 
+                a particular frame type MUST be ignored, and MUST be left 
+                unset (0) when sending.
               </t>
               <t hangText="R:">
                 A reserved 1-bit field.  The semantics of this bit are undefined
@@ -950,8 +951,7 @@ Upgrade: HTTP/2.0
           have a shared comprehension of how the state is affected by the use
           any given frame. Accordingly, while it is expected that new frame 
           types will be introduced by extensions to this protocol, only frames
-          defined by this document are permitted to be used in a way that alters 
-          the session state.
+          defined by this document are permitted to alter the session state.
         </t>
         
         <section anchor="DataFrames" title="DATA Frames">
@@ -964,17 +964,7 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The DATA frame can have the FINAL flag set and does not define 
-            any additional type-specific flags.
-          </t>
-          
-          <t>
-            With exception given to DATA frames with the FINAL flag set,
-            which cause the stream to enter the half-closed state, or 
-            any error conditions that arise during the parsing and 
-            processing of a received DATA frame, DATA frames do not alter
-            the session state and are intended only to convey application
-            level data.
+            The DATA frame does not utilize any type-specific flags.
           </t>
           
           <t>
@@ -1020,12 +1010,8 @@ Upgrade: HTTP/2.0
           </t>
             
           <t>
-            While parsing and processing of the HEADERS+PRIORITY frame can 
-            cause a change to the session state as defined in 
-            <xref target="HeaderBlock" />, the specific collection of 
-            header fields conveyed by the Header Block are intended to 
-            provide application level data only and have no affect on the
-            session state.
+            The HEADERS+PRIORITY frame modifies the session state as 
+            defined in <xref target="HeaderBlock" />.
           </t>
             
         </section>
@@ -1053,20 +1039,19 @@ Upgrade: HTTP/2.0
             32-bit integer identifying the <xref target="ErrorCodes">error code</xref>.  
             The error code indicates why the stream is being terminated.
           </t>
-
+          
           <t>
-            The RST_STREAM frame fully terminates the referenced stream
-            and causes it to enter the closed state. Accordingly, the FINAL 
-            flag is not relevant for RST_STREAM frames and MUST be ignored. 
-            No additional flags are defined for this frame type.
+            No type-flags are defined.
           </t>
 
           <t>
-            After receiving a RST_STREAM on a stream, the receiver MUST NOT
-            send additional frames for that stream. However, after sending 
-            the RST_STREAM, the sending endpoint MUST be prepared to receive 
-            and process additional frames sent on the stream that might have
-            been sent by the peer prior to the arrival of the RST_STREAM.
+            The RST_STREAM frame fully terminates the referenced stream
+            and causes it to enter the closed state. After receiving a 
+            RST_STREAM on a stream, the receiver MUST NOT send additional 
+            frames for that stream. However, after sending the RST_STREAM, 
+            the sending endpoint MUST be prepared to receive and process 
+            additional frames sent on the stream that might have been sent 
+            by the peer prior to the arrival of the RST_STREAM.
           </t>
 
           <t>
@@ -1081,29 +1066,27 @@ Upgrade: HTTP/2.0
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
-            The SETTINGS frame (type=0x4) conveys a set of configuration
+            The SETTINGS frame (type=0x4) conveys configuration
             parameters, expressed as a sequence of 
             <xref target="settings-id-pair">ID+value pairs</xref>, 
-            that affect how the two endpoints can communicate. 
-            SETTINGS frames MUST be sent at the start of a session, and can
-            be sent at any other time by either endpoint over the lifetime 
-            of the session. The configuration parameters contained in a 
-            SETTINGS frame are declarative, not negotiated; each endpoint 
-            provides their own set of parameters that the peer endpoint 
-            MUST utilize.
+            that affect how endpoints communicate. The parameters 
+            are either constraints that a peer MUST obey or preferences 
+            the peer SHOULD respect. 
           </t>
           
           <t>
-            This specification defines a core set of configuration 
-            parameters that can be used within a session, each identified
-            by an unsigned 24-bit integer. It is expected that new parameters 
-            will be introduced over time by extensions. Implementations MUST 
-            support all of the settings defined by this specification and MAY 
-            support additional settings defined by extensions, but MUST ignore 
-            any unknown or unrecognized settings that appear within a SETTINGS 
-            frame. Extensions that define new settings MUST NOT do so in a way
-            that requires endpoints to understand those in order to 
-            communicate successfully.
+            SETTINGS frames MUST be sent at the start of a session, and MAY 
+            be sent at any other time by either endpoint over the lifetime 
+            of the session. 
+          </t>
+          
+          <t>
+            Implementations MUST support all of the settings defined by this 
+            specification and MAY support additional settings defined by 
+            extensions. Unknown or unrecognized settings MUST be ignored.
+            New settings MUST NOT be defined or implemented in a way that 
+            requires endpoints to understand then in order to communicate 
+            successfully.
           </t>
                     
           <t>
@@ -1336,7 +1319,7 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            PUSH_PROMISE frames are associated with an existing stream. If 
+            PUSH_PROMISE frames MUST be associated with an existing stream. If 
             the stream identifier field specifies the value 0x0, a recipient
             MUST respond with a <xref target="SessionErrorHandler">session 
             error</xref> of type PROTOCOL_ERROR.
@@ -1345,21 +1328,17 @@ Upgrade: HTTP/2.0
           <t>
             The state of promised streams is bound to the state of the 
             original associated stream on which the PUSH_PROMISE frame
-            were sent. If the originating stream changes to half or
-            fully closed, all associated promised streams close as well. 
-            More specifically, if the sender of the PUSH_PROMISE half-closes 
-            the original stream, the sender will no longer be permitted to 
-            send frames for any associated promised streams. Accordingly, the 
-            FINAL flag SHOULD NOT be set on a PUSH_PROMISE frame, as doing so 
-            would make it impossible for the sender to use the promised stream.
+            were sent. If the originating stream state changes to 
+            fully closed, all associated promised streams fully close as well. 
+            <cref>Ed. Note: We need clarification on this point. How synchronized
+              are the lifecycles of streams and associated promised streams?</cref>
           </t>
           
           <t>There are no additional type-specific flags defined.</t>
 
           <t>
-            There is no requirement that promised streams are utilized in the
-            order promised.  The PUSH_PROMISE only reserves stream identifiers 
-            for later use.
+            Promised streams are not required to be used in order promised.
+            The PUSH_PROMISE only reserves stream identifiers for later use.
           </t>
           
           <t>
@@ -1367,20 +1346,12 @@ Upgrade: HTTP/2.0
             streams by returning a RST_STREAM referencing the promised stream
             identifier back to the sender of the PUSH_PROMISE.
           </t>
-            
+          
           <t>
-            Note that, currently, the only defined use of PUSH_PROMISE frames
-            is by a server endpoint to notify a client that it intends to
-            deliver one or more previously unsolicited streams to the client
-            as described in <xref target="PushResources">. While use of 
-            PUSH_PROMISE frames by the client is not strictly forbidden by this 
-            specification, such use is considered to be out of the scope of 
-            this specification. Server endpoints that do not wish to allow
-            the use of PUSH_PROMISE streams by a client can reject promised
-            streams using RST_STREAM frames with the REFUSED_STREAM or CANCEL
-            code.
+            The PUSH_PROMISE frame modifies the session state as 
+            defined in <xref target="HeaderBlock" />.
           </t>
-
+            
         </section>
 
         <section anchor="PING" title="PING">
@@ -1392,7 +1363,7 @@ Upgrade: HTTP/2.0
           
           <t>
             PING frames consist of an arbitrary, variable-length sequence of 
-            octets. Receivers of a PING send another PING frame with the PONG
+            octets. Receivers of a PING send a response PING frame with the PONG
             flag set and precisely the same sequence of octets back to the 
             sender as soon as possible.
           </t>
@@ -1507,12 +1478,8 @@ Upgrade: HTTP/2.0
             PROTOCOL_ERROR.
           </t>
           <t>
-            While parsing and processing of the HEADERS frame can 
-            cause a change to the session state as defined in
-            <xref target="HeaderBlock" />, the specific collection of 
-            header fields conveyed by the Header Block are intended to 
-            provide application level data only and have no affect on the
-            session state.
+            The HEADERS frame changes the session state as defined in
+            <xref target="HeaderBlock" />.
           </t>
         </section>
 
