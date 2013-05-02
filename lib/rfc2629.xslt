@@ -46,7 +46,7 @@
                 exclude-result-prefixes="date ed exslt msxsl myns rdf saxon saxon-old x xhtml"
                 >
 
-<xsl:strip-space elements="back front list middle rfc section"/>                
+<xsl:strip-space elements="back figure front list middle reference references rfc section"/>                
                 
 <xsl:output method="html" encoding="iso-8859-1" version="4.0" doctype-public="-//W3C//DTD HTML 4.01//EN" indent="no"/>
 
@@ -1009,6 +1009,7 @@
 
 <!-- this is a named template because <back> may be absent -->
 <xsl:template name="back">
+  <xsl:call-template name="check-no-text-content"/>
 
   <!-- add editorial comments -->
   <xsl:if test="//cref and $xml2rfc-comments='yes' and $xml2rfc-inline!='yes'">
@@ -1064,6 +1065,7 @@
 </xsl:template>
 
 <xsl:template match="figure">
+  <xsl:call-template name="check-no-text-content"/>
   <xsl:if test="@anchor!=''">
     <xsl:call-template name="check-anchor"/>
     <div id="{@anchor}"/>
@@ -1080,6 +1082,7 @@
 </xsl:template>
 
 <xsl:template match="front">
+  <xsl:call-template name="check-no-text-content"/>
   <xsl:if test="$xml2rfc-topblock!='no'">
     <!-- collect information for left column -->
       
@@ -1301,6 +1304,7 @@
 <!-- list templates depend on the list style -->
 
 <xsl:template match="list[@style='empty' or not(@style)]">
+  <xsl:call-template name="check-no-text-content"/>
   <ul class="empty">
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
@@ -1308,6 +1312,7 @@
 </xsl:template>
 
 <xsl:template match="list[starts-with(@style,'format ')]">
+  <xsl:call-template name="check-no-text-content"/>
   <dl>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
@@ -1315,6 +1320,7 @@
 </xsl:template>
 
 <xsl:template match="list[@style='hanging']">
+  <xsl:call-template name="check-no-text-content"/>
   <dl>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
@@ -1322,6 +1328,7 @@
 </xsl:template>
 
 <xsl:template match="list[@style='numbers']">
+  <xsl:call-template name="check-no-text-content"/>
   <ol>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
@@ -1330,6 +1337,7 @@
 
 <!-- numbered list inside numbered list -->
 <xsl:template match="list[@style='numbers']/t/list[@style='numbers']" priority="9">
+  <xsl:call-template name="check-no-text-content"/>
   <ol class="la">
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
@@ -1337,6 +1345,7 @@
 </xsl:template>
 
 <xsl:template match="list[@style='letters']">
+  <xsl:call-template name="check-no-text-content"/>
   <ol class="la">
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
@@ -1352,6 +1361,7 @@
 </xsl:template>
    
 <xsl:template match="list[@style='symbols']">
+  <xsl:call-template name="check-no-text-content"/>
   <ul>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
@@ -1606,6 +1616,7 @@
 </xsl:template>
 
 <xsl:template match="reference">
+  <xsl:call-template name="check-no-text-content"/>
 
   <!-- check for reference to reference -->
   <xsl:variable name="anchor" select="@anchor"/>
@@ -1791,6 +1802,12 @@
         <xsl:value-of select="."/>
       </xsl:for-each>
 
+      <xsl:if test="not(front/date)">
+        <xsl:call-template name="warning">
+          <xsl:with-param name="msg">&lt;date&gt; missing in reference '<xsl:value-of select="@anchor"/>' (note that it can be empty)</xsl:with-param>
+        </xsl:call-template>
+      </xsl:if>
+
       <xsl:if test="front/date/@year != ''">
         <xsl:if test="string(number(front/date/@year)) = 'NaN'">
           <xsl:call-template name="warning">
@@ -1823,6 +1840,7 @@
 
 
 <xsl:template match="references">
+  <xsl:call-template name="check-no-text-content"/>
 
   <xsl:variable name="name">
     <xsl:if test="ancestor::ed:del">
@@ -1904,7 +1922,7 @@
 </xsl:template>
 
 <xsl:template match="rfc">
-  
+  <xsl:call-template name="check-no-text-content"/>
   <xsl:variable name="ignored">
     <xsl:call-template name="parse-pis">
       <xsl:with-param name="nodes" select="//processing-instruction('rfc-ext')"/>
@@ -2164,6 +2182,7 @@
 </xsl:template>
 
 <xsl:template match="section|appendix">
+  <xsl:call-template name="check-no-text-content"/>
 
   <xsl:if test="self::appendix">
     <xsl:call-template name="warning">
@@ -2592,6 +2611,11 @@
               <xsl:for-each select="$nodes">
                 <xsl:call-template name="get-section-number"/>
               </xsl:for-each>
+            </xsl:when>
+            <xsl:when test="$xref/@x:rel and not(starts-with($xref/@x:rel,'#')) and not($xref/@x:sec)">
+              <xsl:call-template name="error">
+                <xsl:with-param name="msg">x:rel attribute '<xsl:value-of select="$xref/@x:rel"/>' in reference to <xsl:value-of select="$node/@anchor"/> is expected to start with '#'.</xsl:with-param>
+              </xsl:call-template>
             </xsl:when>
             <xsl:otherwise>
               <xsl:value-of select="$xref/@x:sec"/>
@@ -6628,11 +6652,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.591 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.591 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.594 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.594 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2013/02/27 12:53:51 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/02/27 12:53:51 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2013/04/30 16:11:28 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/04/30 16:11:28 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
@@ -7390,6 +7414,14 @@ prev: <xsl:value-of select="$prev"/>
 <xsl:template match="t" mode="validate">
   <xsl:call-template name="warninvalid"/>
   <xsl:apply-templates select="@*|*" mode="validate"/>
+</xsl:template>
+
+<xsl:template name="check-no-text-content">
+  <xsl:if test="text()!=''">
+    <xsl:call-template name="warning">
+      <xsl:with-param name="msg">No text content allowed inside &lt;<xsl:value-of select="name(.)"/>&gt;, but found: <xsl:value-of select="text()"/></xsl:with-param>
+    </xsl:call-template>
+  </xsl:if>
 </xsl:template>
 
 <!-- disabled for now because of https://bugzilla.gnome.org/show_bug.cgi?id=677901
