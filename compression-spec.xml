@@ -32,7 +32,7 @@
         <author initials="H." surnanm="Ruellan" fullname="Hervé Ruellan">
             <organization>Canon CRF</organization>
             <address>
-                <email>herve.ruellan@free.fr</email>
+                <email>herve.ruellan@crf.canon.fr</email>
             </address>
         </author>
 
@@ -182,10 +182,7 @@
                     <xref target="parameter.negotiation"/>).  The header table
                     size is defined as the sum of the length (as defined in
                     <xref target="string.literal.representation" />) of the
-                    name and the value of all header table pairs. The number
-                    of table entries is also limited (see the
-                    SETTINGS_MAX_BUFFER_ENTRIES in <xref
-                        target="parameter.negotiation"/>).
+                    name and the value of all header table pairs.
                 </t>
                 <t>
                     To optimize the representation of the headers exchanged at
@@ -255,6 +252,12 @@
                     stream? A simple and not too bad strategy is to use an
                     empty reference set starting with the second Header frame
                     for a stream.</cref>
+                <cref>In a similar manner, handling PUSH_PROMISE frames mixed
+                    with HEADERS frames for responses is not efficient. Either
+                    PUSH_PROMISE frames can be encode using an empty reference
+                    set, or PUSH_PROMISE frames can have their own reference
+                    set.</cref>
+
                 <t>
                     An indexed representation toggles the presence of the
                     header in the current set of headers. If the header
@@ -263,10 +266,10 @@
                     the set, it is removed from it.
                 </t>
                 <t>
-                    A literal representation does not add a header to the
-                    current set of headers, rather, it must be turned on
-                    explicitly.
-                    <cref>How do we turn this on?</cref>
+                    A literal representation adds a header to the current set
+                    of headers if the header is added to the header table
+                    (either by incremental indexing or by substitution
+                    indexing).
                 </t>
                 <t>
                     The current reference set of headers is composed of all the
@@ -555,16 +558,6 @@
                         </t>
                         <cref>Is this default value OK?</cref>
                     </t>
-                    <t hangText="SETTINGS_MAX_BUFFER_ENTRIES:">
-                        <t>
-                            Allows the sender to inform the remote endpoint of
-                            the maximum number of entries it accepts for the
-                            header table.
-                        </t>
-                        <t>
-                            The default value is 256 entries.
-                        </t>
-                    </t>
                 </list>
             </t>
         </section>
@@ -597,6 +590,11 @@
                 The tables in this section should be updated based on
                 statistical analysis of header names frequency and specific
                 HTTP 2.0 header rules (like removal of some headers).
+            </cref>
+            <cref>
+                These tables are not adapted for headers contained in
+                PUSH_PROMISE frames. Either the tables can be merged, or the
+                table for responses can be updated.
             </cref>
             <section title="Requests">
                 <t>
