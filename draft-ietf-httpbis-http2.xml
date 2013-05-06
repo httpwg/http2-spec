@@ -108,6 +108,7 @@
 
   <middle>
     <section anchor="intro" title="Introduction">
+      
       <t>
         The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the HTTP/1.1 message
         encapsulation (<xref target="HTTP-p1" x:fmt="," x:rel="#http.message"/>) is optimized for
@@ -223,7 +224,7 @@
       
       <t>HTTP/2.0 uses the same "http:" and "https:" URI schemes used by 
         HTTP/1.1. As a result, implementations processing requests for 
-        a target resource URIs like "http://example.org/foo" or 
+        target resource URIs like "http://example.org/foo" or 
         "https://example.com/bar" are required to first discover whether 
         the upstream server (the immediate peer to which the client wishes
         to establish a connection) supports HTTP/2.0.</t>
@@ -452,8 +453,9 @@ Upgrade: HTTP/2.0
             The fields of the frame header are defined as:
             <list style="hanging">
               <t hangText="Length:">
-                The length of the frame data expressed as an unsigned, 16-bit
-                integer. The 8 bytes of the frame header are not included.
+                The length of the frame data expressed as an unsigned 16-bit
+                integer. The 8 bytes of the frame header are not included
+                in this value.
               </t>
               <t hangText="Type:">
                 The 8-bit type of the frame.  The frame type determines how the remainder of the
@@ -461,23 +463,25 @@ Upgrade: HTTP/2.0
                 and unrecognized frame types.
               </t>
               <t hangText="Flags:">
-                An 8-bit field reserved for flags.  Bits that have undefined semantics are reserved.
-                The following flags are defined for all frame types:
-                <list style="hanging">
-                  <t hangText="FINAL (0x1):">
-                    Bit 1 (the least significant bit) indicates that this is the last frame in a
-                    stream, placing it into a <xref
-                    target="StreamHalfClose">half-closed state</xref>.  No further frames follow in
-                    the direction of the carrying frame.
-                  </t>
-                </list>
-                Implementations MUST process these flags for all frames, including frames of
-                unsupported types.  The remaining flags can be assigned semantics by the indicated
-                frame type.  The value of other flags MUST be ignored for frame types that are not
-                supported by the implementation.
+                An 8-bit field reserved for frame-type specific boolean flags.
+                <vspace blankLines="1"/>
+                The least significant bit (0x1) -- referred to generally as 
+                the "FINAL flag"  -- is defined for all frame types as an
+                indication that this frame is the last the endpoint will send 
+                for the identified stream. Setting this flag causes the stream 
+                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+                Implementations MUST process this flag for all frames whose 
+                stream identifier field is not 0x0.
+                <vspace blankLines="1"/> 
+                The remaining flags can be assigned semantics specific to the 
+                indicated frame type. Flags that have no defined semantics for 
+                a particular frame type MUST be ignored, and MUST be left 
+                unset (0) when sending.
               </t>
               <t hangText="R:">
-                A reserved 1-bit field.  The semantics of this bit are not defined.
+                A reserved 1-bit field.  The semantics of this bit are undefined
+                and the bit MUST remain unset (0) when sending and MUST be ignored
+                when receiving.
               </t>
               <t hangText="Stream Identifier:">
                 A 31-bit stream identifier (see <xref target="StreamCreation"/>).  A value 0 is
@@ -486,17 +490,13 @@ Upgrade: HTTP/2.0
               </t>
             </list>
           </t>
-          <t>
-            Reserved bits in the frame header MUST be set to zero when sending and MUST be ignored
-            when receiving frames, unless the semantics of the bit are known.
-          </t>
           <t>The structure and content of the remaining frame data is 
-            entirely dependent on the frame type.</t>
+            dependent entirely on the frame type.</t>
         </section>
 
         <section anchor="FrameSize" title="Frame Processing">
           
-          <t>Implementatins with limited resources might not be capable of 
+          <t>Implementations with limited resources might not be capable of 
             processing large frame sizes. Such implementations MAY choose
             to place additional limits on the maximum frame size. However,
             all implementations MUST be capable of receiving and processing
@@ -557,8 +557,8 @@ Upgrade: HTTP/2.0
           <t>
             There is no coordination or shared action between the client and 
             server required to create a stream. Rather, new streams are 
-            established by sending a frame that references a previously unused 
-            stream identifier.
+            established by sending a frame whose stream identifier field 
+            references a previously unused stream identifier.
           </t>
 
           <t>
@@ -595,8 +595,8 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            Stream identifiers cannot be reused within an HTTP/2.0 session. 
-            Accordingly, long-lived sessions can cause an endpoint to exhaust 
+            Stream identifiers cannot be reused within a session. Accordingly, 
+            long-lived sessions can cause an endpoint to exhaust 
             the available range of stream identifiers. An endpoint that is 
             unable to establish a new stream identifier can establish a new 
             session for any new streams.
@@ -935,21 +935,51 @@ Upgrade: HTTP/2.0
       </section>
 
       <section title="Frame Types" anchor="frame-types">
+        
+        <t>
+          This specification defines a number of frame types, 
+          each identified by a unique 8-bit type code. Each frame
+          type serves a distinct purpose either in the establishment and 
+          management of the session as a whole, or of individual streams.
+        </t>
+        
+        <t>
+          The transmission of specific frame types can alter the state of 
+          a session. If the endpoints fail to maintain a synchronized view 
+          of the session state, successful communication within the session 
+          will no longer be possible. Therefore, it is important that endpoints 
+          have a shared comprehension of how the state is affected by the use
+          any given frame. Accordingly, while it is expected that new frame 
+          types will be introduced by extensions to this protocol, only frames
+          defined by this document are permitted to alter the session state.
+        </t>
+        
         <section anchor="DataFrames" title="DATA Frames">
+          
           <t>
-            DATA frames (type=0) are used to convey HTTP message bodies.  The payload of a data
-            frame contains a portion of the body's payload, or the complete body if there is only
-            one DATA frame in the stream.
+            DATA frames (type=0x0) convey arbitrary, variable-length
+            sequences of octets associated with a stream. One or more 
+            DATA frames are used, for instance, to carry HTTP request
+            or response message payloads.
           </t>
+          
           <t>
-            The DATA frame does not define any additional flags.
+            The DATA frame does not utilize any type-specific flags.
           </t>
+          
+          <t>
+            DATA frames MUST be associated with a stream. If a DATA frame is 
+            received whose stream identifier field is 0x0, the recipient MUST 
+            respond with a <xref target="SessionErrorHandler">session error</a> 
+            of type PROTOCOL_ERROR.
+          </t>
+          
         </section>
 
         <section anchor="HEADERS_PRIORITY" title="HEADERS+PRIORITY">
           <t>
-            The HEADERS+PRIORITY frame (type=1) allows the sender to set header fields and stream
-            priority at the same time.  It MUST be used for each stream that is created.
+            The HEADERS+PRIORITY frame (type=0x1) allows the sender to 
+            set header fields and stream priority at the same time.
           </t>
           <figure title="HEADERS+PRIORITY Frame Payload">
             <artwork type="inline">
@@ -968,14 +998,31 @@ Upgrade: HTTP/2.0
             frame</xref>, preceded by a single reserved bit and a 31-bit priority; see
             <xref target="StreamPriority"/>.
           </t>
+          
+          <t>No type-specific flags are defined.</t>
+          
+          <t>
+            HEADERS+PRIORITY frames MUST be associated with a stream. If a 
+            HEADERS+PRIORITY frame is received whose stream 
+            identifier field is 0x0, the recipient MUST respond with a 
+            <xref target="SessionErrorHandler">session error</a> of type 
+            PROTOCOL_ERROR.
+          </t>
+            
+          <t>
+            The HEADERS+PRIORITY frame modifies the session state as 
+            defined in <xref target="HeaderBlock" />.
+          </t>
+            
         </section>
 
         <section anchor="RST_STREAM" title="RST_STREAM">
           <t>
-            The RST_STREAM frame (type=3) allows for abnormal termination of a stream.  When sent by
-            the creator of a stream, it indicates that they wish to cancel the stream.  When
-            sent by the receiver of a stream, it indicates an error or that the receiver did not
-            want to accept the stream, so the stream should be closed.
+            The RST_STREAM frame (type=0x3) allows for abnormal termination of a stream.  When sent by
+            the initiator of a stream, it indicates that they wish to cancel the stream.  When
+            sent by the receiver of a stream, it indicates that either the 
+            receiver is rejecting the stream, requesting that the stream be 
+            cancelled or that an error condition has occurred. 
           </t>
           <figure title="RST_STREAM Frame Payload">
             <artwork type="inline">
@@ -986,43 +1033,81 @@ Upgrade: HTTP/2.0
 +---------------------------------------------------------------+
 </artwork>
           </figure>
+
           <t>
-            The RST_STREAM frame does not define any additional flags.
+            The RST_STREAM frame contains a single unsigned, 
+            32-bit integer identifying the <xref target="ErrorCodes">error code</xref>.  
+            The error code indicates why the stream is being terminated.
+          </t>
+          
+          <t>
+            No type-flags are defined.
           </t>
 
           <t>
-            The RST_STREAM frame contains a single 32-bit <xref target="ErrorCodes">error
-            code</xref>.  The error code indicates why the stream is being terminated.
+            The RST_STREAM frame fully terminates the referenced stream
+            and causes it to enter the closed state. After receiving a 
+            RST_STREAM on a stream, the receiver MUST NOT send additional 
+            frames for that stream. However, after sending the RST_STREAM, 
+            the sending endpoint MUST be prepared to receive and process 
+            additional frames sent on the stream that might have been sent 
+            by the peer prior to the arrival of the RST_STREAM.
           </t>
+
           <t>
-            After receiving a RST_STREAM on a stream, the receiver must not send additional frames
-            for that stream, and the stream moves into the closed state.
+            RST_STREAM frames MUST be associated with a stream. If a 
+            RST_STREAM frame is received whose stream 
+            identifier field is 0x0 the recipient MUST respond with a 
+            <xref target="SessionErrorHandler">session error</a> of type 
+            PROTOCOL_ERROR.
           </t>
+
         </section>
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
-            A SETTINGS frame (type=4) contains a set of id/value pairs for communicating
-            configuration data regarding how the two endpoints can communicate. SETTINGS frames MUST be
-            sent at the start of a session, and additionally they can be sent at any other time by either
-            endpoint.  Settings are declarative, not negotiated; each peer indicates their own
-            configuration.
+            The SETTINGS frame (type=0x4) conveys configuration
+            parameters, expressed as a sequence of 
+            <xref target="settings-id-pair">ID+value pairs</xref>, 
+            that affect how endpoints communicate. The parameters 
+            are either constraints that a peer MUST obey or preferences 
+            the peer SHOULD respect. 
           </t>
+          
           <t>
-            SETTINGS does not need to include every defined setting; senders MUST only include 
-            those for which it has accurate values to convey. When
-            multiple ID/value pairs are sent, they SHOULD be sent in order of lowest id to highest
-            id.  A single SETTINGS frame MUST NOT contain multiple values for the same ID.  If the
+            SETTINGS frames MUST be sent at the start of a session, and MAY 
+            be sent at any other time by either endpoint over the lifetime 
+            of the session. 
+          </t>
+          
+          <t>
+            Implementations MUST support all of the settings defined by this 
+            specification and MAY support additional settings defined by 
+            extensions. Unknown or unrecognized settings MUST be ignored.
+            New settings MUST NOT be defined or implemented in a way that 
+            requires endpoints to understand then in order to communicate 
+            successfully.
+          </t>
+                    
+          <t>
+            A SETTINGS frame does is not required to include every defined 
+            setting; senders can include only those parameters for which it 
+            has accurate values and a need to convey. When multiple parameters 
+            are sent, they SHOULD be sent in order of numerically lowest ID to 
+            highest ID.  A single SETTINGS frame MUST NOT contain multiple values for the same ID.  If the
             receiver of a SETTINGS frame discovers multiple values for the same ID, it MUST ignore
             all values for that ID except the first one.
           </t>
           <t>
-            Over the lifetime of a session, a server MAY send multiple SETTINGS frames containing 
-            different ID/Value pairs.  When the same ID/Value is sent twice, the most recent value 
-            overrides any previously sent values.
+            Over the lifetime of a session, an endpoint MAY send multiple SETTINGS frames containing 
+            previously unspecified parameters or new values for 
+            parameters whose values have already been established. In the 
+            latter case, the most recent value overrides any previously sent value.
           </t>
           <t>
-            Additional flags for the SETTINGS frame are:
+            Because the SETTINGS frame is not associated with any particular
+            stream, the FINAL flag is ignored. Additional type-specific flags 
+            for the SETTINGS frame are:
             <list style="hanging">
               <t hangText="CLEAR_PERSISTED (0x2):">
                 Bit 2 being set indicates a request to clear any previously persisted settings
@@ -1031,11 +1116,21 @@ Upgrade: HTTP/2.0
             </list>
           </t>
           <t>
-            SETTINGS frames always apply to a session, never a single stream.  The stream identifier
-            for a settings frame MUST be zero.
+            SETTINGS frames always apply to a session, never a single stream.  
+            The stream identifier for a settings frame MUST be zero. If an 
+            endpoint receives a SETTINGS frame whose stream identifier field
+            is anything other than 0x0, the endpoint MUST respond with a 
+            <xref target="SessionErrorHandler">session error</xref> of type
+            PROTOCOL_ERROR.
           </t>
 
-          <section title="SETTINGS ID/Value Pairs">
+          <section title="SETTINGS ID/Value Pairs" id="settings-id-pair">
+            
+            <t>The payload of a SETTINGS frame consists of zero or more 
+              ID+Value pairs. Each pair consists of an 8-bit flags field
+              specifying per-item instructions, an unsigned 24-bit 
+              setting identifier, and an unsigned 32-bit value.</t>
+            
             <figure title="SETTINGS ID/Value Pair Format">
               <artwork type="inline">
  0                   1                   2                   3
@@ -1047,58 +1142,76 @@ Upgrade: HTTP/2.0
 +---------------------------------------------------------------+
 </artwork>
             </figure>
-            <t>
-              The payload of a SETTINGS frame contains zero or more settings.  Each setting is
-              comprised of the following:
+            
+            <t>Currently, two flags are defined for the 8-bit flags field:
               <list style="hanging">
-                <t hangText="Settings Flags:">
-                  An 8-bit flags field containing per-setting instructions.  The following instructions are
-                defined:
-                  <list style="hanging">
-                    <t hangText="PERSIST_VALUE (0x1):">
-                      Bit 1 (the least significant bit) being set indicates a request from the server
-                      to the client to persist this setting.  A client MUST NOT set this flag.
-                    </t>
-                    <t hangText="PERSISTED (0x2):">
-                      Bit 2 being set indicates that this setting is a persisted setting being
-                      returned by the client to the server.  This also indicates that this setting is
-                      not a client setting, but a value previously set by the server.  A server MUST
-                      NOT set this flag.
-                    </t>
-                  </list>
+                <t hangText="PERSIST_VALUE (0x1):">
+                  Bit 1 (the least significant bit) being set indicates a request from the server
+                  to the client to persist this setting.  A client MUST NOT set this flag.
                 </t>
-                <t hangText="Setting Identifier:">
-                  A 24-bit field that identifies the setting.
-                </t>
-                <t hangText="Value:">
-                  A 32-bit value for the setting.
+                <t hangText="PERSISTED (0x2):">
+                  Bit 2 being set indicates that this setting is a persisted setting being
+                  returned by the client to the server.  This also indicates that this setting is
+                  not a client setting, but a value previously set by the server.  A server MUST
+                  NOT set this flag.
                 </t>
               </list>
             </t>
           </section>
 
           <section title="Settings Persistence">
-            <t>
-              When the server is the sender, the sender can request that configuration data be
-              persisted by the client across HTTP/2.0 sessions and returned to the server in future
-              communications.
-            </t>
+            
             <t>
               <cref>Note that persistence of settings is under discussion in the WG and might be
               removed in a future version of this document.</cref>
             </t>
+            
             <t>
-              Clients persist settings on a per origin basis (see <xref target="RFC6454"/> for a
-              definition of web origins).  That is, when a client connects to a server, and the server
-              persists settings within the client, the client SHOULD return the persisted settings on
-              future connections to the same origin AND IP address and TCP port. Clients MUST NOT
-              request servers to use the persistence features of the SETTINGS frames, and servers MUST
-              ignore persistence related flags sent by a client.
+              A server endpoint can request that configuration parameters 
+              sent to a client in a SETTINGS frame are to be persisted by 
+              the client across HTTP/2.0 sessions and returned to the server
+              in any new SETTINGS frame the client sends to the server
+              in the current session or any future sessions.
             </t>
+            
+            <t>
+              Persistence is requested on a per-setting basis by setting the
+              PERSIST_VALUE flag (0x1).
+            </t>
+            
+            <t>
+              Client endpoints are not permitted to make such requests. Servers
+              MUST ignore any attempt by clients to request that a server 
+              persist configuration parameters.
+            </t>
+            
+            <t>
+              Persistence of configuration parameters is done on a per-origin
+              basis (see <xref target="RFC6454"/>). That is, when a client 
+              establishes a session with a server, and the server requests that
+              the client maintain persistent settings, the client SHOULD return 
+              the persisted settings on all future sessions to the same origin,
+              IP address and TCP port.
+            </t>
+
+            <t>
+              Whenever the client sends a SETTINGS frame in the current session,
+              or establishes a new session with the same origin, persisted 
+              configuration parameters are sent with the PERSISTED
+              flag (0x2) set for each persisted parameter.
+            </t>
+            
+            <t>
+              Persisted settings accumulate until the server requests that
+              all previously persisted settings are to be cleared by setting 
+              the CLEAR_PERSISTED (0x2) flag on the SETTINGS frame.
+            </t>
+
             <t>
               For example, if the server sends IDs 1, 2, and 3 with the 
-              FLAG_SETTINGS_PERSIST_VALUE in a first SETTINGS frame, and then sends IDs 4 and 5 with the FLAG_SETTINGS_PERSIST_VALUE,
-              when the client returns the persisted state on its next SETTINGS frame, it SHOULD send
+              FLAG_SETTINGS_PERSIST_VALUE in a first SETTINGS frame, and then 
+              sends IDs 4 and 5 with the FLAG_SETTINGS_PERSIST_VALUE in a 
+              subsequent SETTINGS frame, the client will return values for 
               all 5 settings (1, 2, 3, 4, and 5 in this example) to the server.
             </t>          
           </section>
@@ -1170,27 +1283,19 @@ Upgrade: HTTP/2.0
               </list>
             </t>
 
-            <t>
-              The SETTINGS frame is extensible for future information which may improve
-              client-server communications.
-            </t>
           </section>
         </section>
 
         <section anchor="PUSH_PROMISE" title="PUSH_PROMISE">
 
           <t>
-            The PUSH_PROMISE frame (type=5) is a promise to create a stream and serve the referenced
-            resource in the future.  Minimal data allowing the receiver to understand which
-            resource(s) are to be pushed are to be included.  <xref target="PushResources"/>
-            contains a thorough description of server push.
-          </t>
-
-          <t>
-            PUSH_PROMISE frames are sent on an existing stream.  They declare the intent to use
-            another stream for the pushing of a resource, giving the client an opportunity to reject
-            the pushed resources.  Pushed resources are rejected by sending a RST_STREAM frame on
-            the promised stream.
+            The PUSH_PROMISE frame (type=0x5) is used to notify the peer 
+            endpoint in advance of streams the sender intends to initiate.
+            The PUSH_PROMISE frame includes the unsigned 31-bit identifier
+            of the stream the endpoint plans to create along with a minimal
+            set of headers that provide additional context for the stream.
+            <xref target="PushResources"> contains a thorough description
+            of the use of PUSH_PROMISE frames.
           </t>
 
           <figure title="PUSH_PROMISE Payload Format">
@@ -1204,42 +1309,72 @@ Upgrade: HTTP/2.0
 +---------------------------------------------------------------+
 </artwork>
           </figure>
-
+          
           <t>
-            There are no frame-specific flags for the PUSH_PROMISE frame.
-          </t>
-
-          <t>
-            The body of a PUSH_PROMISE includes a "Promised-Stream-ID".  This 31-bit identifier
-            indicates the stream on which the resource will be pushed.  The promised stream
+            The body of a PUSH_PROMISE includes a "Promised-Stream-ID".  This 
+            unsigned 31-bit integer indentifies the stream the endpoint 
+            intends to start sending frames for.  The promised stream
             identifier MUST be a valid choice for the next stream sent by the sender (see <xref
             target="StreamCreation">new stream identifier</xref>).
           </t>
 
           <t>
-            There is no requirement that the streams referred to by this frame are created in the
-            order referenced.  The PUSH_PROMISE only reserves stream identifiers for later use.
+            PUSH_PROMISE frames MUST be associated with an existing stream. If 
+            the stream identifier field specifies the value 0x0, a recipient
+            MUST respond with a <xref target="SessionErrorHandler">session 
+            error</xref> of type PROTOCOL_ERROR.
           </t>
+          
+          <t>
+            The state of promised streams is bound to the state of the 
+            original associated stream on which the PUSH_PROMISE frame
+            were sent. If the originating stream state changes to 
+            fully closed, all associated promised streams fully close as well. 
+            <cref>Ed. Note: We need clarification on this point. How synchronized
+              are the lifecycles of streams and associated promised streams?</cref>
+          </t>
+          
+          <t>There are no additional type-specific flags defined.</t>
 
           <t>
-            The PUSH_PROMISE also includes a <xref target="HeaderBlock">header block</xref>, which
-            describes the resource that will be pushed.
+            Promised streams are not required to be used in order promised.
+            The PUSH_PROMISE only reserves stream identifiers for later use.
           </t>
+          
+          <t>
+            Recipients of PUSH_PROMISE frames can choose to reject promised
+            streams by returning a RST_STREAM referencing the promised stream
+            identifier back to the sender of the PUSH_PROMISE.
+          </t>
+          
+          <t>
+            The PUSH_PROMISE frame modifies the session state as 
+            defined in <xref target="HeaderBlock" />.
+          </t>
+            
         </section>
 
         <section anchor="PING" title="PING">
           <t>
-            The PING frame (type=6) is a mechanism for measuring a minimal round-trip time from the
+            The PING frame (type=0x6) is a mechanism for measuring a minimal round-trip time from the
             sender, as well as determining whether an idle connection is still functional.  
             PING frames can be sent from any endpoint.
           </t>
+          
           <t>
-            Receivers of a PING frame send a PING frame with the PONG flag and the same payload to 
-            the sender as soon as possible.
-            PING SHOULD take highest priority if there is other data waiting to be sent.
+            PING frames consist of an arbitrary, variable-length sequence of 
+            octets. Receivers of a PING send a response PING frame with the PONG
+            flag set and precisely the same sequence of octets back to the 
+            sender as soon as possible.
           </t>
+          
           <t>
-            The PING frame defines a frame-specific flag:
+            Processing of PING frames SHOULD be performed with the highest
+            priority if there are additional frames waiting to be processed.
+          </t>   
+          
+          <t>
+            The PING frame defines one type-specific flag:
             <list style="hanging">
               <t hangText="PONG (0x2):">
                 Bit 2 being set indicates that this PING frame is a PING response.  An endpoint MUST
@@ -1249,17 +1384,18 @@ Upgrade: HTTP/2.0
             </list>
           </t>
           <t>
-            The PING frame MUST be sent with a stream identifier of zero.
+            PING frames are not associated with any individual stream. If a 
+            PING frame is received with a stream identifier field value other
+            than 0x0, the recipient MUST respond with a 
+            <xref target="SessionErrorHandler">session error</xref> of type 
+            PROTOCOL_ERROR.
           </t>
-          <t>
-            The payload of a PING frame can contain any value.  A PING response MUST contain the
-            contents of the PING request.
-          </t>
+
         </section>
 
         <section anchor="GOAWAY" title="GOAWAY">
           <t>
-            The GOAWAY frame (type=7) informs the remote side of the connection to stop creating
+            The GOAWAY frame (type=0x7) informs the remote side of the connection to stop creating
             streams on this session.  It can be sent from the client or the server. Once sent, the
             sender will ignore frames sent on new streams for the remainder of the
             session. Receivers of a GOAWAY frame MUST NOT open additional streams on the session,
@@ -1304,7 +1440,7 @@ Upgrade: HTTP/2.0
 </artwork>
           </figure>
           <t>
-            The GOAWAY frame does not define any additional flags.
+            The GOAWAY frame does not define any type-specific flags.
           </t>
           <t>
             The GOAWAY frame applies to the session, not a specific stream.  The stream identifier
@@ -1324,21 +1460,32 @@ Upgrade: HTTP/2.0
 
         <section anchor="HEADERS" title="HEADERS">
           <t>
-            The HEADERS frame (type=8) provides header fields for a stream. It may be optionally
-            sent on an existing stream at any time.  Specific application of the headers in this
-            frame is application-dependent.
+            The HEADERS frame (type=0x8) provides header fields for a stream. 
+            Any number of HEADERS frames can may be sent on an existing stream 
+            at any time.
           </t>
           <t>
-            The HEADERS frame does not define any additional flags.
+            The HEADERS frame does not define any type-specific flags.
           </t>
           <t>
             The body of a HEADERS frame contains a <xref target="HeaderBlock">Headers Block</xref>.
+          </t>
+          <t>
+            The HEADERS frame is associated with an existing stream. If 
+            a HEADERS frame is received with a stream identifier of 0x0, 
+            the receipient MUST respond with a 
+            <xref target="StreamErrorHandler">stream error</xref> of type
+            PROTOCOL_ERROR.
+          </t>
+          <t>
+            The HEADERS frame changes the session state as defined in
+            <xref target="HeaderBlock" />.
           </t>
         </section>
 
         <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
           <t>
-            The WINDOW_UPDATE frame (type=9) is used to implement flow control.
+            The WINDOW_UPDATE frame (type=0x9) is used to implement flow control.
           </t>
           <t>
             Flow control operates at two levels: on each individual stream and on the
