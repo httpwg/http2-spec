@@ -1437,10 +1437,33 @@ Upgrade: HTTP/2.0
             MUST be zero.
           </t>
           <t>
-            The GOAWAY frame contains an identifier of the last stream that the sender of the GOAWAY
-            is prepared to act upon, which can include processing and replies.  This allows an
-            endpoint to discover what streams might have had some effect or what might be safe to
-            automatically retry.  If no streams were acted upon, the last stream ID MUST be 0.
+            The last stream identifier in the GOAWAY frame contains the highest numbered stream
+            identifier for which the sender of the GOAWAY frame has received frames on and might
+            have taken some action on.  All streams up to and including the identified stream might
+            have been processed in some way.  The last stream identifier is set to 0 if no streams
+            were processed.
+            <list>
+              <t>
+                Note: In this case, "processed" means that some data from the stream was passed to
+                some higher layer of software that might have taken some action as a result.
+              </t>
+            </list>
+          </t>
+          <t>
+            On streams with lower or equal numbered identifiers that do not close completely prior
+            to the connection being closed, re-attempting requests, transactions, or any protocol
+            activity is not possible (with the exception of idempotent actions like HTTP GET, PUT,
+            or DELETE).  Any protocol activity that uses higher numbered streams can be safely
+            retried using a new connection.
+          </t>
+          <t>
+            Activity on streams numbered lower or equal to the last stream identifier might still complete
+            successfully.  The sender of a GOAWAY frame gracefully shut down a connection by sending
+            a GOAWAY frame, maintaining the connection in an open state until all in-progress
+            streams complete.
+          </t>
+          <t>
+            The last stream ID MUST be 0 if no streams were acted upon.
           </t>
           <t>
             The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
@@ -1672,44 +1695,6 @@ Upgrade: HTTP/2.0
           has been sent, but not all streams have finished), while another HTTP/2.0 connection is
           starting.
         </t>
-
-        <section title="Use of GOAWAY">
-          <t>
-            HTTP/2.0 provides a GOAWAY message which can be used when closing a connection from
-            either the client or server.  Without a server GOAWAY message, HTTP has a race condition
-            where the client sends a request just as the server is closing the connection, and the
-            client cannot know if the server received the stream or not.  By using the
-            last-stream-id in the GOAWAY, servers can indicate to the client if a request was
-            processed or not.
-          </t>
-
-          <t>
-            Note that some servers will choose to send the GOAWAY and immediately terminate the
-            connection without waiting for active streams to finish.  The client will be able to
-            determine this because HTTP/2.0 streams are deterministically closed.  This abrupt
-            termination will force the client to heuristically decide whether to retry the pending
-            requests.  Clients always need to be capable of dealing with this case because they must
-            deal with accidental connection termination cases, which are the same as the server
-            never having sent a GOAWAY.
-          </t>
-
-          <t>
-            More sophisticated servers will use GOAWAY to implement a graceful teardown. They will
-            send the GOAWAY and provide some time for the active streams to finish before
-            terminating the connection.
-          </t>
-
-          <t>
-            If a HTTP/2.0 client closes the connection, it should also send a GOAWAY message.  This
-            allows the server to know if any server-push streams were received by the client.
-          </t>
-
-          <t>
-            If the endpoint closing the connection has not received frames on any stream, the GOAWAY
-            will contain a last-stream-id of 0.
-          </t>
-
-        </section>
       </section>
 
       <section title="HTTP Request/Response">
