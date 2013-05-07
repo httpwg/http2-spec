@@ -148,7 +148,7 @@
       <section title="Document Organization">
         <t>
           The HTTP/2.0 Specification is split into three parts: <xref target="starting">starting
-          HTTP/2.0</xref>, which covers how a HTTP/2.0 session is initiated; <xref target="FramingLayer">a
+          HTTP/2.0</xref>, which covers how a HTTP/2.0 connection is initiated; <xref target="FramingLayer">a
           framing layer</xref>, which multiplexes a single TCP connection into independent
           frames of various types; and <xref target="HTTPLayer">an HTTP layer</xref>, which specifies the mechanism
           for expressing HTTP interactions using the framing layer. While some of the
@@ -173,7 +173,7 @@
           The following terms are used:
           <list style="hanging">
             <t hangText="client:">
-              The endpoint initiating the HTTP session.
+              The endpoint initiating the HTTP connection.
             </t>
             <t hangText="connection:">
               A transport-level connection between two endpoints.
@@ -182,7 +182,7 @@
               Either the client or server of the connection.
             </t>
             <t hangText="frame:">
-              The smallest unit of communication within an HTTP/2.0 session, 
+              The smallest unit of communication within an HTTP/2.0 connection, 
               consisting of a header and a variable-length sequence of bytes
               structured according to the frame type.
             </t>
@@ -200,17 +200,14 @@
               An endpoint that is transmitting frames.
             </t>
             <t hangText="server:">
-              The endpoint which did not initiate the HTTP session.
+              The endpoint which did not initiate the HTTP connection.
             </t>
-            <t hangText="session:">
-              A synonym for "connection".
-            </t>
-            <t hangText="session error:">
-              An error on the HTTP/2.0 session.
+            <t hangText="connection error:">
+              An error on the HTTP/2.0 connection.
             </t>
             <t hangText="stream:">
               A bi-directional flow of frames across a virtual channel within 
-              the HTTP/2.0 session.
+              the HTTP/2.0 connection.
             </t>
             <t hangText="stream error:">
               An error on the individual HTTP/2.0 stream.
@@ -313,14 +310,14 @@ HTTP/1.1 101 Switching Protocols
 Connection: Upgrade
 Upgrade: HTTP/2.0
 
-[ HTTP/2.0 session ...
+[ HTTP/2.0 connection ...
 </artwork>
         </figure>
 
         <t>
           The first HTTP/2.0 frame sent by the server is a <xref target="SETTINGS">SETTINGS
-          frame</xref>.  Upon receiving the 101 response, the client sents a <xref
-          target="SessionHeader">session header</xref>, which includes a SETTINGS frame.
+          frame</xref>.  Upon receiving the 101 response, the client sends a <xref
+          target="ConnectionHeader">connection header</xref>, which includes a SETTINGS frame.
         </t>
       </section>
 
@@ -333,7 +330,7 @@ Upgrade: HTTP/2.0
 
         <t>
           Once TLS negotiation is complete, both the client and the server send a <xref
-          target="SessionHeader">session header</xref>.
+          target="ConnectionHeader">connection header</xref>.
         </t>
       </section>
 
@@ -346,7 +343,7 @@ Upgrade: HTTP/2.0
         </t>
         <t>
           Prior support for HTTP/2.0 is not a strong signal that a given server will support
-          HTTP/2.0 for future sessions.  It is possible for server configurations to change or for
+          HTTP/2.0 for future connections.  It is possible for server configurations to change or for
           configurations to differ between instances in clustered server.  Interception proxies
           (a.k.a. "transparent" proxies) are another source of variability.
         </t>
@@ -354,9 +351,9 @@ Upgrade: HTTP/2.0
     </section>
 
     <section anchor="FramingLayer" title="HTTP/2.0 Framing Layer">
-      <section title="Session">
+      <section title="Connection">
         <t>
-          The HTTP/2.0 session is an Application Level protocol running on top
+          The HTTP/2.0 connection is an Application Level protocol running on top
           of a TCP connection (<xref target="RFC0793"/>). The client is the TCP
           connection initiator.
         </t>
@@ -375,45 +372,45 @@ Upgrade: HTTP/2.0
         </t>
       </section>
 
-      <section anchor="SessionHeader" title="Session Header">
+      <section anchor="ConnectionHeader" title="Connection Header">
         
         <t>Upon establishment of a TCP connection and determination 
           that HTTP/2.0 will be used by both peers to communicate, each 
-          endpoint MUST send a session header as a final confirmation
-          and to establish the default parameters for the HTTP/2.0 session.</t>
+          endpoint MUST send a connection header as a final confirmation
+          and to establish the default parameters for the HTTP/2.0 connection.</t>
 
         <t>
-          The client session header is a sequence of 25 octets (in hex notation)
+          The client connection header is a sequence of 25 octets (in hex notation)
         </t>
         <figure><artwork type="inline">
 464f4f202a20485454502f322e300d0a0d0a4241520d0a0d0a</artwork></figure>
         <t>
           (the string <spanx style="verb">FOO * HTTP/2.0\r\n\r\nBAR\r\n\r\n</spanx>) followed by a
-          <xref target="SETTINGS">SETTINGS frame</xref>.  The client sends the client session header
+          <xref target="SETTINGS">SETTINGS frame</xref>.  The client sends the client connection header
           immediately upon receipt of a 101 Switching Protocols response (indicating a successful
           upgrade), or after receiving a TLS Finished message from the server. If starting an
-          HTTP/2.0 session with prior knowledge of server support for the protocol, the client
-          session header is sent upon connection establishment.
+          HTTP/2.0 connection with prior knowledge of server support for the protocol, the client
+          connection header is sent upon connection establishment.
         </t>
         <t>
           <list>
             <t>
-              The client session header is selected so that a large proportion of HTTP/1.1 or
+              The client connection header is selected so that a large proportion of HTTP/1.1 or
               HTTP/1.0 servers and intermediaries do not attempt to process further frames.  Note
               that this does not address the concerns raised in <xref target="TALKING"/>.
             </t>
           </list>
         </t>
         <t>
-          The server session header consists of just 
+          The server connection header consists of just 
           a <xref target="SETTINGS">SETTINGS frame</xref> that MUST be the 
-          first frame the server sends in the HTTP/2.0 session.
+          first frame the server sends in the HTTP/2.0 connection.
         </t>
         <t>
           To avoid unnecessary latency, clients are permitted to send 
           additional frames to the server immediately after sending the client 
-          session header, without waiting to receive the server session header.
-          It is important to note, however, that the server session header 
+          connection header, without waiting to receive the server connection header.
+          It is important to note, however, that the server connection header 
           SETTINGS frame might include parameters that necessarily alter 
           how a client is expected to communicate with the server. Upon 
           receiving the SETTINGS frame, the client is expected to honor any 
@@ -421,14 +418,14 @@ Upgrade: HTTP/2.0
         </t>
         <t>
           Clients and servers MUST terminate the TCP connection if either
-          peer does not begin with a valid session header.  A 
+          peer does not begin with a valid connection header.  A 
           <xref target="GOAWAY">GOAWAY frame</xref> MAY be omitted if it is 
           clear that the peer is not using HTTP/2.0.
         </t>
       </section>
 
       <section title="Framing">
-        <t>Once the HTTP/2.0 session is established, clients and servers 
+        <t>Once the HTTP/2.0 connection is established, clients and servers 
           can begin exchanging frames.</t>
         
         <section anchor="FrameHeader" title="Frame Header">
@@ -485,7 +482,7 @@ Upgrade: HTTP/2.0
               </t>
               <t hangText="Stream Identifier:">
                 A 31-bit stream identifier (see <xref target="StreamCreation"/>).  A value 0 is
-                reserved for frames that are associated with the session as a 
+                reserved for frames that are associated with the connection as a 
                 whole as opposed to an individual stream.
               </t>
             </list>
@@ -520,7 +517,7 @@ Upgrade: HTTP/2.0
       <section title="Streams">
         <t>
           A "stream" is an independent, bi-directional sequence of frames 
-          exchanged between the client and server within an HTTP/2.0 session.
+          exchanged between the client and server within an HTTP/2.0 connection.
           Streams have several important characteristics:
           <list style="symbols">
             <t>
@@ -545,7 +542,7 @@ Upgrade: HTTP/2.0
               HEADERS, or PUSH_PROMISE frames.
             </t>
             <t>
-              A single HTTP/2.0 session can contain multiple concurrently
+              A single HTTP/2.0 connection can contain multiple concurrently
               active streams, with either endpoint interleaving frames from 
               multiple streams.
             </t>
@@ -572,11 +569,11 @@ Upgrade: HTTP/2.0
           <t>
             The identifier of a newly established stream MUST be numerically 
             greater than all previously established streams from that endpoint
-            within the HTTP/2.0 session, unless the identifier has been reserved 
+            within the HTTP/2.0 connection, unless the identifier has been reserved 
             using a <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frame.  
             An endpoint that receives an unexpected stream identifier MUST 
             terminate the stream by responding with a 
-            <xref target="SessionErrorHandler">session error</xref> of type 
+            <xref target="ConnectionErrorHandler">connection error</xref> of type 
             PROTOCOL_ERROR.
           </t>
           
@@ -595,11 +592,10 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            Stream identifiers cannot be reused within a session. Accordingly, 
-            long-lived sessions can cause an endpoint to exhaust 
-            the available range of stream identifiers. An endpoint that is 
-            unable to establish a new stream identifier can establish a new 
-            session for any new streams.
+            Stream identifiers cannot be reused within a connection.  Accordingly, long-lived
+            connections can cause an endpoint to exhaust the available range of stream
+            identifiers. An endpoint that is unable to establish a new stream identifier can
+            establish a new connection for any new streams.
           </t>
           
           <t>
@@ -647,7 +643,7 @@ Upgrade: HTTP/2.0
             When an endpoint sends a frame for a stream with the FINAL flag 
             set, the stream is considered to be half-closed for that endpoint.
             Subsequent frames MUST NOT be sent by that endpoint for the half
-            closed stream for the remaining duration of the HTTP/2.0 session.
+            closed stream for the remaining duration of the HTTP/2.0 connection.
             When both endpoints have sent frames with the FINAL flag set, the
             stream is considered to be fully closed.
           </t>
@@ -667,7 +663,7 @@ Upgrade: HTTP/2.0
           <t>
             It is not necessary for an endpoint to half-close a stream 
             for which it has not sent any frames. This allows endpoints to
-            utilize fully unidirectional streams that do not require explicit
+            use fully unidirectional streams that do not require explicit
             action or acknowledgement from the receiver.
           </t>  
 
@@ -694,7 +690,7 @@ Upgrade: HTTP/2.0
                 <vspace blankLines="1"/>
                 The sender of a RST_STREAM frame MUST allow for frames that have already been sent
                 by the peer prior to the RST_STREAM being processed.  If in-transit frames alter
-                session state, these frames cannot be safely discarded.  See <xref
+                connection state, these frames cannot be safely discarded.  See <xref
                 target="StreamErrorHandler">Stream Error Handling</xref> for more details.
               </t>
               <t hangText="TCP connection teardown:">
@@ -704,11 +700,6 @@ Upgrade: HTTP/2.0
               </t>
             </list>
           </t>
-
-          <t>
-            If an endpoint receives a frame on a stream after it is closed, it MAY send a
-            RST_STREAM to the sender with the status PROTOCOL_ERROR.
-          </t>
         </section>
       </section>
 
@@ -717,7 +708,7 @@ Upgrade: HTTP/2.0
           HTTP/2.0 framing permits two classes of error: 
           <list style="symbols">
             <t>
-              An error condition that renders the entire session unusable is a session error.
+              An error condition that renders the entire connection unusable is a connection error.
             </t>
             <t>
               An error in an individual stream is a stream error.
@@ -725,27 +716,27 @@ Upgrade: HTTP/2.0
           </list>
         </t>
 
-        <section anchor="SessionErrorHandler" title="Session Error Handling">
+        <section anchor="ConnectionErrorHandler" title="Connection Error Handling">
           <t>
-            A session error is any error which prevents further processing of the framing layer or
-            which corrupts any session state.
+            A connection error is any error which prevents further processing of the framing layer or
+            which corrupts any connection state.
           </t>
           <t>
-            An endpoint that encounters a session error MUST first send a <xref
+            An endpoint that encounters a connection error MUST first send a <xref
             target="GOAWAY">GOAWAY</xref> frame with the stream identifier of the last stream that
             it successfully received from its peer.  The GOAWAY frame includes an error code that
-            indicates why the session is terminating.  After sending the GOAWAY frame, the endpoint
+            indicates why the connection is terminating.  After sending the GOAWAY frame, the endpoint
             MUST close the TCP connection.
           </t>
           <t>
             It is possible that the GOAWAY will not be reliably received by the receiving endpoint.
-            In the event of a session error, GOAWAY only provides a best-effort attempt to
-            communicate with the peer about why the session is being terminated.
+            In the event of a connection error, GOAWAY only provides a best-effort attempt to
+            communicate with the peer about why the connection is being terminated.
           </t>
           <t>
-            An endpoint can end a session at any time.  In particular, an endpoint MAY choose to
-            treat a stream error as a session error if the error is recurrent.  Endpoints SHOULD
-            send a GOAWAY frame when ending a session, as long as circumstances permit it.
+            An endpoint can end a connection at any time.  In particular, an endpoint MAY choose to
+            treat a stream error as a connection error if the error is recurrent.  Endpoints SHOULD
+            send a GOAWAY frame when ending a connection, as long as circumstances permit it.
           </t>
         </section>
 
@@ -764,7 +755,7 @@ Upgrade: HTTP/2.0
             A RST_STREAM is the last frame that an endpoint can send on a stream.  The peer that
             sends the RST_STREAM frame MUST be prepared to receive any frames that were sent or
             enqueued for sending by the remote peer.  These frames can be ignored, except where they
-            modify session state (such as that for header compression).
+            modify connection state (such as that for header compression).
           </t>
           <t>
             Normally, an endpoint SHOULD NOT send more than one RST_STREAM frame for any stream. However, an endpoint
@@ -780,7 +771,7 @@ Upgrade: HTTP/2.0
         <section anchor="ErrorCodes" title="Error Codes">
           <t>
             Error codes are 32-bit fields that are used in RST_STREAM and GOAWAY frames to convey
-            the reasons for the stream or session error.
+            the reasons for the stream or connection error.
           </t>
 
           <t>
@@ -793,7 +784,7 @@ Upgrade: HTTP/2.0
             <list style="hanging">
               <t hangText="NO_ERROR (0):">
                 The associated condition is not as a result of an error.  For example, a GOAWAY
-                might include this code to indicate graceful shutdown of a session.
+                might include this code to indicate graceful shutdown of a connection.
               </t>
               <t hangText="PROTOCOL_ERROR (1):">
                 The endpoint detected an unspecific protocol error.  This error is for use when a more
@@ -940,18 +931,18 @@ Upgrade: HTTP/2.0
           This specification defines a number of frame types, 
           each identified by a unique 8-bit type code. Each frame
           type serves a distinct purpose either in the establishment and 
-          management of the session as a whole, or of individual streams.
+          management of the connection as a whole, or of individual streams.
         </t>
         
         <t>
           The transmission of specific frame types can alter the state of 
-          a session. If the endpoints fail to maintain a synchronized view 
-          of the session state, successful communication within the session 
+          a connection. If the endpoints fail to maintain a synchronized view 
+          of the connection state, successful communication within the connection 
           will no longer be possible. Therefore, it is important that endpoints 
           have a shared comprehension of how the state is affected by the use
           any given frame. Accordingly, while it is expected that new frame 
           types will be introduced by extensions to this protocol, only frames
-          defined by this document are permitted to alter the session state.
+          defined by this document are permitted to alter the connection state.
         </t>
         
         <section anchor="DataFrames" title="DATA Frames">
@@ -964,13 +955,13 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The DATA frame does not utilize any type-specific flags.
+            The DATA frame does not define any type-specific flags.
           </t>
           
           <t>
             DATA frames MUST be associated with a stream. If a DATA frame is 
             received whose stream identifier field is 0x0, the recipient MUST 
-            respond with a <xref target="SessionErrorHandler">session error</a> 
+            respond with a <xref target="ConnectionErrorHandler">connection error</xref> 
             of type PROTOCOL_ERROR.
           </t>
           
@@ -1005,12 +996,12 @@ Upgrade: HTTP/2.0
             HEADERS+PRIORITY frames MUST be associated with a stream. If a 
             HEADERS+PRIORITY frame is received whose stream 
             identifier field is 0x0, the recipient MUST respond with a 
-            <xref target="SessionErrorHandler">session error</a> of type 
+            <xref target="ConnectionErrorHandler">connection error</xref> of type 
             PROTOCOL_ERROR.
           </t>
             
           <t>
-            The HEADERS+PRIORITY frame modifies the session state as 
+            The HEADERS+PRIORITY frame modifies the connection state as 
             defined in <xref target="HeaderBlock" />.
           </t>
             
@@ -1058,7 +1049,7 @@ Upgrade: HTTP/2.0
             RST_STREAM frames MUST be associated with a stream. If a 
             RST_STREAM frame is received whose stream 
             identifier field is 0x0 the recipient MUST respond with a 
-            <xref target="SessionErrorHandler">session error</a> of type 
+            <xref target="ConnectionErrorHandler">connection error</xref> of type 
             PROTOCOL_ERROR.
           </t>
 
@@ -1066,18 +1057,14 @@ Upgrade: HTTP/2.0
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
-            The SETTINGS frame (type=0x4) conveys configuration
-            parameters, expressed as a sequence of 
-            <xref target="settings-id-pair">ID+value pairs</xref>, 
-            that affect how endpoints communicate. The parameters 
-            are either constraints that a peer MUST obey or preferences 
-            the peer SHOULD respect. 
+            The SETTINGS frame (type=0x4) conveys configuration parameters that affect how endpoints
+            communicate. The parameters are either constraints on peer behavior or preferences.
           </t>
           
           <t>
-            SETTINGS frames MUST be sent at the start of a session, and MAY 
+            SETTINGS frames MUST be sent at the start of a connection, and MAY 
             be sent at any other time by either endpoint over the lifetime 
-            of the session. 
+            of the connection. 
           </t>
           
           <t>
@@ -1099,10 +1086,10 @@ Upgrade: HTTP/2.0
             all values for that ID except the first one.
           </t>
           <t>
-            Over the lifetime of a session, an endpoint MAY send multiple SETTINGS frames containing 
-            previously unspecified parameters or new values for 
-            parameters whose values have already been established. In the 
-            latter case, the most recent value overrides any previously sent value.
+            Over the lifetime of a connection, an endpoint MAY send multiple SETTINGS frames
+            containing previously unspecified parameters or new values for parameters whose values
+            have already been established. Only the most recent value provided setting value
+            applies.
           </t>
           <t>
             Because the SETTINGS frame is not associated with any particular
@@ -1116,22 +1103,23 @@ Upgrade: HTTP/2.0
             </list>
           </t>
           <t>
-            SETTINGS frames always apply to a session, never a single stream.  
+            SETTINGS frames always apply to a connection, never a single stream.  
             The stream identifier for a settings frame MUST be zero. If an 
             endpoint receives a SETTINGS frame whose stream identifier field
             is anything other than 0x0, the endpoint MUST respond with a 
-            <xref target="SessionErrorHandler">session error</xref> of type
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
             PROTOCOL_ERROR.
           </t>
 
-          <section title="SETTINGS ID/Value Pairs" id="settings-id-pair">
+          <section title="Setting Format" anchor="SettingFormat">
             
-            <t>The payload of a SETTINGS frame consists of zero or more 
-              ID+Value pairs. Each pair consists of an 8-bit flags field
-              specifying per-item instructions, an unsigned 24-bit 
-              setting identifier, and an unsigned 32-bit value.</t>
+            <t>
+              The payload of a SETTINGS frame consists of zero or more settings. Each setting
+              consists of an 8-bit flags field specifying per-item instructions, an unsigned 24-bit
+              setting identifier, and an unsigned 32-bit value.
+            </t>
             
-            <figure title="SETTINGS ID/Value Pair Format">
+            <figure title="Setting Format">
               <artwork type="inline">
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1143,7 +1131,8 @@ Upgrade: HTTP/2.0
 </artwork>
             </figure>
             
-            <t>Currently, two flags are defined for the 8-bit flags field:
+            <t>
+              Two flags are defined for the 8-bit flags field:
               <list style="hanging">
                 <t hangText="PERSIST_VALUE (0x1):">
                   Bit 1 (the least significant bit) being set indicates a request from the server
@@ -1159,8 +1148,7 @@ Upgrade: HTTP/2.0
             </t>
           </section>
 
-          <section title="Settings Persistence">
-            
+          <section title="Setting Persistence">
             <t>
               <cref>Note that persistence of settings is under discussion in the WG and might be
               removed in a future version of this document.</cref>
@@ -1169,9 +1157,9 @@ Upgrade: HTTP/2.0
             <t>
               A server endpoint can request that configuration parameters 
               sent to a client in a SETTINGS frame are to be persisted by 
-              the client across HTTP/2.0 sessions and returned to the server
+              the client across HTTP/2.0 connections and returned to the server
               in any new SETTINGS frame the client sends to the server
-              in the current session or any future sessions.
+              in the current connection or any future connections.
             </t>
             
             <t>
@@ -1188,15 +1176,15 @@ Upgrade: HTTP/2.0
             <t>
               Persistence of configuration parameters is done on a per-origin
               basis (see <xref target="RFC6454"/>). That is, when a client 
-              establishes a session with a server, and the server requests that
+              establishes a connection with a server, and the server requests that
               the client maintain persistent settings, the client SHOULD return 
-              the persisted settings on all future sessions to the same origin,
+              the persisted settings on all future connections to the same origin,
               IP address and TCP port.
             </t>
 
             <t>
-              Whenever the client sends a SETTINGS frame in the current session,
-              or establishes a new session with the same origin, persisted 
+              Whenever the client sends a SETTINGS frame in the current connection,
+              or establishes a new connection with the same origin, persisted 
               configuration parameters are sent with the PERSISTED
               flag (0x2) set for each persisted parameter.
             </t>
@@ -1216,27 +1204,27 @@ Upgrade: HTTP/2.0
             </t>          
           </section>
           
-          <section title="Defined Settings">
+          <section anchor="SettingValues" title="Defined Settings">
             <t>
               The following settings are defined:
               <list style="hanging">
                 <x:lt hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
                   <t>
-                    indicates the sender's estimated upload bandwidth for this session. The value 
+                    indicates the sender's estimated upload bandwidth for this connection. The value 
                     is an the integral number of kilobytes per
                     second that the sender predicts as an expected maximum upload channel capacity.
                   </t>
                 </x:lt>
                 <x:lt hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
                   <t>
-                    indicates the sender's estimated download bandwidth for this session. The value 
+                    indicates the sender's estimated download bandwidth for this connection. The value 
                     is an integral number of kilobytes per
                     second that the sender predicts as an expected maximum download channel capacity.
                   </t>
                 </x:lt>
                 <x:lt hangText="SETTINGS_ROUND_TRIP_TIME (3):">
                   <t>
-                    indicates the sender's estimated round-trip-time for this session. The round
+                    indicates the sender's estimated round-trip-time for this connection. The round
                     trip time is defined as the minimum amount of time to send a control frame from
                     this client to the remote and receive a response. The value is represented in
                     milliseconds.
@@ -1271,7 +1259,7 @@ Upgrade: HTTP/2.0
                     indicates that streams directed to the sender will not
                     be subject to flow control.  The least significant bit (0x1) is set to indicate
                     that new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
-                    session is not flow controlled.  All other bits are reserved.
+                    connection is not flow controlled.  All other bits are reserved.
                   </t>
                   <t>
                     This setting applies to all streams, including existing streams.
@@ -1294,7 +1282,7 @@ Upgrade: HTTP/2.0
             The PUSH_PROMISE frame includes the unsigned 31-bit identifier
             of the stream the endpoint plans to create along with a minimal
             set of headers that provide additional context for the stream.
-            <xref target="PushResources"> contains a thorough description
+            <xref target="PushResources"/> contains a thorough description
             of the use of PUSH_PROMISE frames.
           </t>
 
@@ -1321,7 +1309,7 @@ Upgrade: HTTP/2.0
           <t>
             PUSH_PROMISE frames MUST be associated with an existing stream. If 
             the stream identifier field specifies the value 0x0, a recipient
-            MUST respond with a <xref target="SessionErrorHandler">session 
+            MUST respond with a <xref target="ConnectionErrorHandler">connection 
             error</xref> of type PROTOCOL_ERROR.
           </t>
           
@@ -1348,7 +1336,7 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The PUSH_PROMISE frame modifies the session state as 
+            The PUSH_PROMISE frame modifies the connection state as 
             defined in <xref target="HeaderBlock" />.
           </t>
             
@@ -1387,7 +1375,7 @@ Upgrade: HTTP/2.0
             PING frames are not associated with any individual stream. If a 
             PING frame is received with a stream identifier field value other
             than 0x0, the recipient MUST respond with a 
-            <xref target="SessionErrorHandler">session error</xref> of type 
+            <xref target="ConnectionErrorHandler">connection error</xref> of type 
             PROTOCOL_ERROR.
           </t>
 
@@ -1395,11 +1383,11 @@ Upgrade: HTTP/2.0
 
         <section anchor="GOAWAY" title="GOAWAY">
           <t>
-            The GOAWAY frame (type=0x7) informs the remote side of the connection to stop creating
-            streams on this session.  It can be sent from the client or the server. Once sent, the
+            The GOAWAY frame (type=0x7) informs the remote peer to stop creating
+            streams on this connection.  It can be sent from the client or the server. Once sent, the
             sender will ignore frames sent on new streams for the remainder of the
-            session. Receivers of a GOAWAY frame MUST NOT open additional streams on the session,
-            although a new session can be established for new streams.  The purpose of this message
+            connection. Receivers of a GOAWAY frame MUST NOT open additional streams on the connection,
+            although a new connection can be established for new streams.  The purpose of this message
             is to allow an endpoint to gracefully stop accepting new streams (perhaps for a reboot
             or maintenance), while still finishing processing of previously established streams.
           </t>
@@ -1407,10 +1395,10 @@ Upgrade: HTTP/2.0
             There is an inherent race condition between an endpoint starting new streams and the
             remote sending a GOAWAY message.  To deal with this case, the GOAWAY contains the stream
             identifier of the last stream which was processed on the sending endpoint in this
-            session.  If the receiver of the GOAWAY used streams that are newer than the indicated
+            connection.  If the receiver of the GOAWAY used streams that are newer than the indicated
             stream identifier, they were not processed by the sender and the receiver may treat the
             streams as though they had never been created at all (hence the receiver may want to
-            re-create the streams later on a new session).
+            re-create the streams later on a new connection).
           </t>
           <t>
             Endpoints should always send a GOAWAY message before closing a connection so that the
@@ -1424,7 +1412,7 @@ Upgrade: HTTP/2.0
             After sending a GOAWAY message, the sender can ignore frames for new streams.
           </t>
           <t>
-            <cref>Issue: session state that is established by those "ignored" messages cannot be
+            <cref>Issue: connection state that is established by those "ignored" messages cannot be
             ignored without the state in the two peers becoming unsynchronized.</cref>
           </t>
 
@@ -1443,18 +1431,41 @@ Upgrade: HTTP/2.0
             The GOAWAY frame does not define any type-specific flags.
           </t>
           <t>
-            The GOAWAY frame applies to the session, not a specific stream.  The stream identifier
+            The GOAWAY frame applies to the connection, not a specific stream.  The stream identifier
             MUST be zero.
           </t>
           <t>
-            The GOAWAY frame contains an identifier of the last stream that the sender of the GOAWAY
-            is prepared to act upon, which can include processing and replies.  This allows an
-            endpoint to discover what streams might have had some effect or what might be safe to
-            automatically retry.  If no streams were acted upon, the last stream ID MUST be 0.
+            The last stream identifier in the GOAWAY frame contains the highest numbered stream
+            identifier for which the sender of the GOAWAY frame has received frames on and might
+            have taken some action on.  All streams up to and including the identified stream might
+            have been processed in some way.  The last stream identifier is set to 0 if no streams
+            were processed.
+            <list>
+              <t>
+                Note: In this case, "processed" means that some data from the stream was passed to
+                some higher layer of software that might have taken some action as a result.
+              </t>
+            </list>
+          </t>
+          <t>
+            On streams with lower or equal numbered identifiers that do not close completely prior
+            to the connection being closed, re-attempting requests, transactions, or any protocol
+            activity is not possible (with the exception of idempotent actions like HTTP GET, PUT,
+            or DELETE).  Any protocol activity that uses higher numbered streams can be safely
+            retried using a new connection.
+          </t>
+          <t>
+            Activity on streams numbered lower or equal to the last stream identifier might still complete
+            successfully.  The sender of a GOAWAY frame gracefully shut down a connection by sending
+            a GOAWAY frame, maintaining the connection in an open state until all in-progress
+            streams complete.
+          </t>
+          <t>
+            The last stream ID MUST be 0 if no streams were acted upon.
           </t>
           <t>
             The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
-            contains the reason for closing the session.
+            contains the reason for closing the connection.
           </t>
         </section>
 
@@ -1478,7 +1489,7 @@ Upgrade: HTTP/2.0
             PROTOCOL_ERROR.
           </t>
           <t>
-            The HEADERS frame changes the session state as defined in
+            The HEADERS frame changes the connection state as defined in
             <xref target="HeaderBlock" />.
           </t>
         </section>
@@ -1489,12 +1500,12 @@ Upgrade: HTTP/2.0
           </t>
           <t>
             Flow control operates at two levels: on each individual stream and on the
-            entire session.
+            entire connection.
           </t>
           <t>
             Both types of flow control are hop by hop; that is, only between the two endpoints. 
             Intermediaries do not forward WINDOW_UPDATE messages between
-            dependent sessions.  However, throttling of data transfer by any receiver can
+            dependent connections.  However, throttling of data transfer by any receiver can
             indirectly cause the propagation of flow control information toward the original
             sender.
           </t>
@@ -1502,22 +1513,22 @@ Upgrade: HTTP/2.0
             Flow control only applies to frames that are identified as being subject to flow
             control. Of the frames defined in this document, this includes only DATA frame.  
             Receivers MUST either buffer or process all other frames, terminate the
-            corresponding stream, or terminate the session.  The stream or session is terminated
+            corresponding stream, or terminate the connection.  The stream or connection is terminated
             with a FLOW_CONTROL_ERROR code.
           </t>
           <t>
             The following additional flags are defined for the WINDOW_UPDATE frame:
             <list style="hanging">
               <t hangText="END_FLOW_CONTROL (0x2):">
-                Bit 2 being set indicates that flow control for the identified stream or session has been
+                Bit 2 being set indicates that flow control for the identified stream or connection has been
                 ended; subsequent frames do not need to be flow controlled.
               </t>
             </list>
         </t>
           <t>
-             The WINDOW_UPDATE frame can be specific to a stream or to the entire session. 
+             The WINDOW_UPDATE frame can be specific to a stream or to the entire connection. 
              In the former case, the frame's stream identifier indicates the affected stream;
-             in the latter, the value "0" indicates that the entire session is the subject of 
+             in the latter, the value "0" indicates that the entire connection is the subject of 
              the frame.
           </t>
           <t>
@@ -1536,7 +1547,7 @@ Upgrade: HTTP/2.0
             </t>
             <t>
               Two flow control windows are applicable; the stream flow
-              control window and the session flow control window.  The sender MUST NOT send a flow
+              control window and the connection flow control window.  The sender MUST NOT send a flow
               controlled frame with a length that exceeds the space available in either of the flow
               control windows advertised by the receiver.  Frames with zero length with the FINAL
               flag set (for example, an empty data frame) MAY be sent if there is no available space
@@ -1552,7 +1563,7 @@ Upgrade: HTTP/2.0
             <t>
               The receiver of a message sends a WINDOW_UPDATE frame as it consumes data and frees up
               space in flow control windows.  Separate WINDOW_UPDATE messages are sent for the
-              stream and session level flow control windows.
+              stream and connection level flow control windows.
             </t>
             <t>
               A sender that receives a WINDOW_UPDATE frame updates the corresponding window by the
@@ -1561,9 +1572,9 @@ Upgrade: HTTP/2.0
             <t>
               A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup> - 1 bytes.
               If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
-              maximum it MUST terminate either the stream or the session, as appropriate.  For
+              maximum it MUST terminate either the stream or the connection, as appropriate.  For
               streams, the sender sends a RST_STREAM with the error code of FLOW_CONTROL_ERROR code;
-              for the session, a GOAWAY message with a FLOW_CONTROL_ERROR code.
+              for the connection, a GOAWAY message with a FLOW_CONTROL_ERROR code.
             </t>
             <t>
               Flow controlled frames from the sender and WINDOW_UPDATE frames from the receiver are
@@ -1576,15 +1587,15 @@ Upgrade: HTTP/2.0
           <section title="Initial Flow Control Window Size">
             <t>
               When a HTTP/2.0 connection is first established, new streams are created with an
-              initial flow control window size of 65535 bytes. The session flow control window is
+              initial flow control window size of 65535 bytes. The connection flow control window is
               65536 bytes.  Both endpoints can adjust the initial window size for new streams by
               including a value for SETTINGS_INITIAL_WINDOW_SIZE in the SETTINGS frame that forms
-              part of the session header.
+              part of the connection header.
             </t>
             <t>
               Prior to receiving a SETTINGS frame that sets a value for
               SETTINGS_INITIAL_WINDOW_SIZE, a client can only use the default initial window size
-              when sending flow controlled frames.  Similarly, the session flow control window is
+              when sending flow controlled frames.  Similarly, the connection flow control window is
               set to the default initial window size until a WINDOW_UPDATE message is received.
             </t>
             <t>
@@ -1640,12 +1651,12 @@ Upgrade: HTTP/2.0
               it is no longer sending on.
             </t>
             <t>
-              Flow control can be disabled for all streams or the session using the
+              Flow control can be disabled for all streams or the connection using the
               SETTINGS_FLOW_CONTROL_OPTIONS setting.  An implementation that does not wish to
               perform flow control can use this in the initial SETTINGS exchange.
             </t>
             <t>
-              Flow control can be disabled for an individual stream or the overall session by
+              Flow control can be disabled for an individual stream or the overall connection by
               sending a WINDOW_UPDATE with the END_FLOW_CONTROL flag set.  The payload of a
               WINDOW_UPDATE frame that has the END_FLOW_CONTROL flag set is ignored.
             </t>
@@ -1674,52 +1685,14 @@ Upgrade: HTTP/2.0
 
       <section title="Connection Management">
         <t>
-          Clients SHOULD NOT open more than one HTTP/2.0 session to a given origin
+          Clients SHOULD NOT open more than one HTTP/2.0 connection to a given origin
           (<xref target="RFC6454"/>) concurrently.
         </t>
         <t>
-          Note that it is possible for one HTTP/2.0 session to be finishing (e.g. a GOAWAY message
-          has been sent, but not all streams have finished), while another HTTP/2.0 session is
+          Note that it is possible for one HTTP/2.0 connection to be finishing (e.g. a GOAWAY message
+          has been sent, but not all streams have finished), while another HTTP/2.0 connection is
           starting.
         </t>
-
-        <section title="Use of GOAWAY">
-          <t>
-            HTTP/2.0 provides a GOAWAY message which can be used when closing a connection from
-            either the client or server.  Without a server GOAWAY message, HTTP has a race condition
-            where the client sends a request just as the server is closing the connection, and the
-            client cannot know if the server received the stream or not.  By using the
-            last-stream-id in the GOAWAY, servers can indicate to the client if a request was
-            processed or not.
-          </t>
-
-          <t>
-            Note that some servers will choose to send the GOAWAY and immediately terminate the
-            connection without waiting for active streams to finish.  The client will be able to
-            determine this because HTTP/2.0 streams are deterministically closed.  This abrupt
-            termination will force the client to heuristically decide whether to retry the pending
-            requests.  Clients always need to be capable of dealing with this case because they must
-            deal with accidental connection termination cases, which are the same as the server
-            never having sent a GOAWAY.
-          </t>
-
-          <t>
-            More sophisticated servers will use GOAWAY to implement a graceful teardown. They will
-            send the GOAWAY and provide some time for the active streams to finish before
-            terminating the connection.
-          </t>
-
-          <t>
-            If a HTTP/2.0 client closes the connection, it should also send a GOAWAY message.  This
-            allows the server to know if any server-push streams were received by the client.
-          </t>
-
-          <t>
-            If the endpoint closing the connection has not received frames on any stream, the GOAWAY
-            will contain a last-stream-id of 0.
-          </t>
-
-        </section>
       </section>
 
       <section title="HTTP Request/Response">
@@ -1764,7 +1737,7 @@ Upgrade: HTTP/2.0
               <t>A new :scheme header field has been added to specify the 
                 scheme portion of the request-target (e.g. "https")</t>
               <t>All header field names MUST be lowercased, and the 
-                definitions of all header fields names defined by 
+                definitions of all header field names defined by 
                 HTTP/1.1 are updated to be all lowercase.</t>
               <t>The Connection, Host, Keep-Alive, Proxy-Connection, and 
                 Transfer-Encoding header fields are no longer valid and 
@@ -1800,10 +1773,10 @@ Upgrade: HTTP/2.0
           <t>
              Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a
              Content-Length header field.  First, it informs the server of how much data to
-             expect, which the server can used to track overall progress and provide appropriate
+             expect, which the server can use to track overall progress and provide appropriate
              user feedback.  More importantly, some HTTP server implementations fail to correctly
              process requests that omit the Content-Length header field.  Many existing clients
-             send a Content-Length header field, which caused server implementations have come to
+             send a Content-Length header field, and some server implementations have come to
              depend upon its presence.
           </t>
 
@@ -1821,12 +1794,12 @@ Upgrade: HTTP/2.0
 
         <section anchor="HttpResponse" title="Response">
           <t>
-            The server responds to a client request with a HEADERS frame. Symmetric to the client's
-            upload stream, server will send any response body in a series of DATA frames.  The last
-            data frame will contain the FINAL flag to indicate the end of the stream and the end of
-            the response.  A response that contains no body (such as a 204 or 304 response) consists
-            only of a HEADERS frame that contains the FINAL flag to indicate no further data will be
-            sent on the stream.
+            The server responds to a client request using the same stream identifier that was used
+            by the request.  An HTTP response begins with a HEADERS frame. An HTTP response body
+            consists of a series of DATA frames.  The last data frame contains a FINAL flag to
+            indicate the end of the response.  A response that contains no body (such as a 204 or
+            304 response) consists only of a HEADERS frame that contains the FINAL flag to indicate
+            no further data will be sent on the stream.
           </t>
 
           <t>
@@ -1999,15 +1972,9 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            When a HEADERS+PRIORITY frame that contains an Associated-To-Stream-ID is received, the
+            When a PUSH_PROMISE frame that contains an Promised-Stream-ID is received, the
             client MUST NOT <cref>SHOULD NOT?</cref> issue GET requests for the resource in the
             pushed stream, and instead wait for the pushed stream to arrive.
-          </t>
-
-          <t>
-            A server MUST NOT push a resource with an Associated-To-Stream-ID of 0.  Clients MUST
-            treat this as a <xref target="SessionErrorHandler">session error</xref> of type
-            PROTOCOL_ERROR.
           </t>
 
           <t>
@@ -2099,7 +2066,7 @@ Upgrade: HTTP/2.0
 
         <t>
           For errors occurring outside of a single stream context, HTTP/2.0 assumes the entire
-          session is hosed.  In this case, the endpoint detecting the error should initiate a
+          connection is hosed.  In this case, the endpoint detecting the error should initiate a
           connection close.
         </t>
       </section>
@@ -2166,7 +2133,7 @@ Upgrade: HTTP/2.0
 
       <section title="Cross-Protocol Attacks">
         <t>
-          By utilizing TLS, we believe that HTTP/2.0 introduces no new cross-protocol attacks.  TLS
+          When using TLS, we believe that HTTP/2.0 introduces no new cross-protocol attacks.  TLS
           encrypts the contents of all transmission (except the handshake itself), making it
           difficult for attackers to control the data which could be used in a cross-protocol
           attack.  <cref>Issue: This is no longer true</cref>
@@ -2329,7 +2296,7 @@ Upgrade: HTTP/2.0
           </list>
         </t>
         <t>
-          An initial set of settings registrations can be found in <xref target="SETTINGS"/>.
+          An initial set of settings registrations can be found in <xref target="SettingValues"/>.
         </t>
       </section>
     </section>
@@ -2569,7 +2536,11 @@ Upgrade: HTTP/2.0
 
       <section title="Since draft-ietf-httpbis-http2-02" anchor="changes.since.draft-ietf-httpbis-http2-02">
         <t>
-          None yet...
+          Replaced use of "session" with "connection" to avoid confusion with other HTTP stateful
+          concepts, like cookies.
+        </t>
+        <t>
+          Editorial changes.
         </t>
       </section>
 
