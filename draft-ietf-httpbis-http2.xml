@@ -491,7 +491,7 @@ Upgrade: HTTP/2.0
             dependent entirely on the frame type.</t>
         </section>
 
-        <section anchor="FrameSize" title="Frame Processing">
+        <section anchor="FrameSize" title="Frame Size">
           
           <t>Implementations with limited resources might not be capable of 
             processing large frame sizes. Such implementations MAY choose
@@ -572,8 +572,7 @@ Upgrade: HTTP/2.0
             within the HTTP/2.0 connection, unless the identifier has been reserved 
             using a <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frame.  
             An endpoint that receives an unexpected stream identifier MUST 
-            terminate the stream by responding with a 
-            <xref target="ConnectionErrorHandler">connection error</xref> of type 
+            respond with a <xref target="ConnectionErrorHandler">connection error</xref> of type 
             PROTOCOL_ERROR.
           </t>
           
@@ -592,18 +591,20 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            Stream identifiers cannot be reused within a connection.  Accordingly, long-lived
+            Stream identifiers cannot be reused within a connection.  Long-lived
             connections can cause an endpoint to exhaust the available range of stream
             identifiers. An endpoint that is unable to establish a new stream identifier can
             establish a new connection for any new streams.
           </t>
-          
+
           <t>
-            An endpoint can request the early termination of an unwanted stream.  Upon receipt of a
-            frame, the receiver can terminate the corresponding stream by sending a <xref
-            target="StreamErrorHandler">stream error</xref> of type REFUSED_STREAM. This cannot
-            prevent the initiating endpoint from sending frames for that stream prior to receiving
-            this request.
+            Either endpoint can request the early termination of an unwanted 
+            stream by sending an <xref target="StreamErrorHandler">RST_STREAM
+            frame</xref> with an error code of either REFUSED_STREAM (if no
+            frames have been processed) or CANCEL (if at least one frame has
+            been processed). Such termination might not take effect immediately
+            as the peer might have sent additional frames on the stream prior 
+            to receiving the termination request.
           </t>
           
         </section>
@@ -936,7 +937,7 @@ Upgrade: HTTP/2.0
         
         <t>
           The transmission of specific frame types can alter the state of 
-          a connection. If the endpoints fail to maintain a synchronized view 
+          a connection. If endpoints fail to maintain a synchronized view 
           of the connection state, successful communication within the connection 
           will no longer be possible. Therefore, it is important that endpoints 
           have a shared comprehension of how the state is affected by the use
@@ -1070,7 +1071,7 @@ Upgrade: HTTP/2.0
           <t>
             Implementations MUST support all of the settings defined by this 
             specification and MAY support additional settings defined by 
-            extensions. Unknown or unrecognized settings MUST be ignored.
+            extensions. Unsupported or unrecognized settings MUST be ignored.
             New settings MUST NOT be defined or implemented in a way that 
             requires endpoints to understand then in order to communicate 
             successfully.
@@ -1258,8 +1259,7 @@ Upgrade: HTTP/2.0
                   <t>
                     indicates that streams directed to the sender will not
                     be subject to flow control.  The least significant bit (0x1) is set to indicate
-                    that new streams are not flow controlled.  Bit 2 (0x2) is set to indicate that the
-                    connection is not flow controlled.  All other bits are reserved.
+                    that new streams are not flow controlled.  All other bits are reserved.
                   </t>
                   <t>
                     This setting applies to all streams, including existing streams.
