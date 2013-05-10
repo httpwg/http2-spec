@@ -493,24 +493,40 @@ Upgrade: HTTP/2.0
 
         <section anchor="FrameSize" title="Frame Size">
           
-          <t>Implementations with limited resources might not be capable of 
-            processing large frame sizes. Such implementations MAY choose
-            to place additional limits on the maximum frame size. However,
-            all implementations MUST be capable of receiving and processing
-            frames containing at least 8192 octets of data.
-            <cref>Ed. Question: Does this minimum include the 8-byte header 
-              or just the frame data?</cref></t>
-
-          <t>An implementation MUST terminate a stream immediately if it is
-            unable to process a frame due it's size. This is done by sending 
-            an <xref target="RST_STREAM">RST_STREAM frame</xref> containing 
-            the FRAME_TOO_LARGE error code.
-          </t>
           <t>
-            <cref><eref target="https://github.com/http2/http2-spec/issues/28">Issue 28</eref>: Need
-            a way to signal the maximum frame size; no way to RST_STREAM on non-stream-related
-            frames.</cref>
+            While the flow control protocol and framing mechanisms 
+            defined by this specification are largely independent of 
+            one another, the flow control WINDOW_SIZE places an upper 
+            limit on the total amount of data an endpoint can send to 
+            a peer at any given time. Frame sizes MUST NOT exceed the 
+            current WINDOW_SIZE for the stream or connection and MUST NOT 
+            be greater than 65,535 bytes. The 8 bytes of the frame header 
+            are not counted toward this limit.
           </t>
+          
+          <t>
+            When a new connection is established, endpoints are permitted to 
+            send frames prior to the establishment of an initial flow control 
+            WINDOW_SIZE. There is a possibility that an endpoint might send 
+            frames that are too large for the peer to handle. To mitigate this 
+            risk, it is RECOMMENDED that, until the initial WINDOW_SIZE is 
+            established, the size of individual header-bearing frames not 
+            exceed the current TCP Maximum Segment Size (MSS) and that 
+            individual frames of any type are no larger than 4096 bytes, 
+            including the 8-byte frame header.
+          </t>
+
+          <t>
+            If an endpoint is unable to process a frame due to its size or,
+            if the frame is larger than its type definition allows, the
+            endpoint MUST respond with either a 
+            <xref target="ConnectionErrorHandler">connection error</xref> (if
+            the stream identifier field value is 0x0) or a 
+            <xref target="StreamErrorHandler">stream error</xref> (if the 
+            stream identifier is anything other than 0x0) using the
+            FRAME_TOO_LARGE error code.
+          </t>
+
         </section>
       </section>
 
