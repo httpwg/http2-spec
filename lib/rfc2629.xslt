@@ -99,7 +99,7 @@
 </xsl:param>
 
 <!-- include a table of contents if a processing instruction <?rfc?>
-     exists with contents toc="yes". Can be overriden by an XSLT parameter -->
+     exists with contents toc="yes". Can be overridden by an XSLT parameter -->
 
 <xsl:param name="xml2rfc-toc">
   <xsl:call-template name="parse-pis">
@@ -184,7 +184,7 @@
 </xsl:param>
 
 <!-- insert editing marks if a processing instruction <?rfc?>
-     exists with contents editing="yes". Can be overriden by an XSLT parameter -->
+     exists with contents editing="yes". Can be overridden by an XSLT parameter -->
 
 <xsl:param name="xml2rfc-editing">
   <xsl:call-template name="parse-pis">
