@@ -124,15 +124,15 @@
       <t>
         Furthermore, HTTP/1.1 header fields are often repetitive and verbose, which, in
         addition to generating more or larger network packets, can cause the small initial TCP
-        congestion window to quickly.  This can result in excessive latency when multiple
-        requests are made on a new TCP connection.
+        congestion window to quickly fill.  This can result in excessive latency when multiple
+        requests are made on a single new TCP connection.
       </t>
       <t>
-        This document addresses these issues by defining an optimized mapping of HTTP's semantics to an underlying connection.
-        Specifically, it allows interleaving of request and response messages on the same
-        connection and uses an efficient coding for HTTP header fields.  It also allows prioritization of
-        requests, letting more important requests complete more quickly, further improving perceived
-        performance.
+        This document addresses these issues by defining an optimized mapping of HTTP's semantics to
+        an underlying connection.  Specifically, it allows interleaving of request and response
+        messages on the same connection and uses an efficient coding for HTTP header fields.  It
+        also allows prioritization of requests, letting more important requests complete more
+        quickly, further improving perceived performance.
       </t>
       <t>
         The resulting protocol is designed to have be more friendly to the network, because fewer
@@ -185,9 +185,6 @@
               The smallest unit of communication within an HTTP/2.0 connection, 
               consisting of a header and a variable-length sequence of bytes
               structured according to the frame type.
-            </t>
-            <t hangText="message:">
-              A complete sequence of frames.
             </t>
             <t hangText="peer:">
               An endpoint.  When discussing a particular endpoint, "peer" refers to the endpoint
@@ -846,7 +843,7 @@ Upgrade: HTTP/2.0
                 Flow control is hop-by-hop, not end-to-end.
               </t>
               <t>
-                Flow control is based on window update messages.  Receivers advertise how many
+                Flow control is based on window update frames.  Receivers advertise how many
                 octets they are prepared to receive on a stream.  This is a credit-based scheme.
               </t>
               <t>
@@ -873,8 +870,8 @@ Upgrade: HTTP/2.0
               </t>
               <t>
                 HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window
-                update message</xref>.  This does not stipulate how a receiver decides when to send
-                this message or the value that it sends.  Nor does it specify how a sender chooses
+                update frame</xref>.  This does not stipulate how a receiver decides when to send
+                this frame or the value that it sends.  Nor does it specify how a sender chooses
                 to send packets.  Implementations are able to select any algorithm that suits their
                 needs.
               </t>
@@ -952,7 +949,7 @@ Upgrade: HTTP/2.0
             DATA frames (type=0x0) convey arbitrary, variable-length
             sequences of octets associated with a stream. One or more 
             DATA frames are used, for instance, to carry HTTP request
-            or response message payloads.
+            or response payloads.
           </t>
           
           <t>
@@ -1387,13 +1384,13 @@ Upgrade: HTTP/2.0
             streams on this connection.  It can be sent from the client or the server. Once sent, the
             sender will ignore frames sent on new streams for the remainder of the
             connection. Receivers of a GOAWAY frame MUST NOT open additional streams on the connection,
-            although a new connection can be established for new streams.  The purpose of this message
+            although a new connection can be established for new streams.  The purpose of this frame
             is to allow an endpoint to gracefully stop accepting new streams (perhaps for a reboot
             or maintenance), while still finishing processing of previously established streams.
           </t>
           <t>
             There is an inherent race condition between an endpoint starting new streams and the
-            remote sending a GOAWAY message.  To deal with this case, the GOAWAY contains the stream
+            remote sending a GOAWAY frame.  To deal with this case, the GOAWAY contains the stream
             identifier of the last stream which was processed on the sending endpoint in this
             connection.  If the receiver of the GOAWAY used streams that are newer than the indicated
             stream identifier, they were not processed by the sender and the receiver may treat the
@@ -1401,7 +1398,7 @@ Upgrade: HTTP/2.0
             re-create the streams later on a new connection).
           </t>
           <t>
-            Endpoints should always send a GOAWAY message before closing a connection so that the
+            Endpoints should always send a GOAWAY frame before closing a connection so that the
             remote can know whether a stream has been partially processed or not.  (For example, if
             an HTTP client sends a POST at the same time that a server closes a connection, the
             client cannot know if the server started to process that POST request if the server does
@@ -1409,10 +1406,10 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            After sending a GOAWAY message, the sender can ignore frames for new streams.
+            After sending a GOAWAY frame, the sender can ignore frames for new streams.
           </t>
           <t>
-            <cref>Issue: connection state that is established by those "ignored" messages cannot be
+            <cref>Issue: connection state that is established by those "ignored" frames cannot be
             ignored without the state in the two peers becoming unsynchronized.</cref>
           </t>
 
@@ -1504,7 +1501,7 @@ Upgrade: HTTP/2.0
           </t>
           <t>
             Both types of flow control are hop by hop; that is, only between the two endpoints. 
-            Intermediaries do not forward WINDOW_UPDATE messages between
+            Intermediaries do not forward WINDOW_UPDATE frames between
             dependent connections.  However, throttling of data transfer by any receiver can
             indirectly cause the propagation of flow control information toward the original
             sender.
@@ -1561,8 +1558,8 @@ Upgrade: HTTP/2.0
               windows by the length of the transmitted frame.
             </t>
             <t>
-              The receiver of a message sends a WINDOW_UPDATE frame as it consumes data and frees up
-              space in flow control windows.  Separate WINDOW_UPDATE messages are sent for the
+              The receiver of a frame sends a WINDOW_UPDATE frame as it consumes data and frees up
+              space in flow control windows.  Separate WINDOW_UPDATE frames are sent for the
               stream and connection level flow control windows.
             </t>
             <t>
@@ -1574,7 +1571,7 @@ Upgrade: HTTP/2.0
               If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
               maximum it MUST terminate either the stream or the connection, as appropriate.  For
               streams, the sender sends a RST_STREAM with the error code of FLOW_CONTROL_ERROR code;
-              for the connection, a GOAWAY message with a FLOW_CONTROL_ERROR code.
+              for the connection, a GOAWAY frame with a FLOW_CONTROL_ERROR code.
             </t>
             <t>
               Flow controlled frames from the sender and WINDOW_UPDATE frames from the receiver are
@@ -1596,7 +1593,7 @@ Upgrade: HTTP/2.0
               Prior to receiving a SETTINGS frame that sets a value for
               SETTINGS_INITIAL_WINDOW_SIZE, a client can only use the default initial window size
               when sending flow controlled frames.  Similarly, the connection flow control window is
-              set to the default initial window size until a WINDOW_UPDATE message is received.
+              set to the default initial window size until a WINDOW_UPDATE frame is received.
             </t>
             <t>
               A SETTINGS frame can alter the initial flow control window size for all current
@@ -1608,7 +1605,7 @@ Upgrade: HTTP/2.0
               A change to SETTINGS_INITIAL_WINDOW_SIZE could cause the available space in a flow
               control window to become negative.  A sender MUST track the negative flow control
               window, and MUST NOT send new flow controlled frames until it receives WINDOW_UPDATE
-              messages that cause the flow control window to become positive.
+              frames that cause the flow control window to become positive.
             </t>
             <t>
               For example, if the server sets the initial window size to be 16KB, and the client
@@ -1635,7 +1632,7 @@ Upgrade: HTTP/2.0
                 </t>
                 <t>
                   The receiver can accept the streams and tolerate the resulting head of line
-                  blocking, sending WINDOW_UPDATE messages as it consumes data.
+                  blocking, sending WINDOW_UPDATE frames as it consumes data.
                 </t>
               </list>
               If a receiver decides to accept streams, both sides MUST recompute the available flow
@@ -1646,9 +1643,9 @@ Upgrade: HTTP/2.0
           <section anchor="EndFlowControl" title="Ending Flow Control">
             <t>
               After a receiver reads in a frame that marks the end of a stream (for example, a data
-              stream with a FINAL flag set), it ceases transmission of WINDOW_UPDATE frames. A
-              sender is not required to maintain the available flow control window for streams that
-              it is no longer sending on.
+              stream with a FINAL flag set), it MUST cease transmission of WINDOW_UPDATE frames for
+              that stream. A sender is not obligated to maintain the available flow control window
+              for streams that it is no longer sending on.
             </t>
             <t>
               Flow control can be disabled for all streams or the connection using the
@@ -1689,7 +1686,7 @@ Upgrade: HTTP/2.0
           (<xref target="RFC6454"/>) concurrently.
         </t>
         <t>
-          Note that it is possible for one HTTP/2.0 connection to be finishing (e.g. a GOAWAY message
+          Note that it is possible for one HTTP/2.0 connection to be finishing (e.g. a GOAWAY frame
           has been sent, but not all streams have finished), while another HTTP/2.0 connection is
           starting.
         </t>
@@ -1759,11 +1756,6 @@ Upgrade: HTTP/2.0
               but HTTP 400 here?</cref>
           </t>
 
-          <t>User-agents MUST support gzip compression. Regardless of the Accept-Encoding sent by
-             the user-agent, the server may always send content encoded with gzip or deflate
-             encoding.  <cref>Still valid?</cref>
-          </t>
-          
           <t>
              If a server receives a request where the sum of the data frame payload lengths does
              not equal the size of the Content-Length header field, the server MUST return a 400
@@ -1786,9 +1778,9 @@ Upgrade: HTTP/2.0
             that resource. Resources such as images, SHOULD generally use the lowest priority.
           </t>
           <t>
-            If the server receives a data frame prior to a HEADERS or HEADERS+PRIORITY frame the
-            server MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of
-            type PROTOCOL_ERROR.
+            If the server receives a data frame prior to a HEADERS+PRIORITY frame the server MUST
+            treat this as a <xref target="StreamErrorHandler">stream error</xref> of type
+            PROTOCOL_ERROR.
           </t>
         </section>
 
@@ -1845,9 +1837,14 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            If the client receives a data frame prior to a HEADERS or HEADERS+PRIORITY frame the
-            client MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of
-            type PROTOCOL_ERROR.
+            If the client receives a data frame prior to a HEADERS frame the client MUST treat this
+            as a <xref target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
+          </t>
+
+          <t>
+            Clients MUST support gzip compression.  Regardless of the value of the Accept-Encoding
+            header field, a server MAY send responses with gzip or deflate encoding.  A compressed
+            response MUST still bear an appropriate Content-Encoding header field.
           </t>
         </section>
       </section>
