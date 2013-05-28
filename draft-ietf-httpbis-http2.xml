@@ -989,7 +989,8 @@ Upgrade: HTTP/2.0
             <xref target="StreamPriority"/>.
           </t>
           
-          <t>No type-specific flags are defined.</t>
+          <t>HEADERS+PRIORITY uses exactly the same flags as the HEADERS frame.
+            See <xref target="HEADERS">HEADERS frame</xref> for any flags.</t>
           
           <t>
             HEADERS+PRIORITY frames MUST be associated with a stream. If a 
@@ -1297,7 +1298,7 @@ Upgrade: HTTP/2.0
           </figure>
           
           <t>
-            The body of a PUSH_PROMISE includes a "Promised-Stream-ID".  This 
+            The payload of a PUSH_PROMISE includes a "Promised-Stream-ID".  This 
             unsigned 31-bit integer identifies the stream the endpoint
             intends to start sending frames for.  The promised stream
             identifier MUST be a valid choice for the next stream sent by the sender (see <xref
@@ -1320,7 +1321,8 @@ Upgrade: HTTP/2.0
               are the lifecycles of streams and associated promised streams?</cref>
           </t>
           
-          <t>There are no additional type-specific flags defined.</t>
+          <t>PUSH_PROMISE uses exactly the same flags as the HEADERS frame.
+            See <xref target="HEADERS">HEADERS frame</xref> for any flags.</t>
 
           <t>
             Promised streams are not required to be used in order promised.
@@ -1474,10 +1476,27 @@ Upgrade: HTTP/2.0
             at any time.
           </t>
           <t>
-            The HEADERS frame does not define any type-specific flags.
+            Additional type-specific flags for the HEADERS frame are:
+            <list style="hanging">
+              <t hangText="HDR_CONTINUES (0x2):">
+                Bit 2 being set indicates that this frame does not contain the
+                entire payload necessary to interpret the HEADERS data.
+
+                The payload in any series of headers frames is only
+                interpretable when HDR_CONTINUES has NOT been set, and then
+                only when concatenated with the payload from the unbroken
+                series of HEADERS frames where HDR_CONTINUES was set.
+
+                When this bit is set for a HEADERS frame on a particular
+                stream (A), HEADERS frames MUST NOT be sent on other streams
+                until a HEADERS frame has been sent on the same stream (A)
+                where the HDR_CONTINUES bit is unset.
+              </t>
+            </list>
+
           </t>
           <t>
-            The body of a HEADERS frame contains a <xref target="HeaderBlock">Headers Block</xref>.
+            The payload of a HEADERS frame contains a <xref target="HeaderBlock">Headers Block</xref>.
           </t>
           <t>
             The HEADERS frame is associated with an existing stream. If 
