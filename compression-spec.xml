@@ -183,9 +183,18 @@
                     The header table size can be bounded so as to limit the
                     memory requirements (see the SETTINGS_MAX_BUFFER_SIZE in
                     <xref target="parameter.negotiation"/>).  The header table
-                    size is defined as the sum of the length (as defined in
-                    <xref target="string.literal.representation" />) of the
-                    name and the value of all header table pairs.
+                    size is defined as the sum of the size of each entry of
+                    the table. The size of an entry is the sum of the length
+                    in bytes (as defined in <xref
+                        target="string.literal.representation" />) of its
+                    name, of value's length in bytes and of 32 bytes (for
+                    accounting for the entry structure overhead).
+                </t>
+                <t>
+                    When an entry is added to the header table, if the header
+                    table size is greater than the limit, it is reduced by
+                    dropping the entry with the largest index until the header
+                    table size becomes lower than or equal to the limit.
                 </t>
                 <t>
                     To optimize the representation of the headers exchanged at
@@ -255,11 +264,10 @@
                     stream? A simple and not too bad strategy is to use an
                     empty reference set starting with the second Header frame
                     for a stream.</cref>
-                <cref>In a similar manner, handling PUSH_PROMISE frames mixed
-                    with HEADERS frames for responses is not efficient. Either
-                    PUSH_PROMISE frames can be encode using an empty reference
-                    set, or PUSH_PROMISE frames can have their own reference
-                    set.</cref>
+                <cref>The handling of PUSH_PROMISE frames is not optimized:
+                    the list of initial headers for responses should be
+                    updated to take into account these frames.
+                </cref> 
 
                 <t>
                     An indexed representation toggles the presence of the
@@ -274,11 +282,60 @@
                     (either by incremental indexing or by substitution
                     indexing).
                 </t>
+
                 <t>
-                    The current reference set of headers is composed of all the
-                    headers of the current set that are present in the header
-                    table after processing the current set of headers (i.e.
-                    after encoding or decoding it).
+                    To ensure a correct decoding of a set of headers, the
+                    following steps or equivalent ones MUST be executed by the
+                    decoder.
+                </t>
+                <t>
+                    First, upon starting the decoding of a new set of headers,
+                    the reference set of headers is interpreted into the
+                    working set of headers: for each header in the reference
+                    set, an entry is added to the working set, containing the
+                    header name, its value, and its current index in the
+                    header table.
+                </t>
+                <t>
+                    Then, the header representations are processed in their
+                    order of occurrence in the frame.
+                </t>
+                <t>
+                    For an indexed representation, the decoder checks whether
+                    the index is present in the working set. If true, the
+                    corresponding entry is removed from the working set. If
+                    several entries correspond to this encoded index, all
+                    these entries are removed from the working set. If
+                    the index is not present in the working set, it is used to
+                    retrieve the corresponding header from the header table,
+                    and a new entry is added to the working set representing
+                    this header.
+                </t>
+                <t>
+                    For a literal representation, a new entry is added to the
+                    working set representing this header. If the literal
+                    representation specifies that the header is to be indexed,
+                    the header is added accordingly to the header table, and
+                    its index is included in the entry in the working set.
+                    Otherwise, the entry in the working set contains an
+                    undefined index.
+                </t>
+                <t>
+                    When all the header representations have been processed,
+                    the working set contains all the headers of the set of
+                    headers.
+                </t>
+                <t>
+                    The new reference set of headers is computed by removing
+                    from the working set all the headers that are not present
+                    in the header table.
+                </t>
+
+                <t>
+                    It should be noted that during the decoding of the header
+                    representations, the same index may be associated to
+                    different headers in the working set and in the header
+                    table. 
                 </t>
             </section>
         </section>
