@@ -999,9 +999,11 @@ Upgrade: HTTP/2.0
             <xref target="StreamPriority"/>.
           </t>
           
-          <t>HEADERS+PRIORITY uses exactly the same flags as the HEADERS frame.
-            See <xref target="HEADERS">HEADERS frame</xref> for any flags.</t>
-          
+          <t>
+            HEADERS+PRIORITY uses the same flags as the HEADERS frame, except that a
+            HEADERS+PRIORITY frame with a CONTINUES bit MUST be followed by another HEADERS+PRIORITY
+            frame.  See <xref target="HEADERS">HEADERS frame</xref> for any flags.
+          </t>
           <t>
             HEADERS+PRIORITY frames MUST be associated with a stream. If a 
             HEADERS+PRIORITY frame is received whose stream 
@@ -1331,8 +1333,11 @@ Upgrade: HTTP/2.0
               are the lifecycles of streams and associated promised streams?</cref>
           </t>
           
-          <t>PUSH_PROMISE uses exactly the same flags as the HEADERS frame.
-            See <xref target="HEADERS">HEADERS frame</xref> for any flags.</t>
+          <t>
+            PUSH_PROMISE uses the same flags as the HEADERS frame, except that a PUSH_PROMISE frame
+            with a CONTINUES bit MUST be followed by another PUSH_PROMISE frame.  See <xref
+            target="HEADERS">HEADERS frame</xref> for any flags.
+          </t>
 
           <t>
             Promised streams are not required to be used in order promised.
@@ -1488,19 +1493,19 @@ Upgrade: HTTP/2.0
           <t>
             Additional type-specific flags for the HEADERS frame are:
             <list style="hanging">
-              <t hangText="HDR_CONTINUES (0x2):">
-                Bit 2 being set indicates that this frame does not contain the
-                entire payload necessary to interpret the HEADERS data.
-
-                The payload in any series of headers frames is only
-                interpretable when HDR_CONTINUES has NOT been set, and then
-                only when concatenated with the payload from the unbroken
-                series of HEADERS frames where HDR_CONTINUES was set.
-
-                When this bit is set for a HEADERS frame on a particular
-                stream (A), HEADERS frames MUST NOT be sent on other streams
-                until a HEADERS frame has been sent on the same stream (A)
-                where the HDR_CONTINUES bit is unset.
+              <t hangText="CONTINUES (0x2):">
+                The CONTINUES bit indicates that this frame does not contain the entire payload
+                necessary to provide a complete set of headers.
+                <vspace blankLines="1"/>
+                The payload for a complete set of headers is provided by a sequence of HEADERS
+                frames, terminated by a HEADERS frame without the CONTINUES bit.  Once the sequence
+                terminates, the payload of all HEADERS frames are concatenated and interpreted as a
+                single block.
+                <vspace blankLines="1"/>
+                A HEADERS frame that includes a CONTINUES bit MUST be followed by a HEADERS frame
+                for the same stream.  A receiver MUST treat the receipt of any other type of frame
+                or a frame on a different stream as a <xref
+                target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
               </t>
             </list>
 
