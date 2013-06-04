@@ -132,11 +132,11 @@
             <section title="Header Table" anchor="header.table">
                 <t>
                     A header table consists of an ordered list of (name,
-                    value) pairs.  Once a header pair is inserted in the
-                    header table, its index does not change until the pair
-                    is removed.  A pair is either inserted at the end of the
+                    value) pairs. A pair is either inserted at the end of the
                     table or replaces an existing pair depending on the chosen
-                    representation.
+                    representation. A pair can be represented as an index
+                    which is its position in the table, starting with 0 for
+                    the first entry.
                 </t>
                 <t>
                     Header names are always represented as lower-case strings.
@@ -192,9 +192,11 @@
                 </t>
                 <t>
                     When an entry is added to the header table, if the header
-                    table size is greater than the limit, it is reduced by
-                    dropping the entry with the largest index until the header
-                    table size becomes lower than or equal to the limit.
+                    table size is greater than the limit, the table size is
+                    reduced by dropping the entries at the beginning of the
+                    table until the header table size becomes lower than or
+                    equal to the limit. Dropping entries from the beginning of
+                    the table causes a renumbering of the remaining entries.
                 </t>
                 <t>
                     To optimize the representation of the headers exchanged at
@@ -333,6 +335,14 @@
         </section>
 
         <section title="Detailed Format" anchor="detailed.format">
+            <section title="Header Blocks" anchor="header.blocks">
+                <t>
+                    A header block consists of a set of header fields, which
+                    are name-value pairs. Each header field is encoded using
+                    one of the header representation.
+                </t>
+            </section>
+
             <section title="Low-level representations" anchor="string.encoding">
                 <section title="Integer representation" anchor="integer.representation">
                     <t>
@@ -771,7 +781,6 @@
         </section>
 
         <section title="Example" anchor="example">
-            <cref>This example needs to be revised.</cref>
             <t>
                 Here is an example that illustrates different representations
                 and how tables are updated.
@@ -780,7 +789,7 @@
                 <t>
                     The first header set to represent is the following:
                     <figure><artwork type="message/http" x:indent-with="   ">
-url: http://www.example.org/my-example/index.html
+path: /my-example/index.html
 user-agent: my-user-agent
 x-my-header: first
 </artwork></figure>
@@ -789,46 +798,39 @@ x-my-header: first
                     name is not in the header name table and is encoded
                     literally.  This gives the following representation:
                     <figure><artwork type="message/http" x:indent-with="   ">
-0x2A      (literal header with indexing, name index = 9)
-0x2C      (header value string length = 44)
-http://www.example.org/my-example/index.html
-0x2B      (literal header with indexing, name index = 10)
-0x0D      (header value string length = 43)
+0x44      (literal header with incremental indexing, name index = 3)
+0x16      (header value string length = 22)
+/my-example/index.html
+0x4D      (literal header with incremental indexing, name index = 12)
+0x0D      (header value string length = 13)
 my-user-agent
-0x20      (literal header with indexing, new name)
+0x40      (literal header with incremental indexing, new name)
 0x0B      (header name string length = 11)
 x-my-header
 0x05      (header value string length = 5)
 first
 </artwork></figure>
-                    The header tables are as follow after the processing of
+                    The header table is as follows after the processing of
                     these headers:
                     <figure><artwork type="inline">
-Name table
-+---------+---------------------------------------------+
-|  Index  | Header Name                                 |
-+---------+---------------------------------------------+
-|    0    | accept                                      |
-+---------+---------------------------------------------+
-|    1    | accept-charset                              |
-+---------+---------------------------------------------+
-|   ...   | ...                                         |
-+---------+---------------------------------------------+
-|   36    | warning                                     |
-+---------+---------------------------------------------+
-|   37    | x-my-header                                 | added name
-+---------+---------------------------------------------+
-</artwork></figure>
-                    <figure><artwork type="inline">
 Header table
-+----+-------------+------------------------------------+
-| 0  |     url     | http://www.example.org/            | added pair
-|    |             |       my-example/index.html        |
-+----+-------------+------------------------------------+
-| 1  |  user-agent | my-user-agent                      | added pair
-+----+-------------+------------------------------------+
-| 2  | x-my-header | first                              | added pair
-+----+-------------+------------------------------------+
++---------+-----------------+---------------------------+
+|  Index  | Header Name     | Header Value              |
++---------+-----------------+---------------------------+
+|    0    | :scheme         | http                      |
++---------+-----------------+---------------------------+
+|    1    | :scheme         | https                     |
++---------+-----------------+---------------------------+
+|   ...   | ...             | ...                       |
++---------+-----------------+---------------------------+
+|   37    | warning         |                           |
++---------+-----------------+---------------------------+
+|   38    | path            | /my-example/index.html    | added header
++---------+-----------------+---------------------------+
+|   39    | user-agent      | my-user-agent             | added header
++---------+-----------------+---------------------------+
+|   40    | x-my-header     | first                     | added header
++---------+-----------------+---------------------------+
 </artwork></figure>
                 </t>
             </section>
@@ -836,36 +838,47 @@ Header table
                 <t>
                     The second header set to represent is the following:
                     <figure><artwork type="message/http" x:indent-with="   ">
-url: http://www.example.org/my-example/resources/script.js
+path: /my-example/resources/script.js
 user-agent: my-user-agent
 x-my-header: second
 </artwork></figure>
-                    The url header is represented as a delta header with
-                    substitution.  The user-agent header will be represented
-                    as a short header.  The x-my-header will be represented as
-                    a literal header with indexing.
+                    The url header is represented as a literal header with
+                    substitution indexing.  The user-agent header will be
+                    represented as an indexed header.  The x-my-header will be
+                    represented as a literal header with incremental indexing.
                     <figure><artwork type="message/http" x:indent-with="   ">
-0x70       (delta header with substitution, header index = 0)
-0x22       (common prefix length = 32)
-0x13       (suffix value length = 19)
-resources/script.js
-0x81       (indexed header, index = 1)
-0x2f 0x17  (literal header with indexing, name index = 37)
-0x05       (header value string length = 5)
+0x04       (delta header with substitution indexing, name index = 3)
+0x26       (replaced entry index = 38)
+0x1f       (header value string length = 31)
+/my-example/resources/script.js
+0x7f 0x08  (indexed header, index = 39)
+0x5f 0x09  (literal header with indexing, name index = 40)
+0x06       (header value string length = 6)
 second
 </artwork></figure>
-                    The name table remains unchanged. The header table is updated as follow:
+                    The header table is updated as follow:
                     <figure><artwork type="inline">
-+----+-------------+------------------------------------+
-| 0  |     url     | http://www.example.org/            | substituted
-|    |             |     my-example/resources/script.js | pair
-+----+-------------+------------------------------------+
-| 1  |  user-agent | my-user-agent                      |
-+----+-------------+------------------------------------+
-| 2  | x-my-header | first                              |
-+----+-------------+------------------------------------+
-| 3  | x-my-header | second                             | added pair
-+----+-------------+------------------------------------+
+Header table
++---------+-----------------+---------------------------+
+|  Index  | Header Name     | Header Value              |
++---------+-----------------+---------------------------+
+|    0    | :scheme         | http                      |
++---------+-----------------+---------------------------+
+|    1    | :scheme         | https                     |
++---------+-----------------+---------------------------+
+|   ...   | ...             | ...                       |
++---------+-----------------+---------------------------+
+|   37    | warning         |                           |
++---------+-----------------+---------------------------+
+|   38    | path            | /my-example/resources/    |
+|         |                 |     script.js             | replaced header
++---------+-----------------+---------------------------+
+|   39    | user-agent      | my-user-agent             |
++---------+-----------------+---------------------------+
+|   40    | x-my-header     | first                     |
++---------+-----------------+---------------------------+
+|   41    | x-my-header     | second                    | added header
++---------+-----------------+---------------------------+
 </artwork></figure>
                 </t>
             </section>
