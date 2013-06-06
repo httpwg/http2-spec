@@ -21,7 +21,7 @@
 <rfc category="info"
     ipr="trust200902"
     docName="header"
-    xmlns:x='http://purl.org/net/xml2rfc/ext'>
+    >
     <front>
         <title abbrev="HTTP Header Compression">HTTP Header Compression</title>
 
@@ -197,6 +197,10 @@
                     table until the header table size becomes lower than or
                     equal to the limit. Dropping entries from the beginning of
                     the table causes a renumbering of the remaining entries.
+                    <cref>
+                        Feedback is needed on this automatic eviction
+                        strategy.
+                    </cref>
                 </t>
                 <t>
                     To optimize the representation of the headers exchanged at
@@ -611,36 +615,31 @@
                 processing and memory requirements.
                 <list style="hanging">
                     <t hangText="SETTINGS_MAX_BUFFER_SIZE:">
-                        <t>
-                            Allows the sender to inform the remote endpoint of
-                            the maximum size it accepts for the header table.
-                        </t>
-                        <t>
-                            The default value is 4096 bytes.
-                        </t>
-                        <cref>Is this default value OK?</cref>
-                        <t>
-                            When the remote endpoint receives a SETTINGS frame
-                            containing a SETTINGS_MAX_BUFFER_SIZE setting with
-                            a value smaller than the one currently in use, it
-                            MUST send as soon as possible a HEADER frame with
-                            a stream identifier of 0x0 containing a value
-                            smaller than or equal to the received setting
-                            value.
-                        </t>
-                        <cref>This changes lightly the behaviour of the
-                            HEADERS frame, which should be updated.
+                        Allows the sender to inform the remote endpoint of the
+                        maximum size it accepts for the header table.
+                        <vspace blankLines="0"/>
+                        The default value is 4096 bytes.
+                        <vspace blankLines="0"/>
+                        <cref>Is this default value OK? Do we need a maximum size? Do we want to allow infinite buffer?</cref>
+                        <vspace blankLines="0"/>
+                        When the remote endpoint receives a SETTINGS frame
+                        containing a SETTINGS_MAX_BUFFER_SIZE setting with a
+                        value smaller than the one currently in use, it MUST
+                        send as soon as possible a HEADER frame with a stream
+                        identifier of 0x0 containing a value smaller than or
+                        equal to the received setting value.
+                        <vspace blankLines="0"/>
+                        <cref>This changes slightly the behaviour of the
+                            HEADERS frame, which should be updated as follows:
                         </cref>
-                        <t>
-                            A HEADER frame with a stream identifier of 0x0
-                            indicates that the sender has reduced the maximum
-                            size of the header table. The new maximum size of
-                            the header table is encoded on 32-bit. The decoder
-                            MUST reduce its own header table by dropping the
-                            entries with the largest index until the size of
-                            the header table is lower than or equal to the
-                            transmitted maximum size.
-                        </t>
+                        <vspace blankLines="0"/>
+                        A HEADER frame with a stream identifier of 0x0
+                        indicates that the sender has reduced the maximum size
+                        of the header table. The new maximum size of the
+                        header table is encoded on 32-bit. The decoder MUST
+                        reduce its own header table by dropping entries from
+                        it until the size of the header table is lower than or
+                        equal to the transmitted maximum size.
                     </t>
                 </list>
             </t>
@@ -664,22 +663,26 @@
                     <author initials="R" surname="Peon" fullname="Roberto Peon">
                         <organization>Google</organization>
                     </author>
+                    <date month="February" year="2012"/>
                 </front>
             </reference>
         </references>
 
 
         <section title="Initial header names" anchor="initial.headers">
-            <cref>
-                The tables in this section should be updated based on
-                statistical analysis of header names frequency and specific
-                HTTP 2.0 header rules (like removal of some headers).
-            </cref>
-            <cref>
-                These tables are not adapted for headers contained in
-                PUSH_PROMISE frames. Either the tables can be merged, or the
-                table for responses can be updated.
-            </cref>
+            <t>
+                <cref>
+                    The tables in this section should be updated based on
+                    statistical analysis of header names frequency and specific
+                    HTTP 2.0 header rules (like removal of some headers).
+                </cref>
+                <vspace blankLines="0"/>
+                <cref>
+                    These tables are not adapted for headers contained in
+                    PUSH_PROMISE frames. Either the tables can be merged, or the
+                    table for responses can be updated.
+                </cref>
+            </t>
             <section title="Requests">
                 <t>
                     The following table contains the pre-defined headers used
@@ -788,7 +791,7 @@
             <section title="First header set">
                 <t>
                     The first header set to represent is the following:
-                    <figure><artwork type="message/http" x:indent-with="   ">
+                    <figure><artwork type="message/http">
 path: /my-example/index.html
 user-agent: my-user-agent
 x-my-header: first
@@ -797,7 +800,7 @@ x-my-header: first
                     literal headers with indexing.  The 'x-my-header' header
                     name is not in the header name table and is encoded
                     literally.  This gives the following representation:
-                    <figure><artwork type="message/http" x:indent-with="   ">
+                    <figure><artwork type="message/http">
 0x44      (literal header with incremental indexing, name index = 3)
 0x16      (header value string length = 22)
 /my-example/index.html
@@ -814,30 +817,30 @@ first
                     these headers:
                     <figure><artwork type="inline">
 Header table
-+---------+-----------------+---------------------------+
-|  Index  | Header Name     | Header Value              |
-+---------+-----------------+---------------------------+
-|    0    | :scheme         | http                      |
-+---------+-----------------+---------------------------+
-|    1    | :scheme         | https                     |
-+---------+-----------------+---------------------------+
-|   ...   | ...             | ...                       |
-+---------+-----------------+---------------------------+
-|   37    | warning         |                           |
-+---------+-----------------+---------------------------+
-|   38    | path            | /my-example/index.html    | added header
-+---------+-----------------+---------------------------+
-|   39    | user-agent      | my-user-agent             | added header
-+---------+-----------------+---------------------------+
-|   40    | x-my-header     | first                     | added header
-+---------+-----------------+---------------------------+
++---------+----------------+---------------------------+
+|  Index  | Header Name    | Header Value              |
++---------+----------------+---------------------------+
+|    0    | :scheme        | http                      |
++---------+----------------+---------------------------+
+|    1    | :scheme        | https                     |
++---------+----------------+---------------------------+
+|   ...   | ...            | ...                       |
++---------+----------------+---------------------------+
+|   37    | warning        |                           |
++---------+----------------+---------------------------+
+|   38    | path           | /my-example/index.html    | added header
++---------+----------------+---------------------------+
+|   39    | user-agent     | my-user-agent             | added header
++---------+----------------+---------------------------+
+|   40    | x-my-header    | first                     | added header
++---------+----------------+---------------------------+
 </artwork></figure>
                 </t>
             </section>
             <section title="Second header set">
                 <t>
                     The second header set to represent is the following:
-                    <figure><artwork type="message/http" x:indent-with="   ">
+                    <figure><artwork type="message/http">
 path: /my-example/resources/script.js
 user-agent: my-user-agent
 x-my-header: second
@@ -846,7 +849,7 @@ x-my-header: second
                     substitution indexing.  The user-agent header will be
                     represented as an indexed header.  The x-my-header will be
                     represented as a literal header with incremental indexing.
-                    <figure><artwork type="message/http" x:indent-with="   ">
+                    <figure><artwork type="message/http">
 0x04       (delta header with substitution indexing, name index = 3)
 0x26       (replaced entry index = 38)
 0x1f       (header value string length = 31)
@@ -859,26 +862,26 @@ second
                     The header table is updated as follow:
                     <figure><artwork type="inline">
 Header table
-+---------+-----------------+---------------------------+
-|  Index  | Header Name     | Header Value              |
-+---------+-----------------+---------------------------+
-|    0    | :scheme         | http                      |
-+---------+-----------------+---------------------------+
-|    1    | :scheme         | https                     |
-+---------+-----------------+---------------------------+
-|   ...   | ...             | ...                       |
-+---------+-----------------+---------------------------+
-|   37    | warning         |                           |
-+---------+-----------------+---------------------------+
-|   38    | path            | /my-example/resources/    |
-|         |                 |     script.js             | replaced header
-+---------+-----------------+---------------------------+
-|   39    | user-agent      | my-user-agent             |
-+---------+-----------------+---------------------------+
-|   40    | x-my-header     | first                     |
-+---------+-----------------+---------------------------+
-|   41    | x-my-header     | second                    | added header
-+---------+-----------------+---------------------------+
++---------+----------------+---------------------------+
+|  Index  | Header Name    | Header Value              |
++---------+----------------+---------------------------+
+|    0    | :scheme        | http                      |
++---------+----------------+---------------------------+
+|    1    | :scheme        | https                     |
++---------+----------------+---------------------------+
+|   ...   | ...            | ...                       |
++---------+----------------+---------------------------+
+|   37    | warning        |                           |
++---------+----------------+---------------------------+
+|   38    | path           | /my-example/resources/    | replaced
+|         |                |     script.js             | header
++---------+----------------+---------------------------+
+|   39    | user-agent     | my-user-agent             |
++---------+----------------+---------------------------+
+|   40    | x-my-header    | first                     |
++---------+----------------+---------------------------+
+|   41    | x-my-header    | second                    | added header
++---------+----------------+---------------------------+
 </artwork></figure>
                 </t>
             </section>
