@@ -216,17 +216,21 @@
 
     <section anchor="starting" title="Starting HTTP/2.0">
       
-      <t>HTTP/2.0 uses the same "http:" and "https:" URI schemes used by 
-        HTTP/1.1. As a result, implementations processing requests for 
-        target resource URIs like "http://example.org/foo" or 
-        "https://example.com/bar" are required to first discover whether 
-        the upstream server (the immediate peer to which the client wishes
-        to establish a connection) supports HTTP/2.0.</t>
+      <t>
+        HTTP/2.0 uses the same "http:" and "https:" URI schemes used by HTTP/1.1. HTTP/2.0
+        shares the same default port numbers: 80 for "http:" URIs and 443 for "https:" URIs.  As a
+        result, implementations processing requests for target resource URIs like <spanx
+        style="verb">http://example.org/foo</spanx> or <spanx
+        style="verb">https://example.com/bar</spanx> are required to first discover whether the
+        upstream server (the immediate peer to which the client wishes to establish a connection)
+        supports HTTP/2.0.
+      </t>
  
-      <t>The means by which support for HTTP/2.0 is determined is different
-        for "http" and "https" URIs. Discovery for "https:" URIs is 
-        described in <xref target="discover-https"/>. Discovery for 
-        "http" URIs is described here.</t>
+      <t>
+        The means by which support for HTTP/2.0 is determined is different for "http" and "https"
+        URIs.  Discovery for "https:" URIs is described in <xref target="discover-https"/>.
+        Discovery for "http" URIs is described in <xref target="discover-http"/>.
+      </t>
 
       <section anchor="versioning" title="HTTP/2.0 Version Identification">
         <t>
@@ -356,7 +360,7 @@ Upgrade: HTTP/2.0
           connection initiator.
         </t>
         <t>HTTP/2.0 connections are persistent. That is, for best performance,
-          it is expected a clients will not close connections until it is 
+          it is expected clients will not close connections until it is 
           determined that no further communication with a server is necessary
           (for example, when a user navigates away from a particular web page),
           or until the server closes the connection.</t>
@@ -381,9 +385,9 @@ Upgrade: HTTP/2.0
           The client connection header is a sequence of 24 octets (in hex notation)
         </t>
         <figure><artwork type="inline">
-464f4f202a20485454502f322e300d0a0d0a42410d0a0d0a</artwork></figure>
+505249202a20485454502f322e300d0a0d0a534d0d0a0d0a</artwork></figure>
         <t>
-          (the string <spanx style="verb">FOO * HTTP/2.0\r\n\r\nBA\r\n\r\n</spanx>) followed by a
+          (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>) followed by a
           <xref target="SETTINGS">SETTINGS frame</xref>.  The client sends the client connection header
           immediately upon receipt of a 101 Switching Protocols response (indicating a successful
           upgrade), or after receiving a TLS Finished message from the server. If starting an
@@ -720,7 +724,7 @@ Upgrade: HTTP/2.0
             which corrupts any connection state.
           </t>
           <t>
-            An endpoint that encounters a connection error MUST first send a <xref
+            An endpoint that encounters a connection error SHOULD first send a <xref
             target="GOAWAY">GOAWAY</xref> frame with the stream identifier of the last stream that
             it successfully received from its peer.  The GOAWAY frame includes an error code that
             indicates why the connection is terminating.  After sending the GOAWAY frame, the endpoint
@@ -809,7 +813,7 @@ Upgrade: HTTP/2.0
                 The endpoint is refusing the stream before processing its payload.
               </t>
               <t hangText="CANCEL (8):">
-                Used by the creator of a stream to indicate that the stream is no longer needed.
+                Used by the endpoint to indicate that the stream is no longer needed.
               </t>
               <t hangText="COMPRESSION_ERROR (9):">
                 The endpoint is unable to maintain the compression context for the connection.
@@ -870,7 +874,8 @@ Upgrade: HTTP/2.0
               </t>
               <t>
                 Flow control can be disabled by a receiver.  A receiver can choose to either disable
-                flow control for a stream or connection by declaring an infinite flow control limit.
+                flow control for a stream or connection by sending a window update frame with a specific
+                flag. See <xref target="EndFlowControl">Ending Flow Control</xref> for more details.
               </t>
               <t>
                 HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">window
@@ -1016,6 +1021,34 @@ Upgrade: HTTP/2.0
             defined in <xref target="HeaderBlock" />.
           </t>
             
+        </section>
+
+        <section anchor="PRIORITY" title="PRIORITY">
+          <t>
+            The PRIORITY frame (type=0x2) specifies the sender-advised priority of a stream.
+            It can be sent at any time for an existing stream. This enables
+            reprioritisation of existing streams.
+          </t>
+          <figure title="PRIORITY Frame Payload">
+            <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|                   Priority (31)                             |
++-+-------------------------------------------------------------+
+</artwork>
+          </figure>
+          <t>
+            The payload of a PRIORITY frame contains a single reserved bit and a
+            31-bit priority.
+          </t>
+          <t>
+            The PRIORITY frame is associated with an existing stream. If 
+            a PRIORITY frame is received with a stream identifier of 0x0, 
+            the recipient MUST respond with a
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
+            PROTOCOL_ERROR.
+          </t>
         </section>
 
         <section anchor="RST_STREAM" title="RST_STREAM">
@@ -1217,28 +1250,6 @@ Upgrade: HTTP/2.0
             <t>
               The following settings are defined:
               <list style="hanging">
-                <x:lt hangText="SETTINGS_UPLOAD_BANDWIDTH (1):">
-                  <t>
-                    indicates the sender's estimated upload bandwidth for this connection. The value 
-                    is an the integral number of kilobytes per
-                    second that the sender predicts as an expected maximum upload channel capacity.
-                  </t>
-                </x:lt>
-                <x:lt hangText="SETTINGS_DOWNLOAD_BANDWIDTH (2):">
-                  <t>
-                    indicates the sender's estimated download bandwidth for this connection. The value 
-                    is an integral number of kilobytes per
-                    second that the sender predicts as an expected maximum download channel capacity.
-                  </t>
-                </x:lt>
-                <x:lt hangText="SETTINGS_ROUND_TRIP_TIME (3):">
-                  <t>
-                    indicates the sender's estimated round-trip-time for this connection. The round
-                    trip time is defined as the minimum amount of time to send a control frame from
-                    this client to the remote and receive a response. The value is represented in
-                    milliseconds.
-                  </t>
-                </x:lt>
                 <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
                   <t>
                     indicates the maximum number of concurrent streams that the sender will allow. 
@@ -1246,16 +1257,6 @@ Upgrade: HTTP/2.0
                     of streams that the sender permits the receiver to create. By default there is no
                     limit.  It is recommended that this value be no smaller than 100,
                     so as to not unnecessarily limit parallelism.
-                  </t>
-                </x:lt>
-                <x:lt hangText="SETTINGS_CURRENT_CWND (5):">
-                  <t>
-                    indicates the sender's current TCP CWND value.
-                  </t>
-                </x:lt>
-                <x:lt hangText="SETTINGS_DOWNLOAD_RETRANS_RATE (6):">
-                  <t>
-                    indicates the sender's retransmission rate (bytes retransmitted / total bytes transmitted).
                   </t>
                 </x:lt>
                 <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
@@ -1362,10 +1363,12 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            PING frames consist of an arbitrary, variable-length sequence of 
-            octets. Receivers of a PING send a response PING frame with the PONG
-            flag set and precisely the same sequence of octets back to the 
-            sender as soon as possible.
+            In addition to the frame header, PING frames MUST contain 8 
+            additional octets of opaque data. A sender can utilize this 
+            payload in any manner it wishes but MUST include the
+            octets even if they are unused. Receivers of a PING send a 
+            response PING frame with the PONG flag set and precisely the 
+            same sequence of octets back to the sender as soon as possible.
           </t>
           
           <t>
@@ -1413,11 +1416,12 @@ Upgrade: HTTP/2.0
             re-create the streams later on a new connection).
           </t>
           <t>
-            Endpoints should always send a GOAWAY frame before closing a connection so that the
-            remote can know whether a stream has been partially processed or not.  (For example, if
+            Endpoints SHOULD always send a GOAWAY frame before closing a connection so that the
+            remote can know whether a stream has been partially processed or not.  For example, if
             an HTTP client sends a POST at the same time that a server closes a connection, the
             client cannot know if the server started to process that POST request if the server does
-            not send a GOAWAY frame to indicate where it stopped working).
+            not send a GOAWAY frame to indicate where it stopped working.  An endpoint might choose
+            to close a connection without sending GOAWAY for misbehaving peers.
           </t>
 
           <t>
@@ -1514,7 +1518,7 @@ Upgrade: HTTP/2.0
             The HEADERS frame is associated with an existing stream. If 
             a HEADERS frame is received with a stream identifier of 0x0, 
             the recipient MUST respond with a
-            <xref target="StreamErrorHandler">stream error</xref> of type
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
             PROTOCOL_ERROR.
           </t>
           <t>
@@ -2258,6 +2262,7 @@ Upgrade: HTTP/2.0
           <ttcol>Frame Type</ttcol><ttcol>Name</ttcol><ttcol>Flags</ttcol>
           <c>0</c><c>DATA</c><c>-</c>
           <c>1</c><c>HEADERS+PRIORITY</c><c>CONTINUES(2)</c>
+          <c>2</c><c>PRIORITY</c><c>-</c>
           <c>3</c><c>RST_STREAM</c><c>-</c>
           <c>4</c><c>SETTINGS</c><c>CLEAR_PERSISTED(2)</c>
           <c>5</c><c>PUSH_PROMISE</c><c>CONTINUES(2)</c>
@@ -2591,7 +2596,7 @@ Upgrade: HTTP/2.0
 
       <section title="Since draft-ietf-httpbis-http2-03" anchor="changes.since.draft-ietf-httpbis-http2-03">
         <t>
-          None (yet).
+          Added PRIORITY frame.
         </t>
       </section>
 
