@@ -289,6 +289,18 @@ Upgrade: HTTP/2.0
 </artwork>
         </figure>
         <t>
+          Requests that contain a request entity body MUST be sent in their entirely before the
+          client can send HTTP/2.0 frames.  This means that a large request entity can block the use
+          of the connection until it is completely sent.
+          <list>
+            <t>
+              If concurrency of an initial request with subsequent tests is important, a small
+              request can be used to perform the upgrade to HTTP/2.0, at the cost of an additional
+              round trip.
+            </t>
+          </list>
+        </t>
+        <t>
           A server that does not support HTTP/2.0 can respond to the request as though the Upgrade
           header field were absent:
         </t>
@@ -297,7 +309,8 @@ Upgrade: HTTP/2.0
 HTTP/1.1 200 OK
 Content-length: 243
 Content-type: text/html
-      ...
+
+...
 </artwork>
         </figure>
         <t>
@@ -306,6 +319,7 @@ Content-type: text/html
           sending HTTP/2.0 frames.  These frames MUST include a response to the request that
           initiated the Upgrade.
         </t>
+
         <figure>
           <artwork type="message/http; msgtype=&#34;response&#34;" x:indent-with="  ">
 HTTP/1.1 101 Switching Protocols
@@ -315,11 +329,16 @@ Upgrade: HTTP/2.0
 [ HTTP/2.0 connection ...
 </artwork>
         </figure>
-
         <t>
           The first HTTP/2.0 frame sent by the server is a <xref target="SETTINGS">SETTINGS
           frame</xref>.  Upon receiving the 101 response, the client sends a <xref
           target="ConnectionHeader">connection header</xref>, which includes a SETTINGS frame.
+        </t>
+        <t>
+          The HTTP/1.1 request that is sent prior to upgrade is associated with stream 1 and is
+          assigned the highest possible priority.  Stream 1 is implicitly half-closed from the
+          client toward the server, since the request is completed as an HTTP/1.1 request.  After
+          commencing the HTTP/2.0 connection, stream 1 is used for the response.
         </t>
       </section>
 
