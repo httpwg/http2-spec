@@ -1171,7 +1171,26 @@ Upgrade: HTTP/2.0
             31-bit priority.
           </t>
           <t>
-            The PRIORITY frame does not define any flags.
+            The PRIORITY frame defines one frame specific flag:
+            <list style="hanging">
+              <t hangText="ASSOCIATED_ONLY (0x1):">
+                Bit 1 (the least significant bit) indicates that the 
+                PRIORITY is to be applied only to all streams associated 
+                with the referenced stream.
+              </t>
+            </list>
+          </t>
+          <t>
+            The effect of the PRIORITY frame depends on whether the 
+            ASSOCATED_ONLY flag is set or not. If the flag is unset, 
+            the new priority is change only for the referenced stream. 
+            If the flag is set, however, the priority is changed for all 
+            streams associated with, but not including, the referenced
+            stream. In other words, a PRIORITY frame with the ASSOCIATED_ONLY
+            flag set can be used to change the priority of streams previously
+            reserved using a PUSH_PROMISE frame, but does not change the 
+            priority of the original stream for which those PUSH_PROMISE
+            frames were sent (see <xref target="PUSH_PROMISE"/>).
           </t>
           <t>
             The PRIORITY frame is associated with an existing stream. If 
@@ -1207,15 +1226,33 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The RST_STREAM frame does not define any flags.
+            The RST_STREAM frame defines one frame specific flag:
+            <list style="hanging">
+              <t hangText="ASSOCIATED_ONLY (0x1):">
+                Bit 1 (the least significant bit) indicates that the 
+                RST_STREAM is to be applied only to all streams associated 
+                with the referenced stream.
+              </t>
+            </list>
           </t>
 
           <t>
-            The RST_STREAM frame fully terminates the referenced stream
-            and causes it to enter the closed state. After receiving a 
-            RST_STREAM on a stream, the receiver MUST NOT send additional 
-            frames for that stream. However, after sending the RST_STREAM, 
-            the sending endpoint MUST be prepared to receive and process 
+            The effect of the RST_STREAM frame depends on whether the
+            ASSOCIATED_ONLY flag is set or not. When the flag is not set, 
+            the RST_STREAM frame fully terminates the referenced stream
+            and causes it to enter the closed state. When the flag is set,
+            the RST_STREAM frame fully terminates all other streams 
+            associated with, but not including, the referenced stream. 
+            In other words, an RST_STREAM with the ASSOCIATED_ONLY flag
+            set can be used to terminate streams previously reserved using
+            a PUSH_PROMISE frame, but does not terminate the original stream
+            for which those PUSH_PROMISE frames were sent (see <xref target="PUSH_PROMISE" />).
+          </t>
+          
+          <t>
+            After receiving a RST_STREAM for a stream, the receiver MUST NOT 
+            send additional frames on that stream. However, after sending the 
+            RST_STREAM, the sending endpoint MUST be prepared to receive and process 
             additional frames sent on the stream that might have been sent 
             by the peer prior to the arrival of the RST_STREAM.
           </t>
