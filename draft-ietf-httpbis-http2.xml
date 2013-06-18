@@ -483,11 +483,11 @@ Upgrade: HTTP/2.0
               <t hangText="Flags:">
                 An 8-bit field reserved for frame-type specific boolean flags.
                 <vspace blankLines="1"/>
-                The least significant bit (0x1) - the FINAL bit - is defined for all frame types as
+                The least significant bit (0x1) - the END_STREAM bit - is defined for all frame types as
                 an indication that this frame is the last the endpoint will send for the identified
                 stream.  Setting this flag causes the stream to enter the <xref
                 target="StreamHalfClose">half-closed state</xref>.  Implementations MUST process the
-                FINAL bit for all frames whose stream identifier field is not 0x0.  The FINAL bit
+                END_STREAM bit for all frames whose stream identifier field is not 0x0.  The END_STREAM bit
                 MUST NOT be set on frames that use a stream identifier of 0.
                 <vspace blankLines="1"/> 
                 The remaining flags can be assigned semantics specific to the 
@@ -661,11 +661,11 @@ Upgrade: HTTP/2.0
         <section anchor="StreamHalfClose" title="Stream half-close">
           
           <t>
-            When an endpoint sends a frame for a stream with the FINAL flag 
+            When an endpoint sends a frame for a stream with the END_STREAM flag
             set, the stream is considered to be half-closed for that endpoint.
             Subsequent frames MUST NOT be sent by that endpoint for the half
             closed stream for the remaining duration of the HTTP/2.0 connection.
-            When both endpoints have sent frames with the FINAL flag set, the
+            When both endpoints have sent frames with the END_STREAM flag set, the
             stream is considered to be fully closed.
           </t>
 
@@ -678,7 +678,7 @@ Upgrade: HTTP/2.0
           
           <t>
             An endpoint that has not yet half-closed a stream by sending the
-            FINAL flag can continue sending frames on the stream.
+            END_STREAM flag can continue sending frames on the stream.
           </t>
           
           <t>
@@ -696,11 +696,11 @@ Upgrade: HTTP/2.0
             <list style="hanging">
               <t hangText="Normal termination:">
                 Normal stream termination occurs when both client and server have half-closed the
-                stream by sending a frame containing a <xref target="FrameHeader">FINAL flag</xref>.
+                stream by sending a frame containing a <xref target="FrameHeader">END_STREAM flag</xref>.
               </t>
               <t hangText="Half-close on unidirectional stream:">
                 A stream that only has frames sent in one direction can be tentatively considered to
-                be closed once a frame containing a FINAL flag is sent.  The active sender on the
+                be closed once a frame containing a END_STREAM flag is sent.  The active sender on the
                 stream MUST be prepared to receive frames after closing the stream.
               </t>
               <t hangText="Abrupt termination:">
@@ -1022,8 +1022,9 @@ Upgrade: HTTP/2.0
           
           <t>
             HEADERS+PRIORITY uses the same flags as the HEADERS frame, except that a
-            HEADERS+PRIORITY frame with a CONTINUES bit MUST be followed by another HEADERS+PRIORITY
-            frame.  See <xref target="HEADERS">HEADERS frame</xref> for any flags.
+            HEADERS+PRIORITY frame without the END_HEADERS flag set MUST be followed by
+            another HEADERS+PRIORITY frame.
+            See <xref target="HEADERS">HEADERS frame</xref> for any flags.
           </t>
           <t>
             HEADERS+PRIORITY frames MUST be associated with a stream. If a 
@@ -1276,8 +1277,8 @@ Upgrade: HTTP/2.0
           
           <t>
             PUSH_PROMISE uses the same flags as the HEADERS frame, except that a PUSH_PROMISE frame
-            with a CONTINUES bit MUST be followed by another PUSH_PROMISE frame.  See <xref
-            target="HEADERS">HEADERS frame</xref> for any flags.
+            without the END_HEADERS flag set MUST be followed by another PUSH_PROMISE frame.
+            See <xref target="HEADERS">HEADERS frame</xref> for any flags.
           </t>
 
           <t>
@@ -1435,16 +1436,16 @@ Upgrade: HTTP/2.0
           <t>
             Additional type-specific flags for the HEADERS frame are:
             <list style="hanging">
-              <t hangText="CONTINUES (0x2):">
-                The CONTINUES bit indicates that this frame does not contain the entire payload
+              <t hangText="END_HEADERS (0x2):">
+                The END_HEADERS bit indicates that this frame contains the entire payload
                 necessary to provide a complete set of headers.
                 <vspace blankLines="1"/>
                 The payload for a complete set of headers is provided by a sequence of HEADERS
-                frames, terminated by a HEADERS frame without the CONTINUES bit.  Once the sequence
+                frames, terminated by a HEADERS frame with the END_HEADERS flag set.  Once the sequence
                 terminates, the payload of all HEADERS frames are concatenated and interpreted as a
                 single block.
                 <vspace blankLines="1"/>
-                A HEADERS frame that includes a CONTINUES bit MUST be followed by a HEADERS frame
+                A HEADERS frame without the END_HEADERS flag set MUST be followed by a HEADERS frame
                 for the same stream.  A receiver MUST treat the receipt of any other type of frame
                 or a frame on a different stream as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
@@ -1525,7 +1526,7 @@ Upgrade: HTTP/2.0
               Two flow control windows are applicable; the stream flow
               control window and the connection flow control window.  The sender MUST NOT send a flow
               controlled frame with a length that exceeds the space available in either of the flow
-              control windows advertised by the receiver.  Frames with zero length with the FINAL
+              control windows advertised by the receiver.  Frames with zero length with the END_STREAM
               flag set (for example, an empty data frame) MAY be sent if there is no available space
               in either flow control window.
             </t>
@@ -1623,7 +1624,7 @@ Upgrade: HTTP/2.0
           <section anchor="EndFlowControl" title="Ending Flow Control">
             <t>
               After a receiver reads in a frame that marks the end of a stream (for example, a data
-              stream with a FINAL flag set), it MUST cease transmission of WINDOW_UPDATE frames for
+              stream with a END_STREAM flag set), it MUST cease transmission of WINDOW_UPDATE frames for
               that stream. A sender is not obligated to maintain the available flow control window
               for streams that it is no longer sending on.
             </t>
@@ -1688,11 +1689,11 @@ Upgrade: HTTP/2.0
         <section anchor="HttpRequest" title="Request">
           <t>
             The client initiates a request by sending a HEADERS+PRIORITY frame.  Requests that do
-            not contain a body MUST set the FINAL flag, indicating that the client intends to send
+            not contain a body MUST set the END_STREAM flag, indicating that the client intends to send
             no further data on this stream, unless the server intends to push resources (see <xref
-            target="PushResources"/>).  HEADERS+PRIORITY frame does not contain the FINAL flag for
+            target="PushResources"/>).  HEADERS+PRIORITY frame does not contain the END_STREAM flag for
             requests that contain a body.  The body of a request follows as a series of DATA
-            frames. The last DATA frame sets the FINAL flag to indicate the end of the body.
+            frames. The last DATA frame sets the END_STREAM flag to indicate the end of the body.
           </t>
 
           <t>
@@ -1769,9 +1770,9 @@ Upgrade: HTTP/2.0
           <t>
             The server responds to a client request using the same stream identifier that was used
             by the request.  An HTTP response begins with a HEADERS frame. An HTTP response body
-            consists of a series of DATA frames.  The last data frame contains a FINAL flag to
+            consists of a series of DATA frames.  The last data frame contains a END_STREAM flag to
             indicate the end of the response.  A response that contains no body (such as a 204 or
-            304 response) consists only of a HEADERS frame that contains the FINAL flag to indicate
+            304 response) consists only of a HEADERS frame that contains the END_STREAM flag to indicate
             no further data will be sent on the stream.
           </t>
 
@@ -2223,14 +2224,14 @@ Upgrade: HTTP/2.0
         <texttable anchor="IanaInitialFrameType">
           <ttcol>Frame Type</ttcol><ttcol>Name</ttcol><ttcol>Flags</ttcol>
           <c>0</c><c>DATA</c><c>-</c>
-          <c>1</c><c>HEADERS+PRIORITY</c><c>CONTINUES(2)</c>
+          <c>1</c><c>HEADERS+PRIORITY</c><c>END_HEADERS(2)</c>
           <c>2</c><c>PRIORITY</c><c>-</c>
           <c>3</c><c>RST_STREAM</c><c>-</c>
           <c>4</c><c>SETTINGS</c><c>-</c>
-          <c>5</c><c>PUSH_PROMISE</c><c>CONTINUES(2)</c>
+          <c>5</c><c>PUSH_PROMISE</c><c>END_HEADERS(2)</c>
           <c>6</c><c>PING</c><c>PONG(2)</c>
           <c>7</c><c>GOAWAY</c><c>-</c>
-          <c>8</c><c>HEADERS</c><c>CONTINUES(2)</c>
+          <c>8</c><c>HEADERS</c><c>END_HEADERS(2)</c>
           <c>9</c><c>WINDOW_UPDATE</c><c>END_FLOW_CONTROL(2)</c>
         </texttable>
       </section>
