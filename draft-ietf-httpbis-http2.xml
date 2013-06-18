@@ -374,29 +374,59 @@ Upgrade: HTTP/2.0
     <section anchor="Structure" title="HTTP/2.0 Protocol Structure">
       <t>
         HTTP/2.0 provides an optimized transport for HTTP semantics.  This section describes a
-        logical structure for the protocol that is formed of three parts:
-        <list style="symbols">
-          <t>
-            framing
-          </t>
-          <t>
-            stream control and multiplexing
-          </t>
-          <t>
-            application mapping
-          </t>
-        </list>
+        logical structure for the protocol that is formed of three parts: framing, stream control
+        and multiplexing, and application mapping.  This structure is provided primarily as an aid
+        to specification, implementations are free to diverge from this structure as necessary.
       </t>
+
       <section title="Framing">
         <t>
-          TODO.  Describe what happens here: splitting into frames, continuations, header
-          (de)compression, connection level flow control also.
+          The framing layer is where frames are serialized and decoded, where header blocks are
+          compressed and decompressed, and where connection-level flow control occurs.
         </t>
+        <section title="Frame Assembly and Disassembly">
+          <t>
+            The HTTP/2.0 framing layer deals with frame assembly and decoding.  Each frame begins with
+            a <xref target="FrameHeader">frame header</xref> and some number of bytes.
+          </t>
+          <t>
+            For received data, the framing layer takes an in-order, reliable stream of bytes and
+            extracts individual frames.  For frames that are ready for transmission, the framing layer
+            serializes the frame header and frame body.
+          </t>
+        </section>
+        <section title="Header Block Compression and Decompression">
+          <t>
+            The framing layer is also responsible for performing compression or decompression of <xref
+            target="HeaderBlock">header blocks</xref>.  Header compression is performed on the header
+            block contained in HEADERS or PUSH_PROMISE frames.
+          </t>
+          <t>
+            Header blocks that are too large to fit into a single frame are handled at this layer.
+            HEADERS frames that use continuations to allow header content to span multiple frames are
+            assembled into a single unit of bytes for decompression; compressed header blocks that are
+            too large for a single HEADERS frame are split into multiple frames.
+          </t>
+        </section>
+        <section title="Connection-Level Flow Control">
+          <t>
+            <xref target="FlowControl">Connection-level flow control</xref> is performed at the
+            framing layer.
+          </t>
+          <t>
+            Endpoints do not send <xref target="DATA">DATA frames</xref> that would exceed the
+            advertised connection flow control window of their peer.  Endpoints that have not <xref
+            target="DisableFlowControl">disabled connection-level flow control</xref> advertise
+            increases in the connection-level flow window by sending <xref
+            target="WINDOW_UPDATE">WINDOW_UPDATE</xref> frames.
+          </t>
+        </section>
       </section>
+
       <section title="Stream Control and Multiplexing">
         <t>
           TODO.  This is where frames are associated with streams.  This is where stream and
-          connection control occurs.
+          connection control occurs.  And prioritization.
         </t>
         <section title="Stream State Machine">
           <t>
@@ -941,11 +971,12 @@ Upgrade: HTTP/2.0
         </section>
       </section>
 
-      <section anchor="flowcontrol" title="Stream Flow Control">
+      <section anchor="FlowControl" title="Flow Control">
         <t>
           Using streams for multiplexing introduces contention over use of the TCP connection,
-          resulting in blocked streams.  A flow control
-          scheme ensures that streams on the same connection do not destructively interfere with each other.
+          resulting in blocked streams.  A flow control scheme ensures that streams on the same
+          connection do not destructively interfere with each other.  Flow control is used for both
+          individual streams and for the connection as a whole.
         </t>
         <t>
           HTTP/2.0 provides for flow control through use of the 
@@ -1012,7 +1043,7 @@ Upgrade: HTTP/2.0
           </t>
 
         </section>
-        <section title="Appropriate Use of Flow Control">
+        <section anchor="DisableFlowControl" title="Appropriate Use of Flow Control">
           <t>
             Flow control is defined to protect endpoints (client, server or intermediary) that are
             operating under resource constraints.  For example, a proxy needs to share memory between many
