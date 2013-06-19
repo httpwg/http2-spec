@@ -286,6 +286,11 @@
         <t>
           Additional to the Upgrade request, anticipating that the server will likely respond with some HTTP/2.0
           frames, the client MUST send the payload of its SETTINGS frame within the HTTP/1.1 header. 
+          In particular, if the server does not know the client's initial preferences (as expressed in
+          a SETTINGS frame), it could send too much data in its response, or reserve multiple streams via 
+          PUSH_PROMISE despite the client's preference to the contrary. 
+        </t>
+        <t>
           The SETTINGS are conveyed in the following HTTP/1.1 header:
         </t>
         <t>
@@ -295,6 +300,8 @@
           token68 is defined in <xref target="HTTP-p7">HTTP/1.1</xref>. The value of
           HTTP2-Settings is set to the base64url encoding of the payload 
           of the SETTINGS frame as defined in <xref target="SettingFormat">Setting Format</xref>.
+          The client may have no SETTINGS to send, implying the default values match its preferences.
+          In this case, the client MUST still send the empty header.
         </t>
         <t>
           For example:
@@ -309,7 +316,7 @@ HTTP2-Settings: <base64url encoding of HTTP/2.0 SETTINGS payload>
 </artwork>
         </figure>
         <t>
-          Requests that contain a request entity body MUST be sent in their entirely before the
+          Requests that contain a request entity body MUST be sent in their entirety before the
           client can send HTTP/2.0 frames.  This means that a large request entity can block the use
           of the connection until it is completely sent.
           <list>
@@ -2328,6 +2335,45 @@ Upgrade: HTTP/2.0
           An initial set of settings registrations can be found in <xref target="SettingValues"/>.
         </t>
       </section>
+
+      <section title='New HTTP Header Fields Registry'>
+        <section title='HTTP2-Settings'>
+        <t>
+          This section describes a header field for registration in the Permanent 
+          Message Header Field Registry. <xref target='RFC3864'/>
+        </t>
+        <t>
+          <list style='hanging'>
+            <t hangText='Header field name'>
+              <vspace blankLines='0'/>HTTP2-Settings
+            </t>
+            <t hangText='Applicable protocol'>
+              <vspace blankLines='0'/>http
+            </t>
+            <t hangText='Status'>
+              <vspace blankLines='0'/>standard
+            </t>
+            <t hangText='Author/Change controller'>
+              <vspace blankLines='0'/>IETF
+            </t>
+            <t hangText='Specification document(s)'>
+              <vspace blankLines='0'/>RFC XXXX (this document)
+            </t>
+            <t hangText='Related information'>
+              <vspace blankLines='0'/>This header field is only used by the client in 
+              the Upgrade-based negotiation.
+            </t>
+          </list>
+        </t>
+        <t>The HTTP2-Settings header field is used in the Upgrade-based negotiation by the client.
+	It is sent from the client to the server to provide the payload for its SETTINGS frame
+        in anticipation of the server responding with HTTP/2.0 frames.</t>
+
+        <t>The HTTP2-Settings header field MUST NOT appear more than once in an HTTP request
+        and MUST NOT appear at all in an HTTP response.</t>
+
+      </section>
+    </section>
     </section>
 
     <section title="Acknowledgements">
