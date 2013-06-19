@@ -1093,11 +1093,25 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            The PRIORITY frame does not define any flags.
+            The PRIORITY frame defines one frame specific flag:
+            <list style="hanging">
+              <t hangText="ASSOCIATED_ONLY (0x1):">
+                Bit 1 (the least significant bit) indicates that the 
+                PRIORITY is to be applied only to all streams associated 
+                with the referenced stream.
+              </t>
+            </list>
+          </t>
+          <t>
+            The effect of the PRIORITY frame depends on whether the 
+            ASSOCATED_ONLY flag is set or not. If the flag is unset, 
+            the priority is changed only for the referenced stream. 
+            If the flag is set, however, the priority is changed for all 
+            associated streams (see <xref target="promise_association" />).
           </t>
 
           <t>
-            The PRIORITY frame is associated with an existing stream. If 
+            The PRIORITY frame references an existing stream. If 
             a PRIORITY frame is received with a stream identifier of 0x0, 
             the recipient MUST respond with a
             <xref target="ConnectionErrorHandler">connection error</xref> of type
@@ -1130,21 +1144,34 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            No type-flags are defined.
+            The RST_STREAM frame defines one frame specific flag:
+            <list style="hanging">
+              <t hangText="ASSOCIATED_ONLY (0x1):">
+                Bit 1 (the least significant bit) indicates that the 
+                RST_STREAM is to be applied only to all streams associated 
+                with the referenced stream.
+              </t>
+            </list>
+          </t>
+          <t>
+            The effect of the RST_STREAM frame depends on whether the
+            ASSOCIATED_ONLY flag is set or not. When the flag is set, 
+            the RST_STREAM closes the associated streams but not
+            the referenced stream. When it is unset, the RST_STREAM 
+            closes the referenced stream but not the associated ones 
+            (see <xref target="promise_association" />) .
           </t>
 
           <t>
-            The RST_STREAM frame fully terminates the referenced stream
-            and causes it to enter the closed state. After receiving a 
-            RST_STREAM on a stream, the receiver MUST NOT send additional 
-            frames for that stream. However, after sending the RST_STREAM, 
+            After receiving a RST_STREAM on a stream, the receiver MUST NOT send additional 
+            frames for affected stream (or streams). However, after sending the RST_STREAM, 
             the sending endpoint MUST be prepared to receive and process 
             additional frames sent on the stream that might have been sent 
             by the peer prior to the arrival of the RST_STREAM.
           </t>
 
           <t>
-            RST_STREAM frames MUST be associated with a stream. If a 
+            RST_STREAM frames MUST reference a known stream identifier. If a 
             RST_STREAM frame is received whose stream 
             identifier field is 0x0 the recipient MUST respond with a 
             <xref target="ConnectionErrorHandler">connection error</xref> of type 
@@ -1298,15 +1325,6 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The state of promised streams is bound to the state of the 
-            original associated stream on which the PUSH_PROMISE frame
-            were sent. If the originating stream state changes to 
-            fully closed, all associated promised streams fully close as well. 
-            <cref>Ed. Note: We need clarification on this point. How synchronized
-              are the lifecycles of streams and associated promised streams?</cref>
-          </t>
-          
-          <t>
             The PUSH_PROMISE frame defines the following flags:
             <list style="hanging">
               <t hangText="END_PUSH_PROMISE (0x1):">
@@ -1341,6 +1359,141 @@ Upgrade: HTTP/2.0
             The PUSH_PROMISE frame modifies the connection state as 
             defined in <xref target="HeaderBlock" />.
           </t>
+          
+          <section anchor="promise_association" title="Associated Streams">
+          
+            <t>
+              Sending a PUSH_PROMISE frame creates an association between the 
+              referenced stream (referred to here as the "originating stream") 
+              and the newly promised stream. This relationship allows endpoints 
+              to terminate or reprioritize all of the promised streams associated 
+              with an originating stream as a single group but does not bind the 
+              lifecycles of those streams to the originating one. In other words, 
+              closing the originating stream has no effect on the state of 
+              promised streams.
+            </t>
+            
+            <t>
+              For example, a server endpoint wishing to push additional 
+              data to a client endpoint in response to an initial request
+              delivered using Stream #1 can send PUSH_PROMISE frames 
+              referencing Stream #1 and identifying new Streams #2 and #4:
+            </t>
+            
+            <figure>
+              <artwork>
+  Endpoint 1                   Endpoint #2
+  ----------                   -----------
+    |                               |
+    | ----------------------------> |
+    |       HEADERS (Stream #1)     |
+    |                               |
+    | &lt;---------------------------- |
+    |       HEADERS (Stream #1)     |
+    | &lt;---------------------------- |
+    |     PUSH_PROMISE (Stream #1,  |
+    |          Promised Stream #2)  |
+    | &lt;---------------------------- |
+    |     PUSH_PROMISE (Stream #1,  |
+    |          Promised Stream #4)  |
+    |                               |
+    | ...                           |
+              </artwork>
+            </figure>
+            
+            <t>
+              Once the PUSH_PROMISE frames have been sent, either endpoint
+              can choose to reprioritize or terminate each individual stream 
+              separately or as a group. For instance, to terminate each 
+              stream separately, the endpoint would send an RST_STREAM 
+              referencing the individual stream:
+            </t>
+            
+            <figure>
+              <artwork>
+  Endpoint 1                   Endpoint #2
+  ----------                   -----------
+    |                               |
+    | ----------------------------> |
+    |    RST_STREAM (Stream #2)     |
+    |                               |
+    | ...                           |
+              </artwork>
+            </figure>
+                        
+            <t>
+              However, to terminate all of promised streams at once,
+              the endpoint would send an RST_STREAM frame referencing
+              Stream #1 with the ASSOCIATED_ONLY flag set:
+            </t>
+            
+            <figure>
+              <artwork>
+  Endpoint 1                   Endpoint #2
+  ----------                   -----------
+    |                               |
+    | ----------------------------> |
+    |    RST_STREAM (Stream #1,     |
+    |           ASSOCIATED_ONLY)    |
+    |                               |
+    | ...                           |
+              </artwork>
+            </figure>
+            
+            <t>
+              Sending RST_STREAM in this way causes Streams #2 and #4 to
+              enter the half-closed state but has no effect on the state 
+              of Stream #1. To close Stream #1, the endpoint would
+              send an additional RST_STREAM referencing Stream #1 without
+              the ASSOCIATED_ONLY flag.
+            </t>
+            
+            <t>
+              Likewise, to reprioritize a single stream, the endpoint would
+              send a PRIORITY frame referencing that stream:
+            </t>
+            
+            <figure>
+              <artwork>
+  Endpoint 1                   Endpoint #2
+  ----------                   -----------
+    |                               |
+    | ----------------------------> |
+    |      PRIORITY (Stream #2)     |
+    |                               |
+    | ...                           |
+              </artwork>
+            </figure>
+
+            <t>
+              To reprioritize all associated streams as a group,
+              the endpoint would send a PRIORITY frame referencing Stream #1
+              with the ASSOCIATED_ONLY flag set:
+            </t>
+            
+            <figure>
+              <artwork>
+  Endpoint 1                   Endpoint #2
+  ----------                   -----------
+    |                               |
+    | ----------------------------> |
+    |      PRIORITY (Stream #1,     |
+    |           ASSOCIATED_ONLY)    |
+    |                               |
+    | ...                           |
+              </artwork>
+            </figure>
+
+            <t>
+              RST_STREAM and PRIORITY frames with the ASSOCIATED_ONLY
+              flag set can be sent at any time while any of the 
+              associated streams are open, even if the referenced 
+              originating stream has already been half or fully 
+              closed. <cref>Ed Note: What to do if this is received
+              after all the associated streams have been closed?</cref>
+            </t>
+            
+          </section>
             
         </section>
 
