@@ -556,8 +556,8 @@ Upgrade: HTTP/2.0
             </t>
             <t>
               Streams optionally carry a set of name-value header pairs
-              that are expressed within the headers block of HEADERS+PRIORITY, 
-              HEADERS, or PUSH_PROMISE frames.
+              that are expressed within the headers block of HEADERS
+              or PUSH_PROMISE frames.
             </t>
             <t>
               A single HTTP/2.0 connection can contain multiple concurrently
@@ -938,7 +938,7 @@ Upgrade: HTTP/2.0
 
       <section anchor="HeaderBlock" title="Header Blocks">
         <t>
-          The header block is found in the HEADERS, HEADERS+PRIORITY and PUSH_PROMISE frames.  The
+          The header block is found in the HEADERS and PUSH_PROMISE frames.  The
           header block consists of a set of header fields, which are name-value pairs.  Headers
           are compressed using black magic.
         </t>
@@ -1005,17 +1005,18 @@ Upgrade: HTTP/2.0
           
         </section>
 
-        <section anchor="HEADERS_PRIORITY" title="HEADERS+PRIORITY">
+        <section anchor="HEADERS" title="HEADERS">
           <t>
-            The HEADERS+PRIORITY frame (type=0x1) allows the sender to 
-            set header fields and stream priority at the same time.
+            The HEADERS frame (type=0x1) allows the sender to <xref target="StreamCreation">
+            create a stream</xref>. Any number of HEADERS frames may be sent on an existing
+            stream at any time.
           </t>
-          <figure title="HEADERS+PRIORITY Frame Payload">
+          <figure title="HEADERS Frame Payload">
             <artwork type="inline">
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|X|                   Priority (31)                             |
+|X|               (Optional) Priority (31)                      |
 +-+-------------------------------------------------------------+
 |                    Header Block (*)                         ...
 +---------------------------------------------------------------+
@@ -1023,28 +1024,50 @@ Upgrade: HTTP/2.0
           </figure>
 
           <t>
-            The HEADERS+PRIORITY frame is identical to the <xref target="HEADERS">HEADERS
-            frame</xref>, preceded by a single reserved bit and a 31-bit priority; see
-            <xref target="StreamPriority"/>.
+            The HEADERS frame defines the following flags:
+            <list style="hanging">
+              <t hangText="END_STREAM (0x1):">
+                Bit 1 being set indicates that this frame is the last that the endpoint
+                will send for the identified stream.  Setting this flag causes the stream
+                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+              </t>
+              <t hangText="RESERVED (0x2):">
+                Bit 2 is reserved for future use.
+              </t>
+              <t hangText="END_HEADERS (0x4):">
+                The END_HEADERS bit indicates that this frame contains the entire payload
+                necessary to provide a complete set of headers.
+                <vspace blankLines="1"/>
+                The payload for a complete set of headers is provided by a sequence of HEADERS
+                frames, terminated by a HEADERS frame with the END_HEADERS flag set.  Once the sequence
+                terminates, the payload of all HEADERS frames are concatenated and interpreted as a
+                single block.
+                <vspace blankLines="1"/>
+                A HEADERS frame without the END_HEADERS flag set MUST be followed by a HEADERS frame
+                for the same stream.  A receiver MUST treat the receipt of any other type of frame
+                or a frame on a different stream as a <xref
+                target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
+              </t>
+              <t hangText="PRIORITY (0x8):">
+                Bit 4 being set indicates that the first four octets of this frame contain a
+                single reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.
+              </t>
+            </list>
           </t>
-          
+
           <t>
-            HEADERS+PRIORITY uses the same flags as the HEADERS frame, except that a
-            HEADERS+PRIORITY frame without the END_HEADERS flag set MUST be followed by
-            another HEADERS+PRIORITY frame.
-            See <xref target="HEADERS">HEADERS frame</xref> for any flags.
+            The payload of a HEADERS frame contains a <xref target="HeaderBlock">Headers Block</xref>.
           </t>
+
           <t>
-            HEADERS+PRIORITY frames MUST be associated with a stream. If a 
-            HEADERS+PRIORITY frame is received whose stream 
-            identifier field is 0x0, the recipient MUST respond with a 
-            <xref target="ConnectionErrorHandler">connection error</xref> of type 
+            HEADERS frames MUST be associated with a stream. If a HEADERS frame is received
+            whose stream identifier field is 0x0, the recipient MUST respond with a
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
             PROTOCOL_ERROR.
           </t>
-            
+
           <t>
-            The HEADERS+PRIORITY frame modifies the connection state as 
-            defined in <xref target="HeaderBlock" />.
+            The HEADERS frame changes the connection state as defined in <xref target="HeaderBlock" />.
           </t>
             
         </section>
@@ -1284,9 +1307,23 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            PUSH_PROMISE uses the same flags as the HEADERS frame, except that a PUSH_PROMISE frame
-            without the END_HEADERS flag set MUST be followed by another PUSH_PROMISE frame.
-            See <xref target="HEADERS">HEADERS frame</xref> for any flags.
+            The PUSH_PROMISE frame defines the following flags:
+            <list style="hanging">
+              <t hangText="END_PUSH_PROMISE (0x1):">
+                The END_PUSH_PROMISE bit indicates that this frame contains the entire payload
+                necessary to provide a complete set of headers.
+                <vspace blankLines="1"/>
+                The payload for a complete set of headers is provided by a sequence of PUSH_PROMISE
+                frames, terminated by a PUSH_PROMISE frame with the END_PUSH_PROMISE flag set.
+                Once the sequence terminates, the payload of all PUSH_PROMISE frames are concatenated
+                and interpreted as a single block.
+                <vspace blankLines="1"/>
+                A PUSH_PROMISE frame without the END_PUSH_PROMISE flag set MUST be followed by a
+                PUSH_PROMISE frame for the same stream.  A receiver MUST treat the receipt of any
+                other type of frame or a frame on a different stream as a <xref
+                target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
+              </t>
+            </list>
           </t>
 
           <t>
@@ -1432,56 +1469,6 @@ Upgrade: HTTP/2.0
           <t>
             The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
             contains the reason for closing the connection.
-          </t>
-        </section>
-
-        <section anchor="HEADERS" title="HEADERS">
-          <t>
-            The HEADERS frame (type=0x8) provides header fields for a stream. 
-            Any number of HEADERS frames can may be sent on an existing stream 
-            at any time.
-          </t>
-          <t>
-            The HEADERS frame defines the following flags:
-            <list style="hanging">
-              <t hangText="END_STREAM (0x1):">
-                Bit 1 being set indicates that this frame is the last that the endpoint
-                will send for the identified stream.  Setting this flag causes the stream
-                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
-              </t>
-              <t hangText="RESERVED (0x2):">
-                Bit 2 is reserved for future use.
-              </t>
-              <t hangText="END_HEADERS (0x4):">
-                The END_HEADERS bit indicates that this frame contains the entire payload
-                necessary to provide a complete set of headers.
-                <vspace blankLines="1"/>
-                The payload for a complete set of headers is provided by a sequence of HEADERS
-                frames, terminated by a HEADERS frame with the END_HEADERS flag set.  Once the sequence
-                terminates, the payload of all HEADERS frames are concatenated and interpreted as a
-                single block.
-                <vspace blankLines="1"/>
-                A HEADERS frame without the END_HEADERS flag set MUST be followed by a HEADERS frame
-                for the same stream.  A receiver MUST treat the receipt of any other type of frame
-                or a frame on a different stream as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
-              </t>
-            </list>
-
-          </t>
-          <t>
-            The payload of a HEADERS frame contains a <xref target="HeaderBlock">Headers Block</xref>.
-          </t>
-          <t>
-            The HEADERS frame is associated with an existing stream. If 
-            a HEADERS frame is received with a stream identifier of 0x0, 
-            the recipient MUST respond with a
-            <xref target="ConnectionErrorHandler">connection error</xref> of type
-            PROTOCOL_ERROR.
-          </t>
-          <t>
-            The HEADERS frame changes the connection state as defined in
-            <xref target="HeaderBlock" />.
           </t>
         </section>
 
@@ -1704,16 +1691,16 @@ Upgrade: HTTP/2.0
 
         <section anchor="HttpRequest" title="Request">
           <t>
-            The client initiates a request by sending a HEADERS+PRIORITY frame.  Requests that do
+            The client initiates a request by sending a HEADERS frame.  Requests that do
             not contain a body MUST set the END_STREAM flag, indicating that the client intends to send
             no further data on this stream, unless the server intends to push resources (see <xref
-            target="PushResources"/>).  HEADERS+PRIORITY frame does not contain the END_STREAM flag for
+            target="PushResources"/>).  The HEADERS frame does not contain the END_STREAM flag for
             requests that contain a body.  The body of a request follows as a series of DATA
             frames. The last DATA frame sets the END_STREAM flag to indicate the end of the body.
           </t>
 
           <t>
-            The header fields included in the HEADERS+PRIORITY frame contain 
+            The header fields included in the HEADERS frame contain 
             all of the HTTP header fields associated with an HTTP request.
             The definitions of these headers are largely unchanged relative 
             to HTTP/1.1, with a few notable exceptions:
@@ -1747,7 +1734,7 @@ Upgrade: HTTP/2.0
             any other header fields.</t>
 
           <t>
-            If a client sends a HEADERS+PRIORITY frame that omits a mandatory 
+            If a client sends a HEADERS frame that omits a mandatory 
             header, the server MUST reply with a HTTP 400 Bad Request reply.  
             <cref>Ed: why PROTOCOL_ERROR on missing ":status" in the response, 
               but HTTP 400 here?</cref>
@@ -1776,7 +1763,7 @@ Upgrade: HTTP/2.0
             are unavailable to ensure better utilization of a connection.
           </t>
           <t>
-            If the server receives a data frame prior to a HEADERS+PRIORITY frame the server MUST
+            If the server receives a data frame prior to a HEADERS frame the server MUST
             treat this as a <xref target="StreamErrorHandler">stream error</xref> of type
             PROTOCOL_ERROR.
           </t>
@@ -2240,14 +2227,13 @@ Upgrade: HTTP/2.0
         <texttable anchor="IanaInitialFrameType">
           <ttcol>Frame Type</ttcol><ttcol>Name</ttcol><ttcol>Flags</ttcol>
           <c>0</c><c>DATA</c><c>END_STREAM(1)</c>
-          <c>1</c><c>HEADERS+PRIORITY</c><c>END_STREAM(1), END_HEADERS(4)</c>
+          <c>1</c><c>HEADERS</c><c>END_STREAM(1), END_HEADERS(4), PRIORITY(8)</c>
           <c>2</c><c>PRIORITY</c><c>-</c>
           <c>3</c><c>RST_STREAM</c><c>-</c>
           <c>4</c><c>SETTINGS</c><c>-</c>
-          <c>5</c><c>PUSH_PROMISE</c><c>END_STREAM(1), END_HEADERS(4)</c>
+          <c>5</c><c>PUSH_PROMISE</c><c>END_PUSH_PROMISE(1)</c>
           <c>6</c><c>PING</c><c>PONG(1)</c>
           <c>7</c><c>GOAWAY</c><c>-</c>
-          <c>8</c><c>HEADERS</c><c>END_STREAM(1), END_HEADERS(4)</c>
           <c>9</c><c>WINDOW_UPDATE</c><c>END_FLOW_CONTROL(1)</c>
         </texttable>
       </section>
