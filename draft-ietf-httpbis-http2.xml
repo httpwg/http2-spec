@@ -446,13 +446,14 @@ Upgrade: HTTP/2.0
       </section>
 
       <section title="Framing">
-        <t>Once the HTTP/2.0 connection is established, clients and servers 
+        <t>Once the HTTP/2.0 connection is established, endpoints 
           can begin exchanging frames.</t>
         
         <section anchor="FrameHeader" title="Frame Header">
           <t>
-            HTTP/2.0 frames share a common base format consisting of 
-            an 8-byte header followed by 0 to 65535 bytes of data.
+            All frames share a common base format consisting of 
+            an 8-byte header followed by 0 to 65,535 octets of payload 
+            data.
           </t>
           <figure title="Frame Header">
             <artwork type="inline">
@@ -503,25 +504,30 @@ Upgrade: HTTP/2.0
             dependent entirely on the frame type.</t>
         </section>
 
-        <section anchor="FrameSize" title="Frame Size">
-          
-          <t>Implementations with limited resources might not be capable of 
-            processing large frame sizes. Such implementations MAY choose
-            to place additional limits on the maximum frame size. However,
-            all implementations MUST be capable of receiving and processing
-            frames containing at least 8192 octets of data.
-            <cref>Ed. Question: Does this minimum include the 8-byte header 
-              or just the frame data?</cref></t>
-
-          <t>An implementation MUST terminate a stream immediately if it is
-            unable to process a frame due it's size. This is done by sending 
-            an <xref target="RST_STREAM">RST_STREAM frame</xref> containing 
-            the FRAME_TOO_LARGE error code.
+        <section anchor="FrameSize" title="Frame Size">       
+          <t>
+            The maximum amount of payload data any frame can contain 
+            varies by frame type and use. The absolute maximum amount 
+            of payload data any individual frame can contain is 
+            65,535 octets. All implementations SHOULD be capable
+            of receiving and minimally processing frames up to this size.
           </t>
           <t>
-            <cref><eref target="https://github.com/http2/http2-spec/issues/28">Issue 28</eref>: Need
-            a way to signal the maximum frame size; no way to RST_STREAM on non-stream-related
-            frames.</cref>
+            Certain frame types, such as PING (see <xref target="PING"/>),
+            impose strict limits on the amount of payload data allowed. 
+            Likewise, additional size limits can be set by specific 
+            application uses. For instance, individual DATA and HEADERS 
+            frames used to express HTTP request and response messages 
+            (see <xref target="HTTPLayer" />) are not permitted to exceed 
+            16,383 octets of payload. Sending endpoints MUST NOT exceed such 
+            limits.
+          </t>
+          <t>
+            If an endpoint is unable to process a frame due to the payload size, 
+            or if the size exceeds a strictly defined limit, the endpoint MUST 
+            send a FRAME_TOO_LARGE error. If the frame stream identifier is 0x0, 
+            this code MUST be sent as a connection error. If the stream 
+            identifier is anything other than 0x0, it is sent as a stream error.
           </t>
         </section>
       </section>
