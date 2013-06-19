@@ -236,7 +236,7 @@
         <t>
           The protocol defined in this document is identified using the string "HTTP/2.0".  This
           identification is used in the HTTP/1.1 Upgrade header field, in the <xref
-          target="TLSALPN">TLS application layer protocol negotiation extension</xref> field and
+          target="TLSALPN">TLS application layer protocol negotiation extension</xref> field, and
           other places where protocol identification is required.
         </t>
         <t>
@@ -289,6 +289,18 @@ Upgrade: HTTP/2.0
 </artwork>
         </figure>
         <t>
+          Requests that contain a request entity body MUST be sent in their entirely before the
+          client can send HTTP/2.0 frames.  This means that a large request entity can block the use
+          of the connection until it is completely sent.
+          <list>
+            <t>
+              If concurrency of an initial request with subsequent tests is important, a small
+              request can be used to perform the upgrade to HTTP/2.0, at the cost of an additional
+              round trip.
+            </t>
+          </list>
+        </t>
+        <t>
           A server that does not support HTTP/2.0 can respond to the request as though the Upgrade
           header field were absent:
         </t>
@@ -297,7 +309,8 @@ Upgrade: HTTP/2.0
 HTTP/1.1 200 OK
 Content-length: 243
 Content-type: text/html
-      ...
+
+...
 </artwork>
         </figure>
         <t>
@@ -306,6 +319,7 @@ Content-type: text/html
           sending HTTP/2.0 frames.  These frames MUST include a response to the request that
           initiated the Upgrade.
         </t>
+
         <figure>
           <artwork type="message/http; msgtype=&#34;response&#34;" x:indent-with="  ">
 HTTP/1.1 101 Switching Protocols
@@ -315,11 +329,16 @@ Upgrade: HTTP/2.0
 [ HTTP/2.0 connection ...
 </artwork>
         </figure>
-
         <t>
           The first HTTP/2.0 frame sent by the server is a <xref target="SETTINGS">SETTINGS
           frame</xref>.  Upon receiving the 101 response, the client sends a <xref
           target="ConnectionHeader">connection header</xref>, which includes a SETTINGS frame.
+        </t>
+        <t>
+          The HTTP/1.1 request that is sent prior to upgrade is associated with stream 1 and is
+          assigned the highest possible priority.  Stream 1 is implicitly half-closed from the
+          client toward the server, since the request is completed as an HTTP/1.1 request.  After
+          commencing the HTTP/2.0 connection, stream 1 is used for the response.
         </t>
       </section>
 
@@ -464,11 +483,11 @@ Upgrade: HTTP/2.0
               <t hangText="Flags:">
                 An 8-bit field reserved for frame-type specific boolean flags.
                 <vspace blankLines="1"/>
-                The least significant bit (0x1) - the FINAL bit - is defined for all frame types as
+                The least significant bit (0x1) - the END_STREAM bit - is defined for all frame types as
                 an indication that this frame is the last the endpoint will send for the identified
                 stream.  Setting this flag causes the stream to enter the <xref
                 target="StreamHalfClose">half-closed state</xref>.  Implementations MUST process the
-                FINAL bit for all frames whose stream identifier field is not 0x0.  The FINAL bit
+                END_STREAM bit for all frames whose stream identifier field is not 0x0.  The END_STREAM bit
                 MUST NOT be set on frames that use a stream identifier of 0.
                 <vspace blankLines="1"/> 
                 The remaining flags can be assigned semantics specific to the 
@@ -642,11 +661,11 @@ Upgrade: HTTP/2.0
         <section anchor="StreamHalfClose" title="Stream half-close">
           
           <t>
-            When an endpoint sends a frame for a stream with the FINAL flag 
+            When an endpoint sends a frame for a stream with the END_STREAM flag
             set, the stream is considered to be half-closed for that endpoint.
             Subsequent frames MUST NOT be sent by that endpoint for the half
             closed stream for the remaining duration of the HTTP/2.0 connection.
-            When both endpoints have sent frames with the FINAL flag set, the
+            When both endpoints have sent frames with the END_STREAM flag set, the
             stream is considered to be fully closed.
           </t>
 
@@ -659,7 +678,7 @@ Upgrade: HTTP/2.0
           
           <t>
             An endpoint that has not yet half-closed a stream by sending the
-            FINAL flag can continue sending frames on the stream.
+            END_STREAM flag can continue sending frames on the stream.
           </t>
           
           <t>
@@ -677,11 +696,11 @@ Upgrade: HTTP/2.0
             <list style="hanging">
               <t hangText="Normal termination:">
                 Normal stream termination occurs when both client and server have half-closed the
-                stream by sending a frame containing a <xref target="FrameHeader">FINAL flag</xref>.
+                stream by sending a frame containing a <xref target="FrameHeader">END_STREAM flag</xref>.
               </t>
               <t hangText="Half-close on unidirectional stream:">
                 A stream that only has frames sent in one direction can be tentatively considered to
-                be closed once a frame containing a FINAL flag is sent.  The active sender on the
+                be closed once a frame containing a END_STREAM flag is sent.  The active sender on the
                 stream MUST be prepared to receive frames after closing the stream.
               </t>
               <t hangText="Abrupt termination:">
@@ -799,9 +818,6 @@ Upgrade: HTTP/2.0
               <t hangText="FLOW_CONTROL_ERROR (3):">
                 The endpoint detected that its peer violated the flow control protocol.
               </t>
-              <t hangText="INVALID_STREAM (4):">
-                The endpoint received a frame for an inactive stream.
-              </t>
               <t hangText="STREAM_CLOSED (5):">
                 The endpoint received a frame after a stream was half-closed.
               </t>
@@ -810,7 +826,8 @@ Upgrade: HTTP/2.0
                 supports.
               </t>
               <t hangText="REFUSED_STREAM (7):">
-                The endpoint is refusing the stream before processing its payload.
+                The endpoint refuses the stream prior to performing any application processing, see
+                <xref target="Retrying"/> for details.
               </t>
               <t hangText="CANCEL (8):">
                 Used by the endpoint to indicate that the stream is no longer needed.
@@ -933,8 +950,8 @@ Upgrade: HTTP/2.0
         <t>
           The contents of header blocks MUST be processed by the compression context, even if stream
           has been reset or the frame is discarded.  If header blocks cannot be processed, the
-          receiver MUST treat the connection with a <xref target="ConnectionErrorHandler">connection
-          error</xref> of type COMPRESSION_ERROR.
+          receiver MUST terminate the connection with a <xref
+          target="ConnectionErrorHandler">connection error</xref> of type COMPRESSION_ERROR.
         </t>
       </section>
 
@@ -1005,8 +1022,9 @@ Upgrade: HTTP/2.0
           
           <t>
             HEADERS+PRIORITY uses the same flags as the HEADERS frame, except that a
-            HEADERS+PRIORITY frame with a CONTINUES bit MUST be followed by another HEADERS+PRIORITY
-            frame.  See <xref target="HEADERS">HEADERS frame</xref> for any flags.
+            HEADERS+PRIORITY frame without the END_HEADERS flag set MUST be followed by
+            another HEADERS+PRIORITY frame.
+            See <xref target="HEADERS">HEADERS frame</xref> for any flags.
           </t>
           <t>
             HEADERS+PRIORITY frames MUST be associated with a stream. If a 
@@ -1042,6 +1060,11 @@ Upgrade: HTTP/2.0
             The payload of a PRIORITY frame contains a single reserved bit and a
             31-bit priority.
           </t>
+
+          <t>
+            The PRIORITY frame does not define any type-specific flags.
+          </t>
+
           <t>
             The PRIORITY frame is associated with an existing stream. If 
             a PRIORITY frame is received with a stream identifier of 0x0, 
@@ -1136,13 +1159,7 @@ Upgrade: HTTP/2.0
             applies.
           </t>
           <t>
-            The SETTINGS frame defines the following flag:
-            <list style="hanging">
-              <t hangText="CLEAR_PERSISTED (0x2):">
-                Bit 2 being set indicates a request to clear any previously persisted settings
-                before processing the settings.  Clients MUST NOT set this flag.
-              </t>
-            </list>
+            The SETTINGS frame does not have any frame specific flags.
           </t>
           <t>
             SETTINGS frames always apply to a connection, never a single stream.  
@@ -1154,11 +1171,10 @@ Upgrade: HTTP/2.0
           </t>
 
           <section title="Setting Format" anchor="SettingFormat">
-            
             <t>
-              The payload of a SETTINGS frame consists of zero or more settings. Each setting
-              consists of an 8-bit flags field specifying per-item instructions, an unsigned 24-bit
-              setting identifier, and an unsigned 32-bit value.
+              The payload of a SETTINGS frame consists of zero or more settings.  Each setting
+              consists of an 8-bit reserved field, an unsigned 24-bit setting identifier, and an
+              unsigned 32-bit value.
             </t>
             
             <figure title="Setting Format">
@@ -1166,86 +1182,14 @@ Upgrade: HTTP/2.0
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|SettingFlags(8)|             Setting Identifier (24)           |
+|  Reserved(8)  |             Setting Identifier (24)           |
 +---------------+-----------------------------------------------+
 |                        Value (32)                             |
 +---------------------------------------------------------------+
 </artwork>
             </figure>
-            
-            <t>
-              Two flags are defined for the 8-bit flags field:
-              <list style="hanging">
-                <t hangText="PERSIST_VALUE (0x1):">
-                  Bit 1 (the least significant bit) being set indicates a request from the server
-                  to the client to persist this setting.  A client MUST NOT set this flag.
-                </t>
-                <t hangText="PERSISTED (0x2):">
-                  Bit 2 being set indicates that this setting is a persisted setting being
-                  returned by the client to the server.  This also indicates that this setting is
-                  not a client setting, but a value previously set by the server.  A server MUST
-                  NOT set this flag.
-                </t>
-              </list>
-            </t>
           </section>
 
-          <section title="Setting Persistence">
-            <t>
-              <cref>Note that persistence of settings is under discussion in the WG and might be
-              removed in a future version of this document.</cref>
-            </t>
-            
-            <t>
-              A server endpoint can request that configuration parameters 
-              sent to a client in a SETTINGS frame are to be persisted by 
-              the client across HTTP/2.0 connections and returned to the server
-              in any new SETTINGS frame the client sends to the server
-              in the current connection or any future connections.
-            </t>
-            
-            <t>
-              Persistence is requested on a per-setting basis by setting the
-              PERSIST_VALUE flag (0x1).
-            </t>
-            
-            <t>
-              Client endpoints are not permitted to make such requests. Servers
-              MUST ignore any attempt by clients to request that a server 
-              persist configuration parameters.
-            </t>
-            
-            <t>
-              Persistence of configuration parameters is done on a per-origin
-              basis (see <xref target="RFC6454"/>). That is, when a client 
-              establishes a connection with a server, and the server requests that
-              the client maintain persistent settings, the client SHOULD return 
-              the persisted settings on all future connections to the same origin,
-              IP address and TCP port.
-            </t>
-
-            <t>
-              Whenever the client sends a SETTINGS frame in the current connection,
-              or establishes a new connection with the same origin, persisted 
-              configuration parameters are sent with the PERSISTED
-              flag (0x2) set for each persisted parameter.
-            </t>
-            
-            <t>
-              Persisted settings accumulate until the server requests that
-              all previously persisted settings are to be cleared by setting 
-              the CLEAR_PERSISTED (0x2) flag on the SETTINGS frame.
-            </t>
-
-            <t>
-              For example, if the server sends IDs 1, 2, and 3 with the 
-              FLAG_SETTINGS_PERSIST_VALUE in a first SETTINGS frame, and then 
-              sends IDs 4 and 5 with the FLAG_SETTINGS_PERSIST_VALUE in a 
-              subsequent SETTINGS frame, the client will return values for 
-              all 5 settings (1, 2, 3, 4, and 5 in this example) to the server.
-            </t>          
-          </section>
-          
           <section anchor="SettingValues" title="Defined Settings">
             <t>
               The following settings are defined:
@@ -1333,8 +1277,8 @@ Upgrade: HTTP/2.0
           
           <t>
             PUSH_PROMISE uses the same flags as the HEADERS frame, except that a PUSH_PROMISE frame
-            with a CONTINUES bit MUST be followed by another PUSH_PROMISE frame.  See <xref
-            target="HEADERS">HEADERS frame</xref> for any flags.
+            without the END_HEADERS flag set MUST be followed by another PUSH_PROMISE frame.
+            See <xref target="HEADERS">HEADERS frame</xref> for any flags.
           </t>
 
           <t>
@@ -1363,18 +1307,14 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            In addition to the frame header, PING frames MUST contain 8 
-            additional octets of opaque data. A sender can utilize this 
-            payload in any manner it wishes but MUST include the
-            octets even if they are unused. Receivers of a PING send a 
-            response PING frame with the PONG flag set and precisely the 
-            same sequence of octets back to the sender as soon as possible.
+            In addition to the frame header, PING frames MUST contain 8 octets of data in the
+            payload.  A sender can include any value it chooses and use those bytes in any fashion.
           </t>
-          
           <t>
-            Processing of PING frames SHOULD be performed with the highest
-            priority if there are additional frames waiting to be processed.
-          </t>   
+            Receivers of a PING frame that does not include a PONG flag MUST send a PING frame with
+            the PONG flag set in response, with an identical payload.  PING responses SHOULD given
+            higher priority than any other frame.
+          </t>
           
           <t>
             The PING frame defines one type-specific flag:
@@ -1387,11 +1327,13 @@ Upgrade: HTTP/2.0
             </list>
           </t>
           <t>
-            PING frames are not associated with any individual stream. If a 
-            PING frame is received with a stream identifier field value other
-            than 0x0, the recipient MUST respond with a 
-            <xref target="ConnectionErrorHandler">connection error</xref> of type 
-            PROTOCOL_ERROR.
+            PING frames are not associated with any individual stream. If a PING frame is received
+            with a stream identifier field value other than 0x0, the recipient MUST respond with a
+            <xref target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
+          </t>
+          <t>
+            Receipt of a PING frame with a length field value other than 8 MUST be treated as a
+            <xref target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
           </t>
 
         </section>
@@ -1494,16 +1436,16 @@ Upgrade: HTTP/2.0
           <t>
             Additional type-specific flags for the HEADERS frame are:
             <list style="hanging">
-              <t hangText="CONTINUES (0x2):">
-                The CONTINUES bit indicates that this frame does not contain the entire payload
+              <t hangText="END_HEADERS (0x2):">
+                The END_HEADERS bit indicates that this frame contains the entire payload
                 necessary to provide a complete set of headers.
                 <vspace blankLines="1"/>
                 The payload for a complete set of headers is provided by a sequence of HEADERS
-                frames, terminated by a HEADERS frame without the CONTINUES bit.  Once the sequence
+                frames, terminated by a HEADERS frame with the END_HEADERS flag set.  Once the sequence
                 terminates, the payload of all HEADERS frames are concatenated and interpreted as a
                 single block.
                 <vspace blankLines="1"/>
-                A HEADERS frame that includes a CONTINUES bit MUST be followed by a HEADERS frame
+                A HEADERS frame without the END_HEADERS flag set MUST be followed by a HEADERS frame
                 for the same stream.  A receiver MUST treat the receipt of any other type of frame
                 or a frame on a different stream as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
@@ -1584,7 +1526,7 @@ Upgrade: HTTP/2.0
               Two flow control windows are applicable; the stream flow
               control window and the connection flow control window.  The sender MUST NOT send a flow
               controlled frame with a length that exceeds the space available in either of the flow
-              control windows advertised by the receiver.  Frames with zero length with the FINAL
+              control windows advertised by the receiver.  Frames with zero length with the END_STREAM
               flag set (for example, an empty data frame) MAY be sent if there is no available space
               in either flow control window.
             </t>
@@ -1629,15 +1571,16 @@ Upgrade: HTTP/2.0
             </t>
             <t>
               Prior to receiving a SETTINGS frame that sets a value for
-              SETTINGS_INITIAL_WINDOW_SIZE, a client can only use the default initial window size
+              SETTINGS_INITIAL_WINDOW_SIZE, an endpoint can only use the default initial window size
               when sending flow controlled frames.  Similarly, the connection flow control window is
               set to the default initial window size until a WINDOW_UPDATE frame is received.
             </t>
             <t>
               A SETTINGS frame can alter the initial flow control window size for all current
               streams. When the value of SETTINGS_INITIAL_WINDOW_SIZE changes, a receiver MUST
-              adjust the size of all flow control windows that it maintains by the difference
-              between the new value and the old value.
+              adjust the size of all stream flow control windows that it maintains by the difference
+              between the new value and the old value. A SETTINGS frame cannot alter the connection
+              flow control window.
             </t>
             <t>
               A change to SETTINGS_INITIAL_WINDOW_SIZE could cause the available space in a flow
@@ -1681,14 +1624,14 @@ Upgrade: HTTP/2.0
           <section anchor="EndFlowControl" title="Ending Flow Control">
             <t>
               After a receiver reads in a frame that marks the end of a stream (for example, a data
-              stream with a FINAL flag set), it MUST cease transmission of WINDOW_UPDATE frames for
+              stream with a END_STREAM flag set), it MUST cease transmission of WINDOW_UPDATE frames for
               that stream. A sender is not obligated to maintain the available flow control window
               for streams that it is no longer sending on.
             </t>
             <t>
-              Flow control can be disabled for all streams or the connection using the
+              Flow control can be disabled for all streams on the connection using the
               SETTINGS_FLOW_CONTROL_OPTIONS setting.  An implementation that does not wish to
-              perform flow control can use this in the initial SETTINGS exchange.
+              perform stream flow control can use this in the initial SETTINGS exchange.
             </t>
             <t>
               Flow control can be disabled for an individual stream or the overall connection by
@@ -1746,11 +1689,11 @@ Upgrade: HTTP/2.0
         <section anchor="HttpRequest" title="Request">
           <t>
             The client initiates a request by sending a HEADERS+PRIORITY frame.  Requests that do
-            not contain a body MUST set the FINAL flag, indicating that the client intends to send
+            not contain a body MUST set the END_STREAM flag, indicating that the client intends to send
             no further data on this stream, unless the server intends to push resources (see <xref
-            target="PushResources"/>).  HEADERS+PRIORITY frame does not contain the FINAL flag for
+            target="PushResources"/>).  HEADERS+PRIORITY frame does not contain the END_STREAM flag for
             requests that contain a body.  The body of a request follows as a series of DATA
-            frames. The last DATA frame sets the FINAL flag to indicate the end of the body.
+            frames. The last DATA frame sets the END_STREAM flag to indicate the end of the body.
           </t>
 
           <t>
@@ -1827,9 +1770,9 @@ Upgrade: HTTP/2.0
           <t>
             The server responds to a client request using the same stream identifier that was used
             by the request.  An HTTP response begins with a HEADERS frame. An HTTP response body
-            consists of a series of DATA frames.  The last data frame contains a FINAL flag to
+            consists of a series of DATA frames.  The last data frame contains a END_STREAM flag to
             indicate the end of the response.  A response that contains no body (such as a 204 or
-            304 response) consists only of a HEADERS frame that contains the FINAL flag to indicate
+            304 response) consists only of a HEADERS frame that contains the END_STREAM flag to indicate
             no further data will be sent on the stream.
           </t>
 
@@ -1884,6 +1827,42 @@ Upgrade: HTTP/2.0
             Clients MUST support gzip compression.  Regardless of the value of the Accept-Encoding
             header field, a server MAY send responses with gzip or deflate encoding.  A compressed
             response MUST still bear an appropriate Content-Encoding header field.
+          </t>
+        </section>
+
+        <section anchor="Retrying" title="Automatically Retrying Requests in HTTP/2.0">
+          <t>
+            In HTTP/1.1, an HTTP client is unable to retry a non-idempotent request when an error
+            occurs, because there is no means to determine the nature of the error.  It is possible
+            that some server processing occurred prior to the error, which could result in
+            undesirable effects if the request were reattempted.
+          </t>
+          <t>
+            HTTP/2.0 provides two mechanisms for providing a guarantee to a client that a request
+            has not been processed:
+            <list style="symbols">
+              <t>
+                The GOAWAY frame indicates the highest stream number that might have been processed.
+                Requests on streams with higher numbers are therefore guaranteed to be safe to
+                retry.
+              </t>
+              <t>
+                The REFUSED_STREAM error code can be included in a RST_STREAM frame to indicate that
+                the stream is being closed prior to any processing having occurred.  Any request
+                that was sent on the reset stream can be safely retried.
+              </t>
+            </list>
+          </t>
+          <t>
+            In both cases, clients MAY automatically retry all requests, including those with
+            non-idempotent methods.
+          </t>
+          <t>
+            In addition to these mechanisms, the PING frame provides a way for a client to easily
+            test a connection.  Connections that remain idle can become broken as some middleboxes
+            (for instance, network address translators, or load balancers) silently discard
+            connection bindings.  The PING frame allows a client to safely test whether a connection
+            is still active without sending a request.
           </t>
         </section>
       </section>
@@ -2184,8 +2163,8 @@ Upgrade: HTTP/2.0
 
       <section title="Cacheability of Pushed Resources">
         <t>
-          Pushed resources are synthesized responses without an explicit request; the request for a
-          pushed resource is synthesized from the request that triggered the push, plus resource
+          Pushed resources are responses without an explicit request; the request for a pushed
+          resource is synthesized from the request that triggered the push, plus resource
           identification information provided by the server.  Request header fields are necessary
           for HTTP cache control validations (such as the Vary header field) to work.  For this
           reason, caches MUST inherit request header fields from the associated stream for the push.
@@ -2222,22 +2201,6 @@ Upgrade: HTTP/2.0
         </t>
       </section>
 
-      <section title="SETTINGS frame">
-        <t>
-          The HTTP/2.0 SETTINGS frame allows servers to store out-of-band transmitted information
-          about the communication between client and server on the client.  Although this is
-          intended only to be used to reduce latency, renegade servers could use it as a mechanism
-          to store identifying information about the client in future requests.
-        </t>
-
-        <t>
-          Clients implementing privacy modes can disable client-persisted SETTINGS storage.
-        </t>
-
-        <t>
-          Clients MUST clear persisted SETTINGS information when clearing the cookies.
-        </t>
-      </section>
     </section>
 
     <section title="IANA Considerations">
@@ -2261,14 +2224,14 @@ Upgrade: HTTP/2.0
         <texttable anchor="IanaInitialFrameType">
           <ttcol>Frame Type</ttcol><ttcol>Name</ttcol><ttcol>Flags</ttcol>
           <c>0</c><c>DATA</c><c>-</c>
-          <c>1</c><c>HEADERS+PRIORITY</c><c>CONTINUES(2)</c>
+          <c>1</c><c>HEADERS+PRIORITY</c><c>END_HEADERS(2)</c>
           <c>2</c><c>PRIORITY</c><c>-</c>
           <c>3</c><c>RST_STREAM</c><c>-</c>
-          <c>4</c><c>SETTINGS</c><c>CLEAR_PERSISTED(2)</c>
-          <c>5</c><c>PUSH_PROMISE</c><c>CONTINUES(2)</c>
+          <c>4</c><c>SETTINGS</c><c>-</c>
+          <c>5</c><c>PUSH_PROMISE</c><c>END_HEADERS(2)</c>
           <c>6</c><c>PING</c><c>PONG(2)</c>
           <c>7</c><c>GOAWAY</c><c>-</c>
-          <c>8</c><c>HEADERS</c><c>CONTINUES(2)</c>
+          <c>8</c><c>HEADERS</c><c>END_HEADERS(2)</c>
           <c>9</c><c>WINDOW_UPDATE</c><c>END_FLOW_CONTROL(2)</c>
         </texttable>
       </section>
