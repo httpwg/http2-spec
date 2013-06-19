@@ -483,18 +483,10 @@ Upgrade: HTTP/2.0
               </t>
               <t hangText="Flags:">
                 An 8-bit field reserved for frame-type specific boolean flags.
-                <vspace blankLines="1"/>
-                The least significant bit (0x1) - the END_STREAM bit - is defined for all frame types as
-                an indication that this frame is the last the endpoint will send for the identified
-                stream.  Setting this flag causes the stream to enter the <xref
-                target="StreamHalfClose">half-closed state</xref>.  Implementations MUST process the
-                END_STREAM bit for all frames whose stream identifier field is not 0x0.  The END_STREAM bit
-                MUST NOT be set on frames that use a stream identifier of 0.
                 <vspace blankLines="1"/> 
-                The remaining flags can be assigned semantics specific to the 
-                indicated frame type. Flags that have no defined semantics for 
-                a particular frame type MUST be ignored, and MUST be left 
-                unset (0) when sending.
+                Flags are assigned semantics specific to the indicated frame type.
+                Flags that have no defined semantics for a particular frame type
+                MUST be ignored, and MUST be left unset (0) when sending.
               </t>
               <t hangText="R:">
                 A reserved 1-bit field.  The semantics of this bit are undefined
@@ -991,7 +983,17 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The DATA frame does not define any type-specific flags.
+            The DATA frame defines the following flags:
+            <list style="hanging">
+              <t hangText="END_STREAM (0x1):">
+                Bit 1 being set indicates that this frame is the last that the endpoint
+                will send for the identified stream.  Setting this flag causes the stream
+                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+              </t>
+              <t handText="RESERVED (0x2):">
+                Bit 2 is reserved for future use.
+              </t>
+            </list>
           </t>
           
           <t>
@@ -1068,7 +1070,7 @@ Upgrade: HTTP/2.0
           </t>
 
           <t>
-            The PRIORITY frame does not define any type-specific flags.
+            The PRIORITY frame does not define any flags.
           </t>
 
           <t>
@@ -1165,7 +1167,7 @@ Upgrade: HTTP/2.0
             applies.
           </t>
           <t>
-            The SETTINGS frame does not have any frame specific flags.
+            The SETTINGS frame does not define any flags.
           </t>
           <t>
             SETTINGS frames always apply to a connection, never a single stream.  
@@ -1323,10 +1325,10 @@ Upgrade: HTTP/2.0
           </t>
           
           <t>
-            The PING frame defines one type-specific flag:
+            The PING frame defines the following flags:
             <list style="hanging">
-              <t hangText="PONG (0x2):">
-                Bit 2 being set indicates that this PING frame is a PING response.  An endpoint MUST
+              <t hangText="PONG (0x1):">
+                Bit 1 being set indicates that this PING frame is a PING response.  An endpoint MUST
                 set this flag in PING responses.  An endpoint MUST NOT respond to PING frames
                 containing this flag.
               </t>
@@ -1392,7 +1394,7 @@ Upgrade: HTTP/2.0
 </artwork>
           </figure>
           <t>
-            The GOAWAY frame does not define any type-specific flags.
+            The GOAWAY frame does not define any flags.
           </t>
           <t>
             The GOAWAY frame applies to the connection, not a specific stream.  The stream identifier
@@ -1440,9 +1442,17 @@ Upgrade: HTTP/2.0
             at any time.
           </t>
           <t>
-            Additional type-specific flags for the HEADERS frame are:
+            The HEADERS frame defines the following flags:
             <list style="hanging">
-              <t hangText="END_HEADERS (0x2):">
+              <t hangText="END_STREAM (0x1):">
+                Bit 1 being set indicates that this frame is the last that the endpoint
+                will send for the identified stream.  Setting this flag causes the stream
+                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+              </t>
+              <t handText="RESERVED (0x2):">
+                Bit 2 is reserved for future use.
+              </t>
+              <t hangText="END_HEADERS (0x4):">
                 The END_HEADERS bit indicates that this frame contains the entire payload
                 necessary to provide a complete set of headers.
                 <vspace blankLines="1"/>
@@ -1500,10 +1510,10 @@ Upgrade: HTTP/2.0
             is unable accept a frame.
           </t>
           <t>
-            The following additional flags are defined for the WINDOW_UPDATE frame:
+            The WINDOW_UPDATE frame defines the following flags:
             <list style="hanging">
-              <t hangText="END_FLOW_CONTROL (0x2):">
-                Bit 2 being set indicates that flow control for the identified stream or connection has been
+              <t hangText="END_FLOW_CONTROL (0x1):">
+                Bit 1 being set indicates that flow control for the identified stream or connection has been
                 ended; subsequent frames do not need to be flow controlled.
               </t>
             </list>
@@ -2229,16 +2239,16 @@ Upgrade: HTTP/2.0
         </t>
         <texttable anchor="IanaInitialFrameType">
           <ttcol>Frame Type</ttcol><ttcol>Name</ttcol><ttcol>Flags</ttcol>
-          <c>0</c><c>DATA</c><c>-</c>
-          <c>1</c><c>HEADERS+PRIORITY</c><c>END_HEADERS(2)</c>
+          <c>0</c><c>DATA</c><c>END_STREAM(1)</c>
+          <c>1</c><c>HEADERS+PRIORITY</c><c>END_STREAM(1), END_HEADERS(4)</c>
           <c>2</c><c>PRIORITY</c><c>-</c>
           <c>3</c><c>RST_STREAM</c><c>-</c>
           <c>4</c><c>SETTINGS</c><c>-</c>
-          <c>5</c><c>PUSH_PROMISE</c><c>END_HEADERS(2)</c>
-          <c>6</c><c>PING</c><c>PONG(2)</c>
+          <c>5</c><c>PUSH_PROMISE</c><c>END_STREAM(1), END_HEADERS(4)</c>
+          <c>6</c><c>PING</c><c>PONG(1)</c>
           <c>7</c><c>GOAWAY</c><c>-</c>
-          <c>8</c><c>HEADERS</c><c>END_HEADERS(2)</c>
-          <c>9</c><c>WINDOW_UPDATE</c><c>END_FLOW_CONTROL(2)</c>
+          <c>8</c><c>HEADERS</c><c>END_STREAM(1), END_HEADERS(4)</c>
+          <c>9</c><c>WINDOW_UPDATE</c><c>END_FLOW_CONTROL(1)</c>
         </texttable>
       </section>
 
