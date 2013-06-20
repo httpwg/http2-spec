@@ -288,10 +288,14 @@
           frames, the client MUST send the payload of its SETTINGS frame within the HTTP/1.1 header. 
           In particular, if the server does not know the client's initial preferences (as expressed in
           a SETTINGS frame), it could send too much data in its response, or reserve multiple streams via 
-          PUSH_PROMISE despite the client's preference to the contrary. 
+          PUSH_PROMISE despite the client's preference to the contrary. To avoid this situation, these SETTINGS
+          MUST be communicated by the client to the server in advance of the first HTTP/2.0 message from the server:
+          SETTINGS_MAX_CONCURRENT_STREAMS, SETTINGS_INITIAL_WINDOW_SIZE (<xref target="SettingFormat">Setting Format</xref>).
         </t>
         <t>
-          The SETTINGS are conveyed in the following HTTP/1.1 header:
+          NOTE: There may be additional SETTINGS added later on, e.g., due to header compression (TBD).
+        </t>
+        <t>          The SETTINGS are conveyed in the following HTTP/1.1 header:
         </t>
         <t>
              HTTP2-Settings   = "HTTP2-Settings" ":" token68
@@ -300,8 +304,9 @@
           token68 is defined in <xref target="HTTP-p7">HTTP/1.1</xref>. The value of
           HTTP2-Settings is set to the base64url encoding of the payload 
           of the SETTINGS frame as defined in <xref target="SettingFormat">Setting Format</xref>.
-          The client may have no SETTINGS to send, implying the default values match its preferences.
-          In this case, the client MUST still send the empty header.
+          Other than the fact that these SETTINGS are communicated by the client via an HTTP/1.1 header,
+          they are otherwise indistinguishable from SETTINGS and their handling as detailed in 
+          <xref target="SettingFormat">Setting Format</xref>. 
         </t>
         <t>
           For example:
@@ -312,7 +317,7 @@ GET /default.htm HTTP/1.1
 Host: server.example.com
 Connection: Upgrade
 Upgrade: HTTP/2.0
-HTTP2-Settings: <base64url encoding of HTTP/2.0 SETTINGS payload>
+HTTP2-Settings: &lt;base64url encoding of HTTP/2.0 SETTINGS payload>
 </artwork>
         </figure>
         <t>
