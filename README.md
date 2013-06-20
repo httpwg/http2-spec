@@ -9,10 +9,6 @@ Published drafts can be found on the [IETF tools
 site](http://tools.ietf.org/html/draft-ietf-httpbis-http2), and are marked
 with tags here.
 
-The source for our current draft is
-[draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
-[RFC2629 format](http://xml.resource.org/public/rfc/html/rfc2629.html).
-
 Quick links:
 * [Editor's copy](http://http2.github.com/http2-spec/) (HTML)
 * [Editor's copy](http://http2.github.com/http2-spec/index.txt) (plain text)
@@ -53,6 +49,10 @@ feedback.
 
 Working With the Draft
 ----------------------
+
+The source for our current draft is
+[draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
+[RFC2629 format](http://xml.resource.org/public/rfc/html/rfc2629.html).
 
 If you're an editor, or forking a copy of the draft, a few things to know:
 
