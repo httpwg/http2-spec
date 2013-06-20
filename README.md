@@ -13,9 +13,10 @@ The source for our current draft is
 [draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
 [RFC2629 format](http://xml.resource.org/public/rfc/html/rfc2629.html).
 
-An HTML copy of the current (unsubmitted) draft can be found
-[here](http://http2.github.com/http2-spec/), and the text version can be found
-[here](http://http2.github.com/http2-spec/index.txt).
+Quick links:
+* [Editor's copy](http://http2.github.com/http2-spec/) (HTML)
+* [Editor's copy](http://http2.github.com/http2-spec/index.txt) (plain text)
+* [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-http2) (less recent, more official)
 
 
 Contributing
