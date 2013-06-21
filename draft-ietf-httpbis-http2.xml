@@ -516,18 +516,14 @@ Upgrade: HTTP/2.0
             Certain frame types, such as PING (see <xref target="PING"/>),
             impose strict limits on the amount of payload data allowed. 
             Likewise, additional size limits can be set by specific 
-            application uses. For instance, individual DATA and HEADERS 
-            frames used to express HTTP request and response messages 
-            (see <xref target="HTTPLayer" />) are not permitted to exceed 
-            16,383 octets of payload. Sending endpoints MUST NOT exceed such 
-            limits.
+            application uses.  HTTP limits the frame size to 16,383 octets 
+            (see <xref target="HTTPLayer" />).
           </t>
           <t>
-            If an endpoint is unable to process a frame due to the payload size, 
-            or if the size exceeds a strictly defined limit, the endpoint MUST 
-            send a FRAME_TOO_LARGE error. If the frame stream identifier is 0x0, 
-            this code MUST be sent as a connection error. If the stream 
-            identifier is anything other than 0x0, it is sent as a stream error.
+            If a frame size exceeds any defined limit, or is too small to contain mandatory frame
+            data, the endpoint MUST send a FRAME_TOO_LARGE error. Frame size errors in frames that
+            affect connection-level state MUST be treated as a <xref
+            target="ConnectionErrorHandler">connection error</xref>.
           </t>
         </section>
       </section>
@@ -1200,6 +1196,11 @@ Upgrade: HTTP/2.0
             <xref target="ConnectionErrorHandler">connection error</xref> of type
             PROTOCOL_ERROR.
           </t>
+          <t>
+            The SETTINGS frame affects connection state.  A badly formed or incomplete SETTINGS
+            frame MUST be treated as a <xref target="ConnectionErrorHandler">connection
+            error</xref>.
+          </t>
 
           <section title="Setting Format" anchor="SettingFormat">
             <t>
@@ -1677,6 +1678,14 @@ Upgrade: HTTP/2.0
           Note that it is possible for one HTTP/2.0 connection to be finishing (e.g. a GOAWAY frame
           has been sent, but not all streams have finished), while another HTTP/2.0 connection is
           starting.
+        </t>
+      </section>
+
+      <section title="Frame Size Limits for HTTP">
+        <t>
+          Frames used for HTTP messages MUST NOT exceed 16,383 bytes in length.  An endpoint MUST
+          treat the receipt of a larger frame as a FRAME_TOO_LARGE error (see <xref
+          target="FrameSize"/>).
         </t>
       </section>
 
