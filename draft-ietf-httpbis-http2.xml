@@ -172,6 +172,11 @@
         <t>
           The following terms are used:
           <list style="hanging">
+            <t hangText="base64url encoding:">
+              The URL- and filename-safe Base64 encoding
+              described in <xref target="RFC4648" x:fmt="of" x:sec="5"/>, with the (non URL-
+              safe) '=' padding characters omitted, as permitted by <xref target="RFC4648" x:fmt="of" x:sec="3.2"/>.
+            </t>
             <t hangText="client:">
               The endpoint initiating the HTTP connection.
             </t>
@@ -278,18 +283,44 @@
           header field identifying HTTP/2.0.
         </t>
         <t>
+          Additional to the Upgrade request, anticipating that the server will likely respond with some HTTP/2.0
+          frames, the client MUST send the payload of its SETTINGS frame within the HTTP/1.1 header. 
+          In particular, if the server does not know the client's initial preferences (as expressed in
+          a SETTINGS frame), it could send too much data in its response, or reserve multiple streams via 
+          PUSH_PROMISE despite the client's preference to the contrary. To avoid this situation, these SETTINGS
+          MUST be communicated by the client to the server in advance of the first HTTP/2.0 message from the server:
+          SETTINGS_MAX_CONCURRENT_STREAMS, SETTINGS_INITIAL_WINDOW_SIZE (<xref target="SettingFormat">Setting Format</xref>).
+        </t>
+        <t>
+          NOTE: There may be additional SETTINGS added later on, e.g., due to header compression (TBD).
+        </t>
+        <t>          The SETTINGS are conveyed in the following hop-by-hop HTTP/1.1 header:
+        </t>
+        <t>
+             HTTP2-Settings   = "HTTP2-Settings" ":" token68
+        </t>
+        <t>
+          token68 is defined in <xref target="HTTP-p7">HTTP/1.1</xref>. The value of
+          HTTP2-Settings is set to the base64url encoding of the payload 
+          of the SETTINGS frame as defined in <xref target="SettingFormat">Setting Format</xref>.
+          Other than the fact that these SETTINGS are communicated by the client via an HTTP/1.1 header,
+          they are otherwise indistinguishable from SETTINGS and their handling as detailed in 
+          <xref target="SettingFormat">Setting Format</xref>. 
+        </t>
+        <t>
           For example:
         </t>
         <figure>
           <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
 GET /default.htm HTTP/1.1
 Host: server.example.com
-Connection: Upgrade
+Connection: Upgrade, HTTP2-Settings
 Upgrade: HTTP/2.0
+HTTP2-Settings: &lt;base64url encoding of HTTP/2.0 SETTINGS payload>
 </artwork>
         </figure>
         <t>
-          Requests that contain a request entity body MUST be sent in their entirely before the
+          Requests that contain a request entity body MUST be sent in their entirety before the
           client can send HTTP/2.0 frames.  This means that a large request entity can block the use
           of the connection until it is completely sent.
           <list>
@@ -646,18 +677,14 @@ Upgrade: HTTP/2.0
             Certain frame types, such as PING (see <xref target="PING"/>),
             impose strict limits on the amount of payload data allowed. 
             Likewise, additional size limits can be set by specific 
-            application uses. For instance, individual DATA and HEADERS 
-            frames used to express HTTP request and response messages 
-            (see <xref target="HTTPLayer" />) are not permitted to exceed 
-            16,383 octets of payload. Sending endpoints MUST NOT exceed such 
-            limits.
+            application uses.  HTTP limits the frame size to 16,383 octets 
+            (see <xref target="HTTPLayer" />).
           </t>
           <t>
-            If an endpoint is unable to process a frame due to the payload size, 
-            or if the size exceeds a strictly defined limit, the endpoint MUST 
-            send a FRAME_TOO_LARGE error. If the frame stream identifier is 0x0, 
-            this code MUST be sent as a connection error. If the stream 
-            identifier is anything other than 0x0, it is sent as a stream error.
+            If a frame size exceeds any defined limit, or is too small to contain mandatory frame
+            data, the endpoint MUST send a FRAME_TOO_LARGE error. Frame size errors in frames that
+            affect connection-level state MUST be treated as a <xref
+            target="ConnectionErrorHandler">connection error</xref>.
           </t>
         </section>
       </section>
@@ -1331,6 +1358,11 @@ Upgrade: HTTP/2.0
             <xref target="ConnectionErrorHandler">connection error</xref> of type
             PROTOCOL_ERROR.
           </t>
+          <t>
+            The SETTINGS frame affects connection state.  A badly formed or incomplete SETTINGS
+            frame MUST be treated as a <xref target="ConnectionErrorHandler">connection
+            error</xref>.
+          </t>
 
           <section title="Setting Format" anchor="SettingFormat">
             <t>
@@ -1368,6 +1400,10 @@ Upgrade: HTTP/2.0
                 <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
                   <t>
                     indicates the sender's initial stream window size (in bytes) for new streams.
+                  </t>
+                  <t>
+                    This settings affects the window size of all streams, including existing streams,
+                    see <xref target="InitialWindowSize"/>.
                   </t>
                 </x:lt>
                 <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
@@ -1627,6 +1663,21 @@ Upgrade: HTTP/2.0
             target="ConnectionErrorHandler">connection error</xref> of type FLOW_CONTROL_ERROR if it
             is unable accept a frame.
           </t>
+          <figure title="WINDOW_UPDATE Payload Format">
+            <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|X|                Delta-Window-Size (31)                       |
++-+-------------------------------------------------------------+
+</artwork>
+          </figure>
+          <t>
+            The payload of a WINDOW_UPDATE frame is one reserved bit, plus an unsigned 31-bit
+            integer indicating the number of bytes that the sender can transmit in addition to the
+            existing flow control window.  The legal range for the increment to the flow control
+            window is 1 to 2<x:sup>31</x:sup> - 1 (0x7fffffff) bytes.
+          </t>
           <t>
             The WINDOW_UPDATE frame defines the following flags:
             <list style="hanging">
@@ -1641,12 +1692,6 @@ Upgrade: HTTP/2.0
              In the former case, the frame's stream identifier indicates the affected stream;
              in the latter, the value "0" indicates that the entire connection is the subject of 
              the frame.
-          </t>
-          <t>
-            The payload of a WINDOW_UPDATE frame is a 32-bit value indicating the
-            additional number of bytes that the sender can transmit in addition to the existing flow
-            control window.  The legal range for this field is 1 to 2<x:sup>31</x:sup> - 1
-            (0x7fffffff) bytes; the most significant bit of this value is reserved.
           </t>
 
           <section title="The Flow Control Window">
@@ -1695,11 +1740,11 @@ Upgrade: HTTP/2.0
             </t>
           </section>
 
-          <section title="Initial Flow Control Window Size">
+          <section anchor="InitialWindowSize" title="Initial Flow Control Window Size">
             <t>
               When a HTTP/2.0 connection is first established, new streams are created with an
               initial flow control window size of 65535 bytes. The connection flow control window is
-              65536 bytes.  Both endpoints can adjust the initial window size for new streams by
+              65535 bytes.  Both endpoints can adjust the initial window size for new streams by
               including a value for SETTINGS_INITIAL_WINDOW_SIZE in the SETTINGS frame that forms
               part of the connection header.
             </t>
@@ -1807,6 +1852,14 @@ Upgrade: HTTP/2.0
         </t>
       </section>
 
+      <section title="Frame Size Limits for HTTP">
+        <t>
+          Frames used for HTTP messages MUST NOT exceed 16,383 bytes in length.  An endpoint MUST
+          treat the receipt of a larger frame as a FRAME_TOO_LARGE error (see <xref
+          target="FrameSize"/>).
+        </t>
+      </section>
+
       <section title="HTTP Request/Response">
 
         <section title="HTTP Header Fields and HTTP/2.0 Headers">
@@ -1842,7 +1895,7 @@ Upgrade: HTTP/2.0
                 respectively. The HTTP-version component of the request-line
                 is removed entirely from the headers.</t>
               <t>The host and optional port portions of the request URI 
-                (see <xref target="RFC3986"/>, Section 3.2), is specified
+                (see <xref target="RFC3986" x:fmt="," x:sec="3.2"/>), is specified
                 using the new :host header field. <cref>Ed. Note: it 
                 needs to be clarified whether or not this replaces the
                 existing HTTP/1.1 Host header.</cref></t>
@@ -2439,6 +2492,45 @@ Upgrade: HTTP/2.0
           An initial set of settings registrations can be found in <xref target="SettingValues"/>.
         </t>
       </section>
+
+      <section title='New HTTP Header Fields Registry'>
+        <section title='HTTP2-Settings'>
+        <t>
+          This section describes a header field for registration in the Permanent 
+          Message Header Field Registry <xref target='BCP90'/>.
+        </t>
+        <t>
+          <list style='hanging'>
+            <t hangText='Header field name'>
+              <vspace blankLines='0'/>HTTP2-Settings
+            </t>
+            <t hangText='Applicable protocol'>
+              <vspace blankLines='0'/>http
+            </t>
+            <t hangText='Status'>
+              <vspace blankLines='0'/>standard
+            </t>
+            <t hangText='Author/Change controller'>
+              <vspace blankLines='0'/>IETF
+            </t>
+            <t hangText='Specification document(s)'>
+              <vspace blankLines='0'/>RFC XXXX (this document)
+            </t>
+            <t hangText='Related information'>
+              <vspace blankLines='0'/>This header field is only used by the client in 
+              the Upgrade-based negotiation.
+            </t>
+          </list>
+        </t>
+        <t>The HTTP2-Settings header field is used in the Upgrade-based negotiation by the client.
+	It is sent from the client to the server to provide the payload for its SETTINGS frame
+        in anticipation of the server responding with HTTP/2.0 frames.</t>
+
+        <t>The HTTP2-Settings header field MUST NOT appear more than once in an HTTP request
+        and MUST NOT appear at all in an HTTP response.</t>
+
+      </section>
+    </section>
     </section>
 
     <section title="Acknowledgements">
@@ -2459,7 +2551,8 @@ Upgrade: HTTP/2.0
             Peon, Rob Trace (Flow control)
           </t>
           <t>
-            Mark Nottingham, Julian Reschke, James Snell (Editorial)
+            Mark Nottingham, Julian Reschke, James Snell, Jeff Pinner (Substantial editorial
+            contributions)
           </t>
         </list>
       </t>
@@ -2525,6 +2618,15 @@ Upgrade: HTTP/2.0
         <seriesInfo name='RFC' value='3986' />
       </reference>
 
+      <reference anchor="RFC4648">
+        <front>
+          <title>The Base16, Base32, and Base64 Data Encodings</title>
+          <author fullname="S. Josefsson" initials="S." surname="Josefsson"/>
+          <date year="2006" month="October"/>
+        </front>
+        <seriesInfo value="4648" name="RFC"/>
+      </reference>
+      
       <reference anchor="RFC5226">
         <front>
           <title>Guidelines for Writing an IANA Considerations Section in RFCs</title>
@@ -2685,6 +2787,27 @@ Upgrade: HTTP/2.0
           <author initials="C." surname="Jackson"/>
           <date year="2011" />
         </front>
+      </reference>
+
+      <reference anchor='BCP90'>
+        <front>
+          <title>Registration Procedures for Message Header Fields</title>
+          <author initials='G.' surname='Klyne' fullname='G. Klyne'>
+            <organization>Nine by Nine</organization>
+            <address><email>GK-IETF@ninebynine.org</email></address>
+          </author>
+          <author initials='M.' surname='Nottingham' fullname='M. Nottingham'>
+            <organization>BEA Systems</organization>
+            <address><email>mnot@pobox.com</email></address>
+          </author>
+          <author initials='J.' surname='Mogul' fullname='J. Mogul'>
+            <organization>HP Labs</organization>
+            <address><email>JeffMogul@acm.org</email></address>
+          </author>
+          <date year='2004' month='September' />
+        </front>
+        <seriesInfo name='BCP' value='90' />
+        <seriesInfo name='RFC' value='3864' />
       </reference>
     </references>
 
