@@ -355,12 +355,13 @@
 <link href="#rfc.section.1" rel="Chapter" title="1 Introduction"/>
 <link href="#rfc.section.2" rel="Chapter" title="2 Overview"/>
 <link href="#rfc.section.2.1" rel="Chapter" title="2.1 Outline"/>
-<link href="#rfc.section.3" rel="Chapter" title="3 Indexing Strategies"/>
-<link href="#rfc.section.3.1" rel="Chapter" title="3.1 Header Table"/>
-<link href="#rfc.section.3.2" rel="Chapter" title="3.2 Header Representation"/>
-<link href="#rfc.section.3.2.1" rel="Chapter" title="3.2.1 Literal Representation"/>
-<link href="#rfc.section.3.2.2" rel="Chapter" title="3.2.2 Indexed Representation"/>
-<link href="#rfc.section.3.3" rel="Chapter" title="3.3 Differential Coding"/>
+<link href="#rfc.section.3" rel="Chapter" title="3 Header Encoding"/>
+<link href="#rfc.section.3.1" rel="Chapter" title="3.1 Encoding Components"/>
+<link href="#rfc.section.3.2" rel="Chapter" title="3.2 Header Table"/>
+<link href="#rfc.section.3.3" rel="Chapter" title="3.3 Header Representation"/>
+<link href="#rfc.section.3.3.1" rel="Chapter" title="3.3.1 Literal Representation"/>
+<link href="#rfc.section.3.3.2" rel="Chapter" title="3.3.2 Indexed Representation"/>
+<link href="#rfc.section.3.4" rel="Chapter" title="3.4 Differential Coding"/>
 <link href="#rfc.section.4" rel="Chapter" title="4 Detailed Format"/>
 <link href="#rfc.section.4.1" rel="Chapter" title="4.1 Header Blocks"/>
 <link href="#rfc.section.4.2" rel="Chapter" title="4.2 Low-level representations"/>
@@ -388,8 +389,8 @@
   <link rel="schema.dct" href="http://purl.org/dc/terms/" />
 
   <meta name="dct.creator" content="Peon, R. and H. Ruellan" />
-  <meta name="dct.identifier" content="urn:ietf:id:header" />
-  <meta name="dct.issued" scheme="ISO8601" content="2013-5" />
+  <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-httpbis-header-compression-00" />
+  <meta name="dct.issued" scheme="ISO8601" content="2013-6-25" />
   <meta name="dct.abstract" content="This document describes a format adapted to efficiently represent HTTP headers in the context of HTTP/2.0.  " />
   <meta name="description" content="This document describes a format adapted to efficiently represent HTTP headers in the context of HTTP/2.0.  " />
 
@@ -413,12 +414,12 @@
   <td class="right">H. Ruellan</td>
 </tr>
 <tr>
-  <td class="left">Expires: November 02, 2013</td>
+  <td class="left">Expires: December 27, 2013</td>
   <td class="right">Canon CRF</td>
 </tr>
 <tr>
   <td class="left"></td>
-  <td class="right">May 2013</td>
+  <td class="right">June 25, 2013</td>
 </tr>
 
     	
@@ -426,7 +427,7 @@
   </table>
 
   <p class="title">HTTP Header Compression<br />
-  <span class="filename">header</span></p>
+  <span class="filename">draft-ietf-httpbis-header-compression-00</span></p>
   
   <h1 id="rfc.abstract">
   <a href="#rfc.abstract">Abstract</a>
@@ -438,7 +439,7 @@
 <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
 <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF).  Note that other groups may also distribute working documents as Internet-Drafts.  The list of current Internet-Drafts is at http://datatracker.ietf.org/drafts/current/.</p>
 <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other documents at any time.  It is inappropriate to use Internet-Drafts as reference material or to cite them other than as "work in progress."</p>
-<p>This Internet-Draft will expire on November 02, 2013.</p>
+<p>This Internet-Draft will expire on December 27, 2013.</p>
 <h1 id="rfc.copyrightnotice">
   <a href="#rfc.copyrightnotice">Copyright Notice</a>
 </h1>
@@ -453,12 +454,13 @@
   	<li>1.   <a href="#rfc.section.1">Introduction</a></li>
 <li>2.   <a href="#rfc.section.2">Overview</a></li>
 <li>2.1.   <a href="#rfc.section.2.1">Outline</a></li>
-<li>3.   <a href="#rfc.section.3">Indexing Strategies</a></li>
-<li>3.1.   <a href="#rfc.section.3.1">Header Table</a></li>
-<li>3.2.   <a href="#rfc.section.3.2">Header Representation</a></li>
-<li>3.2.1.   <a href="#rfc.section.3.2.1">Literal Representation</a></li>
-<li>3.2.2.   <a href="#rfc.section.3.2.2">Indexed Representation</a></li>
-<li>3.3.   <a href="#rfc.section.3.3">Differential Coding</a></li>
+<li>3.   <a href="#rfc.section.3">Header Encoding</a></li>
+<li>3.1.   <a href="#rfc.section.3.1">Encoding Components</a></li>
+<li>3.2.   <a href="#rfc.section.3.2">Header Table</a></li>
+<li>3.3.   <a href="#rfc.section.3.3">Header Representation</a></li>
+<li>3.3.1.   <a href="#rfc.section.3.3.1">Literal Representation</a></li>
+<li>3.3.2.   <a href="#rfc.section.3.3.2">Indexed Representation</a></li>
+<li>3.4.   <a href="#rfc.section.3.4">Differential Coding</a></li>
 <li>4.   <a href="#rfc.section.4">Detailed Format</a></li>
 <li>4.1.   <a href="#rfc.section.4.1">Header Blocks</a></li>
 <li>4.2.   <a href="#rfc.section.4.2">Low-level representations</a></li>
@@ -491,27 +493,30 @@
 <h1 id="rfc.section.2.1"><a href="#rfc.section.2.1">2.1.</a> Outline</h1>
 <p id="rfc.section.2.1.p.1">The HTTP header representation described in this document is based on indexing tables that store (name, value) pairs, called header tables in the remainder of this document.  This scheme is believed to be safe for all known attacks against the compression context today.  Header tables are incrementally updated during the whole HTTP/2.0 session.  Two independent header tables are used during a HTTP/2.0 session, one for HTTP request headers and one for HTTP response headers.  </p>
 <p id="rfc.section.2.1.p.2">The encoder is responsible for deciding which headers to insert as (name, value) pairs in the header table.  The decoder then does exactly what the encoder prescribes, ending in a state that exactly matches the encoder's state.  This enables decoders to remain simple and understand a wide variety of encoders.  </p>
-<p id="rfc.section.2.1.p.3">A header may be represented as a literal or as an index.  If represented as a literal, the representation specifies whether this header is used to update the indexing table.  The different representations are described in <a href="#header.representation">Section 3.2</a>.  </p>
+<p id="rfc.section.2.1.p.3">A header may be represented as a literal or as an index.  If represented as a literal, the representation specifies whether this header is used to update the indexing table.  The different representations are described in <a href="#header.representation">Section 3.3</a>.  </p>
 <p id="rfc.section.2.1.p.4">A set of headers is coded as a difference from the previous set of headers.  </p>
 <p id="rfc.section.2.1.p.5">An example illustrating the use these different mechanisms to represent headers is available in <a href="#example">Appendix B</a>.  </p>
-<h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a> <a href="#indexing.strategies" id="indexing.strategies">Indexing Strategies</a></h1>
-<h1 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1.</a> <a href="#header.table" id="header.table">Header Table</a></h1>
-<p id="rfc.section.3.1.p.1">A header table consists of an ordered list of (name, value) pairs. A pair is either inserted at the end of the table or replaces an existing pair depending on the chosen representation. A pair can be represented as an index which is its position in the table, starting with 0 for the first entry.  </p>
-<p id="rfc.section.3.1.p.2">Header names are always represented as lower-case strings.  An input header name matches the header name of a (name, value) pair stored in the Header Table if they are equal using a character-based, <em>case insensitive</em> comparison.  An input header value matches the header value of a (name, value) pair stored in the Header Table if they are equal using a character-based, <em>case sensitive</em> comparison.  An input header (name, value) pair matches a pair in the Header Table if both the name and value are matching as per above.  </p>
-<p id="rfc.section.3.1.p.3">The header table is progressively updated based on headers represented as literal (as defined in <a href="#literal">Section 3.2.1</a>).  Two update mechanisms are defined: </p>
+<h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a> <a href="#header.encoding" id="header.encoding">Header Encoding</a></h1>
+<h1 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1.</a> <a href="#encoding.components" id="encoding.components">Encoding Components</a></h1>
+<p id="rfc.section.3.1.p.1">The encoding and decoding of headers relies on a few components. First, a header table (see <a href="#header.table">Section 3.2</a>) is used to associate headers to index values. Second, a set of headers is encoded as a difference from the previous reference set of headers (see <a href="#differential.coding">Section 3.4</a>).  </p>
+<p id="rfc.section.3.1.p.2">As messages are exchanged in two directions, from client to server and from server to client, there are two sets of components: one for each direction. All the headers sent in messages from the client to the server are encoded (and decoded) using one set of components. All the headers sent in messages from the server to the client (including headers contained in PUSH_PROMISE frame) are encoded using the other set of compotents.  </p>
+<h1 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#header.table" id="header.table">Header Table</a></h1>
+<p id="rfc.section.3.2.p.1">A header table consists of an ordered list of (name, value) pairs. A pair is either inserted at the end of the table or replaces an existing pair depending on the chosen representation. A pair can be represented as an index which is its position in the table, starting with 0 for the first entry.  </p>
+<p id="rfc.section.3.2.p.2">Header names are always represented as lower-case strings.  An input header name matches the header name of a (name, value) pair stored in the Header Table if they are equal using a character-based, <em>case insensitive</em> comparison.  An input header value matches the header value of a (name, value) pair stored in the Header Table if they are equal using a character-based, <em>case sensitive</em> comparison.  An input header (name, value) pair matches a pair in the Header Table if both the name and value are matching as per above.  </p>
+<p id="rfc.section.3.2.p.3">The header table is progressively updated based on headers represented as literal (as defined in <a href="#literal">Section 3.3.1</a>).  Two update mechanisms are defined: </p>
 
 <ul>
   <li>Incremental indexing: the represented header is inserted at the end of the header table as a (name, value) pair.  The inserted pair index is set to the next free index in the table: it is equal to the number of headers in the table before its insertion.  </li>
-  <li>Substitution indexing: the represented header contains an index to an existing (name, value) pair.  The existing pair value is replaced by the pair representing the new header.  </li>
+  <li>Substitution indexing: the represented header contains an index to an existing (name, value) pair. The existing pair value is replaced by the pair representing the new header.  </li>
 </ul>
 
 <p> Incremental and substitution indexing are optional.  If none of them is selected in a header representation, the header table is not updated.  In particular, no update happens on the header table when processing an indexed representation.  </p>
-<p id="rfc.section.3.1.p.4">The header table size can be bounded so as to limit the memory requirements (see the SETTINGS_MAX_BUFFER_SIZE in <a href="#parameter.negotiation">Section 5</a>).  The header table size is defined as the sum of the size of each entry of the table. The size of an entry is the sum of the length in bytes (as defined in <a href="#string.literal.representation">Section 4.2.2</a>) of its name, of value's length in bytes and of 32 bytes (for accounting for the entry structure overhead).  </p>
-<p id="rfc.section.3.1.p.5">When an entry is added to the header table, if the header table size is greater than the limit, the table size is reduced by dropping the entries at the beginning of the table until the header table size becomes lower than or equal to the limit. Dropping entries from the beginning of the table causes a renumbering of the remaining entries.  </p>
-<p id="rfc.section.3.1.p.6">To optimize the representation of the headers exchanged at the beginning of an HTTP/2.0 session, the header table is initialized with common headers. The list of these initial headers is provided in <a href="#initial.headers">Appendix A</a>.  </p>
-<h1 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2.</a> <a href="#header.representation" id="header.representation">Header Representation</a></h1>
-<h1 id="rfc.section.3.2.1"><a href="#rfc.section.3.2.1">3.2.1.</a> <a href="#literal" id="literal">Literal Representation</a></h1>
-<p id="rfc.section.3.2.1.p.1">The literal representation defines a new header.  A literal header is represented as: </p>
+<p id="rfc.section.3.2.p.4">The header table size can be bounded so as to limit the memory requirements (see the SETTINGS_MAX_BUFFER_SIZE in <a href="#parameter.negotiation">Section 5</a>).  The header table size is defined as the sum of the size of each entry of the table. The size of an entry is the sum of the length in bytes (as defined in <a href="#string.literal.representation">Section 4.2.2</a>) of its name, of value's length in bytes and of 32 bytes (for accounting for the entry structure overhead).  </p>
+<p id="rfc.section.3.2.p.5">When an entry is added to the header table, if the header table size is greater than the limit, the table size is reduced by dropping the entries at the beginning of the table until the header table size becomes lower than or equal to the limit. Dropping entries from the beginning of the table causes a renumbering of the remaining entries.  </p>
+<p id="rfc.section.3.2.p.6">To optimize the representation of the headers exchanged at the beginning of an HTTP/2.0 session, the header table is initialized with common headers. Two lists of initial headers are provided in <a href="#initial.headers">Appendix A</a>.  One is for messages sent from a client to a server, the other is for messages sent from a server to a client.  </p>
+<h1 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#header.representation" id="header.representation">Header Representation</a></h1>
+<h1 id="rfc.section.3.3.1"><a href="#rfc.section.3.3.1">3.3.1.</a> <a href="#literal" id="literal">Literal Representation</a></h1>
+<p id="rfc.section.3.3.1.p.1">The literal representation defines a new header.  A literal header is represented as: </p>
 
 <ul>
   <li>A header name, with two possible representations: <ul><li>A literal string, as described in <a href="#string.literal.representation">Section 4.2.2</a>.  </li><li>A index in the header table referencing the name of the corresponding header. The index is represented as an integer, as described in <a href="#integer.representation">Section 4.2.1</a>.  </li></ul><p> </p></li>
@@ -519,26 +524,26 @@
 </ul>
 
 <p> </p>
-<h1 id="rfc.section.3.2.2"><a href="#rfc.section.3.2.2">3.2.2.</a> <a href="#indexed" id="indexed">Indexed Representation</a></h1>
-<p id="rfc.section.3.2.2.p.1">The indexed representation defines a header as a match to a (name, value) pair in the header table.  An indexed header is  represented as: </p>
+<h1 id="rfc.section.3.3.2"><a href="#rfc.section.3.3.2">3.3.2.</a> <a href="#indexed" id="indexed">Indexed Representation</a></h1>
+<p id="rfc.section.3.3.2.p.1">The indexed representation defines a header as a match to a (name, value) pair in the header table.  An indexed header is  represented as: </p>
 
 <ul>
   <li>An integer representing the index of the matching (name, value) pair, as described in <a href="#integer.representation">Section 4.2.1</a>.  </li>
 </ul>
 
 <p> </p>
-<h1 id="rfc.section.3.3"><a href="#rfc.section.3.3">3.3.</a> <a href="#differential.coding" id="differential.coding">Differential Coding</a></h1>
-<p id="rfc.section.3.3.p.1">A set of headers is encoded as a difference from the previous reference set of headers. The initial reference set of headers is the empty set.  </p>
-<p id="rfc.section.3.3.p.2">An indexed representation toggles the presence of the header in the current set of headers. If the header corresponding to the indexed representation was not in the set, it is added to the set. If the header index was in the set, it is removed from it.  </p>
-<p id="rfc.section.3.3.p.3">A literal representation adds a header to the current set of headers if the header is added to the header table (either by incremental indexing or by substitution indexing).  </p>
-<p id="rfc.section.3.3.p.4">To ensure a correct decoding of a set of headers, the following steps or equivalent ones MUST be executed by the decoder.  </p>
-<p id="rfc.section.3.3.p.5">First, upon starting the decoding of a new set of headers, the reference set of headers is interpreted into the working set of headers: for each header in the reference set, an entry is added to the working set, containing the header name, its value, and its current index in the header table.  </p>
-<p id="rfc.section.3.3.p.6">Then, the header representations are processed in their order of occurrence in the frame.  </p>
-<p id="rfc.section.3.3.p.7">For an indexed representation, the decoder checks whether the index is present in the working set. If true, the corresponding entry is removed from the working set. If several entries correspond to this encoded index, all these entries are removed from the working set. If the index is not present in the working set, it is used to retrieve the corresponding header from the header table, and a new entry is added to the working set representing this header.  </p>
-<p id="rfc.section.3.3.p.8">For a literal representation, a new entry is added to the working set representing this header. If the literal representation specifies that the header is to be indexed, the header is added accordingly to the header table, and its index is included in the entry in the working set.  Otherwise, the entry in the working set contains an undefined index.  </p>
-<p id="rfc.section.3.3.p.9">When all the header representations have been processed, the working set contains all the headers of the set of headers.  </p>
-<p id="rfc.section.3.3.p.10">The new reference set of headers is computed by removing from the working set all the headers that are not present in the header table.  </p>
-<p id="rfc.section.3.3.p.11">It should be noted that during the decoding of the header representations, the same index may be associated to different headers in the working set and in the header table.  </p>
+<h1 id="rfc.section.3.4"><a href="#rfc.section.3.4">3.4.</a> <a href="#differential.coding" id="differential.coding">Differential Coding</a></h1>
+<p id="rfc.section.3.4.p.1">A set of headers is encoded as a difference from the previous reference set of headers. The initial reference set of headers is the empty set.  </p>
+<p id="rfc.section.3.4.p.2">An indexed representation toggles the presence of the header in the current set of headers. If the header corresponding to the indexed representation was not in the set, it is added to the set. If the header index was in the set, it is removed from it.  </p>
+<p id="rfc.section.3.4.p.3">A literal representation adds a header to the current set of headers if the header is added to the header table (either by incremental indexing or by substitution indexing).  </p>
+<p id="rfc.section.3.4.p.4">To ensure a correct decoding of a set of headers, the following steps or equivalent ones MUST be executed by the decoder.  </p>
+<p id="rfc.section.3.4.p.5">First, upon starting the decoding of a new set of headers, the reference set of headers is interpreted into the working set of headers: for each header in the reference set, an entry is added to the working set, containing the header name, its value, and its current index in the header table.  </p>
+<p id="rfc.section.3.4.p.6">Then, the header representations are processed in their order of occurrence in the frame.  </p>
+<p id="rfc.section.3.4.p.7">For an indexed representation, the decoder checks whether the index is present in the working set. If true, the corresponding entry is removed from the working set. If several entries correspond to this encoded index, all these entries are removed from the working set. If the index is not present in the working set, it is used to retrieve the corresponding header from the header table, and a new entry is added to the working set representing this header.  </p>
+<p id="rfc.section.3.4.p.8">For a literal representation, a new entry is added to the working set representing this header. If the literal representation specifies that the header is to be indexed, the header is added accordingly to the header table, and its index is included in the entry in the working set.  Otherwise, the entry in the working set contains an undefined index.  </p>
+<p id="rfc.section.3.4.p.9">When all the header representations have been processed, the working set contains all the headers of the set of headers.  </p>
+<p id="rfc.section.3.4.p.10">The new reference set of headers is computed by removing from the working set all the headers that are not present in the header table.  </p>
+<p id="rfc.section.3.4.p.11">It should be noted that during the decoding of the header representations, the same index may be associated to different headers in the working set and in the header table.  </p>
 <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a> <a href="#detailed.format" id="detailed.format">Detailed Format</a></h1>
 <h1 id="rfc.section.4.1"><a href="#rfc.section.4.1">4.1.</a> <a href="#header.blocks" id="header.blocks">Header Blocks</a></h1>
 <p id="rfc.section.4.1.p.1">A header block consists of a set of header fields, which are name-value pairs. Each header field is encoded using one of the header representation.  </p>
@@ -653,7 +658,7 @@
 </pre>
 <p class="figure"></p>
 <p id="rfc.section.4.4.1.p.1">This representation, which does not involve updating the header table, starts with the '011' 3-bit pattern.  </p>
-<p id="rfc.section.4.4.1.p.2">If the header name matches the header name of a (name, value) pair stored in the Header Table, the index of the pair increased by one (index + 1) is represented as an integer with a 5-bit prefix.  Note that if the index is strictly below 30, one byte is used.  </p>
+<p id="rfc.section.4.4.1.p.2">If the header name matches the header name of a (name, value) pair stored in the Header Table, the index of the pair increased by one (index + 1) is represented as an integer with a 5-bit prefix.  Note that if the index is strictly below 31, one byte is used.  </p>
 <p id="rfc.section.4.4.1.p.3">If the header name does not match a header name entry, the value 0 is represented on 5 bits followed by the header name, represented as a literal string.  </p>
 <p id="rfc.section.4.4.1.p.4">Header name representation is followed by the header value represented as a literal string as described in <a href="#string.literal.representation">Section 4.2.2</a>.  </p>
 <h1 id="rfc.section.4.4.2"><a href="#rfc.section.4.4.2">4.4.2.</a> Literal Header with Incremental Indexing</h1>
@@ -665,7 +670,7 @@
 </pre>
 <p class="figure"></p>
 <p id="rfc.section.4.4.2.p.1">This representation starts with the '010' 3-bit pattern.  </p>
-<p id="rfc.section.4.4.2.p.2">If the header name matches the header name of a (name, value) pair stored in the Header Table, the index of the pair increased by one (index + 1) is represented as an integer with a 5-bit prefix.  Note that if the index is strictly below 30, one byte is used.  </p>
+<p id="rfc.section.4.4.2.p.2">If the header name matches the header name of a (name, value) pair stored in the Header Table, the index of the pair increased by one (index + 1) is represented as an integer with a 5-bit prefix.  Note that if the index is strictly below 31, one byte is used.  </p>
 <p id="rfc.section.4.4.2.p.3">If the header name does not match a header name entry, the value 0 is represented on 5 bits followed by the header name, represented as a literal string.  </p>
 <p id="rfc.section.4.4.2.p.4">Header name representation is followed by the header value represented as a literal string as described in <a href="#string.literal.representation">Section 4.2.2</a>.  </p>
 <h1 id="rfc.section.4.4.3"><a href="#rfc.section.4.4.3">4.4.3.</a> Literal Header with Substitution Indexing</h1>
@@ -710,7 +715,7 @@
   <br/>
 </p>
 <h1 id="rfc.appendix.A.1"><a href="#rfc.appendix.A.1">A.1.</a> Requests</h1>
-<p id="rfc.section.A.1.p.1">The following table contains the pre-defined headers used to initialize the header table used to represent requests.  </p>
+<p id="rfc.section.A.1.p.1">The following table lists the pre-defined headers that make-up the initial header table user to represent requests sent from a client to a server.  </p>
 <div id="rfc.table.1"/>
 <div id="initial.headers.request"/>
 <table cellpadding="3" cellspacing="0" class="tt full center">
@@ -915,7 +920,7 @@
   </tbody>
 </table>
 <h1 id="rfc.appendix.A.2"><a href="#rfc.appendix.A.2">A.2.</a> Responses</h1>
-<p id="rfc.section.A.2.p.1">The following table contains the pre-defined headers used to initialize the header table used to represent responses.  </p>
+<p id="rfc.section.A.2.p.1">The following table lists the pre-defined headers that make-up the initial header table used to represent responses sent from a server to a client. The same header table is also used to represent request headers sent from a server to a client in a PUSH_PROMISE frame.  </p>
 <div id="rfc.table.2"/>
 <div id="initial.headers.response"/>
 <table cellpadding="3" cellspacing="0" class="tt full center">
@@ -1108,7 +1113,7 @@
 <p id="rfc.section.B.p.1">Here is an example that illustrates different representations and how tables are updated.  </p>
 <h1 id="rfc.appendix.B.1"><a href="#rfc.appendix.B.1">B.1.</a> First header set</h1>
 <pre>
-path: /my-example/index.html
+:path: /my-example/index.html
 user-agent: my-user-agent
 x-my-header: first
 </pre>
@@ -1140,7 +1145,7 @@ Header table
 +---------+----------------+---------------------------+
 |   37    | warning        |                           |
 +---------+----------------+---------------------------+
-|   38    | path           | /my-example/index.html    | added header
+|   38    | :path          | /my-example/index.html    | added header
 +---------+----------------+---------------------------+
 |   39    | user-agent     | my-user-agent             | added header
 +---------+----------------+---------------------------+
@@ -1148,21 +1153,29 @@ Header table
 +---------+----------------+---------------------------+
 </pre>
 <p class="figure"></p>
+<pre>
+Reference Set:
+:path, /my-example/index.html
+user-agent, my-user-agent
+x-my-header, first
+</pre>
+<p class="figure"></p>
 <p id="rfc.section.B.1.p.1">The first header set to represent is the following: </p>
 <h1 id="rfc.appendix.B.2"><a href="#rfc.appendix.B.2">B.2.</a> Second header set</h1>
 <pre>
-path: /my-example/resources/script.js
+:path: /my-example/resources/script.js
 user-agent: my-user-agent
 x-my-header: second
 </pre>
 <p class="figure"></p>
 <pre>
-0x04       (delta header with substitution indexing, name index = 3)
+0xa6       (indexed header, index = 38: removal from reference set)
+0xa8       (indexed header, index = 40: removal from reference set)
+0x04       (literal header, substitution indexing, name index = 3)
 0x26       (replaced entry index = 38)
 0x1f       (header value string length = 31)
 /my-example/resources/script.js
-0x7f 0x08  (indexed header, index = 39)
-0x5f 0x09  (literal header with indexing, name index = 40)
+0x5f 0x0a  (literal header, incremental indexing, name index = 40)
 0x06       (header value string length = 6)
 second
 </pre>
@@ -1180,7 +1193,7 @@ Header table
 +---------+----------------+---------------------------+
 |   37    | warning        |                           |
 +---------+----------------+---------------------------+
-|   38    | path           | /my-example/resources/    | replaced
+|   38    | :path          | /my-example/resources/    | replaced
 |         |                |     script.js             | header
 +---------+----------------+---------------------------+
 |   39    | user-agent     | my-user-agent             |
@@ -1189,6 +1202,13 @@ Header table
 +---------+----------------+---------------------------+
 |   41    | x-my-header    | second                    | added header
 +---------+----------------+---------------------------+
+</pre>
+<p class="figure"></p>
+<pre>
+Reference Set:
+:path, /my-example/resources/script.js
+user-agent, my-user-agent
+x-my-header, second
 </pre>
 <p class="figure"></p>
 <p id="rfc.section.B.2.p.1">The second header set to represent is the following: </p>
