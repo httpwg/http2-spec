@@ -253,7 +253,6 @@
            <xref target="StreamsLayer">streams</xref>.  In order to maintain independent streams, flow control and
            prioritization are necessary.
         </t>
-
       </section>
 
       <section title="HTTP Semantics">
@@ -638,26 +637,6 @@ Upgrade: HTTP/2.0
           </list>
         </t>
 
-   
-
-        <section anchor="StreamHalfClose" title="Stream half-close">
-          <!-- details -->
-
-         
-          <t>
-            An endpoint that has not yet half-closed a stream by sending the
-            END_STREAM flag can continue sending frames on the stream.
-          </t>
-
-          <t>
-            It is not necessary for an endpoint to half-close a stream
-            for which it has not sent any frames. This allows endpoints to
-            use fully unidirectional streams that do not require explicit
-            action or acknowledgement from the receiver.
-          </t>
-
-        </section>
-
      <section anchor="StreamStates" title="Stream States">
         <t>
           The lifecycle of a stream is shown in <xref target="StreamStatesFigure"/>.
@@ -666,25 +645,31 @@ Upgrade: HTTP/2.0
         <figure anchor="StreamStatesFigure">
           <artwork>
             <![CDATA[
- +----------+         +--------+         +----------+
- |          |   H     |        |   Fs    |   half   |
- |  idle    |-------->|  open  |-------->|  closed  |
- |          |         |        |         | (server) |
- +----------+         +--------+         +----------+
-      |                    |    \               |
-      |                    |     \    R         |
-      | PP                 | Fc   `-------.     | Fc/R
-      |                    |               \    |
-      v                    v                v   v
- +----------+        +----------+         +--------+
- |          |        |   half   |         |        |
- | reserved |------->|  closed  |-------->| closed |
- |          |   Hs   | (client) |  Fs/R   |        |
- +----------+        +----------+         +--------+
-      \                                       ^
-       \                                     /
-        `-----------------------------------'
-                          R
+                       +--------+
+                 PP    |        |    PP
+              ,--------|  idle  |--------.
+             /         |        |         \
+            v          +--------+          v
+     +----------+          |           +----------+
+     |          |          | H         |          |
+ ,---| reserved |          |           | reserved |---.
+ |   | (local)  |          v           | (remote) |   |
+ |   +----------+      +--------+      +----------+   |
+ |      |          H   |        |   H          |      |
+ |      | H    ,-------|  open  |-------.      | H    |
+ |      |     /        |        |        \     |      |
+ |      v    v         +--------+         v    v      |
+ |   +----------+          |           +----------+   |
+ |   |   half   |          |           |   half   |   |
+ |   |  closed  |          | R         |  closed  |   |
+ |   | (remote) |          |           | (local)  |   |
+ |   +----------+          |           +----------+   |
+ |        |                v                 |        |
+ |        |  ES / R    +--------+  ES / R    |        |
+ |        `----------->|        |<-----------'        |
+ |  R                  | closed |                  R  |
+ `-------------------->|        |<--------------------'
+                       +--------+
 ]]>
           </artwork>
         </figure>
@@ -693,9 +678,8 @@ Upgrade: HTTP/2.0
           Both endpoints have a subjective view of the state of a stream that could be different
           when frames are in transit.  Peers do not coordinate the creation of streams, they are
           created unilaterally by either peer as described in <xref target="StreamCreation"/>.
-          The negative consequences of a mismatch in states are
-          limited to the "closed" state after sending RST_STREAM, where frames might be received
-          for some time after closing.  See below for more details.
+          The negative consequences of a mismatch in states are limited to the "closed" state
+          after sending RST_STREAM, where frames might be received for some time after closing.
         </t>
         <t>
           Streams have the following states:
@@ -704,36 +688,56 @@ Upgrade: HTTP/2.0
             <t hangText="idle">
               All streams start in the "idle" state.  In this state, no frames are exchanged.
               <vspace blankLines="1"/>
-              Two transitions are valid from this state:
+              The following transitions are valid from this state:
               <list style="symbols">
                 <t>
                   Sending or receiving a HEADERS frame causes the stream to become "open".  
                   The stream identifier is selected as described in <xref target="StreamIdentifiers"/>.
                 </t>
                 <t>
-                  Sending or receiving a PUSH_PROMISE frame marks the associated stream ID for
-                  later use.  The stream state for the reserved stream transitions to "reserved".
+                  Sending a PUSH_PROMISE frame marks the associated stream for
+                  later use.  The stream state for the reserved stream transitions to "reserved (local)".
+                </t>
+                <t>
+                  Receiving a PUSH_PROMISE frame marks the associated stream as reserved by the 
+                  remote peer.  The state of the stream becomes "reserved (remote)".
                 </t>
               </list>
             </t>
 
-            <t hangText="reserved">
-              A "reserved" stream is one that has been promised using PUSH_PROMISE.  A PUSH_PROMISE frame
-              associates an idle stream with an open, peer-initiated stream, reserving it for future use.
+            <t hangText="reserved (local)">
+              A stream in the "reserved (local)" state is one that has been promised using PUSH_PROMISE.  
+              A PUSH_PROMISE frame reserves an idle stream by associating the stream with an open stream
+              that was initiated by the remote peer (see <xref target="PushResources"/>).
               <vspace blankLines="1"/>
               In this state, only the following transitions are possible:
               <list style="symbols">
                 <t>
-                  The server can send a HEADERS frame.  This causes the stream to open in a "half
-                  closed (client)" state.
+                  The endpoint can send a HEADERS frame.  This causes the stream to open in a "half
+                  closed (remote)" state.
                 </t>
                 <t>
                   Either endpoint can send a RST_STREAM frame to cause the stream to become
-                  "closed".  This causes any reservation to be released.
+                  "closed".  This releases the stream reservation.
                 </t>
               </list>
-              An endpoint MUST NOT send any other type of frame in this state.  Receiving any
-              other type of frame MUST be treated as a <xref target="StreamErrorHandler">stream 
+              An endpoint MUST NOT send any other type of frame in this state.  
+            </t>
+
+            <t hangText="reserved (remote)">
+              A stream in the "reserved (remote)" state has been reserved by a remote peer.
+              <vspace blankLines="1"/>
+              In this state, only the following transitions are possible:
+              <list style="symbols">
+                <t>
+                  Receiving a HEADERS frame causes the stream to transition to "half closed (local)".
+                </t>
+                <t>
+                  Either endpoint can send a RST_STREAM frame to cause the stream to become
+                  "closed".  This releases the stream reservation.
+                </t>
+              </list>
+              Receiving any other type of frame MUST be treated as a <xref target="StreamErrorHandler">stream
               error</xref> of type PROTOCOL_ERROR.
             </t>
 
@@ -772,14 +776,14 @@ Upgrade: HTTP/2.0
             </t>
 
             <t hangText="closed">
-              This is the terminal state.
+              The "closed" state is the terminal state.
               <vspace blankLines="1"/>
               An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives a
-              frame on a stream for which it has received a frame containing a END_STREAM flag,
+              frame after receiving a RST_STREAM or a frame containing a END_STREAM flag on that stream
               MUST treat that as a <xref target="StreamErrorHandler">stream error</xref> of type
               PROTOCOL_ERROR.
               <vspace blankLines="1"/>
-              If this state is reached as a result of a RST_STREAM frame, the peer that receives
+              If this state is reached as a result of sending a RST_STREAM frame, the peer that receives
               the RST_STREAM might have already sent - or enqueued for sending - frames on the
               stream that cannot be withdrawn.  An endpoint that sends RST_STREAM MUST ignore
               frames that it receives on closed streams if it sends RST_STREAM.  An endpoint MAY
@@ -791,15 +795,6 @@ Upgrade: HTTP/2.0
               desired, a RST_STREAM can be used to cancel any those streams.
             </t>
           </list>
-        </t>
-        <t> <!-- remove? -->
-          Either endpoint can request the early termination of an unwanted
-          stream by sending an           RST_STREAM
-            frame with an error code of either REFUSED_STREAM (if no
-          frames have been processed) or CANCEL (if at least one frame has
-          been processed).  Such termination might not take effect immediately
-          as the peer might have sent additional frames on the stream prior
-          to receiving the termination request.
         </t>
 
         <section anchor="StreamIdentifiers" title="Stream Identifiers">
@@ -841,8 +836,8 @@ Upgrade: HTTP/2.0
             SETTINGS_MAX_CONCURRENT_STREAMS setting (see <xref target="SettingValues"/>.
           </t>
           <t>
-            Streams in the "reserved" state do not count as open, but some state is required in
-            order to properly consume the content.
+            Streams in either of the "reserved" states do not count as open, but a small amount of
+            application state is retained to ensure that the promised stream can be successfully used.
           </t>
         </section>
       </section>
@@ -951,7 +946,6 @@ Upgrade: HTTP/2.0
       </section>
       
       <section anchor="StreamPriority" title="Stream priority">
-        <!-- some overview, some details (e.g., defaults) -->
         <t>
           The endpoint establishing a new stream can assign a priority for the stream.  Priority
           is represented as an unsigned 31-bit integer.  0 represents the highest priority and
@@ -1044,14 +1038,14 @@ Upgrade: HTTP/2.0
             An endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM frame, to avoid looping.
           </t>
         </section>
-      </section>
 
-      <section title="Connection Shutdown">
-        <t>
-          If the TCP connection is torn down while un-closed streams
-          exist, then the endpoint MUST assume that the stream was abnormally interrupted and
-          may be incomplete.
-        </t>
+        <section title="Connection Termination">
+          <t>
+            If the TCP connection is torn down while streams remain in open or half closed states, then 
+            the endpoint MUST assume that the stream was abnormally interrupted and
+            could be incomplete.
+          </t>
+        </section>
       </section>
     </section>
 
@@ -2237,8 +2231,9 @@ Upgrade: HTTP/2.0
       <t>
         TODO: This section will also receive the text from <xref target="HTTPLayer"/> on connection management and frame size limits.
       </t>
+      <section title="Connection Management">
       <t>
-        HTTP/2.0 connections are persistent. That is, for best performance,
+        HTTP/2.0 connections are persistent.  For best performance,
         it is expected clients will not close connections until it is
         determined that no further communication with a server is necessary
         (for example, when a user navigates away from a particular web page),
@@ -2253,6 +2248,7 @@ Upgrade: HTTP/2.0
         reliably determine whether previously sent frames have been processed
         and gracefully complete or terminate any necessary remaining tasks.
       </t>
+      </section>
     </section>
 
     <section title="Security Considerations">
@@ -2758,6 +2754,18 @@ Upgrade: HTTP/2.0
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-03" anchor="changes.since.draft-ietf-httpbis-http2-03">
+        <t>
+          Committed major restructuring atrocities.
+        </t>
+        <t>
+          Added more formal description of frame lifecycle.
+        </t>
+        <t>
+          Moved END_STREAM (renamed from FINAL) back to HEADERS/DATA.
+        </t>
+        <t>
+          Removed HEADERS+PRIORITY, added optional priority to HEADERS frame.
+        </t>
         <t>
           Added PRIORITY frame.
         </t>
