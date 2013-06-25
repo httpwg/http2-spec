@@ -504,53 +504,40 @@ Upgrade: HTTP/2.0
       </section>
     </section>
 
-    <section anchor="FramingLayer" title="Framing">
+    <section anchor="FramingLayer" title="HTTP Frames">
       <t>
         Once the HTTP/2.0 connection is established, endpoints
         can begin exchanging frames.
       </t>
 
-      <section title="Frame Assembly and Disassembly">
-        <t>
-          The HTTP/2.0 framing layer deals with frame assembly and decoding.  Each frame begins with
-          a <xref target="FrameHeader">frame header</xref> and some number of bytes.
-        </t>
-        <t>
-          For received data, the framing layer takes an in-order, reliable stream of bytes and
-          extracts individual frames.  For frames that are ready for transmission, the framing layer
-          serializes the frame header and frame body.
-        </t>
-      </section>
       <section anchor="FrameHeader" title="Frame Header">
         <t>
-          All frames share a common base format consisting of
-          an 8-byte header followed by 0 to 65,535 octets of payload
-          data.
+          All frames begin with an 8-octet header followed by a payload of between 0 and 65,535 octets.
         </t>
         <figure title="Frame Header">
           <artwork type="inline">
-            0                   1                   2                   3
-            0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            |         Length (16)           |   Type (8)    |   Flags (8)   |
-            +-+-------------+---------------+-------------------------------+
-            |R|                 Stream Identifier (31)                      |
-            +-+-------------------------------------------------------------+
-            |                     Frame Data (0...)                       ...
-            +---------------------------------------------------------------+
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |         Length (16)           |   Type (8)    |   Flags (8)   |
+ +-+-------------+---------------+-------------------------------+
+ |R|                 Stream Identifier (31)                      |
+ +-+-------------------------------------------------------------+
+ |                   Frame Payload (0...)                      ...
+ +---------------------------------------------------------------+
           </artwork>
         </figure>
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
             <t hangText="Length:">
-              The length of the frame data expressed as an unsigned 16-bit
-              integer. The 8 bytes of the frame header are not included
+              The length of the frame payload expressed as an unsigned 16-bit
+              integer. The 8 octets of the frame header are not included
               in this value.
             </t>
             <t hangText="Type:">
               The 8-bit type of the frame.  The frame type determines how the remainder of the
-              frame header and data are interpreted.  Implementations MUST ignore unsupported
+              frame header and payload are interpreted.  Implementations MUST ignore unsupported
               and unrecognized frame types.
             </t>
             <t hangText="Flags:">
@@ -573,25 +560,23 @@ Upgrade: HTTP/2.0
           </list>
         </t>
         <t>
-          The structure and content of the remaining frame data is
+          The structure and content of the frame payload is
           dependent entirely on the frame type.
         </t>
       </section>
+      
       <section anchor="FrameSize" title="Frame Size">
-        <!-- details -->
         <t>
-          The maximum amount of payload data any frame can contain
-          varies by frame type and use. The absolute maximum amount
-          of payload data any individual frame can contain is
-          65,535 octets. All implementations SHOULD be capable
+          The maximum size of a frame payload varies by frame type and
+          use. The absolute maximum size
+           is 65,535 octets. All implementations SHOULD be capable
           of receiving and minimally processing frames up to this size.
         </t>
         <t>
           Certain frame types, such as PING (see <xref target="PING"/>),
-          impose strict limits on the amount of payload data allowed.
+          impose additional limits on the amount of payload data allowed.
           Likewise, additional size limits can be set by specific
-          application uses.  HTTP limits the frame size to 16,383 octets
-          (see <xref target="HTTPLayer" />).
+          application uses (see <xref target="HttpExtra" />).
         </t>
         <t>
           If a frame size exceeds any defined limit, or is too small to contain mandatory frame
@@ -600,35 +585,26 @@ Upgrade: HTTP/2.0
             target="ConnectionErrorHandler">connection error</xref>.
         </t>
       </section>
-      <section title="Header Block Compression and Decompression">
-        <t>
-          The framing layer is also responsible for performing compression or decompression of <xref
-            target="HeaderBlock">header blocks</xref>.  Header compression is performed on the header
-          block contained in HEADERS or PUSH_PROMISE frames.
-        </t>
-        <t>
-          Header blocks that are too large to fit into a single frame are handled at this layer.
-          HEADERS frames that use continuations to allow header content to span multiple frames are
-          assembled into a single unit of bytes for decompression; compressed header blocks that are
-          too large for a single HEADERS frame are split into multiple frames.
-        </t>
-      </section>
-      <section anchor="HeaderBlock" title="Header Blocks">
-        <t>
-          The header block is found in the HEADERS and PUSH_PROMISE frames.  The header block
-          consists of a set of header fields, which are name-value pairs.  Headers are compressed
-          using black magic.
-        </t>
-        <t>
-          Compression of header fields is a work in progress, as is the format of this block.
-        </t>
-        <t>
-          The contents of header blocks MUST be processed by the compression context, even if stream
-          has been reset or the frame is discarded.  If header blocks cannot be processed, the
-          receiver MUST terminate the connection with a <xref
-          target="ConnectionErrorHandler">connection error</xref> of type COMPRESSION_ERROR.
-        </t>
 
+      <section anchor="HeaderBlock"  title="Header Compression and Decompression">
+        <t>
+          Header compression and decompression is performed as described in <xref target="COMPRESSION"/>.
+        </t>
+        <t>
+          A header block
+          encodes a set of header fields, which are name-value pairs.
+          Header blocks are compressed by the header compressor and encoded into a contiguous sequence of
+          frames.  Header blocks that are too large to fit into a single frame are 
+          split into multiple frames of the same type.  A flag is used to indicates the last frame
+          of the header block.  The frames that carry a single header block cannot be interleaved
+          with any frames.
+        </t>
+          <t>
+            The contents of header blocks MUST be processed by the compression context, even if stream
+            has been reset or the frame is discarded.  If header blocks cannot be processed, the
+            receiver MUST terminate the connection with a <xref
+          target="ConnectionErrorHandler">connection error</xref> of type COMPRESSION_ERROR.
+          </t>
       </section>
     </section>
 
@@ -2639,6 +2615,15 @@ Upgrade: HTTP/2.0
 
   <back>
     <references title="Normative References">
+      <reference anchor="COMPRESSION">
+        <front>
+          <title>Black Magic</title>
+          <author initials="H." surname="Ruellan" fullname="Herve Ruellan"/>
+          <author initials="R." surname="Peon" fullname="Roberto Peon"/>
+          <date month="June" year="2013" />
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-black-magic" />
+      </reference>
 
       <reference anchor="RFC0793">
         <front>
