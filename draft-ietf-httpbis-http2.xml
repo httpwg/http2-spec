@@ -294,7 +294,7 @@
         <t>
           NOTE: There may be additional SETTINGS added later on, e.g., due to header compression (TBD).
         </t>
-        <t>          The SETTINGS are conveyed in the following hop-by-hop HTTP/1.1 header:
+        <t>The SETTINGS are conveyed in the following hop-by-hop HTTP/1.1 header:
         </t>
         <t>
              HTTP2-Settings   = "HTTP2-Settings" ":" token68
@@ -402,12 +402,17 @@ Upgrade: HTTP/2.0
       </section>
     </section>
 
-    <section anchor="Structure" title="HTTP/2.0 Protocol Structure">
+    <section anchor="Structure" title="HTTP/2.0 Protocol Overview">
       <t>
-        HTTP/2.0 provides an optimized transport for HTTP semantics.  This section describes a
-        logical structure for the protocol that is formed of three parts: framing, streams, and
-        application mapping.  This structure is provided primarily as an aid to specification,
-        implementations are free to diverge from this structure as necessary.
+        HTTP/2.0 provides an optimized transport for HTTP semantics.  
+      </t>
+      <t>
+        TBD: move some of the connection overview stuff here.
+      </t>
+      <t>
+        This section describes a logical structure for the protocol that is formed of three parts:
+        framing, streams, and application mapping.  This structure is provided primarily as an aid
+        to specification, implementations are free to diverge from this structure as necessary.
       </t>
 
       <section anchor="FramingLayer" title="Framing">
@@ -415,6 +420,7 @@ Upgrade: HTTP/2.0
           The framing layer is where frames are serialized and decoded, where header blocks are
           compressed and decompressed, and where connection-level flow control occurs.
         </t>
+
         <section title="Frame Assembly and Disassembly">
           <t>
             The HTTP/2.0 framing layer deals with frame assembly and decoding.  Each frame begins with
@@ -426,6 +432,7 @@ Upgrade: HTTP/2.0
             serializes the frame header and frame body.
           </t>
         </section>
+
         <section title="Header Block Compression and Decompression">
           <t>
             The framing layer is also responsible for performing compression or decompression of <xref
@@ -439,6 +446,7 @@ Upgrade: HTTP/2.0
             too large for a single HEADERS frame are split into multiple frames.
           </t>
         </section>
+
         <section title="Connection-Level Flow Control">
           <t>
             <xref target="FlowControl">Connection-level flow control</xref> is performed at the
@@ -454,85 +462,209 @@ Upgrade: HTTP/2.0
         </section>
       </section>
 
-      <section anchor="Streams Layer" title="Stream Control and Multiplexing">
+      <section anchor="StreamsLayer" title="Stream Control and Multiplexing">
         <t>
-          TODO.  This is where frames are associated with streams.  This is where stream and
-          connection control occurs.  And prioritization.
+          The streams layer provides a number of function.  This is the conceptual layer at which
+          most of the connection control messages are generated and consumed.  Most importantly,
+          this layer includes all the features related to multiplexing: the separation of
+          application layer semantics into parallel and independent streams.
         </t>
-        <section title="Stream State Machine">
+        <t>
+          In order to maintain separate streams, prioritization and flow control are important to
+          prevent head of line blocking and other forms of resource exhaustion.  The streams layer
+          includes connection-wide configuration to enable endpoints to control how streams are
+          created and what resources are allocated.
+        </t>
+
+        <section title="The Relationship of Frames to Streams">
           <t>
+            The frames that are exchanged in 
           </t>
-          <figure>
-            <artwork><![CDATA[
- +----------+        +--------+        +--------+
- |          |   H    |        |   Fs   |  half  |
- |  idle    |------->|  open  |------->| closed |
- |          |        |        |        | server |
- +----------+        +--------+        +--------+
-      |                   |    \             |
-      |                   |     \  R         |
-      | PP                | Fc   `-----.     | Fc/R
-      |                   |             \    |
-      v                   v              v   v
- +----------+        +--------+        +--------+
- |          |        |  half  |        |        |
- | reserved |------->| closed |------->| closed |
- |          |   Hs   | client |  Fs/R  |        |
- +----------+        +--------+        +--------+
-      \                                    ^
-       \                                  /
-        `--------------------------------'
-                       R
-]]></artwork>
-          </figure>
           <t>
-            Streams have the following states:
+            Frames fall into three categories:
             <list style="hanging">
-              <t hangText="idle">
+              <t hangText="Frames That Are About The Connection:">
+                Frames that are about the connection include frames that alter the state of all
+                streams, or the connection as a whole.  These frames include SETTINGS, GOAWAY, and
+                PING frames, plus WINDOW_UPDATE frames that affect the connection-level flow control
+                window.
+                <vspace blankLines="1"/>
+                All frames that are about the connection contain a stream identifier of 0x0.  These
+                frames are all consumed by the streams layer and do not surface in application layer
+                APIs.  Intermediaries consume or generate these frames, they are not forwarded
+                between connections.
               </t>
-              <t hangText="reserved">
+              <t hangText="Frames That Are On Streams:">
+                Frames that are on streams include HEADERS and DATA.  PUSH_PROMISE is considered to
+                be on the stream that it reserves.  Frames that are on streams contain a non-zero
+                stream identifier.
+                <vspace blankLines="1"/>
+                Frames that are on streams carry information that is relevant to an application
+                protocol.  The order of frames that are on streams is significant.  These frames
+                MUST NOT be reordered with respect to other frames on the same stream.
+                Intermediaries are expected to forward these frames.
+                <vspace blankLines="1"/>
+                Only frames that are on streams can carry a FINAL bit that marks the stream as
+                half-closed.
               </t>
-              <t hangText="open">
-              </t>
-              <t hangText="half closed (client)">
-              </t>
-              <t hangText="half closed (server)">
-              </t>
-              <t hangText="closed">
+              <t hangText="Frames That Are About Streams:">
+                Frames that are about streams include WINDOW_UPDATE (with a non-zero stream
+                identifier), RST_STREAM, and PRIORITY.  A PUSH_PROMISE is about the stream to which
+                it is originally associated.  Frames that are about streams contain a non-zero
+                stream identifier.
+                <vspace blankLines="1"/>
+                Frames that are about streams affect the way that application semantics are carried,
+                but cannot alter application semantics.  Frames that are about streams can be sent
+                at any time that the stream is not in the "idle" or "closed" states.  Intermediaries
+                consume and generate these frames, they are not forwarded between connections.
               </t>
             </list>
           </t>
         </section>
-        <section title="The Relationship of Frames to Streams">
+
+        <section title="Stream State Machine">
           <t>
-            Frames fall into three categories:
+            The state of a stream determines what resources are allocated to that stream, how
+            streams are accounted and what frames can be sent.  The states (and state transitions)
+            for streams are shown in <xref target="StreamStates"/>.
+          </t>
+
+          <figure anchor="StreamStates">
+            <artwork><![CDATA[
+ +----------+         +--------+         +----------+
+ |          |   H     |        |   Fs    |   half   |
+ |  idle    |-------->|  open  |-------->|  closed  |
+ |          |         |        |         | (server) |
+ +----------+         +--------+         +----------+
+      |                    |    \               |
+      |                    |     \    R         |
+      | PP                 | Fc   `-------.     | Fc/R
+      |                    |               \    |
+      v                    v                v   v
+ +----------+        +----------+         +--------+
+ |          |        |   half   |         |        |
+ | reserved |------->|  closed  |-------->| closed |
+ |          |   Hs   | (client) |  Fs/R   |        |
+ +----------+        +----------+         +--------+
+      \                                      ^
+       \                                    /
+        `----------------------------------'
+                       R
+]]></artwork>
+          </figure>
+
+          <t>
+            Both endpoints have a subjective view of the state of a stream that could be different
+            when frames are in transit.  The negative consequences of a mismatch in states are
+            limited to the "closed" state after sending RST_STREAM, where frames might be received
+            for some time after closing.  See below for more details.
+          </t>
+
+          <t>
+            Streams have the following states:
             <list style="hanging">
-              <t hangText="Connection Frames:">
-                Frames that affect the connection contain a stream identifier of 0.
+              <t hangText="idle">
+                All streams start in the "idle" state.  In this state, no frames are exchanged.
+                <vspace blankLines="1"/>
+                Two transitions are valid from this state:
+                <list style="symbols">
+                  <t>
+                    Sending or receiving a HEADERS frame causes the stream to become "open".  A
+                    client sends HEADERS for an odd-numbered stream; a server sends for an
+                    even-numbered stream.
+                  </t>
+                  <t>
+                    Sending or receiving a PUSH_PROMISE frame marks the associated stream ID for
+                    later use.  The stream state for the reserved stream transitions to "reserved".
+                  </t>
+                </list>
               </t>
-              <t hangText="Frames on Streams:">
-                Frames on streams must not be reordered with respect to other frames on the same
-                stream.  These frames can carry a bit that marks the stream as half-closed.
+              <t hangText="reserved">
+                A "reserved" stream is one that has been promised using PUSH_PROMISE.
+                <vspace blankLines="1"/>
+                In this state, only the following transitions are possible:
+                <list style="symbols">
+                  <t>
+                    The server can send a HEADERS frame.  This causes the stream to open in a "half
+                    closed (client)" state.
+                  </t>
+                  <t>
+                    Either endpoint can send a RST_STREAM frame to cause the stream to become
+                    "closed".  This causes any reservation to be released.
+                  </t>
+                </list>
+                An endpoint MUST NOT send any other type of frame in this state.  Receiving any
+                other type of frame MUST be treated as a <xref target="StreamErrorHandler">stream
+                error</xref> of type PROTOCOL_ERROR.
               </t>
-              <t hangText="Frames about Streams:">
-                Frames that are about streams can be sent at any time that the stream is not in the
-                "idle" or "closed" states.
+              <t hangText="open">
+                The "open" state is where both peers can send frames.  In this state, sending peers
+                observe advertised <xref target="FlowControl">flow control limits</xref>.
+                <vspace blankLines="1"/>
+                From this state either peer can send a frame with a FINAL flag set, which causes the
+                stream to transition into one of the "half closed" states: a client sending a FINAL
+                flag causes the stream state to become "half closed (client)"; a server sending a
+                FINAL flag causes the stream state to become "half closed (server)".
+                <vspace blankLines="1"/>
+                An endpoint can send RST_STREAM from this state, causing it to transition
+                immediately to "closed".
+              </t>
+              <t hangText="half closed (client)">
+                A stream that is "half closed (client)" cannot be used for transmission of frames
+                from a client to a server.  In this state, a server is no longer obligated to
+                maintain a flow control window, if it performs flow control.
+                <vspace blankLines="1"/>
+                A stream can transition from this state to "closed" either by having the server send
+                a frame that contains a FINAL flag, or by having either peer send a RST_STREAM
+                frame.
+              </t>
+              <t hangText="half closed (server)">
+                A stream that is "half closed (server)" cannot be used for transmission of frames
+                from a server to a client.  In this state, a client is no longer obligated to
+                maintain a flow control window, if it performs flow control.
+                <vspace blankLines="1"/>
+                A stream can transition from this state to "closed" either by having the client send
+                a frame that contains a FINAL flag, or by having either peer send a RST_STREAM
+                frame.
+              </t>
+              <t hangText="closed">
+                This is the terminal state.  Streams that are "closed" cannot be used for transmitting
+                <vspace blankLines="1"/>
+                An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives a
+                frame on a stream for which it has received a frame containing a FINAL flag, MUST
+                treat that as a <xref target="StreamErrorHandler">stream error</xref> of type
+                PROTOCOL_ERROR.
+                <vspace blankLines="1"/>
+                If this state is reached as a result of a RST_STREAM frame, the peer that receives
+                the RST_STREAM might have already sent - or enqueued for sending - frames on the
+                stream that cannot be withdrawn.  An endpoint that sends RST_STREAM MUST ignore
+                frames that it receives on closed streams if it sends RST_STREAM.  An endpoint MAY
+                choose to limit the period over which it ignores frames and treat frames that arrive
+                after this time as being in error.
               </t>
             </list>
           </t>
+          <section title="Stream Accounting and Resource Management">
+            <t>
+              Streams that are in the "open" state, or either of the "half closed" states count
+              toward the maximum number of streams that an endpoint is permitted to open.  Streams
+              in any of these three states count toward the limit advertised in the
+              SETTINGS_MAX_CONCURRENT_STREAMS setting.
+            </t>
+          </section>
         </section>
       </section>
       <section anchor="ApplicationLayer" title="Application">
         <t>
           The application layer is where the semantics of an application layer are mapped to frames
-          and streams.  <xref target="HttpMapping"/> describes how HTTP/2.0 can carry HTTP requests
+          and streams.  <xref target="HTTPLayer"/> describes how HTTP/2.0 can carry HTTP requests
           and responses, the frames that are used.  <xref target="PushResources"/> describes a new
           HTTP interaction model that allows servers to push additional responses to clients.
         </t>
       </section>
     </section>
 
-    <section anchor="FramingLayer" title="HTTP/2.0 Framing Layer">
+    <section title="HTTP/2.0 Framing Layer">
       <section title="Connection">
         <t>
           The HTTP/2.0 connection is an Application Level protocol running on top
@@ -1131,7 +1263,7 @@ Upgrade: HTTP/2.0
           defined by this document are permitted to alter the connection state.
         </t>
         
-        <section anchor="DataFrames" title="DATA Frames">
+        <section anchor="DATA" title="DATA">
           
           <t>
             DATA frames (type=0x0) convey arbitrary, variable-length
