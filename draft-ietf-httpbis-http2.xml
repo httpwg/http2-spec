@@ -609,13 +609,16 @@ Upgrade: HTTP/2.0
     </section>
 
     <section anchor="StreamsLayer" title="Streams and Multiplexing">
-      <section title="Streams">
-        <!-- overview -->
         <t>
-          A "stream" is an independent, bi-directional sequence of frames
+          A "stream" is an independent, bi-directional sequence of HEADER and DATA frames
           exchanged between the client and server within an HTTP/2.0 connection.
           Streams have several important characteristics:
           <list style="symbols">
+            <t>
+              A single HTTP/2.0 connection can contain multiple concurrently
+              active streams, with either endpoint interleaving frames from
+              multiple streams.
+            </t>
             <t>
               Streams can be established and used unilaterally or shared by
               either the client or server.
@@ -624,23 +627,9 @@ Upgrade: HTTP/2.0
               Streams can be rejected or cancelled by either endpoint.
             </t>
             <t>
-              Multiple types of frames can be sent by either endpoint within
-              a single stream.
-            </t>
-            <t>
               The order in which frames are sent within a stream is
               significant. Recipients are required to process frames
               in the order they are received.
-            </t>
-            <t>
-              Streams optionally carry a set of name-value header pairs
-              that are expressed within the headers block of HEADERS
-              or PUSH_PROMISE frames.
-            </t>
-            <t>
-              A single HTTP/2.0 connection can contain multiple concurrently
-              active streams, with either endpoint interleaving frames from
-              multiple streams.
             </t>
           </list>
         </t>
@@ -696,31 +685,6 @@ Upgrade: HTTP/2.0
             been processed). Such termination might not take effect immediately
             as the peer might have sent additional frames on the stream prior
             to receiving the termination request.
-          </t>
-
-        </section>
-
-        <section anchor="StreamPriority" title="Stream priority">
-          <!-- some overview, some details (e.g., defaults) -->
-          <t>
-            The endpoint establishing a new stream can assign a priority for the stream.  Priority
-            is represented as an unsigned 31-bit integer.  0 represents the highest priority and
-            2<x:sup>31</x:sup>-1 represents the lowest priority.
-          </t>
-
-          <t>
-            The purpose of this value is to allow the initiating endpoint to request that frames for
-            the stream be processed with a specified priority relative to other concurrently active
-            streams. That is, if an endpoint receives interleaved frames for multiple streams, the
-            endpoint ought to make a best-effort attempt at processing frames for higher priority
-            streams before processing those for lower priority streams.
-          </t>
-
-          <t>
-            Explicitly setting the priority for a stream does not guarantee any particular
-            processing order for the stream relative to any other stream. Nor is there is any
-            mechanism provided by which the initiator of a stream can force or require a receiving
-            endpoint to process frames from one stream before processing frames from another.
           </t>
 
         </section>
@@ -790,9 +754,8 @@ Upgrade: HTTP/2.0
             </list>
           </t>
         </section>
-      </section>
+
       <section anchor="StreamStates" title="Stream States">
-        <!-- details -->
         <t>
           The state of a stream determines what resources are allocated to that stream, how
           streams are accounted and what frames can be sent.  The states (and state transitions)
@@ -945,7 +908,6 @@ Upgrade: HTTP/2.0
       </section>
 
       <section title="The Relationship of Frames to Streams">
-        <!-- overview -->
         <t>
           The frames that are exchanged in HTTP/2.0 are categorized into three categories:
           <list style="hanging">
@@ -985,6 +947,134 @@ Upgrade: HTTP/2.0
             </t>
           </list>
         </t>
+      </section>
+
+      <section anchor="FlowControl" title="Flow Control">
+        <!-- details -->
+        <t>
+          Using streams for multiplexing introduces contention over use of the TCP connection,
+          resulting in blocked streams.  A flow control scheme ensures that streams on the same
+          connection do not destructively interfere with each other.  Flow control is used for both
+          individual streams and for the connection as a whole.
+        </t>
+        <t>
+          HTTP/2.0 provides for flow control through use of the
+          <xref target="WINDOW_UPDATE">WINDOW_UPDATE</xref> frame type.
+        </t>
+
+        <section anchor="fc-principles" title="Flow Control Principles">
+          <t>
+            Experience with TCP congestion control has shown that algorithms can evolve over time to
+            become more sophisticated without requiring protocol changes.  TCP congestion control
+            and its evolution is clearly different from HTTP/2.0 flow control, though the evolution
+            of TCP congestion control algorithms shows that a similar approach could be feasible for
+            HTTP/2.0 flow control.
+          </t>
+          <t>
+            HTTP/2.0 stream flow control aims to allow for future improvements to flow control
+            algorithms without requiring protocol changes.  Flow control in HTTP/2.0 has the
+            following characteristics:
+            <list style="numbers">
+              <t>
+                Flow control is hop-by-hop, not end-to-end.
+              </t>
+              <t>
+                Flow control is based on window update frames.  Receivers advertise how many
+                octets they are prepared to receive on a stream.  This is a credit-based scheme.
+              </t>
+              <t>
+                Flow control is directional with overall control provided by the receiver.  A
+                receiver MAY choose to set any window size that it desires for each stream and for
+                the entire connection.  A sender MUST respect flow control limits imposed by a
+                receiver.  Clients, servers and intermediaries all independently advertise their
+                flow control preferences as a receiver and abide by the flow control limits set by
+                their peer when sending.
+              </t>
+              <t>
+                The initial value for the flow control window is 65536 bytes for both new streams
+                and the overall connection.
+              </t>
+              <t>
+                The frame type determines whether flow control applies to a frame.  Of the frames
+                specified in this document, only data frames are subject to flow control; all other
+                frame types do not consume space in the advertised flow control window.  This
+                ensures that important control frames are not blocked by flow control.
+              </t>
+              <t>
+                Flow control can be disabled by a receiver.  A receiver can choose to either disable
+                flow control for a stream or connection by sending a window update frame with a specific
+                flag. See <xref target="EndFlowControl">Ending Flow Control</xref> for more details.
+              </t>
+              <t>
+                HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">
+                  window
+                  update frame
+                </xref>.  This does not stipulate how a receiver decides when to send
+                this frame or the value that it sends.  Nor does it specify how a sender chooses
+                to send packets.  Implementations are able to select any algorithm that suits their
+                needs.
+              </t>
+            </list>
+          </t>
+          <t>
+            Implementations are also responsible for managing how requests and responses are sent
+            based on priority; choosing how to avoid head of line blocking for requests; and
+            managing the creation of new streams.  Algorithm choices for these could interact with
+            any flow control algorithm.
+          </t>
+
+        </section>
+        
+        <section anchor="DisableFlowControl" title="Appropriate Use of Flow Control">
+          <t>
+            Flow control is defined to protect endpoints (client, server or intermediary) that are
+            operating under resource constraints.  For example, a proxy needs to share memory between many
+            connections, and also might have a slow upstream connection and a fast downstream one.
+            Flow control addresses cases where the receiver is unable process data on
+            one stream, yet wants to continue to process other streams in the same connection.
+          </t>
+          <t>
+            Deployments that do not require this capability SHOULD disable flow control for data
+            that is being received.  Note that flow control cannot be disabled for sending.
+            Sending data is always subject to the flow control window advertised by the receiver.
+          </t>
+          <t>
+            Deployments with constrained resources (for example, memory) MAY employ flow control to
+            limit the amount of memory a peer can consume.  Note, however, that this can lead to
+            suboptimal use of available network resources if flow control is enabled without
+            knowledge of the bandwidth-delay product (see <xref target="RFC1323"/>).
+          </t>
+          <t>
+            Even with full awareness of the current bandwidth-delay product, implementation of flow control
+            is difficult. However, it can ensure that constrained resources are protected without any
+            reduction in connection utilization.
+          </t>
+        </section>
+      </section>
+      
+      <section anchor="StreamPriority" title="Stream priority">
+        <!-- some overview, some details (e.g., defaults) -->
+        <t>
+          The endpoint establishing a new stream can assign a priority for the stream.  Priority
+          is represented as an unsigned 31-bit integer.  0 represents the highest priority and
+          2<x:sup>31</x:sup>-1 represents the lowest priority.
+        </t>
+
+        <t>
+          The purpose of this value is to allow the initiating endpoint to request that frames for
+          the stream be processed with a specified priority relative to other concurrently active
+          streams. That is, if an endpoint receives interleaved frames for multiple streams, the
+          endpoint ought to make a best-effort attempt at processing frames for higher priority
+          streams before processing those for lower priority streams.
+        </t>
+
+        <t>
+          Explicitly setting the priority for a stream does not guarantee any particular
+          processing order for the stream relative to any other stream. Nor is there is any
+          mechanism provided by which the initiator of a stream can force or require a receiving
+          endpoint to process frames from one stream before processing frames from another.
+        </t>
+
       </section>
 
       <section title="Error Handling">
@@ -1104,121 +1194,6 @@ Upgrade: HTTP/2.0
         </section>
       </section>
 
-      <section anchor="FlowControl" title="Flow Control">
-        <!-- details -->
-        <t>
-          Using streams for multiplexing introduces contention over use of the TCP connection,
-          resulting in blocked streams.  A flow control scheme ensures that streams on the same
-          connection do not destructively interfere with each other.  Flow control is used for both
-          individual streams and for the connection as a whole.
-        </t>
-        <t>
-          HTTP/2.0 provides for flow control through use of the
-          <xref target="WINDOW_UPDATE">WINDOW_UPDATE</xref> frame type.
-        </t>
-
-        <section anchor="fc-principles" title="Flow Control Principles">
-          <t>
-            Experience with TCP congestion control has shown that algorithms can evolve over time to
-            become more sophisticated without requiring protocol changes.  TCP congestion control
-            and its evolution is clearly different from HTTP/2.0 flow control, though the evolution
-            of TCP congestion control algorithms shows that a similar approach could be feasible for
-            HTTP/2.0 flow control.
-          </t>
-          <t>
-            HTTP/2.0 stream flow control aims to allow for future improvements to flow control
-            algorithms without requiring protocol changes.  Flow control in HTTP/2.0 has the
-            following characteristics:
-            <list style="numbers">
-              <t>
-                Flow control is hop-by-hop, not end-to-end.
-              </t>
-              <t>
-                Flow control is based on window update frames.  Receivers advertise how many
-                octets they are prepared to receive on a stream.  This is a credit-based scheme.
-              </t>
-              <t>
-                Flow control is directional with overall control provided by the receiver.  A
-                receiver MAY choose to set any window size that it desires for each stream and for
-                the entire connection.  A sender MUST respect flow control limits imposed by a
-                receiver.  Clients, servers and intermediaries all independently advertise their
-                flow control preferences as a receiver and abide by the flow control limits set by
-                their peer when sending.
-              </t>
-              <t>
-                The initial value for the flow control window is 65536 bytes for both new streams
-                and the overall connection.
-              </t>
-              <t>
-                The frame type determines whether flow control applies to a frame.  Of the frames
-                specified in this document, only data frames are subject to flow control; all other
-                frame types do not consume space in the advertised flow control window.  This
-                ensures that important control frames are not blocked by flow control.
-              </t>
-              <t>
-                Flow control can be disabled by a receiver.  A receiver can choose to either disable
-                flow control for a stream or connection by sending a window update frame with a specific
-                flag. See <xref target="EndFlowControl">Ending Flow Control</xref> for more details.
-              </t>
-              <t>
-                HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">
-                  window
-                  update frame
-                </xref>.  This does not stipulate how a receiver decides when to send
-                this frame or the value that it sends.  Nor does it specify how a sender chooses
-                to send packets.  Implementations are able to select any algorithm that suits their
-                needs.
-              </t>
-            </list>
-          </t>
-          <t>
-            Implementations are also responsible for managing how requests and responses are sent
-            based on priority; choosing how to avoid head of line blocking for requests; and
-            managing the creation of new streams.  Algorithm choices for these could interact with
-            any flow control algorithm.
-          </t>
-
-        </section>
-        <section anchor="DisableFlowControl" title="Appropriate Use of Flow Control">
-          <t>
-            Flow control is defined to protect endpoints (client, server or intermediary) that are
-            operating under resource constraints.  For example, a proxy needs to share memory between many
-            connections, and also might have a slow upstream connection and a fast downstream one.
-            Flow control addresses cases where the receiver is unable process data on
-            one stream, yet wants to continue to process other streams in the same connection.
-          </t>
-          <t>
-            Deployments that do not require this capability SHOULD disable flow control for data
-            that is being received.  Note that flow control cannot be disabled for sending.
-            Sending data is always subject to the flow control window advertised by the receiver.
-          </t>
-          <t>
-            Deployments with constrained resources (for example, memory) MAY employ flow control to
-            limit the amount of memory a peer can consume.  Note, however, that this can lead to
-            suboptimal use of available network resources if flow control is enabled without
-            knowledge of the bandwidth-delay product (see <xref target="RFC1323"/>).
-          </t>
-          <t>
-            Even with full awareness of the current bandwidth-delay product, implementation of flow control
-            is difficult. However, it can ensure that constrained resources are protected without any
-            reduction in connection utilization.
-          </t>
-        </section>
-      </section>
-
-      <section title="Connection-Level Flow Control">
-        <t>
-          <xref target="FlowControl">Connection-level flow control</xref> is performed at the
-          framing layer.
-        </t>
-        <t>
-          Endpoints do not send <xref target="DATA">DATA frames</xref> that would exceed the
-          advertised connection flow control window of their peer.  Endpoints that have not <xref
-            target="DisableFlowControl">disabled connection-level flow control</xref> advertise
-          increases in the connection-level flow window by sending <xref
-            target="WINDOW_UPDATE">WINDOW_UPDATE</xref> frames.
-        </t>
-      </section>
       <!-- need new section on teardown, crib from error handling. -->
 
     </section>
