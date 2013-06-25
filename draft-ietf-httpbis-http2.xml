@@ -473,7 +473,8 @@ Upgrade: HTTP/2.0
           In order to maintain separate streams, prioritization and flow control are important to
           prevent head of line blocking and other forms of resource exhaustion.  The streams layer
           includes connection-wide configuration to enable endpoints to control how streams are
-          created and what resources are allocated to each stream.
+          created and what resources are allocated to each stream.  The streams layer is where error
+          handling occurs.
         </t>
 
         <section title="The Relationship of Frames to Streams"> <!-- overview -->
@@ -482,10 +483,8 @@ Upgrade: HTTP/2.0
             <list style="hanging">
 
               <t hangText="Frames That Are About The Connection:">
-                Frames that are about the connection include frames that alter the state of all
-                streams, or the connection as a whole.  These frames include SETTINGS, GOAWAY, and
-                PING frames, plus WINDOW_UPDATE frames that affect the connection-level flow control
-                window.
+                Frames that are about the connection include SETTINGS, GOAWAY, and PING frames, plus
+                WINDOW_UPDATE frames that affect the connection-level flow control window.
                 <vspace blankLines="1"/>
                 All frames that are about the connection contain a stream identifier of 0x0.  These
                 frames are all consumed by the streams layer and do not carry application layer
@@ -494,9 +493,8 @@ Upgrade: HTTP/2.0
               </t>
 
               <t hangText="Frames That Are On Streams:">
-                Frames that are on streams include HEADERS and DATA.  PUSH_PROMISE is considered to
-                be on the stream that it reserves.  Frames that are on streams contain a non-zero
-                stream identifier.
+                Frames that are on streams include HEADERS and DATA.  Frames that are on streams
+                contain a non-zero stream identifier.
                 <vspace blankLines="1"/>
                 Frames that are on streams carry information that is relevant to an application
                 protocol.  The order of frames that are on streams is significant.  These frames
@@ -509,9 +507,8 @@ Upgrade: HTTP/2.0
 
               <t hangText="Frames That Are About Streams:">
                 Frames that are about streams include WINDOW_UPDATE (with a non-zero stream
-                identifier), RST_STREAM, and PRIORITY.  A PUSH_PROMISE is about the stream with
-                which it is originally associated (i.e., the stream identified in its identifier
-                field).  Frames that are about streams contain a non-zero stream identifier.
+                identifier), RST_STREAM, PRIORITY, and PUSH_PROMISE.  Frames that are about streams
+                contain a non-zero stream identifier.
                 <vspace blankLines="1"/>
                 Frames that are about streams affect the way that application semantics are carried,
                 but cannot alter application semantics.  Frames that are about streams can be sent
@@ -634,7 +631,7 @@ Upgrade: HTTP/2.0
               </t>
 
               <t hangText="closed">
-                This is the terminal state.  Streams that are "closed" cannot be used for transmitting
+                This is the terminal state.
                 <vspace blankLines="1"/>
                 An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives a
                 frame on a stream for which it has received a frame containing a END_STREAM flag,
@@ -647,6 +644,10 @@ Upgrade: HTTP/2.0
                 frames that it receives on closed streams if it sends RST_STREAM.  An endpoint MAY
                 choose to limit the period over which it ignores frames and treat frames that arrive
                 after this time as being in error.
+                <vspace blankLines="1"/>
+                An endpoint might receive a PUSH_PROMISE frame after it sends RST_STREAM.
+                PUSH_PROMISE causes a stream to become "reserved".  If promised streams are not
+                desired, a RST_STREAM can be used to cancel any those streams.
               </t>
             </list>
           </t>
@@ -2152,7 +2153,7 @@ Upgrade: HTTP/2.0
           </t>
         </section>
 
-        <section anchor="Retrying" title="Automatically Retrying Requests in HTTP/2.0">
+        <section anchor="Reliability" title="Request Reliability Mechanisms in HTTP/2.0">
           <t>
             In HTTP/1.1, an HTTP client is unable to retry a non-idempotent request when an error
             occurs, because there is no means to determine the nature of the error.  It is possible
@@ -2178,6 +2179,13 @@ Upgrade: HTTP/2.0
           <t>
             In both cases, clients MAY automatically retry all requests, including those with
             non-idempotent methods.
+          </t>
+          <t>
+            A server MUST NOT indicate that a stream has not been processed unless it can guarantee
+            that fact.  If frames that are on a stream are passed to the application layer for any
+            stream, then REFUSED_STREAM MUST NOT be used for that stream, and a GOAWAY frame MUST
+            include a stream identifier that is greater than or equal to the given stream
+            identifier.
           </t>
           <t>
             In addition to these mechanisms, the PING frame provides a way for a client to easily
