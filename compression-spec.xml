@@ -546,7 +546,7 @@
                         value) pair stored in the Header Table, the index of
                         the pair increased by one (index + 1) is represented
                         as an integer with a 5-bit prefix.  Note that if the
-                        index is strictly below 30, one byte is used.
+                        index is strictly below 31, one byte is used.
                     </t>
                     <t>
                         If the header name does not match a header name entry,
@@ -579,7 +579,7 @@
                         value) pair stored in the Header Table, the index of
                         the pair increased by one (index + 1) is represented
                         as an integer with a 5-bit prefix.  Note that if the
-                        index is strictly below 30, one byte is used.
+                        index is strictly below 31, one byte is used.
                     </t>
                     <t>
                         If the header name does not match a header name entry,
@@ -817,7 +817,7 @@
                 <t>
                     The first header set to represent is the following:
                     <figure><artwork type="message/http">
-path: /my-example/index.html
+:path: /my-example/index.html
 user-agent: my-user-agent
 x-my-header: first
 </artwork></figure>
@@ -853,12 +853,21 @@ Header table
 +---------+----------------+---------------------------+
 |   37    | warning        |                           |
 +---------+----------------+---------------------------+
-|   38    | path           | /my-example/index.html    | added header
+|   38    | :path          | /my-example/index.html    | added header
 +---------+----------------+---------------------------+
 |   39    | user-agent     | my-user-agent             | added header
 +---------+----------------+---------------------------+
 |   40    | x-my-header    | first                     | added header
 +---------+----------------+---------------------------+
+</artwork></figure>
+                    As all the headers in the first header set are indexed in
+                    the header table, all are kept in the reference 
+                    set of headers, which is:
+                    <figure><artwork type="inline">
+Reference Set:
+:path, /my-example/index.html
+user-agent, my-user-agent
+x-my-header, first
 </artwork></figure>
                 </t>
             </section>
@@ -866,21 +875,26 @@ Header table
                 <t>
                     The second header set to represent is the following:
                     <figure><artwork type="message/http">
-path: /my-example/resources/script.js
+:path: /my-example/resources/script.js
 user-agent: my-user-agent
 x-my-header: second
 </artwork></figure>
-                    The url header is represented as a literal header with
-                    substitution indexing.  The user-agent header will be
-                    represented as an indexed header.  The x-my-header will be
+                    Comparing this second header set to the reference set, the
+                    first and third headers are from the reference set are not
+                    present in this second header set and must be removed. In
+                    addition, in this new set, the first and third headers
+                    have to be encoded. 
+                    The path header is represented as a literal header with
+                    substitution indexing. The x-my-header will be
                     represented as a literal header with incremental indexing.
                     <figure><artwork type="message/http">
-0x04       (delta header with substitution indexing, name index = 3)
+0xa6       (indexed header, index = 38: removal from reference set)
+0xa8       (indexed header, index = 40: removal from reference set)
+0x04       (literal header with substitution indexing, name index = 3)
 0x26       (replaced entry index = 38)
 0x1f       (header value string length = 31)
 /my-example/resources/script.js
-0x7f 0x08  (indexed header, index = 39)
-0x5f 0x09  (literal header with indexing, name index = 40)
+0x5f 0x0a  (literal header with incremental indexing, name index = 40)
 0x06       (header value string length = 6)
 second
 </artwork></figure>
@@ -898,7 +912,7 @@ Header table
 +---------+----------------+---------------------------+
 |   37    | warning        |                           |
 +---------+----------------+---------------------------+
-|   38    | path           | /my-example/resources/    | replaced
+|   38    | :path          | /my-example/resources/    | replaced
 |         |                |     script.js             | header
 +---------+----------------+---------------------------+
 |   39    | user-agent     | my-user-agent             |
@@ -907,6 +921,15 @@ Header table
 +---------+----------------+---------------------------+
 |   41    | x-my-header    | second                    | added header
 +---------+----------------+---------------------------+
+</artwork></figure>
+                    All the headers in this second header set are indexed in
+                    the header table, therefore, all are kept in the reference 
+                    set of headers, which becomes:
+                    <figure><artwork type="inline">
+Reference Set:
+:path, /my-example/resources/script.js
+user-agent, my-user-agent
+x-my-header, second
 </artwork></figure>
                 </t>
             </section>
