@@ -17,7 +17,7 @@
      category="std"
      docName="draft-ietf-httpbis-http2-latest" 
      x:maturity-level="proposed"
-     xmlns:x='http://purl.org/net/xml2rfc/ext'>
+     xmlns:x="http://purl.org/net/xml2rfc/ext">
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
   <front>
     <title abbrev="HTTP/2.0">Hypertext Transfer Protocol version 2.0</title>
@@ -325,37 +325,11 @@
           A client that makes a request to an "http:" URI without prior knowledge about support for
           HTTP/2.0 uses the HTTP Upgrade mechanism (<xref target="HTTP-p1" x:fmt="of"
           x:rel="#header.upgrade"/>).  The client makes an HTTP/1.1 request that includes an Upgrade
-          header field identifying HTTP/2.0.
-        </t>
-        <t> <!-- details -->
-          Additional to the Upgrade request, anticipating that the server will likely respond with some HTTP/2.0
-          frames, the client MUST send the payload of its SETTINGS frame within the HTTP/1.1 header. 
-          In particular, if the server does not know the client's initial preferences (as expressed in
-          a SETTINGS frame), it could send too much data in its response, or reserve multiple streams via 
-          PUSH_PROMISE despite the client's preference to the contrary. To avoid this situation, these SETTINGS
-          MUST be communicated by the client to the server in advance of the first HTTP/2.0 message from the server:
-          SETTINGS_MAX_CONCURRENT_STREAMS, SETTINGS_INITIAL_WINDOW_SIZE (<xref target="SettingFormat">Setting Format</xref>).
-        </t>
-        <t>
-          NOTE: There may be additional SETTINGS added later on, e.g., due to header compression (TBD).
-        </t>
-        <t>The SETTINGS are conveyed in the following hop-by-hop HTTP/1.1 header:
-        </t>
-        <t>
-             HTTP2-Settings   = "HTTP2-Settings" ":" token68
-        </t>
-        <t>
-          token68 is defined in <xref target="HTTP-p7">HTTP/1.1</xref>. The value of
-          HTTP2-Settings is set to the base64url encoding of the payload 
-          of the SETTINGS frame as defined in <xref target="SettingFormat">Setting Format</xref>.
-          Other than the fact that these SETTINGS are communicated by the client via an HTTP/1.1 header,
-          they are otherwise indistinguishable from SETTINGS and their handling as detailed in 
-          <xref target="SettingFormat">Setting Format</xref>. 
-        </t>
-        <t>
-          For example:
+          header field identifying HTTP/2.0.  The HTTP/1.1 request MUST include an <xref 
+            target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
         </t>
         <figure>
+          <preamble>For example:</preamble>
           <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
 GET /default.htm HTTP/1.1
 Host: server.example.com
@@ -390,7 +364,7 @@ Content-type: text/html
 </artwork>
         </figure>
         <t>
-          A server that supports HTTP/2.0 can accept the upgrade with a 101 (Switching Protocols)
+          A server that supports HTTP/2.0 accepts the upgrade with a 101 (Switching Protocols)
           status code.  After the empty line that terminates the 101 response, the server can begin
           sending HTTP/2.0 frames.  These frames MUST include a response to the request that
           initiated the Upgrade.
@@ -416,6 +390,41 @@ Upgrade: HTTP/2.0
           client toward the server, since the request is completed as an HTTP/1.1 request.  After
           commencing the HTTP/2.0 connection, stream 1 is used for the response.
         </t>
+
+        <section anchor="Http2SettingsHeader" title="HTTP2-Settings HTTP Header">
+          <t>
+            A client that upgrades from HTTP/1.1 to HTTP/2.0 MUST include an
+            <spanx style="verb">HTTP2-Settings</spanx> header field.
+            The <spanx style="verb">HTTP2-Settings</spanx> header field is a hop-by-hop header 
+            field that includes settings that govern the HTTP/2.0 connection,
+            provided in anticipation of the server accepting the request to upgrade.
+            A server MUST reject an attempt to upgrade if this header is not present.
+          </t>
+          <figure>
+            <artwork type="abnf" x:indent-with="  "><![CDATA[
+HTTP2-Settings    = token68
+]]></artwork>
+          </figure>
+
+          <t>
+            The content of the <spanx style="verb">HTTP2-Settings</spanx> header field is the
+            payload of a <xref target="SETTINGS">SETTINGS frame</xref>, encoded as a base64url string.
+            The <xref target="RFC5234">ABNF</xref> production for <spanx style="verb">token68</spanx> is 
+            defined in <xref target="HTTP-p7" x:fmt="of" x:rel="#challenge.and.response"/>.
+          </t>
+          <t>
+            The client MUST include values for the following <xref target="SettingFormat">settings</xref>:
+            <list style="symbols">
+              <t>SETTINGS_MAX_CONCURRENT_STREAMS</t>
+              <t>SETTINGS_INITIAL_WINDOW_SIZE</t>
+            </list>
+          </t>
+          <t>
+            A server decodes and interprets these values as it would any other SETTINGS frame.
+            Providing these values in the Upgrade request ensures that the protocol does not require default values for
+            the above settings, and gives a client an opportunity to provide other settings prior to receiving any frames from the server.
+          </t>
+        </section>
       </section>
 
       <section anchor="discover-https" title="Starting HTTP/2.0 for &quot;https:&quot; URIs">
@@ -434,8 +443,9 @@ Upgrade: HTTP/2.0
       <section anchor="known-http" title="Starting HTTP/2.0 with Prior Knowledge">
         <t>
           A client can learn that a particular server supports HTTP/2.0 by other means.  A client
-          MAY immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0.  This
-          only affects the resolution of "http:" URIs, servers supporting HTTP/2.0 are required to
+          MAY immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0, after the <xref
+          target="ConnectionHeader">connection header</xref>.  This
+          only affects the resolution of "http:" URIs; servers supporting HTTP/2.0 are required to
           support <xref target="TLSALPN">protocol negotiation in TLS</xref> for "https:" URIs.
         </t>
         <t>
@@ -449,18 +459,18 @@ Upgrade: HTTP/2.0
       <section anchor="ConnectionHeader" title="Connection Header">
         <t>
           Upon establishment of a TCP connection and determination
-          that HTTP/2.0 will be used by both peers to communicate, each
+          that HTTP/2.0 will be used by both peers, each
           endpoint MUST send a connection header as a final confirmation
-          and to establish the default parameters for the HTTP/2.0 connection.
+          and to establish the initial settings for the HTTP/2.0 connection.
         </t>
 
         <t>
-          The client connection header is a sequence of 24 octets (in hex notation)
+          The client connection header is a sequence of 24 octets, which in hex notation are:
         </t>
         <figure>
-          <artwork type="inline">
-            505249202a20485454502f322e300d0a0d0a534d0d0a0d0a
-          </artwork>
+          <artwork type="inline" x:indent-with="  "><![CDATA[
+505249202a20485454502f322e300d0a0d0a534d0d0a0d0a
+]]></artwork>
         </figure>
         <t>
           (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>) followed by a
@@ -552,7 +562,7 @@ Upgrade: HTTP/2.0
               when receiving.
             </t>
             <t hangText="Stream Identifier:">
-              A 31-bit stream identifier (see <xref target="StreamCreation"/>).  A value 0 is
+              A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  A value 0 is
               reserved for frames that are associated with the connection as a
               whole as opposed to an individual stream.
             </t>
@@ -677,7 +687,7 @@ Upgrade: HTTP/2.0
         <t>
           Both endpoints have a subjective view of the state of a stream that could be different
           when frames are in transit.  Peers do not coordinate the creation of streams, they are
-          created unilaterally by either peer as described in <xref target="StreamCreation"/>.
+          created unilaterally by either peer.
           The negative consequences of a mismatch in states are limited to the "closed" state
           after sending RST_STREAM, where frames might be received for some time after closing.
         </t>
@@ -1070,7 +1080,6 @@ Upgrade: HTTP/2.0
         </t>
 
         <section anchor="DATA" title="DATA">
-
           <t>
             DATA frames (type=0x0) convey arbitrary, variable-length
             sequences of octets associated with a stream. One or more
@@ -1084,7 +1093,7 @@ Upgrade: HTTP/2.0
               <t hangText="END_STREAM (0x1):">
                 Bit 1 being set indicates that this frame is the last that the endpoint
                 will send for the identified stream.  Setting this flag causes the stream
-                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+                to enter a <xref target="StreamStates">"half closed" state</xref>.
               </t>
               <t hangText="RESERVED (0x2):">
                 Bit 2 is reserved for future use.
@@ -1103,20 +1112,19 @@ Upgrade: HTTP/2.0
 
         <section anchor="HEADERS" title="HEADERS">
           <t>
-            The HEADERS frame (type=0x1) allows the sender to <xref target="StreamCreation">
-              create a stream
-            </xref>. Any number of HEADERS frames may be sent on an existing
-            stream at any time.
+            The HEADERS frame (type=0x1) carries name-value pairs.  
+            The HEADERS is used to <xref target="StreamStates">open a stream</xref>.
+            Any number of HEADERS frames can be sent on an existing stream at any time.
           </t>
           <figure title="HEADERS Frame Payload">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|               (Optional) Priority (31)                      |
-              +-+-------------------------------------------------------------+
-              |                    Header Block (*)                         ...
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                        Priority (31)                        |
+ +-+-------------------------------------------------------------+
+ |                      Header Block (*)                       ...
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
 
@@ -1126,7 +1134,7 @@ Upgrade: HTTP/2.0
               <t hangText="END_STREAM (0x1):">
                 Bit 1 being set indicates that this frame is the last that the endpoint
                 will send for the identified stream.  Setting this flag causes the stream
-                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+                to enter a <xref target="StreamStates">"half closed" state</xref>.
               </t>
               <t hangText="RESERVED (0x2):">
                 Bit 2 is reserved for future use.
@@ -1147,7 +1155,9 @@ Upgrade: HTTP/2.0
               </t>
               <t hangText="PRIORITY (0x8):">
                 Bit 4 being set indicates that the first four octets of this frame contain a
-                single reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.
+                single reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.  
+                If this bit is not set, the four bytes do not appear and the frame only contains a
+                header block.
               </t>
             </list>
           </t>
@@ -1177,11 +1187,11 @@ Upgrade: HTTP/2.0
           </t>
           <figure title="PRIORITY Frame Payload">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                   Priority (31)                             |
-              +-+-------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                        Priority (31)                        |
+ +-+-------------------------------------------------------------+
             </artwork>
           </figure>
           <t>
@@ -1212,11 +1222,11 @@ Upgrade: HTTP/2.0
           </t>
           <figure title="RST_STREAM Frame Payload">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |                         Error Code (32)                       |
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                        Error Code (32)                        |
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
 
@@ -1314,13 +1324,13 @@ Upgrade: HTTP/2.0
 
             <figure title="Setting Format">
               <artwork type="inline">
-                0                   1                   2                   3
-                0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                |  Reserved(8)  |             Setting Identifier (24)           |
-                +---------------+-----------------------------------------------+
-                |                        Value (32)                             |
-                +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |  Reserved (8) |            Setting Identifier (24)            |
+ +---------------+-----------------------------------------------+
+ |                        Value (32)                             |
+ +---------------------------------------------------------------+
               </artwork>
             </figure>
           </section>
@@ -1380,13 +1390,13 @@ Upgrade: HTTP/2.0
 
           <figure title="PUSH_PROMISE Payload Format">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                Promised-Stream-ID (31)                      |
-              +-+-------------------------------------------------------------+
-              |                    Header Block (*)                         ...
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                Promised-Stream-ID (31)                      |
+ +-+-------------------------------------------------------------+
+ |                    Header Block (*)                         ...
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
 
@@ -1395,7 +1405,7 @@ Upgrade: HTTP/2.0
             unsigned 31-bit integer identifies the stream the endpoint
             intends to start sending frames for.  The promised stream
             identifier MUST be a valid choice for the next stream sent by the sender (see <xref
-            target="StreamCreation">new stream identifier</xref>).
+            target="StreamIdentifiers">new stream identifier</xref>).
           </t>
 
           <t>
@@ -1462,6 +1472,17 @@ Upgrade: HTTP/2.0
             sender, as well as determining whether an idle connection is still functional.
             PING frames can be sent from any endpoint.
           </t>
+          <figure title="PING Payload Format">
+            <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                                                               |
+ |                      Opaque Data (64)                         |
+ |                                                               |
+ +---------------------------------------------------------------+
+            </artwork>
+          </figure>
 
           <t>
             In addition to the frame header, PING frames MUST contain 8 octets of data in the
@@ -1535,13 +1556,13 @@ Upgrade: HTTP/2.0
 
           <figure title="GOAWAY Payload Format">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                  Last-Stream-ID (31)                        |
-              +-+-------------------------------------------------------------+
-              |                      Error Code (32)                          |
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                  Last-Stream-ID (31)                        |
+ +-+-------------------------------------------------------------+
+ |                      Error Code (32)                          |
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
           <t>
@@ -1612,11 +1633,11 @@ Upgrade: HTTP/2.0
           </t>
           <figure title="WINDOW_UPDATE Payload Format">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                Delta-Window-Size (31)                       |
-              +-+-------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|              Window Size Increment (31)                     |
+ +-+-------------------------------------------------------------+
             </artwork>
           </figure>
           <t>
@@ -1811,7 +1832,7 @@ Upgrade: HTTP/2.0
           </t>
           <t hangText="REFUSED_STREAM (7):">
             The endpoint refuses the stream prior to performing any application processing, see
-            <xref target="Retrying"/> for details.
+            <xref target="Reliability"/> for details.
           </t>
           <t hangText="CANCEL (8):">
             Used by the endpoint to indicate that the stream is no longer needed.
@@ -2580,6 +2601,17 @@ Upgrade: HTTP/2.0
         <seriesInfo name="RFC" value="5226" />
       </reference>
 
+      <reference anchor="RFC5234">
+        <front>
+          <title>Augmented BNF for Syntax Specifications: ABNF</title>
+          <author initials="D." surname="Crocker" fullname="D. Crocker"/>
+          <author initials="P." surname="Overell" fullname="P. Overell"/>
+          <date year="2008" month="January" />
+        </front>
+        <seriesInfo name="STD" value="68" />
+        <seriesInfo name="RFC" value="5234" />
+      </reference>
+
       <reference anchor="RFC5246">
         <front>
           <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
@@ -2589,13 +2621,14 @@ Upgrade: HTTP/2.0
         </front>
         <seriesInfo name="RFC" value="5246" />
       </reference>
+      
       <reference anchor="RFC6454">
         <front>
           <title>The Web Origin Concept</title>
-          <author initials='A.' surname='Barth' fullname='A. Barth'/>
-          <date year='2011' month='December' />
+          <author initials="A." surname="Barth" fullname="A. Barth"/>
+          <date year="2011" month="December" />
         </front>
-        <seriesInfo name='RFC' value='6454' />
+        <seriesInfo name="RFC" value="6454" />
       </reference>
 
       <reference anchor="TLSALPN">
@@ -2610,26 +2643,26 @@ Upgrade: HTTP/2.0
         <seriesInfo name="Internet-Draft" value="draft-ietf-tls-applayerprotoneg-01" />
       </reference>
 
-      <reference anchor='HTTP-p1'>
+      <reference anchor="HTTP-p1">
         <front>
           <title>
           Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
-          <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
-          <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
-          <date month='February' year='2013' />
+          <author initials="R." surname="Fielding" fullname="Roy Fielding"></author>
+          <author initials="J." surname="Reschke" fullname="Julian Reschke"></author>
+          <date month="February" year="2013" />
         </front>
-        <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p1-messaging-22' />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-22" />
         <x:source href="refs/draft-ietf-httpbis-p1-messaging-22.xml" basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/22/p1-messaging"/>
       </reference>
-      <reference anchor='HTTP-p2'>
+      <reference anchor="HTTP-p2">
         <front>
           <title>
           Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</title>
-          <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
-          <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
-          <date month='February' year='2013' />
+          <author initials="R." surname="Fielding" fullname="Roy Fielding"></author>
+          <author initials="J." surname="Reschke" fullname="Julian Reschke"></author>
+          <date month="February" year="2013" />
         </front>
-        <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p2-semantics-22' />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-22" />
         <x:source href="refs/draft-ietf-httpbis-p2-semantics-22.xml" basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/22/p2-semantics"/>
       </reference>
       <reference anchor="HTTP-p4">
@@ -2643,7 +2676,7 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p4-conditional-22" />
       </reference>
@@ -2662,7 +2695,7 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p5-range-22"/>
       </reference>
@@ -2681,7 +2714,7 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-22"/>
       </reference>
@@ -2696,9 +2729,10 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p7-auth-22"/>
+        <x:source href="refs/draft-ietf-httpbis-p7-auth-22.xml" basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/22/p7-auth"/>
       </reference>
     </references>
 
@@ -2708,12 +2742,12 @@ Upgrade: HTTP/2.0
           <title>
             TCP Extensions for High Performance
           </title>
-          <author initials='V.' surname='Jacobson' fullname='Van Jacobson'></author>
-          <author initials='B.' surname='Braden' fullname='Bob Braden'></author>
-          <author initials='D.' surname='Borman' fullname='Dave Borman'></author>
-          <date year='1992' month='May' />
+          <author initials="V." surname="Jacobson" fullname="Van Jacobson"></author>
+          <author initials="B." surname="Braden" fullname="Bob Braden"></author>
+          <author initials="D." surname="Borman" fullname="Dave Borman"></author>
+          <date year="1992" month="May" />
         </front>
-        <seriesInfo name='RFC' value='1323' />
+        <seriesInfo name="RFC" value="1323" />
       </reference>
       <reference anchor="TALKING" target="http://w2spconf.com/2011/papers/websocket.pdf">
         <front>
@@ -2729,25 +2763,25 @@ Upgrade: HTTP/2.0
         </front>
       </reference>
 
-      <reference anchor='BCP90'>
+      <reference anchor="BCP90">
         <front>
           <title>Registration Procedures for Message Header Fields</title>
-          <author initials='G.' surname='Klyne' fullname='G. Klyne'>
+          <author initials="G." surname="Klyne" fullname="G. Klyne">
             <organization>Nine by Nine</organization>
             <address><email>GK-IETF@ninebynine.org</email></address>
           </author>
-          <author initials='M.' surname='Nottingham' fullname='M. Nottingham'>
+          <author initials="M." surname="Nottingham" fullname="M. Nottingham">
             <organization>BEA Systems</organization>
             <address><email>mnot@pobox.com</email></address>
           </author>
-          <author initials='J.' surname='Mogul' fullname='J. Mogul'>
+          <author initials="J." surname="Mogul" fullname="J. Mogul">
             <organization>HP Labs</organization>
             <address><email>JeffMogul@acm.org</email></address>
           </author>
-          <date year='2004' month='September' />
+          <date year="2004" month="September" />
         </front>
-        <seriesInfo name='BCP' value='90' />
-        <seriesInfo name='RFC' value='3864' />
+        <seriesInfo name="BCP" value="90" />
+        <seriesInfo name="RFC" value="3864" />
       </reference>
     </references>
 
