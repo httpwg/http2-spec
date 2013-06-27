@@ -17,7 +17,7 @@
      category="std"
      docName="draft-ietf-httpbis-http2-latest" 
      x:maturity-level="proposed"
-     xmlns:x='http://purl.org/net/xml2rfc/ext'>
+     xmlns:x="http://purl.org/net/xml2rfc/ext">
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
   <front>
     <title abbrev="HTTP/2.0">Hypertext Transfer Protocol version 2.0</title>
@@ -83,6 +83,10 @@
       <t>
         This document is an alternative to, but does not obsolete the HTTP/1.1 message format
         or protocol. HTTP's existing semantics remain unchanged.
+      </t>
+      <t>
+        This version of the draft has been marked for implementation.  Interoperability
+        testing will occur in the HTTP/2.0 interim in Hamburg, DE, starting 2013-08-05.
       </t>
     </abstract>
 
@@ -172,11 +176,6 @@
         <t>
           The following terms are used:
           <list style="hanging">
-            <t hangText="base64url encoding:">
-              The URL- and filename-safe Base64 encoding
-              described in <xref target="RFC4648" x:fmt="of" x:sec="5"/>, with the (non URL-
-              safe) '=' padding characters omitted, as permitted by <xref target="RFC4648" x:fmt="of" x:sec="3.2"/>.
-            </t>
             <t hangText="client:">
               The endpoint initiating the HTTP connection.
             </t>
@@ -253,7 +252,6 @@
            <xref target="StreamsLayer">streams</xref>.  In order to maintain independent streams, flow control and
            prioritization are necessary.
         </t>
-
       </section>
 
       <section title="HTTP Semantics">
@@ -265,30 +263,7 @@
 
     </section>
 
-    <section anchor="ConnectionLayer" title="HTTP/2.0 Connections">
-      <t>
-        TBD: intro text.
-      </t>
-      <t>
-        HTTP/2.0 connections are persistent. That is, for best performance,
-        it is expected clients will not close connections until it is
-        determined that no further communication with a server is necessary
-        (for example, when a user navigates away from a particular web page),
-        or until the server closes the connection.
-      </t>
-      <t>
-        Servers are encouraged to maintain open connections for as long as
-        possible, but are permitted to terminate idle connections if
-        necessary. When either endpoint chooses to close the transport-level
-        TCP connection, the terminating endpoint MUST first send a
-        <xref target="GOAWAY">GOAWAY</xref> frame so that both endpoints can
-        reliably determine whether previously sent frames have been processed
-        and gracefully complete or terminate any necessary remaining tasks.
-      </t>
-
-
-      <section anchor="starting" title="Starting HTTP/2.0">
-      
+    <section anchor="starting" title="Starting HTTP/2.0">
       <t>
         HTTP/2.0 uses the same "http:" and "https:" URI schemes used by HTTP/1.1. HTTP/2.0
         shares the same default port numbers: 80 for "http:" URIs and 443 for "https:" URIs.  As a
@@ -343,42 +318,17 @@
           encouraged to coordinate their experiments on the ietf-http-wg@w3.org mailing list.
         </t>
       </section>
+      
       <section anchor="discover-http" title="Starting HTTP/2.0 for &quot;http:&quot; URIs">
         <t>
           A client that makes a request to an "http:" URI without prior knowledge about support for
           HTTP/2.0 uses the HTTP Upgrade mechanism (<xref target="HTTP-p1" x:fmt="of"
           x:rel="#header.upgrade"/>).  The client makes an HTTP/1.1 request that includes an Upgrade
-          header field identifying HTTP/2.0.
-        </t>
-        <t> <!-- details -->
-          Additional to the Upgrade request, anticipating that the server will likely respond with some HTTP/2.0
-          frames, the client MUST send the payload of its SETTINGS frame within the HTTP/1.1 header. 
-          In particular, if the server does not know the client's initial preferences (as expressed in
-          a SETTINGS frame), it could send too much data in its response, or reserve multiple streams via 
-          PUSH_PROMISE despite the client's preference to the contrary. To avoid this situation, these SETTINGS
-          MUST be communicated by the client to the server in advance of the first HTTP/2.0 message from the server:
-          SETTINGS_MAX_CONCURRENT_STREAMS, SETTINGS_INITIAL_WINDOW_SIZE (<xref target="SettingFormat">Setting Format</xref>).
-        </t>
-        <t>
-          NOTE: There may be additional SETTINGS added later on, e.g., due to header compression (TBD).
-        </t>
-        <t>The SETTINGS are conveyed in the following hop-by-hop HTTP/1.1 header:
-        </t>
-        <t>
-             HTTP2-Settings   = "HTTP2-Settings" ":" token68
-        </t>
-        <t>
-          token68 is defined in <xref target="HTTP-p7">HTTP/1.1</xref>. The value of
-          HTTP2-Settings is set to the base64url encoding of the payload 
-          of the SETTINGS frame as defined in <xref target="SettingFormat">Setting Format</xref>.
-          Other than the fact that these SETTINGS are communicated by the client via an HTTP/1.1 header,
-          they are otherwise indistinguishable from SETTINGS and their handling as detailed in 
-          <xref target="SettingFormat">Setting Format</xref>. 
-        </t>
-        <t>
-          For example:
+          header field identifying HTTP/2.0.  The HTTP/1.1 request MUST include an <xref 
+            target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
         </t>
         <figure>
+          <preamble>For example:</preamble>
           <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
 GET /default.htm HTTP/1.1
 Host: server.example.com
@@ -413,7 +363,7 @@ Content-type: text/html
 </artwork>
         </figure>
         <t>
-          A server that supports HTTP/2.0 can accept the upgrade with a 101 (Switching Protocols)
+          A server that supports HTTP/2.0 accepts the upgrade with a 101 (Switching Protocols)
           status code.  After the empty line that terminates the 101 response, the server can begin
           sending HTTP/2.0 frames.  These frames MUST include a response to the request that
           initiated the Upgrade.
@@ -439,6 +389,48 @@ Upgrade: HTTP/2.0
           client toward the server, since the request is completed as an HTTP/1.1 request.  After
           commencing the HTTP/2.0 connection, stream 1 is used for the response.
         </t>
+
+        <section anchor="Http2SettingsHeader" title="HTTP2-Settings Header Field">
+          <t>
+            A client that upgrades from HTTP/1.1 to HTTP/2.0 MUST include an
+            <spanx style="verb">HTTP2-Settings</spanx> header field.
+            The <spanx style="verb">HTTP2-Settings</spanx> header field is a hop-by-hop header 
+            field that includes settings that govern the HTTP/2.0 connection,
+            provided in anticipation of the server accepting the request to upgrade.
+            A server MUST reject an attempt to upgrade if this header is not present.
+          </t>
+          <figure>
+            <artwork type="abnf" x:indent-with="  "><![CDATA[
+HTTP2-Settings    = token68
+]]></artwork>
+          </figure>
+
+          <t>
+            The content of the <spanx style="verb">HTTP2-Settings</spanx> header field is the
+            payload of a <xref target="SETTINGS">SETTINGS frame</xref>, encoded as a base64url string 
+            (that is, the URL- and filename-safe Base64 encoding described in 
+            <xref target="RFC4648" x:fmt="of" x:sec="5"/>, with any trailing '=' characters omitted).
+            The <xref target="RFC5234">ABNF</xref> production for <spanx style="verb">token68</spanx> is 
+            defined in <xref target="HTTP-p7" x:fmt="of" x:rel="#challenge.and.response"/>.
+          </t>
+          <t>
+            The client MUST include values for the following <xref target="SettingFormat">settings</xref>:
+            <list style="symbols">
+              <t>SETTINGS_MAX_CONCURRENT_STREAMS</t>
+              <t>SETTINGS_INITIAL_WINDOW_SIZE</t>
+            </list>
+          </t>
+          <t>
+            As a hop-by-hop header field, the <spanx style="verb">Connection</spanx> header field MUST include
+            a value of <spanx style="verb">HTTP2-Settings</spanx> in addition to <spanx style="verb">Upgrade</spanx>
+            when upgrading to HTTP/2.0.
+          </t>
+          <t>
+            A server decodes and interprets these values as it would any other SETTINGS frame.
+            Providing these values in the Upgrade request ensures that the protocol does not require default values for
+            the above settings, and gives a client an opportunity to provide other settings prior to receiving any frames from the server.
+          </t>
+        </section>
       </section>
 
       <section anchor="discover-https" title="Starting HTTP/2.0 for &quot;https:&quot; URIs">
@@ -457,8 +449,9 @@ Upgrade: HTTP/2.0
       <section anchor="known-http" title="Starting HTTP/2.0 with Prior Knowledge">
         <t>
           A client can learn that a particular server supports HTTP/2.0 by other means.  A client
-          MAY immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0.  This
-          only affects the resolution of "http:" URIs, servers supporting HTTP/2.0 are required to
+          MAY immediately send HTTP/2.0 frames to a server that is known to support HTTP/2.0, after the <xref
+          target="ConnectionHeader">connection header</xref>.  This
+          only affects the resolution of "http:" URIs; servers supporting HTTP/2.0 are required to
           support <xref target="TLSALPN">protocol negotiation in TLS</xref> for "https:" URIs.
         </t>
         <t>
@@ -468,24 +461,22 @@ Upgrade: HTTP/2.0
           (a.k.a. "transparent" proxies) are another source of variability.
         </t>
       </section>
-    </section>
+      
       <section anchor="ConnectionHeader" title="Connection Header">
-        <!-- details -->
-
         <t>
           Upon establishment of a TCP connection and determination
-          that HTTP/2.0 will be used by both peers to communicate, each
+          that HTTP/2.0 will be used by both peers, each
           endpoint MUST send a connection header as a final confirmation
-          and to establish the default parameters for the HTTP/2.0 connection.
+          and to establish the initial settings for the HTTP/2.0 connection.
         </t>
 
         <t>
-          The client connection header is a sequence of 24 octets (in hex notation)
+          The client connection header is a sequence of 24 octets, which in hex notation are:
         </t>
         <figure>
-          <artwork type="inline">
-            505249202a20485454502f322e300d0a0d0a534d0d0a0d0a
-          </artwork>
+          <artwork type="inline" x:indent-with="  "><![CDATA[
+505249202a20485454502f322e300d0a0d0a534d0d0a0d0a
+]]></artwork>
         </figure>
         <t>
           (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>) followed by a
@@ -528,53 +519,40 @@ Upgrade: HTTP/2.0
       </section>
     </section>
 
-    <section anchor="FramingLayer" title="Framing">
+    <section anchor="FramingLayer" title="HTTP Frames">
       <t>
         Once the HTTP/2.0 connection is established, endpoints
         can begin exchanging frames.
       </t>
 
-      <section title="Frame Assembly and Disassembly">
-        <t>
-          The HTTP/2.0 framing layer deals with frame assembly and decoding.  Each frame begins with
-          a <xref target="FrameHeader">frame header</xref> and some number of bytes.
-        </t>
-        <t>
-          For received data, the framing layer takes an in-order, reliable stream of bytes and
-          extracts individual frames.  For frames that are ready for transmission, the framing layer
-          serializes the frame header and frame body.
-        </t>
-      </section>
       <section anchor="FrameHeader" title="Frame Header">
         <t>
-          All frames share a common base format consisting of
-          an 8-byte header followed by 0 to 65,535 octets of payload
-          data.
+          All frames begin with an 8-octet header followed by a payload of between 0 and 65,535 octets.
         </t>
         <figure title="Frame Header">
           <artwork type="inline">
-            0                   1                   2                   3
-            0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-            +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            |         Length (16)           |   Type (8)    |   Flags (8)   |
-            +-+-------------+---------------+-------------------------------+
-            |R|                 Stream Identifier (31)                      |
-            +-+-------------------------------------------------------------+
-            |                     Frame Data (0...)                       ...
-            +---------------------------------------------------------------+
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |         Length (16)           |   Type (8)    |   Flags (8)   |
+ +-+-------------+---------------+-------------------------------+
+ |R|                 Stream Identifier (31)                      |
+ +-+-------------------------------------------------------------+
+ |                   Frame Payload (0...)                      ...
+ +---------------------------------------------------------------+
           </artwork>
         </figure>
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
             <t hangText="Length:">
-              The length of the frame data expressed as an unsigned 16-bit
-              integer. The 8 bytes of the frame header are not included
+              The length of the frame payload expressed as an unsigned 16-bit
+              integer. The 8 octets of the frame header are not included
               in this value.
             </t>
             <t hangText="Type:">
               The 8-bit type of the frame.  The frame type determines how the remainder of the
-              frame header and data are interpreted.  Implementations MUST ignore unsupported
+              frame header and payload are interpreted.  Implementations MUST ignore unsupported
               and unrecognized frame types.
             </t>
             <t hangText="Flags:">
@@ -590,32 +568,30 @@ Upgrade: HTTP/2.0
               when receiving.
             </t>
             <t hangText="Stream Identifier:">
-              A 31-bit stream identifier (see <xref target="StreamCreation"/>).  A value 0 is
+              A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  A value 0 is
               reserved for frames that are associated with the connection as a
               whole as opposed to an individual stream.
             </t>
           </list>
         </t>
         <t>
-          The structure and content of the remaining frame data is
+          The structure and content of the frame payload is
           dependent entirely on the frame type.
         </t>
       </section>
+      
       <section anchor="FrameSize" title="Frame Size">
-        <!-- details -->
         <t>
-          The maximum amount of payload data any frame can contain
-          varies by frame type and use. The absolute maximum amount
-          of payload data any individual frame can contain is
-          65,535 octets. All implementations SHOULD be capable
+          The maximum size of a frame payload varies by frame type and
+          use. The absolute maximum size
+           is 65,535 octets. All implementations SHOULD be capable
           of receiving and minimally processing frames up to this size.
         </t>
         <t>
           Certain frame types, such as PING (see <xref target="PING"/>),
-          impose strict limits on the amount of payload data allowed.
+          impose additional limits on the amount of payload data allowed.
           Likewise, additional size limits can be set by specific
-          application uses.  HTTP limits the frame size to 16,383 octets
-          (see <xref target="HTTPLayer" />).
+          application uses (see <xref target="HttpExtra" />).
         </t>
         <t>
           If a frame size exceeds any defined limit, or is too small to contain mandatory frame
@@ -624,20 +600,8 @@ Upgrade: HTTP/2.0
             target="ConnectionErrorHandler">connection error</xref>.
         </t>
       </section>
-      <section title="Header Block Compression and Decompression">
-        <t>
-          The framing layer is also responsible for performing compression or decompression of <xref
-            target="HeaderBlock">header blocks</xref>.  Header compression is performed on the header
-          block contained in HEADERS or PUSH_PROMISE frames.
-        </t>
-        <t>
-          Header blocks that are too large to fit into a single frame are handled at this layer.
-          HEADERS frames that use continuations to allow header content to span multiple frames are
-          assembled into a single unit of bytes for decompression; compressed header blocks that are
-          too large for a single HEADERS frame are split into multiple frames.
-        </t>
-      </section>
-      <section anchor="HeaderBlock" title="Header Blocks">
+
+      <section anchor="HeaderBlock"  title="Header Compression and Decompression">
         <t>
           A "header block" is an unordered collection of name-value pairs, or 
           "header fields". Each header name can have one or more associated values.
@@ -674,271 +638,144 @@ Upgrade: HTTP/2.0
     </section>
 
     <section anchor="StreamsLayer" title="Streams and Multiplexing">
-      <section title="Streams">
-        <!-- overview -->
         <t>
-          A "stream" is an independent, bi-directional sequence of frames
+          A "stream" is an independent, bi-directional sequence of HEADER and DATA frames
           exchanged between the client and server within an HTTP/2.0 connection.
           Streams have several important characteristics:
           <list style="symbols">
-            <t>
-              Streams can be established and used unilaterally or shared by
-              either the client or server.
-            </t>
-            <t>
-              Streams can be rejected or cancelled by either endpoint.
-            </t>
-            <t>
-              Multiple types of frames can be sent by either endpoint within
-              a single stream.
-            </t>
-            <t>
-              The order in which frames are sent within a stream is
-              significant. Recipients are required to process frames
-              in the order they are received.
-            </t>
-            <t>
-              Streams optionally carry a set of name-value header pairs
-              that are expressed within the headers block of HEADERS
-              or PUSH_PROMISE frames.
-            </t>
             <t>
               A single HTTP/2.0 connection can contain multiple concurrently
               active streams, with either endpoint interleaving frames from
               multiple streams.
             </t>
+            <t>
+              Streams can be established and used unilaterally or shared by
+              either the client or server.
+            </t>
+            <t>
+              Streams can be closed by either endpoint.
+            </t>
+            <t>
+              The order in which frames are sent within a stream is
+              significant. Recipients process frames
+              in the order they are received.
+            </t>
+            <t>
+              Streams are identified by an integer.  Stream identifiers are
+              assigned to streams by the peer that initiates a stream.
+            </t>
           </list>
         </t>
 
-        <section anchor="StreamCreation" title="Stream Creation">
-          <!-- details -->
-
-          <t>
-            There is no coordination or shared action between the client and server required to
-            create a stream. Rather, new streams are opened by sending a HEADERS frame referencing a
-            the next unused stream identifier.
-          </t>
-
-          <t>
-            All streams are identified by an unsigned 31-bit integer.  Streams initiated by a client
-            use odd-numbered stream identifiers; those initiated by the server use even-numbered
-            stream identifiers.  A stream identifier of zero (0x0) is used for connection control
-            message; stream zero MUST NOT be used to establish a new stream.
-          </t>
-
-          <t>
-            The identifier of a newly established stream MUST be numerically greater than all
-            previously established streams from that endpoint within the HTTP/2.0 connection, unless
-            the identifier has been reserved using a <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>
-            frame.  An endpoint that receives an unexpected stream identifier MUST respond with a
-            <xref target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
-          </t>
-
-          <t>
-            A peer can limit the total number of concurrently active streams using the
-            SETTINGS_MAX_CONCURRENT_STREAMS parameters within a SETTINGS frame. The maximum
-            concurrent streams setting is specific to each endpoint and applies only to the peer
-            that receives the setting. That is, clients specify the maximum number of concurrent
-            streams the server can initiate, and servers specify the maximum number of concurrent
-            streams the client can initiate.  Endpoints MUST NOT exceed the limit set by their
-            peer. Streams in the "open" state or either "half closed" state count toward this limit.
-          </t>
-
-          <t>
-            Stream identifiers cannot be reused within a connection.  Long-lived connections can
-            result in endpoint exhausting the available range of stream identifiers. A client that
-            is unable to establish a new stream identifier can establish a new connection for new
-            streams.
-          </t>
-
-          <t>
-            Either endpoint can request the early termination of an unwanted
-            stream by sending an <xref target="StreamErrorHandler">
-              RST_STREAM
-              frame
-            </xref> with an error code of either REFUSED_STREAM (if no
-            frames have been processed) or CANCEL (if at least one frame has
-            been processed). Such termination might not take effect immediately
-            as the peer might have sent additional frames on the stream prior
-            to receiving the termination request.
-          </t>
-
-        </section>
-
-        <section anchor="StreamPriority" title="Stream priority">
-          <!-- some overview, some details (e.g., defaults) -->
-          <t>
-            The endpoint establishing a new stream can assign a priority for the stream.  Priority
-            is represented as an unsigned 31-bit integer.  0 represents the highest priority and
-            2<x:sup>31</x:sup>-1 represents the lowest priority.
-          </t>
-
-          <t>
-            The purpose of this value is to allow the initiating endpoint to request that frames for
-            the stream be processed with a specified priority relative to other concurrently active
-            streams. That is, if an endpoint receives interleaved frames for multiple streams, the
-            endpoint ought to make a best-effort attempt at processing frames for higher priority
-            streams before processing those for lower priority streams.
-          </t>
-
-          <t>
-            Explicitly setting the priority for a stream does not guarantee any particular
-            processing order for the stream relative to any other stream. Nor is there is any
-            mechanism provided by which the initiator of a stream can force or require a receiving
-            endpoint to process frames from one stream before processing frames from another.
-          </t>
-
-        </section>
-
-        <section anchor="StreamHalfClose" title="Stream half-close">
-          <!-- details -->
-
-          <t>
-            When an endpoint sends a frame for a stream with the END_STREAM flag
-            set, the stream is considered to be half-closed for that endpoint.
-            Subsequent frames MUST NOT be sent by that endpoint for the half
-            closed stream for the remaining duration of the HTTP/2.0 connection.
-            When both endpoints have sent frames with the END_STREAM flag set, the
-            stream is considered to be fully closed.
-          </t>
-
-          <t>
-            If an endpoint receives additional frames for a stream that was
-            previously half-closed by the sending peer, the recipient MUST
-            respond with a <xref target="StreamErrorHandler">stream error</xref>
-            of type STREAM_CLOSED.
-          </t>
-
-          <t>
-            An endpoint that has not yet half-closed a stream by sending the
-            END_STREAM flag can continue sending frames on the stream.
-          </t>
-
-          <t>
-            It is not necessary for an endpoint to half-close a stream
-            for which it has not sent any frames. This allows endpoints to
-            use fully unidirectional streams that do not require explicit
-            action or acknowledgement from the receiver.
-          </t>
-
-        </section>
-
-        <section anchor="StreamClose" title="Stream close">
-          <t>
-            Streams can be terminated in the following ways:
-            <list style="hanging">
-              <t hangText="Normal termination:">
-                Normal stream termination occurs when both client and server have half-closed the
-                stream by sending a frame containing a <xref target="FrameHeader">END_STREAM flag</xref>.
-              </t>
-              <t hangText="Half-close on unidirectional stream:">
-                A stream that only has frames sent in one direction can be tentatively considered to
-                be closed once a frame containing a END_STREAM flag is sent.  The active sender on the
-                stream MUST be prepared to receive frames after closing the stream.
-              </t>
-              <t hangText="Abrupt termination:">
-                Either peer can send a RST_STREAM control frame at any time to terminate an
-                active stream. RST_STREAM contains an error code to indicate the reason for
-                termination.  A RST_STREAM indicates that the sender will transmit no further data
-                on the stream and that the receiver is advised to cease transmission on it.
-                <vspace blankLines="1"/>
-                The sender of a RST_STREAM frame MUST allow for frames that have already been sent
-                by the peer prior to the RST_STREAM being processed.  If in-transit frames alter
-                connection state, these frames cannot be safely discarded.  See <xref
-                target="StreamErrorHandler">Stream Error Handling</xref> for more details.
-              </t>
-              <t hangText="TCP connection teardown:">
-                If the TCP connection is torn down while un-closed streams
-                exist, then the endpoint MUST assume that the stream was abnormally interrupted and
-                may be incomplete.
-              </t>
-            </list>
-          </t>
-        </section>
-      </section>
-      <section anchor="StreamStates" title="Stream States">
-        <!-- details -->
+     <section anchor="StreamStates" title="Stream States">
         <t>
-          The state of a stream determines what resources are allocated to that stream, how
-          streams are accounted and what frames can be sent.  The states (and state transitions)
-          for streams are shown in <xref target="StreamStatesFigure"/>.
+          The lifecycle of a stream is shown in <xref target="StreamStatesFigure"/>.
         </t>
 
-        <figure anchor="StreamStatesFigure">
+        <figure anchor="StreamStatesFigure" title="Stream States">
           <artwork>
             <![CDATA[
- +----------+         +--------+         +----------+
- |          |   H     |        |   Fs    |   half   |
- |  idle    |-------->|  open  |-------->|  closed  |
- |          |         |        |         | (server) |
- +----------+         +--------+         +----------+
-      |                    |    \               |
-      |                    |     \    R         |
-      | PP                 | Fc   `-------.     | Fc/R
-      |                    |               \    |
-      v                    v                v   v
- +----------+        +----------+         +--------+
- |          |        |   half   |         |        |
- | reserved |------->|  closed  |-------->| closed |
- |          |   Hs   | (client) |  Fs/R   |        |
- +----------+        +----------+         +--------+
-      \                                       ^
-       \                                     /
-        `-----------------------------------'
-                          R
+                       +--------+
+                 PP    |        |    PP
+              ,--------|  idle  |--------.
+             /         |        |         \
+            v          +--------+          v
+     +----------+          |           +----------+
+     |          |          | H         |          |
+ ,---| reserved |          |           | reserved |---.
+ |   | (local)  |          v           | (remote) |   |
+ |   +----------+      +--------+      +----------+   |
+ |      |          H   |        |   H          |      |
+ |      | H    ,-------|  open  |-------.      | H    |
+ |      |     /        |        |        \     |      |
+ |      v    v         +--------+         v    v      |
+ |   +----------+          |           +----------+   |
+ |   |   half   |          |           |   half   |   |
+ |   |  closed  |          | R         |  closed  |   |
+ |   | (remote) |          |           | (local)  |   |
+ |   +----------+          |           +----------+   |
+ |        |                v                 |        |
+ |        |  ES / R    +--------+  ES / R    |        |
+ |        `----------->|        |<-----------'        |
+ |  R                  | closed |                  R  |
+ `-------------------->|        |<--------------------'
+                       +--------+
 ]]>
           </artwork>
         </figure>
 
         <t>
           Both endpoints have a subjective view of the state of a stream that could be different
-          when frames are in transit.  The negative consequences of a mismatch in states are
-          limited to the "closed" state after sending RST_STREAM, where frames might be received
-          for some time after closing.  See below for more details.
+          when frames are in transit.  Peers do not coordinate the creation of streams, they are
+          created unilaterally by either peer.
+          The negative consequences of a mismatch in states are limited to the "closed" state
+          after sending RST_STREAM, where frames might be received for some time after closing.
         </t>
         <t>
           Streams have the following states:
           <list style="hanging">
 
-            <t hangText="idle">
+            <t hangText="idle:">
+              <vspace blankLines="0"/>
               All streams start in the "idle" state.  In this state, no frames are exchanged.
               <vspace blankLines="1"/>
-              Two transitions are valid from this state:
+              The following transitions are valid from this state:
               <list style="symbols">
                 <t>
-                  Sending or receiving a HEADERS frame causes the stream to become "open".  A
-                  client sends HEADERS for an odd-numbered stream; a server sends for an
-                  even-numbered stream.
+                  Sending or receiving a HEADERS frame causes the stream to become "open".  
+                  The stream identifier is selected as described in <xref target="StreamIdentifiers"/>.
                 </t>
                 <t>
-                  Sending or receiving a PUSH_PROMISE frame marks the associated stream ID for
-                  later use.  The stream state for the reserved stream transitions to "reserved".
+                  Sending a PUSH_PROMISE frame marks the associated stream for
+                  later use.  The stream state for the reserved stream transitions to "reserved (local)".
+                </t>
+                <t>
+                  Receiving a PUSH_PROMISE frame marks the associated stream as reserved by the 
+                  remote peer.  The state of the stream becomes "reserved (remote)".
                 </t>
               </list>
             </t>
 
-            <t hangText="reserved">
-              A "reserved" stream is one that has been promised using PUSH_PROMISE.
+            <t hangText="reserved (local):">
+              <vspace blankLines="0"/>
+              A stream in the "reserved (local)" state is one that has been promised using PUSH_PROMISE.
+              A PUSH_PROMISE frame reserves an idle stream by associating the stream with an open stream
+              that was initiated by the remote peer (see <xref target="PushResources"/>).
               <vspace blankLines="1"/>
               In this state, only the following transitions are possible:
               <list style="symbols">
                 <t>
-                  The server can send a HEADERS frame.  This causes the stream to open in a "half
-                  closed (client)" state.
+                  The endpoint can send a HEADERS frame.  This causes the stream to open in a "half
+                  closed (remote)" state.
                 </t>
                 <t>
                   Either endpoint can send a RST_STREAM frame to cause the stream to become
-                  "closed".  This causes any reservation to be released.
+                  "closed".  This releases the stream reservation.
                 </t>
               </list>
-              An endpoint MUST NOT send any other type of frame in this state.  Receiving any
-              other type of frame MUST be treated as a <xref target="StreamErrorHandler">
-                stream
-                error
-              </xref> of type PROTOCOL_ERROR.
+              An endpoint MUST NOT send any other type of frame in this state.  
             </t>
 
-            <t hangText="open">
+            <t hangText="reserved (remote):">
+              <vspace blankLines="0"/>
+              A stream in the "reserved (remote)" state has been reserved by a remote peer.
+              <vspace blankLines="1"/>
+              In this state, only the following transitions are possible:
+              <list style="symbols">
+                <t>
+                  Receiving a HEADERS frame causes the stream to transition to "half closed (local)".
+                </t>
+                <t>
+                  Either endpoint can send a RST_STREAM frame to cause the stream to become
+                  "closed".  This releases the stream reservation.
+                </t>
+              </list>
+              Receiving any other type of frame MUST be treated as a <xref target="StreamErrorHandler">stream
+              error</xref> of type PROTOCOL_ERROR.
+            </t>
+
+            <t hangText="open:">
+              <vspace blankLines="0"/>
               The "open" state is where both peers can send frames.  In this state, sending peers
               observe advertised <xref target="FlowControl">flow control limits</xref>.
               <vspace blankLines="1"/>
@@ -952,35 +789,38 @@ Upgrade: HTTP/2.0
               immediately to "closed".
             </t>
 
-            <t hangText="half closed (client)">
-              A stream that is "half closed (client)" cannot be used for transmission of frames
-              from a client to a server.  In this state, a server is no longer obligated to
-              maintain a flow control window, if it performs flow control.
+            <t hangText="half closed (local):">
+              <vspace blankLines="0"/>
+              A stream that is "half closed (local)" cannot be used for sending frames.
               <vspace blankLines="1"/>
-              A stream can transition from this state to "closed" either by having the server send
-              a frame that contains a END_STREAM flag, or by having either peer send a RST_STREAM
+              A stream transitions from this state to "closed" when a frame that contains
+              a END_STREAM flag is received, or when either peer sends a RST_STREAM frame.
+            </t>
+
+            <t hangText="half closed (remote):">
+              <vspace blankLines="0"/>
+              A stream that is "half closed (remote)" is no longer being used by the peer to send frames.
+              In this state, an endpoint is no longer obligated to maintain a receiver flow control
+              window if it performs flow control.
+              <vspace blankLines="1"/>
+              If an endpoint receives additional frames for a stream that is in this state it MUST
+              respond with a <xref target="StreamErrorHandler">stream error</xref> of type STREAM_CLOSED.
+              <vspace blankLines="1"/>
+              A stream can transition from this state to "closed" by sending
+              a frame that contains a END_STREAM flag, or when either peer sends a RST_STREAM
               frame.
             </t>
 
-            <t hangText="half closed (server)">
-              A stream that is "half closed (server)" cannot be used for transmission of frames
-              from a server to a client.  In this state, a client is no longer obligated to
-              maintain a flow control window, if it performs flow control.
-              <vspace blankLines="1"/>
-              A stream can transition from this state to "closed" either by having the client send
-              a frame that contains a END_STREAM flag, or by having either peer send a RST_STREAM
-              frame.
-            </t>
-
-            <t hangText="closed">
-              This is the terminal state.
+            <t hangText="closed:">
+              <vspace blankLines="0"/>
+              The "closed" state is the terminal state.
               <vspace blankLines="1"/>
               An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives a
-              frame on a stream for which it has received a frame containing a END_STREAM flag,
+              frame after receiving a RST_STREAM or a frame containing a END_STREAM flag on that stream
               MUST treat that as a <xref target="StreamErrorHandler">stream error</xref> of type
               PROTOCOL_ERROR.
               <vspace blankLines="1"/>
-              If this state is reached as a result of a RST_STREAM frame, the peer that receives
+              If this state is reached as a result of sending a RST_STREAM frame, the peer that receives
               the RST_STREAM might have already sent - or enqueued for sending - frames on the
               stream that cannot be withdrawn.  An endpoint that sends RST_STREAM MUST ignore
               frames that it receives on closed streams if it sends RST_STREAM.  An endpoint MAY
@@ -994,8 +834,38 @@ Upgrade: HTTP/2.0
           </list>
         </t>
 
+        <section anchor="StreamIdentifiers" title="Stream Identifiers">
+          <t>
+            Streams are identified with an unsigned 31-bit integer.  Streams initiated by a client
+            use odd-numbered stream identifiers; those initiated by the server use even-numbered
+            stream identifiers.  A stream identifier of zero (0x0) is used for connection control
+            message; stream zero MUST NOT be used to establish a new stream.
+          </t>
+          <t>
+            The identifier of a newly established stream MUST be numerically greater than all
+            streams that the initiating endpoint has opened or reserved.  This governs streams that 
+            are opened using a HEADERS frame and streams that are reserved using PUSH_PROMISE.  
+            An endpoint that receives an unexpected stream identifier MUST respond with a
+            <xref target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
+          </t>
+          <t>
+            Stream identifiers cannot be reused.  Long-lived connections can
+            result in endpoint exhausting the available range of stream identifiers. A client that
+            is unable to establish a new stream identifier can establish a new connection for new
+            streams.
+          </t>
+        </section>
+        
         <section title="Stream Accounting and Resource Management">
-          <!-- details -->
+          <t>
+            A peer can limit the number of concurrently active streams using the
+            SETTINGS_MAX_CONCURRENT_STREAMS parameters within a SETTINGS frame. The maximum
+            concurrent streams setting is specific to each endpoint and applies only to the peer
+            that receives the setting. That is, clients specify the maximum number of concurrent
+            streams the server can initiate, and servers specify the maximum number of concurrent
+            streams the client can initiate.  Endpoints MUST NOT exceed the limit set by their
+            peer.
+          </t>
           <t>
             Streams that are in the "open" state, or either of the "half closed" states count
             toward the maximum number of streams that an endpoint is permitted to open.  Streams
@@ -1003,173 +873,13 @@ Upgrade: HTTP/2.0
             SETTINGS_MAX_CONCURRENT_STREAMS setting (see <xref target="SettingValues"/>.
           </t>
           <t>
-            Streams in the "reserved" state do not count as open, but some state is required in
-            order to properly consume the content.
+            Streams in either of the "reserved" states do not count as open, but a small amount of
+            application state is retained to ensure that the promised stream can be successfully used.
           </t>
         </section>
       </section>
 
-      <section title="The Relationship of Frames to Streams">
-        <!-- overview -->
-        <t>
-          The frames that are exchanged in HTTP/2.0 are categorized into three categories:
-          <list style="hanging">
-
-            <t hangText="Frames That Are About The Connection:">
-              Frames that are about the connection include SETTINGS, GOAWAY, and PING frames, plus
-              WINDOW_UPDATE frames that affect the connection-level flow control window.
-              <vspace blankLines="1"/>
-              All frames that are about the connection contain a stream identifier of 0x0.  These
-              frames are all consumed by the streams layer and do not carry application layer
-              semantics.  Intermediaries consume or generate these frames, they are not forwarded
-              between connections.
-            </t>
-
-            <t hangText="Frames That Are On Streams:">
-              Frames that are on streams include HEADERS and DATA.  Frames that are on streams
-              contain a non-zero stream identifier.
-              <vspace blankLines="1"/>
-              Frames that are on streams carry information that is relevant to an application
-              protocol.  The order of frames that are on streams is significant.  These frames
-              MUST NOT be reordered with respect to other frames on the same stream.
-              Intermediaries are expected to forward these frames.
-              <vspace blankLines="1"/>
-              Only frames that are on streams carry a END_STREAM bit that marks the stream as
-              half-closed.
-            </t>
-
-            <t hangText="Frames That Are About Streams:">
-              Frames that are about streams include WINDOW_UPDATE (with a non-zero stream
-              identifier), RST_STREAM, PRIORITY, and PUSH_PROMISE.  Frames that are about streams
-              contain a non-zero stream identifier.
-              <vspace blankLines="1"/>
-              Frames that are about streams affect the way that application semantics are carried,
-              but cannot alter application semantics.  Frames that are about streams can be sent
-              at any time that the stream is not in the "idle" or "closed" states.  Intermediaries
-              consume and generate these frames, they are not forwarded between connections.
-            </t>
-          </list>
-        </t>
-      </section>
-
-      <section title="Error Handling">
-        <!-- details streams layer -->
-        <t>
-          HTTP/2.0 framing permits two classes of error:
-          <list style="symbols">
-            <t>
-              An error condition that renders the entire connection unusable is a connection error.
-            </t>
-            <t>
-              An error in an individual stream is a stream error.
-            </t>
-          </list>
-        </t>
-
-        <section anchor="ConnectionErrorHandler" title="Connection Error Handling">
-          <t>
-            A connection error is any error which prevents further processing of the framing layer or
-            which corrupts any connection state.
-          </t>
-          <t>
-            An endpoint that encounters a connection error SHOULD first send a <xref
-            target="GOAWAY">GOAWAY</xref> frame with the stream identifier of the last stream that
-            it successfully received from its peer.  The GOAWAY frame includes an error code that
-            indicates why the connection is terminating.  After sending the GOAWAY frame, the endpoint
-            MUST close the TCP connection.
-          </t>
-          <t>
-            It is possible that the GOAWAY will not be reliably received by the receiving endpoint.
-            In the event of a connection error, GOAWAY only provides a best-effort attempt to
-            communicate with the peer about why the connection is being terminated.
-          </t>
-          <t>
-            An endpoint can end a connection at any time.  In particular, an endpoint MAY choose to
-            treat a stream error as a connection error if the error is recurrent.  Endpoints SHOULD
-            send a GOAWAY frame when ending a connection, as long as circumstances permit it.
-          </t>
-        </section>
-
-        <section anchor="StreamErrorHandler" title="Stream Error Handling">
-          <t>
-            A stream error is an error related to a specific stream identifier that does not affect
-            processing of other streams.
-          </t>
-          <t>
-            An endpoint that detects a stream error sends a <xref
-            target="RST_STREAM">RST_STREAM</xref> frame that contains the stream identifier of the
-            stream where the error occurred.  The RST_STREAM frame includes an error code that
-            indicates the type of error.
-          </t>
-          <t>
-            A RST_STREAM is the last frame that an endpoint can send on a stream.  The peer that
-            sends the RST_STREAM frame MUST be prepared to receive any frames that were sent or
-            enqueued for sending by the remote peer.  These frames can be ignored, except where they
-            modify connection state (such as the state maintained for <xref
-            target="HeaderBlock">header compression</xref>).
-          </t>
-          <t>
-            Normally, an endpoint SHOULD NOT send more than one RST_STREAM frame for any stream. However, an endpoint
-            MAY send additional RST_STREAM frames if it receives frames on a closed stream after
-            more than a round trip time.  This behavior is permitted to deal with misbehaving
-            implementations.
-          </t>
-          <t>
-            An endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM frame, to avoid looping.
-          </t>
-        </section>
-
-        <section anchor="ErrorCodes" title="Error Codes">
-          <t>
-            Error codes are 32-bit fields that are used in RST_STREAM and GOAWAY frames to convey
-            the reasons for the stream or connection error.
-          </t>
-
-          <t>
-            Error codes share a common code space.  Some error codes only apply to specific
-            conditions and have no defined semantics in certain frame types.
-          </t>
-
-          <t>
-            The following error codes are defined:
-            <list style="hanging">
-              <t hangText="NO_ERROR (0):">
-                The associated condition is not as a result of an error.  For example, a GOAWAY
-                might include this code to indicate graceful shutdown of a connection.
-              </t>
-              <t hangText="PROTOCOL_ERROR (1):">
-                The endpoint detected an unspecific protocol error.  This error is for use when a more
-                specific error code is not available.
-              </t>
-              <t hangText="INTERNAL_ERROR (2):">
-                The endpoint encountered an unexpected internal error.
-              </t>
-              <t hangText="FLOW_CONTROL_ERROR (3):">
-                The endpoint detected that its peer violated the flow control protocol.
-              </t>
-              <t hangText="STREAM_CLOSED (5):">
-                The endpoint received a frame after a stream was half-closed.
-              </t>
-              <t hangText="FRAME_TOO_LARGE (6):">
-                The endpoint received a frame that was larger than the maximum size that it
-                supports.
-              </t>
-              <t hangText="REFUSED_STREAM (7):">
-                The endpoint refuses the stream prior to performing any application processing, see
-                <xref target="Retrying"/> for details.
-              </t>
-              <t hangText="CANCEL (8):">
-                Used by the endpoint to indicate that the stream is no longer needed.
-              </t>
-              <t hangText="COMPRESSION_ERROR (9):">
-                The endpoint is unable to maintain the compression context for the connection.
-              </t>
-            </list>
-          </t>
-        </section>
-      </section>
-
-      <section anchor="FlowControl" title="Flow Control">
+     <section anchor="FlowControl" title="Flow Control">
         <!-- details -->
         <t>
           Using streams for multiplexing introduces contention over use of the TCP connection,
@@ -1244,6 +954,7 @@ Upgrade: HTTP/2.0
           </t>
 
         </section>
+        
         <section anchor="DisableFlowControl" title="Appropriate Use of Flow Control">
           <t>
             Flow control is defined to protect endpoints (client, server or intermediary) that are
@@ -1270,22 +981,109 @@ Upgrade: HTTP/2.0
           </t>
         </section>
       </section>
+      
+      <section anchor="StreamPriority" title="Stream priority">
+        <t>
+          The endpoint establishing a new stream can assign a priority for the stream.  Priority
+          is represented as an unsigned 31-bit integer.  0 represents the highest priority and
+          2<x:sup>31</x:sup>-1 represents the lowest priority.
+        </t>
 
-      <section title="Connection-Level Flow Control">
         <t>
-          <xref target="FlowControl">Connection-level flow control</xref> is performed at the
-          framing layer.
+          The purpose of this value is to allow the initiating endpoint to request that frames for
+          the stream be processed with a specified priority relative to other concurrently active
+          streams. That is, if an endpoint receives interleaved frames for multiple streams, the
+          endpoint ought to make a best-effort attempt at processing frames for higher priority
+          streams before processing those for lower priority streams.
         </t>
+
         <t>
-          Endpoints do not send <xref target="DATA">DATA frames</xref> that would exceed the
-          advertised connection flow control window of their peer.  Endpoints that have not <xref
-            target="DisableFlowControl">disabled connection-level flow control</xref> advertise
-          increases in the connection-level flow window by sending <xref
-            target="WINDOW_UPDATE">WINDOW_UPDATE</xref> frames.
+          Explicitly setting the priority for a stream does not guarantee any particular
+          processing order for the stream relative to any other stream. Nor is there is any
+          mechanism provided by which the initiator of a stream can force or require a receiving
+          endpoint to process frames from one stream before processing frames from another.
         </t>
+
       </section>
-      <!-- need new section on teardown, crib from error handling. -->
 
+      <section title="Error Handling">
+        <t>
+          HTTP/2.0 framing permits two classes of error:
+          <list style="symbols">
+            <t>
+              An error condition that renders the entire connection unusable is a connection error.
+            </t>
+            <t>
+              An error in an individual stream is a stream error.
+            </t>
+          </list>
+        </t>
+
+        <t>
+          A list of error codes is included in <xref target="ErrorCodes"/>.
+        </t>
+
+        <section anchor="ConnectionErrorHandler" title="Connection Error Handling">
+          <t>
+            A connection error is any error which prevents further processing of the framing layer or
+            which corrupts any connection state.
+          </t>
+          <t>
+            An endpoint that encounters a connection error SHOULD first send a <xref
+            target="GOAWAY">GOAWAY</xref> frame with the stream identifier of the last stream that
+            it successfully received from its peer.  The GOAWAY frame includes an error code that
+            indicates why the connection is terminating.  After sending the GOAWAY frame, the endpoint
+            MUST close the TCP connection.
+          </t>
+          <t>
+            It is possible that the GOAWAY will not be reliably received by the receiving endpoint.
+            In the event of a connection error, GOAWAY only provides a best-effort attempt to
+            communicate with the peer about why the connection is being terminated.
+          </t>
+          <t>
+            An endpoint can end a connection at any time.  In particular, an endpoint MAY choose to
+            treat a stream error as a connection error if the error is recurrent.  Endpoints SHOULD
+            send a GOAWAY frame when ending a connection, as long as circumstances permit it.
+          </t>
+        </section>
+
+        <section anchor="StreamErrorHandler" title="Stream Error Handling">
+          <t>
+            A stream error is an error related to a specific stream identifier that does not affect
+            processing of other streams.
+          </t>
+          <t>
+            An endpoint that detects a stream error sends a <xref
+            target="RST_STREAM">RST_STREAM</xref> frame that contains the stream identifier of the
+            stream where the error occurred.  The RST_STREAM frame includes an error code that
+            indicates the type of error.
+          </t>
+          <t>
+            A RST_STREAM is the last frame that an endpoint can send on a stream.  The peer that
+            sends the RST_STREAM frame MUST be prepared to receive any frames that were sent or
+            enqueued for sending by the remote peer.  These frames can be ignored, except where they
+            modify connection state (such as the state maintained for <xref
+            target="HeaderBlock">header compression</xref>).
+          </t>
+          <t>
+            Normally, an endpoint SHOULD NOT send more than one RST_STREAM frame for any stream. However, an endpoint
+            MAY send additional RST_STREAM frames if it receives frames on a closed stream after
+            more than a round trip time.  This behavior is permitted to deal with misbehaving
+            implementations.
+          </t>
+          <t>
+            An endpoint MUST NOT send a RST_STREAM in response to an RST_STREAM frame, to avoid looping.
+          </t>
+        </section>
+
+        <section title="Connection Termination">
+          <t>
+            If the TCP connection is torn down while streams remain in open or half closed states, then 
+            the endpoint MUST assume that the stream was abnormally interrupted and
+            could be incomplete.
+          </t>
+        </section>
+      </section>
     </section>
 
     <section  anchor="frame-types" title="Frame Definitions">
@@ -1309,7 +1107,6 @@ Upgrade: HTTP/2.0
         </t>
 
         <section anchor="DATA" title="DATA">
-
           <t>
             DATA frames (type=0x0) convey arbitrary, variable-length
             sequences of octets associated with a stream. One or more
@@ -1323,7 +1120,7 @@ Upgrade: HTTP/2.0
               <t hangText="END_STREAM (0x1):">
                 Bit 1 being set indicates that this frame is the last that the endpoint
                 will send for the identified stream.  Setting this flag causes the stream
-                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+                to enter a <xref target="StreamStates">"half closed" state</xref>.
               </t>
               <t hangText="RESERVED (0x2):">
                 Bit 2 is reserved for future use.
@@ -1342,20 +1139,19 @@ Upgrade: HTTP/2.0
 
         <section anchor="HEADERS" title="HEADERS">
           <t>
-            The HEADERS frame (type=0x1) allows the sender to <xref target="StreamCreation">
-              create a stream
-            </xref>. Any number of HEADERS frames may be sent on an existing
-            stream at any time.
+            The HEADERS frame (type=0x1) carries name-value pairs.  
+            The HEADERS is used to <xref target="StreamStates">open a stream</xref>.
+            Any number of HEADERS frames can be sent on an existing stream at any time.
           </t>
           <figure title="HEADERS Frame Payload">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|               (Optional) Priority (31)                      |
-              +-+-------------------------------------------------------------+
-              |                    Header Block (*)                         ...
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                        Priority (31)                        |
+ +-+-------------------------------------------------------------+
+ |                      Header Block (*)                       ...
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
 
@@ -1365,7 +1161,7 @@ Upgrade: HTTP/2.0
               <t hangText="END_STREAM (0x1):">
                 Bit 1 being set indicates that this frame is the last that the endpoint
                 will send for the identified stream.  Setting this flag causes the stream
-                to enter the <xref target="StreamHalfClose">half-closed state</xref>.
+                to enter a <xref target="StreamStates">"half closed" state</xref>.
               </t>
               <t hangText="RESERVED (0x2):">
                 Bit 2 is reserved for future use.
@@ -1386,7 +1182,9 @@ Upgrade: HTTP/2.0
               </t>
               <t hangText="PRIORITY (0x8):">
                 Bit 4 being set indicates that the first four octets of this frame contain a
-                single reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.
+                single reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.  
+                If this bit is not set, the four bytes do not appear and the frame only contains a
+                header block.
               </t>
             </list>
           </t>
@@ -1416,11 +1214,11 @@ Upgrade: HTTP/2.0
           </t>
           <figure title="PRIORITY Frame Payload">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                   Priority (31)                             |
-              +-+-------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                        Priority (31)                        |
+ +-+-------------------------------------------------------------+
             </artwork>
           </figure>
           <t>
@@ -1451,11 +1249,11 @@ Upgrade: HTTP/2.0
           </t>
           <figure title="RST_STREAM Frame Payload">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |                         Error Code (32)                       |
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                        Error Code (32)                        |
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
 
@@ -1553,13 +1351,13 @@ Upgrade: HTTP/2.0
 
             <figure title="Setting Format">
               <artwork type="inline">
-                0                   1                   2                   3
-                0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                |  Reserved(8)  |             Setting Identifier (24)           |
-                +---------------+-----------------------------------------------+
-                |                        Value (32)                             |
-                +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |  Reserved (8) |            Setting Identifier (24)            |
+ +---------------+-----------------------------------------------+
+ |                        Value (32)                             |
+ +---------------------------------------------------------------+
               </artwork>
             </figure>
           </section>
@@ -1619,13 +1417,13 @@ Upgrade: HTTP/2.0
 
           <figure title="PUSH_PROMISE Payload Format">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                Promised-Stream-ID (31)                      |
-              +-+-------------------------------------------------------------+
-              |                    Header Block (*)                         ...
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                Promised-Stream-ID (31)                      |
+ +-+-------------------------------------------------------------+
+ |                    Header Block (*)                         ...
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
 
@@ -1634,7 +1432,7 @@ Upgrade: HTTP/2.0
             unsigned 31-bit integer identifies the stream the endpoint
             intends to start sending frames for.  The promised stream
             identifier MUST be a valid choice for the next stream sent by the sender (see <xref
-            target="StreamCreation">new stream identifier</xref>).
+            target="StreamIdentifiers">new stream identifier</xref>).
           </t>
 
           <t>
@@ -1701,6 +1499,17 @@ Upgrade: HTTP/2.0
             sender, as well as determining whether an idle connection is still functional.
             PING frames can be sent from any endpoint.
           </t>
+          <figure title="PING Payload Format">
+            <artwork type="inline">
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                                                               |
+ |                      Opaque Data (64)                         |
+ |                                                               |
+ +---------------------------------------------------------------+
+            </artwork>
+          </figure>
 
           <t>
             In addition to the frame header, PING frames MUST contain 8 octets of data in the
@@ -1774,13 +1583,13 @@ Upgrade: HTTP/2.0
 
           <figure title="GOAWAY Payload Format">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                  Last-Stream-ID (31)                        |
-              +-+-------------------------------------------------------------+
-              |                      Error Code (32)                          |
-              +---------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|                  Last-Stream-ID (31)                        |
+ +-+-------------------------------------------------------------+
+ |                      Error Code (32)                          |
+ +---------------------------------------------------------------+
             </artwork>
           </figure>
           <t>
@@ -1851,11 +1660,11 @@ Upgrade: HTTP/2.0
           </t>
           <figure title="WINDOW_UPDATE Payload Format">
             <artwork type="inline">
-              0                   1                   2                   3
-              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-              |X|                Delta-Window-Size (31)                       |
-              +-+-------------------------------------------------------------+
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |X|              Window Size Increment (31)                     |
+ +-+-------------------------------------------------------------+
             </artwork>
           </figure>
           <t>
@@ -2011,7 +1820,56 @@ Upgrade: HTTP/2.0
             </t>
           </section>
         </section>
-      </section>
+    </section>
+
+    <section anchor="ErrorCodes" title="Error Codes">
+      <t>
+        Error codes are 32-bit fields that are used in RST_STREAM and GOAWAY frames to convey
+        the reasons for the stream or connection error.
+      </t>
+
+      <t>
+        Error codes share a common code space.  Some error codes only apply to specific
+        conditions and have no defined semantics in certain frame types.
+      </t>
+
+      <t>
+        The following error codes are defined:
+        <list style="hanging">
+          <t hangText="NO_ERROR (0):">
+            The associated condition is not as a result of an error.  For example, a GOAWAY
+            might include this code to indicate graceful shutdown of a connection.
+          </t>
+          <t hangText="PROTOCOL_ERROR (1):">
+            The endpoint detected an unspecific protocol error.  This error is for use when a more
+            specific error code is not available.
+          </t>
+          <t hangText="INTERNAL_ERROR (2):">
+            The endpoint encountered an unexpected internal error.
+          </t>
+          <t hangText="FLOW_CONTROL_ERROR (3):">
+            The endpoint detected that its peer violated the flow control protocol.
+          </t>
+          <t hangText="STREAM_CLOSED (5):">
+            The endpoint received a frame after a stream was half-closed.
+          </t>
+          <t hangText="FRAME_TOO_LARGE (6):">
+            The endpoint received a frame that was larger than the maximum size that it
+            supports.
+          </t>
+          <t hangText="REFUSED_STREAM (7):">
+            The endpoint refuses the stream prior to performing any application processing, see
+            <xref target="Reliability"/> for details.
+          </t>
+          <t hangText="CANCEL (8):">
+            Used by the endpoint to indicate that the stream is no longer needed.
+          </t>
+          <t hangText="COMPRESSION_ERROR (9):">
+            The endpoint is unable to maintain the compression context for the connection.
+          </t>
+        </list>
+      </t>
+    </section>
 
     <section anchor="HTTPLayer" title="HTTP Message Exchanges">
       <t>
@@ -2041,7 +1899,8 @@ Upgrade: HTTP/2.0
       <section title="Frame Size Limits for HTTP">
         <!-- move this to HttpExtra section, later -->
         <t>
-          Frames used for HTTP messages MUST NOT exceed 16,383 bytes in length.  An endpoint MUST
+          Frames used for HTTP messages MUST NOT exceed (2^14)-1 octets in length,
+          not counting the 8-byte frame header. An endpoint MUST
           treat the receipt of a larger frame as a FRAME_TOO_LARGE error (see <xref
           target="FrameSize"/>).
         </t>
@@ -2103,8 +1962,8 @@ Upgrade: HTTP/2.0
         </figure>
         
         <t>
-          Trailing header fields are sent as a header block after either 
-          the request header block or the last DATA frame has been sent.
+          Trailing header fields are sent as a header block after both 
+          the request header block and all the DATA frames have been sent.
         </t>
         
         <figure>
@@ -2128,7 +1987,7 @@ Upgrade: HTTP/2.0
         
         <t>
           A server sends an HTTP response as an ordered sequence of HEADERS, 
-          PUSH_PROMISE and DATA frames referencing the same stream identifier 
+          PUSH_PROMISE and DATA frames on the same stream 
           as the request. Response headers are encoded as a single header 
           block, followed by zero or more DATA frames. After the last DATA 
           frame has been sent, the server can choose to include trailers by 
@@ -2155,7 +2014,7 @@ Upgrade: HTTP/2.0
         
         <t>
           A response that includes headers and payload data is transmitted 
-          as a header block followed by one or more DATA frames, with the \
+          as a header block followed by one or more DATA frames, with the
           last DATA frame in the sequence having the END_STREAM flag set:
         </t>
         
@@ -2175,8 +2034,8 @@ Upgrade: HTTP/2.0
         
         <t>
           As in the request, trailing header fields are sent as an
-          additional header block after the response headers or the 
-          payload:
+          additional header block after the response headers and 
+          payload (if any):
         </t>
         
         <figure>
@@ -2208,7 +2067,7 @@ Upgrade: HTTP/2.0
           all of the push promises MUST be sent prior to sending the DATA frames 
           that contain the image links. Likewise, if the server pushes 
           resources referenced by the header block (i.e. using Link headers), 
-          the server MUST send the push promise before sending the header
+          the server MUST send the push promises before sending the header
           block.
         </t>
         
@@ -2249,7 +2108,7 @@ Upgrade: HTTP/2.0
             </t>
             <t>
               Trailing header fields are provided only by a header block
-              (a) sent after the initial header block and (b) whose final 
+              (a) sent after the initial header block and (b) whose last 
               HEADERS frame has the END_STREAM flag set.
             </t>
             <t>
@@ -2263,14 +2122,10 @@ Upgrade: HTTP/2.0
               be part of the HTTP request or response.
               <cref>Ed. Note: Later on we need to fully address extensibility here.</cref>
             </t>
-            <t>
-              HEADERS and DATA frames used to carry HTTP requests or responses
-              MUST NOT exceed (2^14)-1 octets of payload data.
-            </t>
           </list>
         </t>
 
-        <section anchor="HttpRequest" title="Request">
+        <section anchor="HttpRequest" title="Request Header Fields">
           
           <t>
             The definitions of the request header fields are largely unchanged 
@@ -2323,12 +2178,12 @@ Upgrade: HTTP/2.0
             All HTTP Requests that include a Payload SHOULD include the 
             "content-length" header field. If a server receives a request
             where the sum of the DATA frame payload lengths does not equal
-            the size of the "content-length" header field, the server MUST
+            the value of the "content-length" header field, the server MUST
             return a 400 (Bad Request) error.
           </t>
 
           <t>
-            If a client omits a mandatory header from the request, the server 
+            If a client omits a mandatory header field from the request, the server 
             MUST reply with a HTTP 400 Bad Request reply.
           </t>
 
@@ -2343,7 +2198,7 @@ Upgrade: HTTP/2.0
           
         </section>
 
-        <section anchor="HttpResponse" title="Response">
+        <section anchor="HttpResponse" title="Response Header Fields">
           
           <t>
             The definitions of the response header fields are largely unchanged 
@@ -2385,18 +2240,18 @@ Upgrade: HTTP/2.0
 
           <t>
             Responses MAY include an advisory content-length header field.
-            This allows clients to determined the expected size of an entity 
-            prior to receiving all the DATA frames. This can help in, for 
+            This allows clients to determine the expected size of an entity 
+            prior to receiving all of the DATA frames. This can help, for 
             instance, when reporting the progress of a download. If the client 
-            receives a response where the sum of the DATA frame payload length 
-            does not equal the size of the content-length header field, the 
+            receives a response where the sum of the DATA frame payload lengths 
+            does not equal the value of the content-length header field, the 
             client MUST ignore the content length header field.
           </t>
 
           <t>
-            Clients MUST support gzip compression.  Regardless of the value of the "accept-encoding"
+            Clients MUST support gzip compression.  Regardless of the value of the accept-encoding
             header field, a server MAY send responses with gzip or deflate encoding.  A compressed
-            response MUST still bear an appropriate "content-encoding" header field.
+            response MUST still bear an appropriate content-encoding header field.
           </t>
           
           <t>
@@ -2458,7 +2313,7 @@ Upgrade: HTTP/2.0
           HTTP/2.0 enables a server to pre-emptively send (or "push") multiple 
           associated resources to a client in response to a single request. 
           This feature becomes particularly helpful when the server knows the 
-          client will need to have those resources available in order to full 
+          client will need to have those resources available in order to fully 
           process the originally requested resource.
         </t>
        
@@ -2486,9 +2341,9 @@ Upgrade: HTTP/2.0
           sent either before or immediately after sending the response header 
           block for the initial request. The PUSH_PROMISE frames MUST be sent
           prior to sending any response DATA frames. This ordering requirement
-          minimizes the change that a client might request a resource that is 
+          minimizes the chance that a client might request a resource that is 
           currently being pushed, causing a server to send multiple copies of
-          the resource.
+          that resource.
         </t>
         
         <t>
@@ -2507,6 +2362,9 @@ Upgrade: HTTP/2.0
           When a client receives a PUSH_PROMISE frame from the server, the 
           client MUST treat the pushed stream as being half-closed and MUST NOT
           send any frames to server on that stream other than an RST_STREAM.
+          If the server receives frames from the client on the pushed stream, 
+          it MUST respond by sending a <xref target="StreamErrorHandler">stream
+          error</xref> of type PROTOCOL_ERROR.
         </t>
         
         <t>
@@ -2524,7 +2382,7 @@ Upgrade: HTTP/2.0
         </t>
 
         <t>
-          By default, a pushed resource is semantically equivalent to a server 
+          Typically, a pushed resource is semantically equivalent to a server 
           responding to an implicit GET request for that resource. The 
           PUSH_PROMISE frame sent by the server includes a header block that 
           contains the request headers that the server has assumed. Some of 
@@ -2534,23 +2392,23 @@ Upgrade: HTTP/2.0
           HEADERS frames containing the response headers followed by the 
           necessary DATA frames. If, however, the original request uses the 
           HTTP HEAD method, any pushed streams associated with the response 
-          MUST be handled as if they were responses to HEAD requests. 
+          MUST be handled as if they were also responses to HEAD requests. 
         </t>
         
         <t>
-          The request headers field provided in the PUSH_PROMISE frame SHOULD 
+          The request header fields provided in the PUSH_PROMISE frame SHOULD 
           include enough information for a client to determine whether a cached
           representation of the resource is already available. If the client
           determines, for any reason, that it does not wish to receive the 
           pushed resource from the server, or if the server takes too long 
           to begin sending the promised resource, the client can send an 
-          RST_STREAM frame referencing the pushed stream's identifier using
-          the CANCEL code.
+          RST_STREAM frame, using either the CANCEL or REFUSED_STREAM codes,
+          and referencing the pushed stream's identifier.
         </t>
         
         <t>
           The PUSH_PROMISE header block MUST include the ":method", ":path", 
-          ":host", and ":scheme" header fields. If a client receives a 
+          ":host", and ":scheme" request header fields. If a client receives a 
           PUSH_PROMISE that does not include these header fields, it MUST
           respond with a <xref target="StreamErrorHandler">stream error</xref>
           of type PROTOCOL_ERROR.
@@ -2582,6 +2440,24 @@ Upgrade: HTTP/2.0
       <t>
         TODO: This section will also receive the text from <xref target="HTTPLayer"/> on connection management and frame size limits.
       </t>
+      <section title="Connection Management">
+      <t>
+        HTTP/2.0 connections are persistent.  For best performance,
+        it is expected clients will not close connections until it is
+        determined that no further communication with a server is necessary
+        (for example, when a user navigates away from a particular web page),
+        or until the server closes the connection.
+      </t>
+      <t>
+        Servers are encouraged to maintain open connections for as long as
+        possible, but are permitted to terminate idle connections if
+        necessary. When either endpoint chooses to close the transport-level
+        TCP connection, the terminating endpoint MUST first send a
+        <xref target="GOAWAY">GOAWAY</xref> frame so that both endpoints can
+        reliably determine whether previously sent frames have been processed
+        and gracefully complete or terminate any necessary remaining tasks.
+      </t>
+      </section>
     </section>
 
     <section title="Security Considerations">
@@ -2656,7 +2532,12 @@ Upgrade: HTTP/2.0
 
     <section title="IANA Considerations">
       <t>
-        This document establishes registries for frame types, error codes and settings.
+        This document establishes registries for frame types, error codes and settings.  These
+        new registries are entered in a new "Hypertext Transfer Protocol (HTTP) 2.0 Parameters" section.
+      </t>
+      <t>
+        This document also registers the <spanx style="verb">HTTP2-Settings</spanx> header field for
+        use in HTTP.
       </t>
       <section title="Frame Type Registry">
         <t>
@@ -2757,44 +2638,32 @@ Upgrade: HTTP/2.0
         </t>
       </section>
 
-      <section title='New HTTP Header Fields Registry'>
-        <section title='HTTP2-Settings'>
+      <section title="HTTP2-Settings Header Field Registration">
         <t>
-          This section describes a header field for registration in the Permanent 
-          Message Header Field Registry <xref target='BCP90'/>.
-        </t>
-        <t>
-          <list style='hanging'>
-            <t hangText='Header field name'>
-              <vspace blankLines='0'/>HTTP2-Settings
+          This section registers the <spanx style="verb">HTTP2-Settings</spanx> header field in the
+          <xref target="BCP90">Permanent Message Header Field Registry</xref>.
+          <list style="hanging">
+            <t hangText="Header field name:">
+              HTTP2-Settings
             </t>
-            <t hangText='Applicable protocol'>
-              <vspace blankLines='0'/>http
+            <t hangText="Applicable protocol:">
+              http
             </t>
-            <t hangText='Status'>
-              <vspace blankLines='0'/>standard
+            <t hangText="Status:">
+              standard
             </t>
-            <t hangText='Author/Change controller'>
-              <vspace blankLines='0'/>IETF
+            <t hangText="Author/Change controller:">
+              IETF
             </t>
-            <t hangText='Specification document(s)'>
-              <vspace blankLines='0'/>RFC XXXX (this document)
+            <t hangText="Specification document(s):">
+              RFC XXXX (this document)
             </t>
-            <t hangText='Related information'>
-              <vspace blankLines='0'/>This header field is only used by the client in 
-              the Upgrade-based negotiation.
+            <t hangText="Related information:">
+              This header field is only used by an HTTP/2.0 client for Upgrade-based negotiation.
             </t>
           </list>
         </t>
-        <t>The HTTP2-Settings header field is used in the Upgrade-based negotiation by the client.
-	It is sent from the client to the server to provide the payload for its SETTINGS frame
-        in anticipation of the server responding with HTTP/2.0 frames.</t>
-
-        <t>The HTTP2-Settings header field MUST NOT appear more than once in an HTTP request
-        and MUST NOT appear at all in an HTTP response.</t>
-
       </section>
-    </section>
     </section>
 
     <section title="Acknowledgements">
@@ -2825,20 +2694,29 @@ Upgrade: HTTP/2.0
 
   <back>
     <references title="Normative References">
+      <reference anchor="COMPRESSION">
+        <front>
+          <title>HTTP Header Compression</title>
+          <author initials="H." surname="Ruellan" fullname="Herve Ruellan"/>
+          <author initials="R." surname="Peon" fullname="Roberto Peon"/>
+          <date month="June" year="2013" />
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-header-compression-00" />
+      </reference>
 
       <reference anchor="RFC0793">
         <front>
-          <title abbrev='Transmission Control Protocol'>
+          <title abbrev="Transmission Control Protocol">
             Transmission Control Protocol
           </title>
-          <author initials='J.' surname='Postel' fullname='Jon Postel'>
+          <author initials="J." surname="Postel" fullname="Jon Postel">
             <organization>University of Southern California (USC)/Information Sciences
             Institute</organization>
           </author>
-          <date year='1981' month='September' />
+          <date year="1981" month="September" />
         </front>
-        <seriesInfo name='STD' value='7' />
-        <seriesInfo name='RFC' value='793' />
+        <seriesInfo name="STD" value="7" />
+        <seriesInfo name="RFC" value="793" />
       </reference>
 
       <reference anchor="RFC2119">
@@ -2871,15 +2749,15 @@ Upgrade: HTTP/2.0
 
       <reference anchor="RFC3986">
         <front>
-          <title abbrev='URI Generic Syntax'>Uniform Resource Identifier (URI): Generic
+          <title abbrev="URI Generic Syntax">Uniform Resource Identifier (URI): Generic
           Syntax</title>
-          <author initials='T.' surname='Berners-Lee' fullname='Tim Berners-Lee'></author>
-          <author initials='R.' surname='Fielding' fullname='Roy T. Fielding'></author>
-          <author initials='L.' surname='Masinter' fullname='Larry Masinter'></author>
-          <date year='2005' month='January' />
+          <author initials="T." surname="Berners-Lee" fullname="Tim Berners-Lee"></author>
+          <author initials="R." surname="Fielding" fullname="Roy T. Fielding"></author>
+          <author initials="L." surname="Masinter" fullname="Larry Masinter"></author>
+          <date year="2005" month="January" />
         </front>
-        <seriesInfo name='STD' value='66' />
-        <seriesInfo name='RFC' value='3986' />
+        <seriesInfo name="STD" value="66" />
+        <seriesInfo name="RFC" value="3986" />
       </reference>
 
       <reference anchor="RFC4648">
@@ -2904,6 +2782,17 @@ Upgrade: HTTP/2.0
         <seriesInfo name="RFC" value="5226" />
       </reference>
 
+      <reference anchor="RFC5234">
+        <front>
+          <title>Augmented BNF for Syntax Specifications: ABNF</title>
+          <author initials="D." surname="Crocker" fullname="D. Crocker"/>
+          <author initials="P." surname="Overell" fullname="P. Overell"/>
+          <date year="2008" month="January" />
+        </front>
+        <seriesInfo name="STD" value="68" />
+        <seriesInfo name="RFC" value="5234" />
+      </reference>
+
       <reference anchor="RFC5246">
         <front>
           <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
@@ -2913,13 +2802,14 @@ Upgrade: HTTP/2.0
         </front>
         <seriesInfo name="RFC" value="5246" />
       </reference>
+      
       <reference anchor="RFC6454">
         <front>
           <title>The Web Origin Concept</title>
-          <author initials='A.' surname='Barth' fullname='A. Barth'/>
-          <date year='2011' month='December' />
+          <author initials="A." surname="Barth" fullname="A. Barth"/>
+          <date year="2011" month="December" />
         </front>
-        <seriesInfo name='RFC' value='6454' />
+        <seriesInfo name="RFC" value="6454" />
       </reference>
 
       <reference anchor="TLSALPN">
@@ -2934,26 +2824,26 @@ Upgrade: HTTP/2.0
         <seriesInfo name="Internet-Draft" value="draft-ietf-tls-applayerprotoneg-01" />
       </reference>
 
-      <reference anchor='HTTP-p1'>
+      <reference anchor="HTTP-p1">
         <front>
           <title>
           Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
-          <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
-          <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
-          <date month='February' year='2013' />
+          <author initials="R." surname="Fielding" fullname="Roy Fielding"></author>
+          <author initials="J." surname="Reschke" fullname="Julian Reschke"></author>
+          <date month="February" year="2013" />
         </front>
-        <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p1-messaging-22' />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-22" />
         <x:source href="refs/draft-ietf-httpbis-p1-messaging-22.xml" basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/22/p1-messaging"/>
       </reference>
-      <reference anchor='HTTP-p2'>
+      <reference anchor="HTTP-p2">
         <front>
           <title>
           Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</title>
-          <author initials='R.' surname='Fielding' fullname='Roy Fielding'></author>
-          <author initials='J.' surname='Reschke' fullname='Julian Reschke'></author>
-          <date month='February' year='2013' />
+          <author initials="R." surname="Fielding" fullname="Roy Fielding"></author>
+          <author initials="J." surname="Reschke" fullname="Julian Reschke"></author>
+          <date month="February" year="2013" />
         </front>
-        <seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p2-semantics-22' />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-22" />
         <x:source href="refs/draft-ietf-httpbis-p2-semantics-22.xml" basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/22/p2-semantics"/>
       </reference>
       <reference anchor="HTTP-p4">
@@ -2967,7 +2857,7 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p4-conditional-22" />
       </reference>
@@ -2986,7 +2876,7 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p5-range-22"/>
       </reference>
@@ -3005,7 +2895,7 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-22"/>
       </reference>
@@ -3020,9 +2910,10 @@ Upgrade: HTTP/2.0
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month='February' year='2013' />
+          <date month="February" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p7-auth-22"/>
+        <x:source href="refs/draft-ietf-httpbis-p7-auth-22.xml" basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/22/p7-auth"/>
       </reference>
     </references>
 
@@ -3032,12 +2923,12 @@ Upgrade: HTTP/2.0
           <title>
             TCP Extensions for High Performance
           </title>
-          <author initials='V.' surname='Jacobson' fullname='Van Jacobson'></author>
-          <author initials='B.' surname='Braden' fullname='Bob Braden'></author>
-          <author initials='D.' surname='Borman' fullname='Dave Borman'></author>
-          <date year='1992' month='May' />
+          <author initials="V." surname="Jacobson" fullname="Van Jacobson"></author>
+          <author initials="B." surname="Braden" fullname="Bob Braden"></author>
+          <author initials="D." surname="Borman" fullname="Dave Borman"></author>
+          <date year="1992" month="May" />
         </front>
-        <seriesInfo name='RFC' value='1323' />
+        <seriesInfo name="RFC" value="1323" />
       </reference>
       <reference anchor="TALKING" target="http://w2spconf.com/2011/papers/websocket.pdf">
         <front>
@@ -3053,31 +2944,43 @@ Upgrade: HTTP/2.0
         </front>
       </reference>
 
-      <reference anchor='BCP90'>
+      <reference anchor="BCP90">
         <front>
           <title>Registration Procedures for Message Header Fields</title>
-          <author initials='G.' surname='Klyne' fullname='G. Klyne'>
+          <author initials="G." surname="Klyne" fullname="G. Klyne">
             <organization>Nine by Nine</organization>
             <address><email>GK-IETF@ninebynine.org</email></address>
           </author>
-          <author initials='M.' surname='Nottingham' fullname='M. Nottingham'>
+          <author initials="M." surname="Nottingham" fullname="M. Nottingham">
             <organization>BEA Systems</organization>
             <address><email>mnot@pobox.com</email></address>
           </author>
-          <author initials='J.' surname='Mogul' fullname='J. Mogul'>
+          <author initials="J." surname="Mogul" fullname="J. Mogul">
             <organization>HP Labs</organization>
             <address><email>JeffMogul@acm.org</email></address>
           </author>
-          <date year='2004' month='September' />
+          <date year="2004" month="September" />
         </front>
-        <seriesInfo name='BCP' value='90' />
-        <seriesInfo name='RFC' value='3864' />
+        <seriesInfo name="BCP" value="90" />
+        <seriesInfo name="RFC" value="3864" />
       </reference>
     </references>
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-03" anchor="changes.since.draft-ietf-httpbis-http2-03">
+        <t>
+          Committed major restructuring atrocities.
+        </t>
+        <t>
+          Added more formal description of frame lifecycle.
+        </t>
+        <t>
+          Moved END_STREAM (renamed from FINAL) back to HEADERS/DATA.
+        </t>
+        <t>
+          Removed HEADERS+PRIORITY, added optional priority to HEADERS frame.
+        </t>
         <t>
           Added PRIORITY frame.
         </t>
