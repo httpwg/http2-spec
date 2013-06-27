@@ -414,13 +414,6 @@ HTTP2-Settings    = token68
             defined in <xref target="HTTP-p7" x:fmt="of" x:rel="#challenge.and.response"/>.
           </t>
           <t>
-            The client MUST include values for the following <xref target="SettingFormat">settings</xref>:
-            <list style="symbols">
-              <t>SETTINGS_MAX_CONCURRENT_STREAMS</t>
-              <t>SETTINGS_INITIAL_WINDOW_SIZE</t>
-            </list>
-          </t>
-          <t>
             As a hop-by-hop header field, the <spanx style="verb">Connection</spanx> header field MUST include
             a value of <spanx style="verb">HTTP2-Settings</spanx> in addition to <spanx style="verb">Upgrade</spanx>
             when upgrading to HTTP/2.0.
@@ -1276,7 +1269,17 @@ HTTP2-Settings    = token68
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
             The SETTINGS frame (type=0x4) conveys configuration parameters that affect how endpoints
-            communicate. The parameters are either constraints on peer behavior or preferences.
+            communicate.  SETTINGS frames always apply to a connection, never a single stream.
+            The parameters are either constraints on peer behavior or preferences.
+          </t>
+
+          <t>
+            The SETTINGS frame header does not define any flags.
+            The stream identifier for a settings frame MUST be zero.
+            If an endpoint receives a SETTINGS frame whose stream identifier field
+            is not 0, the endpoint MUST respond with a
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
+            PROTOCOL_ERROR.
           </t>
 
           <t>
@@ -1286,40 +1289,32 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            Implementations MUST support all of the settings defined by this
-            specification and MAY support additional settings defined by
-            extensions. Unsupported or unrecognized settings MUST be ignored.
-            New settings MUST NOT be defined or implemented in a way that
-            requires endpoints to understand them in order to communicate
-            successfully.
+            The SETTINGS frame MUST include values for the following <xref target="SettingFormat">settings</xref>:
+            <list style="symbols">
+              <t>SETTINGS_MAX_CONCURRENT_STREAMS</t>
+              <t>SETTINGS_INITIAL_WINDOW_SIZE</t>
+            </list>
+
+            All other settings are optional.
           </t>
 
           <t>
-            A SETTINGS frame is not required to include every defined
-            setting; senders can include only those parameters for which it
-            has accurate values and a need to convey. When multiple parameters
-            are sent, they SHOULD be sent in order of numerically lowest ID to
-            highest ID.  A single SETTINGS frame MUST NOT contain multiple values for the same ID.  If the
-            receiver of a SETTINGS frame discovers multiple values for the same ID, it MUST ignore
-            all values for that ID except the first one.
+            Unsupported settings MUST be ignored.
           </t>
+
+          <t>
+            A single SETTINGS frame MUST NOT contain multiple values for the same ID.
+            If the receiver of a SETTINGS frame discovers multiple values for the same ID,
+            it MUST ignore all values for that ID except the first one.
+          </t>
+
           <t>
             Over the lifetime of a connection, an endpoint MAY send multiple SETTINGS frames
             containing previously unspecified parameters or new values for parameters whose values
             have already been established. Only the most recent value provided setting value
             applies.
           </t>
-          <t>
-            The SETTINGS frame does not define any flags.
-          </t>
-          <t>
-            SETTINGS frames always apply to a connection, never a single stream.
-            The stream identifier for a settings frame MUST be zero. If an
-            endpoint receives a SETTINGS frame whose stream identifier field
-            is anything other than 0x0, the endpoint MUST respond with a
-            <xref target="ConnectionErrorHandler">connection error</xref> of type
-            PROTOCOL_ERROR.
-          </t>
+
           <t>
             The SETTINGS frame affects connection state.  A badly formed or incomplete SETTINGS
             frame MUST be treated as a <xref target="ConnectionErrorHandler">
