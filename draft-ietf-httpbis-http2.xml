@@ -639,20 +639,37 @@ Upgrade: HTTP/2.0
       </section>
       <section anchor="HeaderBlock" title="Header Blocks">
         <t>
-          The header block is found in the HEADERS and PUSH_PROMISE frames.  The header block
-          consists of a set of header fields, which are name-value pairs.  Headers are compressed
-          using black magic.
+          A "header block" is an unordered collection of name-value pairs, or 
+          "header fields". Each header name can have one or more associated values.
         </t>
         <t>
-          Compression of header fields is a work in progress, as is the format of this block.
+          When encoded for transmission as part of either the HEADERS or 
+          PUSH_PROMISE frames, header blocks are processed and compressed 
+          using the HTTP Header Compression mechanism (<cref>TODO: Add 
+          Reference</cref>). While the specific content of a header block has 
+          no impact on the connection or framing layer, decompression of header 
+          blocks is required to properly maintain compression state, even 
+          if the stream has been reset or the frame is to be discarded. If 
+          a header block cannot be processed, the receiver MUST terminate the
+          connection with a <xref target="ConnectionErrorHandler">connection
+          error</xref> of type COMPRESSION_ERROR.
         </t>
         <t>
-          The contents of header blocks MUST be processed by the compression context, even if stream
-          has been reset or the frame is discarded.  If header blocks cannot be processed, the
-          receiver MUST terminate the connection with a <xref
-          target="ConnectionErrorHandler">connection error</xref> of type COMPRESSION_ERROR.
+          If the total size of a compressed header block exceeds the expected 
+          maximum size allowed for an individual HEADERS or PUSH_PROMISE frame, 
+          the octets of the compressed header block are split among multiple 
+          individual frames that MUST be transmitted, in order, without any 
+          other interleaved frames. The frame carrying the final portion of 
+          the compressed header block MUST include a flag indicating that the 
+          header block is complete.
         </t>
-
+        <t>
+          Whenever this specification mentions sending a header block, 
+          the meaning is that one or more HEADERS frames containing the 
+          compressed content of a single header block is to be sent.
+          Whenever sending a "push promise" is mentioned, the meaning
+          is that one or more PUSH_PROMISE frames are being sent. 
+        </t>
       </section>
     </section>
 
@@ -1357,7 +1374,7 @@ Upgrade: HTTP/2.0
                 The END_HEADERS bit indicates that this frame contains the entire payload
                 necessary to provide a complete set of headers.
                 <vspace blankLines="1"/>
-                The payload for a complete set of headers is provided by a sequence of HEADERS
+                The payload for a complete header block is provided by a sequence of HEADERS
                 frames, terminated by a HEADERS frame with the END_HEADERS flag set.  Once the sequence
                 terminates, the payload of all HEADERS frames are concatenated and interpreted as a
                 single block.
@@ -1647,7 +1664,7 @@ Upgrade: HTTP/2.0
                 The END_PUSH_PROMISE bit indicates that this frame contains the entire payload
                 necessary to provide a complete set of headers.
                 <vspace blankLines="1"/>
-                The payload for a complete set of headers is provided by a sequence of PUSH_PROMISE
+                The payload for a complete header block is provided by a sequence of PUSH_PROMISE
                 frames, terminated by a PUSH_PROMISE frame with the END_PUSH_PROMISE flag set.
                 Once the sequence terminates, the payload of all PUSH_PROMISE frames are concatenated
                 and interpreted as a single block.
@@ -2032,159 +2049,364 @@ Upgrade: HTTP/2.0
 
       <section title="HTTP Request/Response">
 
-        <section title="HTTP Header Fields and HTTP/2.0 Headers">
-          <t>
-            At the application level, HTTP uses name-value pairs in its header fields.  Because
-            HTTP/2.0 merges the existing HTTP header fields with HTTP/2.0 headers, there is a
-            possibility that some HTTP applications already use a particular header field name.  To
-            avoid any conflicts, all header fields introduced for layering HTTP over HTTP/2.0 are
-            prefixed with ":".  ":" is not a valid sequence in HTTP/1.* header field naming,
-            preventing any possible conflict.
-          </t>
-        </section>
+        <t>
+          HTTP requests and their responses are transmitted as ordered sequences
+          of HEADERS and DATA frames exchanged over a stream. The client
+          initiates a new request by sending a header block referencing a 
+          previously unused stream identifier. If the request includes a payload, 
+          the headers are followed by one or more DATA frames carrying the 
+          payload data. Trailing header fields ("trailers") can be included by 
+          sending an additional header block after the DATA frames have
+          been sent. The final frame in the request sequence MUST have the 
+          END_STREAM flag set.
+        </t>
+
+        <t>
+          For example, an HTTP GET request that includes only request headers,
+          no payload data, and no tailers, is transmitted simply as a 
+          header block (encoded for transmission as a sequence of one or 
+          more HEADERS frames) with the last HEADERS frame in the sequence 
+          having both the END_HEADERS and END_STREAM flags set:
+        </t>
+        
+        <figure>
+          <artwork>
+  GET /resource HTTP/1.1        HEADERS (END_STREAM = on
+  Host: example.org       ===>           END_HEADERS = on)
+  Accept: image/jpeg              :method = get
+                                  :path   = /resource
+                                  :host   = example.org
+                                  accept  = image/jpeg
+          </artwork>
+        </figure>
+
+        <t>
+          An HTTP POST request that includes headers and payload data
+          is transmitted as a header block followed by one or more DATA 
+          frames, with the final DATA frame in the sequence having the 
+          END_STREAM flag set:
+        </t>
+        
+        <figure>
+          <artwork>
+  POST /resource HTTP/1.1       HEADERS (END_STREAM = off
+  Host: example.org        ===>          END_HEADERS = on)
+  Content-Type: image/jpeg        :method        = post
+  Content-Length: 123             :path          = /resource
+                                  :host          = example.org
+  {binary data}                   content-type   = image/jpeg
+                                  content-length = 123
+  
+                                DATA (END_STREAM = on)
+                                  {binary data}
+          </artwork>
+        </figure>
+        
+        <t>
+          Trailing header fields are sent as a header block after either 
+          the request header block or the last DATA frame has been sent.
+        </t>
+        
+        <figure>
+          <artwork>
+  POST /resource HTTP/1.1       HEADERS (END_STREAM = off
+  Host: example.org        ===>          END_HEADERS = on)
+  Content-Type: image/jpeg        :method        = post
+  Content-Length: 123             :path          = /resource
+  TE: trailers                    :host          = example.org
+  123                             content-type   = image/jpeg
+  {binary data}                   content-length = 123
+  0                   
+  Foo: bar                      DATA (END_STREAM = off)
+                                  {binary data}
+                       
+                                HEADERS (END_STREAM = on
+                                         END_HEADERS = on)  
+                                  foo = bar                         
+          </artwork>
+        </figure>
+        
+        <t>
+          A server sends an HTTP response as an ordered sequence of HEADERS, 
+          PUSH_PROMISE and DATA frames referencing the same stream identifier 
+          as the request. Response headers are encoded as a single header 
+          block, followed by zero or more DATA frames. After the last DATA 
+          frame has been sent, the server can choose to include trailers by 
+          sending an additional header block. The final frame in the sequence 
+          MUST have the END_STREAM flag set.
+        </t>
+        
+        <t>
+          For example, a response that includes only response headers,
+          no payload data, and no tailers, is transmitted simply as a 
+          header block with the last HEADERS frame in the sequence 
+          having both the END_HEADERS and END_STREAM flags set:
+        </t>
+        
+        <figure>
+          <artwork>
+  HTTP/1.1 204 No Content       HEADERS (END_STREAM = on
+  Content-Length: 0        ===>          END_HEADERS = on)
+                                  :status = 204
+                                  :status_text = No Content
+                                  content-length: 0
+          </artwork>
+        </figure>
+        
+        <t>
+          A response that includes headers and payload data is transmitted 
+          as a header block followed by one or more DATA frames, with the \
+          last DATA frame in the sequence having the END_STREAM flag set:
+        </t>
+        
+        <figure>
+          <artwork>
+  HTTP/1.1 200 OK               HEADERS (END_STREAM = off
+  Content-Type: image/jpeg ===>          END_HEADERS = on)
+  Content-Length: 123             :status        = 200
+                                  :status_text   = OK
+                                  content-type   = image/jpeg
+                                  content-length = 123
+  {binary data}
+                                DATA (END_STREAM = on)
+                                  {binary data}
+          </artwork>
+        </figure>
+        
+        <t>
+          As in the request, trailing header fields are sent as an
+          additional header block after the response headers or the 
+          payload:
+        </t>
+        
+        <figure>
+          <artwork>
+  HTTP/1.1 200 OK               HEADERS (END_STREAM = off)
+  Content-Type: image/jpeg ===>   :status        = 200
+  Content-Length: 123             :status_text   = OK
+  TE: trailers                    content-type   = image/jpeg
+                                  content-length = 123
+  123                              
+  {binary data}                 DATA (END_STREAM = off)
+  0                               {binary data}
+  Foo: bar                      
+                                HEADERS (END_STREAM = on)
+                                foo: bar
+          </artwork>
+        </figure>
+
+        <t>
+          The server can choose to send one or more push promises
+          associated with the response. These notify the client that 
+          the server intends to deliver additional resources to the client
+          as specified in <xref target="PushResources" />. If the server
+          sends PUSH_PROMISE frames, those MUST be sent prior to sending 
+          any header blocks or DATA frames that reference the promised resources.
+          For instance, if the server receives a request for a document
+          containing embedded links to multiple image files, and the 
+          server chooses to push those additional images to the client, 
+          all of the push promises MUST be sent prior to sending the DATA frames 
+          that contain the image links. Likewise, if the server pushes 
+          resources referenced by the header block (i.e. using Link headers), 
+          the server MUST send the push promise before sending the header
+          block.
+        </t>
+        
+        <t>
+          Additionally:
+          <list style="symbols">
+            <t>
+              HTTP requests and responses fully consume a single stream. 
+              That is, the last frame a client sends for a request MUST 
+              include the END_STREAM flag, causing the stream to enter the 
+              half-closed state and notifying the server that the request is 
+              complete. Likewise, the last frame the server sends for the
+              response MUST include the END_STREAM flag.
+            </t>
+            <t>
+              The server MUST NOT begin sending the response header block 
+              until it receives all of the request headers from the 
+              client; however, the server MAY begin sending the response 
+              immediately after receiving the request headers without waiting
+              for the complete request payload or trailers to be received.
+            </t>
+            <t>
+              Clients and servers MUST send the complete request or response 
+              headers before sending any payload DATA frames. If either 
+              endpoint receives DATA frames before receiving the complete
+              request or response header block, it MUST respond with a 
+              <xref target="StreamErrorHandler">stream error</xref> of type 
+              PROTOCOL_ERROR.
+            </t>
+            <t>
+              Either endpoint MAY send an RST_STREAM frame to terminate the
+              stream at any point before or after either peer sends their 
+              initial header blocks.
+            </t>
+            <t>
+              Only the initial header block sent by the client and server
+              contain the request and response headers (respectively). 
+            </t>
+            <t>
+              Trailing header fields are provided only by a header block
+              (a) sent after the initial header block and (b) whose final 
+              HEADERS frame has the END_STREAM flag set.
+            </t>
+            <t>
+              Header blocks that (a) are sent after the initial header
+              block and (b) do not close the stream by using the END_STREAM
+              flag MUST NOT be considered to be a part of the HTTP request or
+              response.
+            </t>
+            <t>
+              Unknown or unrecognized frame types MUST NOT be considered to
+              be part of the HTTP request or response.
+              <cref>Ed. Note: Later on we need to fully address extensibility here.</cref>
+            </t>
+            <t>
+              HEADERS and DATA frames used to carry HTTP requests or responses
+              MUST NOT exceed (2^14)-1 octets of payload data.
+            </t>
+          </list>
+        </t>
 
         <section anchor="HttpRequest" title="Request">
+          
           <t>
-            The client initiates a request by sending a HEADERS frame.  Requests that do
-            not contain a body MUST set the END_STREAM flag, indicating that the client intends to send
-            no further data on this stream, unless the server intends to push resources (see <xref
-            target="PushResources"/>).  The HEADERS frame does not contain the END_STREAM flag for
-            requests that contain a body.  The body of a request follows as a series of DATA
-            frames. The last DATA frame sets the END_STREAM flag to indicate the end of the body.
-          </t>
-
-          <t>
-            The header fields included in the HEADERS frame contain 
-            all of the HTTP header fields associated with an HTTP request.
-            The definitions of these headers are largely unchanged relative 
-            to HTTP/1.1, with a few notable exceptions:
+            The definitions of the request header fields are largely unchanged 
+            relative to HTTP/1.1, with a few notable exceptions:
             <list style="symbols">
-              <t>The HTTP/1.1 request-line has been split into two separate
+              <t>
+                The HTTP/1.1 request-line has been split into two separate
                 header fields named :method and :path, whose values 
                 specify the HTTP method for the request and the request-target,
                 respectively. The HTTP-version component of the request-line
-                is removed entirely from the headers.</t>
-              <t>The host and optional port portions of the request URI 
-                (see <xref target="RFC3986" x:fmt="," x:sec="3.2"/>), is specified
-                using the new :host header field. <cref>Ed. Note: it 
+                is removed entirely from the headers.
+              </t>
+              <t>
+                The host and optional port portions of the request URI 
+                (see <xref target="RFC3986" x:fmt="," x:sec="3.2"/>), 
+                are specified using the new :host header field. <cref>Ed. Note: it 
                 needs to be clarified whether or not this replaces the
-                existing HTTP/1.1 Host header.</cref></t>
-              <t>A new :scheme header field has been added to specify the 
-                scheme portion of the request-target (e.g. "https")</t>
-              <t>All header field names MUST be lowercased, and the 
+                existing HTTP/1.1 Host header.</cref>
+              </t>
+              <t>
+                A new :scheme header field has been added to specify the 
+                scheme portion of the request-target (e.g. "https")
+              </t>
+              <t>
+                All header field names MUST be lowercased, and the 
                 definitions of all header field names defined by 
-                HTTP/1.1 are updated to be all lowercase.</t>
-              <t>The Connection, Host, Keep-Alive, Proxy-Connection, and 
+                HTTP/1.1 are updated to be all lowercase.
+              </t>
+              <t>
+                The Connection, Host, Keep-Alive, Proxy-Connection, and 
                 Transfer-Encoding header fields are no longer valid and 
-                MUST NOT be sent.</t>
+                MUST NOT be sent. <cref>Ed. Note: And "TE" I presume?</cref>
+              </t>
             </list>
           </t>
-            
-          <t>All HTTP Requests MUST include the ":method", ":path", ":host",
-            and ":scheme" header fields.</t>
-                        
-          <t>Header fields whose names begin with ":" (whether defined in this 
-            document or future extensions to this document) MUST appear before 
-            any other header fields.</t>
 
           <t>
-            If a client sends a HEADERS frame that omits a mandatory 
-            header, the server MUST reply with a HTTP 400 Bad Request reply.  
-            <cref>Ed: why PROTOCOL_ERROR on missing ":status" in the response, 
-              but HTTP 400 here?</cref>
+            All HTTP Requests MUST include the ":method", ":path", ":host",
+            and ":scheme" header fields.
+          </t>
+                    
+          <t>
+            Header fields whose names begin with ":" (whether defined in this 
+            document or future extensions to this document) MUST appear before 
+            any other header fields. <cref>Ed. Note: This requirement is currently
+            pending review. Consider it "on hold" for the moment.</cref>
+          </t>
+            
+          <t>
+            All HTTP Requests that include a Payload SHOULD include the 
+            "content-length" header field. If a server receives a request
+            where the sum of the DATA frame payload lengths does not equal
+            the size of the "content-length" header field, the server MUST
+            return a 400 (Bad Request) error.
           </t>
 
           <t>
-             If a server receives a request where the sum of the data frame payload lengths does
-             not equal the size of the Content-Length header field, the server MUST return a 400
-             (Bad Request) error.
+            If a client omits a mandatory header from the request, the server 
+            MUST reply with a HTTP 400 Bad Request reply.
+          </t>
+
+          <t>
+            The client MAY include a priority within its request as a hint to 
+            the server. A server SHOULD attmpt to provide responses to higher
+            priority requests before lower priority requests. A server could
+            send lower priority responses during periods that higher priority
+            responses are unavailable to ensure better utilization of a 
+            connection.
           </t>
           
-          <t>
-             Although POSTs are inherently chunked, POST requests SHOULD also be accompanied by a
-             Content-Length header field.  First, it informs the server of how much data to
-             expect, which the server can use to track overall progress and provide appropriate
-             user feedback.  More importantly, some HTTP server implementations fail to correctly
-             process requests that omit the Content-Length header field.  Many existing clients
-             send a Content-Length header field, and some server implementations have come to
-             depend upon its presence.
-          </t>
-
-          <t>
-            A client provides priority in requests as a hint to the server.  A server SHOULD attempt
-            to provide responses to higher priority requests before lower priority requests.  A
-            server could send lower priority responses during periods that higher priority responses
-            are unavailable to ensure better utilization of a connection.
-          </t>
-          <t>
-            If the server receives a data frame prior to a HEADERS frame the server MUST
-            treat this as a <xref target="StreamErrorHandler">stream error</xref> of type
-            PROTOCOL_ERROR.
-          </t>
         </section>
 
         <section anchor="HttpResponse" title="Response">
+          
           <t>
-            The server responds to a client request using the same stream identifier that was used
-            by the request.  An HTTP response begins with a HEADERS frame. An HTTP response body
-            consists of a series of DATA frames.  The last data frame contains a END_STREAM flag to
-            indicate the end of the response.  A response that contains no body (such as a 204 or
-            304 response) consists only of a HEADERS frame that contains the END_STREAM flag to indicate
-            no further data will be sent on the stream.
-          </t>
-
-          <t>
-            <list>
+            The definitions of the response header fields are largely unchanged 
+            relative to HTTP/1.1, with a few notable exceptions:
+            <list style="symbols">
               <t>
-                The response status line is unfolded into name-value pairs like other HTTP header
-                fields and must be present:
-                <list style="hanging">
-                  <t hangText="&quot;:status&quot;:">
-                    The HTTP response status code (e.g. "200" or "200 OK")
-                  </t>
-                </list>
+                The response status line has been reduced to a single ":status" 
+                header field whose value specifies only the numeric response
+                status code. The status text component of the HTTP/1.1 response
+                has been dropped entirely.
               </t>
               <t>
-                All header field names starting with ":" (whether defined in this document or future
-                extensions to this document) MUST appear before any other header fields.
+                The response MUST contain exactly one :status header field with
+                exactly one response status value. If the client receives
+                an HTTP response that does not include the :status field, or 
+                provides multiple response status code values, it MUST respond 
+                with a <xref target="StreamErrorHandler">stream error</xref> of 
+                type PROTOCOL_ERROR.
               </t>
               <t>
-                All header field names MUST be all lowercase.
+                All header field names MUST be lowercased, and the definitions 
+                of all header field names defined by HTTP/1.1 are updated to 
+                be all lowercase.
               </t>
               <t>
-                The Connection, Keep-Alive, Proxy-Connection, and Transfer-Encoding header fields
-                are not valid and MUST NOT be sent.
-              </t>
-              <t>
-                Responses MAY be accompanied by a Content-Length header field for advisory purposes.
-                This allows clients to learn the full size of an entity prior to receiving all the
-                data frames.  This can help in, for example, reporting progress.
-              </t>
-              <t>
-                If a client receives a response where the sum of the data frame payload length does
-                not equal the size of the Content-Length header field, the client MUST ignore the
-                content length header field. <cref>Ed: See <eref
-                target="https://github.com/http2/http2-spec/issues/46">issue 46</eref>.</cref>
+                The Connection, Keep-Alive, Proxy-Connection, and 
+                Transfer-Encoding header fields are not valid and MUST NOT be 
+                sent.
               </t>
             </list>
           </t>
 
           <t>
-            If a client receives a response with an absent or duplicated status header, the client
-            MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of type
-            PROTOCOL_ERROR.
+            Header fields whose names begin with ":" (whether defined in this 
+            document or future extensions to this document) MUST appear before 
+            any other header fields. <cref>Ed. Note: This requirement is currently
+            pending review. Consider it "on hold" for the moment.</cref>
           </t>
 
           <t>
-            If the client receives a data frame prior to a HEADERS frame the client MUST treat this
-            as a <xref target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
+            Responses MAY include an advisory content-length header field.
+            This allows clients to determined the expected size of an entity 
+            prior to receiving all the DATA frames. This can help in, for 
+            instance, when reporting the progress of a download. If the client 
+            receives a response where the sum of the DATA frame payload length 
+            does not equal the size of the content-length header field, the 
+            client MUST ignore the content length header field.
           </t>
 
           <t>
-            Clients MUST support gzip compression.  Regardless of the value of the Accept-Encoding
+            Clients MUST support gzip compression.  Regardless of the value of the "accept-encoding"
             header field, a server MAY send responses with gzip or deflate encoding.  A compressed
-            response MUST still bear an appropriate Content-Encoding header field.
+            response MUST still bear an appropriate "content-encoding" header field.
           </t>
+          
+          <t>
+            <xref target="StreamErrorHandler">Stream</xref> and 
+            <xref target="ConnectionErrorHandler">Connection</xref> errors 
+            MUST NOT be used to represent HTTP or application layer error 
+            responses (those using 4xx or 5xx response codes). <cref>Ed. Note: 
+            Do we need to say more about the representation of HTTP errors?</cref>
+          </t>
+          
         </section>
 
         <section anchor="Reliability" title="Request Reliability Mechanisms in HTTP/2.0">
@@ -2233,21 +2455,114 @@ Upgrade: HTTP/2.0
 
       <section anchor="PushResources" title="Server Push Transactions">
         <t>
-          HTTP/2.0 enables a server to send multiple replies to a client for a single request.  The
-          rationale for this feature is that sometimes a server knows that it will need to send
-          multiple resources in response to a single request.  Without server push features, the
-          client must first download the primary resource, then discover the secondary resource(s),
-          and request them.
+          HTTP/2.0 enables a server to pre-emptively send (or "push") multiple 
+          associated resources to a client in response to a single request. 
+          This feature becomes particularly helpful when the server knows the 
+          client will need to have those resources available in order to full 
+          process the originally requested resource.
         </t>
        
         <t>
-          Server push is an optional feature.  The SETTINGS_MAX_CONCURRENT_STREAMS setting from the
-          client limits the number of resources that can be concurrently pushed by a server.  Server
-          push can be disabled by clients that do not wish to receive pushed resources by
-          advertising a SETTINGS_MAX_CONCURRENT_STREAMS <xref target="SETTINGS">SETTING</xref> of
-          zero.  This prevents servers from creating the streams necessary to push resources.
+          Pushing additional resources is optional, and is negotiated only 
+          between individual endpoints. For instance, an intermediary that 
+          is facilitating communication between an HTTP client and an origin
+          server might receive pushed resources from the server but is not 
+          required to forward those on to the client. Whether
+          and how to make use of the pushed resources is up to that
+          intermediary. Alternatively, the intermediary might choose to 
+          push the additional resources to the client on its own, without 
+          any action taken by the server.
+        </t>
+        
+        <t>
+          Within the HTTP/2.0 Layer, pushed resources are always associated 
+          with a request. They are implemented by the server sending one or more 
+          PUSH_PROMISE frames on the same stream as the HTTP response, identifying
+          the identity of the new stream that will be used to deliver the content.
+        </t>
+        
+        <t>
+          If the server does choose to send PUSH_PROMISE frames, those MUST be 
+          sent either before or immediately after sending the response header 
+          block for the initial request. The PUSH_PROMISE frames MUST be sent
+          prior to sending any response DATA frames. This ordering requirement
+          minimizes the change that a client might request a resource that is 
+          currently being pushed, causing a server to send multiple copies of
+          the resource.
+        </t>
+        
+        <t>
+          After the PUSH_PROMISE is sent, the server can commence 
+          transmission of a pushed resource on the new stream identified by
+          the PUSH_PROMISE frame. The sequence of frames sent by the 
+          server on these additional streams is identical to those sent 
+          for any other HTTP response with the exception that additional 
+          PUSH_PROMISE frames MUST NOT be sent on a server-initiated pushed
+          stream. If a client receives PUSH_PROMISE frames on a pushed stream, 
+          it MUST respond with a <xref target="StreamErrorHandler">stream error</xref> of type 
+          PROTOCOL_ERROR.
+        </t>
+        
+        <t>
+          When a client receives a PUSH_PROMISE frame from the server, the 
+          client MUST treat the pushed stream as being half-closed and MUST NOT
+          send any frames to server on that stream other than an RST_STREAM.
+        </t>
+        
+        <t>
+          PUSH_PROMISE frames MUST NOT be sent by an HTTP client. 
+        </t>
+        
+        <t>
+          A client can use the SETTINGS_MAX_CONCURRENT_STREAMS setting to 
+          limit the number of resources that can be concurrently pushed by
+          a server. If the client does not wish to receive any pushed 
+          resources, it would send a SETTINGS frame advertising a 
+          SETTINGS_MAX_CONCURRENT_STREAMS value of zero. Doing so 
+          prevents the server from creating the streams necessary to 
+          push resources.
         </t>
 
+        <t>
+          By default, a pushed resource is semantically equivalent to a server 
+          responding to an implicit GET request for that resource. The 
+          PUSH_PROMISE frame sent by the server includes a header block that 
+          contains the request headers that the server has assumed. Some of 
+          these request headers can be inherited from the originating request
+          sent by the client. After sending the PUSH_PROMISE frame, the server
+          can begin delivering the pushed resource by sending one or more 
+          HEADERS frames containing the response headers followed by the 
+          necessary DATA frames. If, however, the original request uses the 
+          HTTP HEAD method, any pushed streams associated with the response 
+          MUST be handled as if they were responses to HEAD requests. 
+        </t>
+        
+        <t>
+          The request headers field provided in the PUSH_PROMISE frame SHOULD 
+          include enough information for a client to determine whether a cached
+          representation of the resource is already available. If the client
+          determines, for any reason, that it does not wish to receive the 
+          pushed resource from the server, or if the server takes too long 
+          to begin sending the promised resource, the client can send an 
+          RST_STREAM frame referencing the pushed stream's identifier using
+          the CANCEL code.
+        </t>
+        
+        <t>
+          The PUSH_PROMISE header block MUST include the ":method", ":path", 
+          ":host", and ":scheme" header fields. If a client receives a 
+          PUSH_PROMISE that does not include these header fields, it MUST
+          respond with a <xref target="StreamErrorHandler">stream error</xref>
+          of type PROTOCOL_ERROR.
+        </t>
+        
+        <t>
+          Once a client receives a PUSH_PROMISE frame and chooses to accept
+          the pushed resource, the client SHOULD NOT issue any subsequent GET 
+          or HEAD requests for the promised resource until after the promised
+          stream has closed.
+        </t>
+       
         <t>
           Clients receiving a pushed response MUST validate that the server is authorized to push
           the resource using the same-origin policy (<xref target="RFC6454" x:fmt="," x:sec="3"/>).
@@ -2255,144 +2570,7 @@ Upgrade: HTTP/2.0
           <cref>Ed: weaselly use of "generally", needs better definition</cref> not permitted to
           push a response for <spanx style="verb">www.example.org</spanx>.
         </t>
-
-        <t>
-          A client that accepts pushed resources caches those resources as though they were
-          responses to GET requests.
-        </t>
-        <t>
-          Pushing of resources avoids the round-trip delay, but also creates a potential race where
-          a server can be pushing content which a client is in the process of requesting.  The
-          PUSH_PROMISE frame reduces the chances of this condition occurring, while retaining the
-          performance benefit.
-        </t>
-        <t>
-           Pushed responses are associated with a request at the HTTP/2.0 framing layer.  The
-           PUSH_PROMISE is sent on the stream for the associated request, which allows a receiver to
-           correlate the pushed resource with a request.  The pushed stream inherits all of the
-           request header fields from the associated stream with the exception of resource
-           identification header fields (<spanx style="verb">:host</spanx>, <spanx
-           style="verb">:scheme</spanx>, and <spanx style="verb">:path</spanx>), which are provided
-           as part of the PUSH_PROMISE frame.
-        </t>
-        <t>
-          Pushed resources always have an associated <spanx style="verb">:method</spanx> of <spanx
-          style="verb">GET</spanx>.  A cache MUST store these inherited and implied request header
-          fields with the cached resource.
-        </t>
-
-        <section title="Server implementation">
-          <t>
-            A server pushes resources in association with a request from the client.  Prior to
-            closing the response stream, the server sends a PUSH_PROMISE for each resource that it
-            intends to push.  The PUSH_PROMISE includes header fields that allow the client to
-            identify the resource (<spanx style="verb">:scheme</spanx>, <spanx
-            style="verb">:host</spanx>, and <spanx style="verb">:path</spanx>).  
-          </t>
-          <t>
-            A server can push multiple resources in response to a request, but all pushed resources
-            MUST be promised on the response stream for the associated request.  A server cannot
-            send a PUSH_PROMISE on a new stream or a half-closed stream.
-          </t>
-          <t>
-            The server SHOULD include any header fields in a PUSH_PROMISE that would allow a cache
-            to determine if the resource is already cached (see <xref target="HTTP-p6" x:fmt=","
-            x:sec="4"/>).
-          </t>
-          
-          <t>
-            After sending a PUSH_PROMISE, the server commences transmission of a pushed resource.  A
-            pushed resource uses a server-initiated stream.  The server sends frames on this stream
-            in the same order as an <xref target="HttpResponse">HTTP response</xref>: a HEADERS
-            frame followed by DATA frames.
-          </t>
-
-          <t>
-            Many uses of server push are to send content that a client is likely to discover a need
-            for based on the content of a response representation.  To minimize the chances that a
-            client will make a request for resources that are being pushed - causing duplicate
-            copies of a resource to be sent by the server - a PUSH_PROMISE frame SHOULD be sent
-            prior to any content in the response representation that might allow a client to
-            discover the pushed resource and request it.
-          </t>
-
-          <t>
-            The server MUST only push resources that could have been returned from a GET request.
-          </t>
-
-          <t>
-            Note: A server does not need to have all response header fields available at the time it
-            issues a PUSH_PROMISE frame.  All remaining header fields are included in the HEADERS
-            frame.  The HEADERS frame MUST NOT duplicate header fields from the PUSH_PROMISE frames.
-          </t>
-        </section>
-
-        <section title="Client implementation">
-          <t>
-            When fetching a resource the client has 3 possibilities:
-            <list style="numbers">
-              <t>
-                the resource is not being pushed
-              </t>
-              <t>
-                the resource is being pushed, but the data has not yet arrived
-              </t>
-              <t>
-                the resource is being pushed, and the data has started to arrive
-              </t>
-            </list>
-          </t>
-
-          <t>
-            A client SHOULD NOT issue GET requests for a resource that has been promised.  A client
-            is instead advised to wait for the pushed resource to arrive.
-          </t>
-
-          <t>
-            When a client receives a PUSH_PROMISE frame from the server without the <spanx
-            style="verb">:host</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
-            style="verb">:path</spanx> header fields, it MUST treat this as a <xref
-            target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
-          </t>
-
-          <t>
-            To cancel individual server push streams, the client can issue a <xref
-            target="StreamErrorHandler">stream error</xref> of type CANCEL.  After receiving a
-            PUSH_PROMISE frame, the client is able to cancel the pushed resource before receiving
-            any frames on the promised stream.  The server ceases transmission of the pushed
-            resource; if the server has not commenced transmission, it does not start.
-          </t> 
-
-          <t>
-            To cancel all server push streams related to a request, the client may issue a <xref
-            target="StreamErrorHandler">stream error</xref> of type CANCEL on the
-            associated-stream-id.  By cancelling that stream, the server MUST immediately stop
-            sending frames for any streams with in-association-to for the original stream.
-            <cref>Ed: Triggering side-effects on stream reset is going to be problematic for the
-            framing layer.  Purely from a design perspective, it's a layering violation.  More
-            practically speaking, the base request stream might already be removed.  Special
-            handling logic would be required.</cref>
-          </t>
-
-          <t>
-            A client can choose to time out pushed streams if the server does not provide the
-            resource in a timely fashion.  A <xref target="StreamErrorHandler">stream error</xref>
-            of type CANCEL can be used to stop a timed out push.
-          </t>
-
-          <t>
-            If the server sends a HEADERS frame containing header fields that duplicate values on a
-            previous HEADERS or PUSH_PROMISE frames on the same stream, the client MUST treat this
-            as a <xref target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
-          </t>
-
-          <t>
-            If the server sends a HEADERS frame after sending a data frame for the same stream, the
-            client MAY ignore the HEADERS frame.  Ignoring the HEADERS frame after a data frame
-            prevents handling of HTTP's trailing header fields (<xref target="HTTP-p1" x:fmt="of"
-            x:rel="#header.trailer"/>).
-          </t>
-        </section>
+        
       </section>
 
     </section>
