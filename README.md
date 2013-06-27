@@ -41,7 +41,7 @@ meaning of the specification), you can either:
   processed only with best effort by the editors, so it should only be used for
   quick editorial suggestions or questions.
 
-3. For non-editorial ("**design**") issues, you can also create an issue on
+3. For non-editorial (i.e., **design**) issues, you can also create an issue on
 Github. However, you **must notify the mailing list** when creating such issues,
 providing a link to the issue in the message body.
 
