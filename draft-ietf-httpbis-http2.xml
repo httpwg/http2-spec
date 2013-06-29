@@ -385,7 +385,7 @@ Upgrade: HTTP/2.0
         </t>
         <t>
           The HTTP/1.1 request that is sent prior to upgrade is associated with stream 1 and is
-          assigned the highest possible priority.  Stream 1 is implicitly half-closed from the
+          assigned the highest possible priority.  Stream 1 is implicitly half closed from the
           client toward the server, since the request is completed as an HTTP/1.1 request.  After
           commencing the HTTP/2.0 connection, stream 1 is used for the response.
         </t>
@@ -603,8 +603,9 @@ HTTP2-Settings    = token68
 
       <section anchor="HeaderBlock"  title="Header Compression and Decompression">
         <t>
-          A "header block" is an unordered collection of name-value pairs, or 
-          "header fields". Each header name can have one or more associated values.
+          A "header block" is an unordered collection of name-value pairs
+          used in HTTP as header fields. Each header name can have one or more 
+          associated values.
         </t>
         <t>
           When encoded for transmission as part of either the HEADERS or 
@@ -1851,7 +1852,7 @@ HTTP2-Settings    = token68
             The endpoint detected that its peer violated the flow control protocol.
           </t>
           <t hangText="STREAM_CLOSED (5):">
-            The endpoint received a frame after a stream was half-closed.
+            The endpoint received a frame after a stream was half closed.
           </t>
           <t hangText="FRAME_TOO_LARGE (6):">
             The endpoint received a frame that was larger than the maximum size that it
@@ -1909,34 +1910,30 @@ HTTP2-Settings    = token68
       <section title="HTTP Request/Response">
 
         <t>
-          HTTP requests and their responses are transmitted as ordered sequences
-          of HEADERS and DATA frames exchanged over a stream. The client
-          initiates a new request by sending a header block referencing a 
-          previously unused stream identifier. If the request includes a payload, 
-          the headers are followed by one or more DATA frames carrying the 
-          payload data. Trailing header fields ("trailers") can be included by 
-          sending an additional header block after the DATA frames have
-          been sent. The final frame in the request sequence MUST have the 
-          END_STREAM flag set.
+          HTTP requests and responses each consist of a single contiguous 
+          sequence of HEADERS frames, zero or more DATA frames, and possibly 
+          a second contiguous sequence of HEADERS frames, where the last frame 
+          in the sequence bears an END_STREAM flag. Additional sequences of 
+          HEADERS frames MAY be interspersed with these frames, but they carry 
+          no significance in HTTP and can be discarded.
         </t>
 
         <t>
           For example, an HTTP GET request that includes only request headers,
           no payload data, and no tailers, is transmitted simply as a 
-          header block (encoded for transmission as a sequence of one or 
-          more HEADERS frames) with the last HEADERS frame in the sequence 
+          header block with the last HEADERS frame in the sequence 
           having both the END_HEADERS and END_STREAM flags set:
         </t>
         
         <figure>
-          <artwork>
+          <artwork><![CDATA[
   GET /resource HTTP/1.1        HEADERS 
   Host: example.org       ===>    + END_STREAM
   Accept: image/jpeg                :method = get
                                     :path = /resource
                                     :host = example.org
                                     accept = image/jpeg
-          </artwork>
+          ]]></artwork>
         </figure>
 
         <t>
@@ -1947,7 +1944,7 @@ HTTP2-Settings    = token68
         </t>
         
         <figure>
-          <artwork>
+          <artwork><![CDATA[
   POST /resource HTTP/1.1       HEADERS 
   Host: example.org        ===>   - END_STREAM
   Content-Type: image/jpeg          :method = post
@@ -1959,7 +1956,7 @@ HTTP2-Settings    = token68
                                 DATA 
                                   + END_STREAM
                                     {binary data}
-          </artwork>
+          ]]></artwork>
         </figure>
         
         <t>
@@ -1968,7 +1965,7 @@ HTTP2-Settings    = token68
         </t>
         
         <figure>
-          <artwork>
+          <artwork><![CDATA[
   POST /resource HTTP/1.1       HEADERS 
   Host: example.org        ===>   - END_STREAM
   Content-Type: image/jpeg          :method = post
@@ -1984,17 +1981,12 @@ HTTP2-Settings    = token68
                                 HEADERS 
                                   + END_STREAM
                                     foo = bar                       
-          </artwork>
+          ]]></artwork>
         </figure>
         
         <t>
-          A server sends an HTTP response as an ordered sequence of HEADERS, 
-          PUSH_PROMISE and DATA frames on the same stream 
-          as the request. Response headers are encoded as a single header 
-          block, followed by zero or more DATA frames. After the last DATA 
-          frame has been sent, the server can choose to include trailers by 
-          sending an additional header block. The final frame in the sequence 
-          MUST have the END_STREAM flag set.
+          A server sends an HTTP response as a sequence of HEADERS and DATA 
+          frames on the same stream as the request. 
         </t>
         
         <t>
@@ -2005,13 +1997,12 @@ HTTP2-Settings    = token68
         </t>
         
         <figure>
-          <artwork>
+          <artwork><![CDATA[
   HTTP/1.1 204 No Content       HEADERS 
   Content-Length: 0        ===>   + END_STREAM
                                     :status = 204
-                                    :status_text = No Content
                                     content-length: 0
-          </artwork>
+          ]]></artwork>
         </figure>
         
         <t>
@@ -2021,18 +2012,17 @@ HTTP2-Settings    = token68
         </t>
         
         <figure>
-          <artwork>
+          <artwork><![CDATA[
   HTTP/1.1 200 OK               HEADERS 
   Content-Type: image/jpeg ===>   - END_STREAM
   Content-Length: 123               :status = 200
-                                    :status_text = OK
-  {binary data}                     content-type = image/jpeg
-                                    content-length = 123
+                                    content-type = image/jpeg
+  {binary data}                     content-length = 123
                                     
                                 DATA 
                                   + END_STREAM
                                     {binary data}
-          </artwork>
+          ]]></artwork>
         </figure>
         
         <t>
@@ -2042,90 +2032,66 @@ HTTP2-Settings    = token68
         </t>
         
         <figure>
-          <artwork>
-  HTTP/1.1 200 OK               HEADERS (END_STREAM = off)
-  Content-Type: image/jpeg ===>   :status        = 200
-  Content-Length: 123             :status_text   = OK
-  TE: trailers                    content-type   = image/jpeg
-                                  content-length = 123
-  123                              
-  {binary data}                 DATA (END_STREAM = off)
-  0                               {binary data}
-  Foo: bar                      
-                                HEADERS (END_STREAM = on)
-                                foo: bar
-          </artwork>
+          <artwork><![CDATA[
+  HTTP/1.1 200 OK               HEADERS 
+  Content-Type: image/jpeg ===>   + END_STREAM
+  Content-Length: 123               :status        = 200
+  TE: trailers                      content-type   = image/jpeg
+  123                               content-length = 123
+  {binary data}                             
+  0                             DATA 
+  Foo: bar                        - END_STREAM 
+  0                                 {binary data}
+  
+                                HEADERS 
+                                  + END_STREAM
+                                    foo: bar
+          ]]></artwork>
         </figure>
 
         <t>
-          The server can choose to send one or more push promises
-          associated with the response. These notify the client that 
-          the server intends to deliver additional resources to the client
-          as specified in <xref target="PushResources" />. If the server
-          sends PUSH_PROMISE frames, those MUST be sent prior to sending 
-          any header blocks or DATA frames that reference the promised resources.
+          Contiguous sequences of PUSH_PROMISE frames can be interspersed 
+          within the response. These notify the client that the server intends 
+          to deliver additional resources to the client as specified in 
+          <xref target="PushResources" />. If the server sends 
+          <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frames, 
+          those SHOULD be sent prior to sending any HEADERS or DATA 
+          frames that reference the promised resources.
           For instance, if the server receives a request for a document
           containing embedded links to multiple image files, and the 
           server chooses to push those additional images to the client, 
-          all of the push promises MUST be sent prior to sending the DATA frames 
-          that contain the image links. Likewise, if the server pushes 
+          all of the push promises ought be sent prior to sending the DATA 
+          frames that contain the image links. Likewise, if the server pushes 
           resources referenced by the header block (i.e. using Link headers), 
-          the server MUST send the push promises before sending the header
+          the server ought to send the push promises before sending the header
           block.
         </t>
         
         <t>
-          Additionally:
-          <list style="symbols">
-            <t>
-              HTTP requests and responses fully consume a single stream. 
-              That is, the last frame a client sends for a request MUST 
-              include the END_STREAM flag, causing the stream to enter the 
-              half-closed state and notifying the server that the request is 
-              complete. Likewise, the last frame the server sends for the
-              response MUST include the END_STREAM flag.
-            </t>
-            <t>
-              The server MUST NOT begin sending the response header block 
-              until it receives all of the request headers from the 
-              client; however, the server MAY begin sending the response 
-              immediately after receiving the request headers without waiting
-              for the complete request payload or trailers to be received.
-            </t>
-            <t>
-              Clients and servers MUST send the complete request or response 
-              headers before sending any payload DATA frames. If either 
-              endpoint receives DATA frames before receiving the complete
-              request or response header block, it MUST respond with a 
-              <xref target="StreamErrorHandler">stream error</xref> of type 
-              PROTOCOL_ERROR.
-            </t>
-            <t>
-              Either endpoint MAY send an RST_STREAM frame to terminate the
-              stream at any point before or after either peer sends their 
-              initial header blocks.
-            </t>
-            <t>
-              Only the initial header block sent by the client and server
-              contain the request and response headers (respectively). 
-            </t>
-            <t>
-              Trailing header fields are provided only by a header block
-              (a) sent after the initial header block and (b) whose last 
-              HEADERS frame has the END_STREAM flag set.
-            </t>
-            <t>
-              Header blocks that (a) are sent after the initial header
-              block and (b) do not close the stream by using the END_STREAM
-              flag MUST NOT be considered to be a part of the HTTP request or
-              response.
-            </t>
-            <t>
-              Unknown or unrecognized frame types MUST NOT be considered to
-              be part of the HTTP request or response.
-              <cref>Ed. Note: Later on we need to fully address extensibility here.</cref>
-            </t>
-          </list>
+          HTTP requests and responses fully consume a single stream. 
+          That is, the last frame a client sends for a request MUST 
+          include the END_STREAM flag, causing the stream to enter the 
+          half closed state and notifying the server that the request is 
+          complete. Likewise, the last frame the server sends for the
+          response MUST include the END_STREAM flag.
+        </t>
+        
+        <t>
+          Only the initial header block sent by the client and server
+          contain the request and response headers (respectively). 
+        </t>
+            
+        <t>
+          Trailing header fields are provided only by a header block
+          (a) sent after the initial header block and (b) whose last 
+          HEADERS frame has the END_STREAM flag set.
+        </t>
+            
+        <t>
+          Header blocks that (a) are sent after the initial header
+          block and (b) do not close the stream by using the END_STREAM
+          flag MUST NOT be considered to be a part of the HTTP request or
+          response.
         </t>
 
         <section anchor="HttpRequest" title="Request Header Fields">
@@ -2178,7 +2144,7 @@ HTTP2-Settings    = token68
           </t>
             
           <t>
-            All HTTP Requests that include a Payload SHOULD include the 
+            All HTTP Requests that include a body SHOULD include the 
             "content-length" header field. If a server receives a request
             where the sum of the DATA frame payload lengths does not equal
             the value of the "content-length" header field, the server MUST
@@ -2251,18 +2217,15 @@ HTTP2-Settings    = token68
             client MUST ignore the content length header field.
           </t>
 
-          <t>
-            Clients MUST support gzip compression.  Regardless of the value of the accept-encoding
-            header field, a server MAY send responses with gzip or deflate encoding.  A compressed
-            response MUST still bear an appropriate content-encoding header field.
-          </t>
+        </section>
+
+        <section anchor="Compression" title="GZip Content-Encoding">
           
           <t>
-            <xref target="StreamErrorHandler">Stream</xref> and 
-            <xref target="ConnectionErrorHandler">Connection</xref> errors 
-            MUST NOT be used to represent HTTP or application layer error 
-            responses (those using 4xx or 5xx response codes). <cref>Ed. Note: 
-            Do we need to say more about the representation of HTTP errors?</cref>
+            Clients MUST support gzip compression for HTTP response bodies.  
+            Regardless of the value of the accept-encoding header field, a 
+            server MAY send responses with gzip or deflate encoding.  A compressed
+            response MUST still bear an appropriate content-encoding header field.
           </t>
           
         </section>
@@ -2340,38 +2303,16 @@ HTTP2-Settings    = token68
         </t>
         
         <t>
-          If the server does choose to send PUSH_PROMISE frames, those MUST be 
-          sent either before or immediately after sending the response header 
-          block for the initial request. The PUSH_PROMISE frames MUST be sent
-          prior to sending any response DATA frames. This ordering requirement
-          minimizes the chance that a client might request a resource that is 
-          currently being pushed, causing a server to send multiple copies of
-          that resource.
-        </t>
-        
-        <t>
           After the PUSH_PROMISE is sent, the server can commence 
           transmission of a pushed resource on the new stream identified by
           the PUSH_PROMISE frame. The sequence of frames sent by the 
           server on these additional streams is identical to those sent 
-          for any other HTTP response with the exception that additional 
-          PUSH_PROMISE frames MUST NOT be sent on a server-initiated pushed
-          stream. If a client receives PUSH_PROMISE frames on a pushed stream, 
-          it MUST respond with a <xref target="StreamErrorHandler">stream error</xref> of type 
-          PROTOCOL_ERROR.
+          for any other HTTP response.
         </t>
         
         <t>
-          When a client receives a PUSH_PROMISE frame from the server, the 
-          client MUST treat the pushed stream as being half-closed and MUST NOT
-          send any frames to server on that stream other than an RST_STREAM.
-          If the server receives frames from the client on the pushed stream, 
-          it MUST respond by sending a <xref target="StreamErrorHandler">stream
-          error</xref> of type PROTOCOL_ERROR.
-        </t>
-        
-        <t>
-          PUSH_PROMISE frames MUST NOT be sent by an HTTP client. 
+          PUSH_PROMISE frames MUST NOT be sent by the endpoint that 
+          initiated the stream.
         </t>
         
         <t>
@@ -2385,7 +2326,7 @@ HTTP2-Settings    = token68
         </t>
 
         <t>
-          Typically, a pushed resource is semantically equivalent to a server 
+          A pushed resource is semantically equivalent to a server 
           responding to an implicit GET request for that resource. The 
           PUSH_PROMISE frame sent by the server includes a header block that 
           contains the request headers that the server has assumed. Some of 
