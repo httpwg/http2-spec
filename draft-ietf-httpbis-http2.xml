@@ -602,59 +602,48 @@ HTTP2-Settings    = token68
       </section>
 
       <section anchor="HeaderBlock"  title="Header Compression and Decompression">
-        
         <t>
-          A header field in HTTP/2 is a name-value pair with one or more 
-          associated values. They are used within HTTP request and response
-          messages as well as server push operations (see <xref target="PushResources" />).
+          A header in HTTP/2.0 is a name-value pair with one or more associated values. They are
+          used within HTTP request and response messages as well as server push operations (see
+          <xref target="PushResources" />).
         </t>
         
         <t>
-          Header sets are logical collections of zero or more header fields 
-          arranged at the application or HTTP semantic layer. When transmitted
-          over a connection, the header set is serialized into a header block
-          using the <xref target="COMPRESSION">HTTP Header Compression</xref> 
-          mechanism. The serialized header block can then be divided into one
-          or more contiguous octet sequences, called header fragments, 
-          transmitted within either <xref target="HEADERS">HEADERS</xref> or 
-          <xref target="PUSH_PROMISE">PUSH_PROMISE</a> frames. The receiving 
-          endpoint reassembles the header block by concatenating the individual 
-          fragments, then deserializing the block to reconstruct the header set.
+          Header sets are logical collections of zero or more header fields arranged at the
+          application layer.  When transmitted over a connection, the header set is serialized into
+          a header block using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The
+          serialized header block is then divided into one or more contiguous octet sequences,
+          called header fragments, and transmitted within the payload of <xref
+          target="HEADERS">HEADERS</xref> or <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frames.
+          The receiving endpoint reassembles the header block by concatenating the individual
+          fragments, then decompresses the block to reconstruct the header set.
         </t>
 
         <t>
-          Header fragments can only be sent as the payload of HEADERS or 
-          PUSH_PROMISE frames. 
+          Header fragments can only be sent as the payload of HEADERS or PUSH_PROMISE frames.
         </t>
 
         <t>
-          When sending a header block using the HEADERS frame, if the total
-          number of octets in the block is more than the maximum
-          size allowed for an individual HEADERS frame, the block is divided
-          into multiple fragments across multiple HEADERS frames transmitted 
-          contiguously without any other interleaved frames. The last frame 
-          in the sequence MUST have the END_HEADERS flag set.
+          A compressed and encoded header block is transmitted in one or more HEADERS or
+          PUSH_PROMISE frames.  If the number of octets in the block is greater than the space
+          remaining in the frame, the block is divided into multiple fragments, which are then
+          transmitted in multiple frames.
         </t>
-        
         <t>
-          Likewise, when sending a header block using PUSH_PROMISE, 
-          the block can be divided into one or more fragments across 
-          multiple PUSH_PROMISE frames transmitted contiguously without 
-          any other interleaved frames. The last frame in the sequence 
-          MUST have the END_PUSH_PROMISE flag set.
-        </t>        
-
-        <t>
-          In order to properly maintain connection state, an endpoint 
-          receiving HEADERS or PUSH_PROMISE frames MUST reassemble
-          header blocks and deserialize those into header sets even if
-          the stream has been reset or the header set is to be discarded.
-          If a given header fragment or header block cannot be processed,
-          the receiver MUST terminate the connection with a 
-          <xref target="ConnectionErrorHandler">connection error</xref> of 
-          type COMPRESSION_ERROR.
+          Header blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
+          frames of any other type, or from any other stream.  The last frame in a sequence of
+          HEADERS frames MUST have the END_HEADERS flag set.  The last frame in a sequence of
+          PUSH_PROMISE frames MUST have the END_PUSH_PROMISE flag set.
         </t>
 
+        <t>
+          HEADERS and PUSH_PROMISE frames carry data that can modify the compression context
+          maintained by a receiver.  An endpoint receiving HEADERS or PUSH_PROMISE frames MUST
+          reassemble header blocks and perform decompression even if the frames are to be discarded,
+          which is likely to occur after a stream is reset.  A receiver MUST terminate the
+          connection with a <xref target="ConnectionErrorHandler">connection error</xref> of type
+          COMPRESSION_ERROR, if it does not decompress a header block.
+        </t>
       </section>
     </section>
 
