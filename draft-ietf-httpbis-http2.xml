@@ -727,7 +727,7 @@ HTTP2-Settings    = token68
 
             <t hangText="idle:">
               <vspace blankLines="0"/>
-              All streams start in the "idle" state.  In this state, no frames are exchanged.
+              All streams start in the "idle" state.  In this state, no frames have been exchanged.
               <vspace blankLines="1"/>
               The following transitions are valid from this state:
               <list style="symbols">
@@ -787,7 +787,7 @@ HTTP2-Settings    = token68
             <t hangText="open:">
               <vspace blankLines="0"/>
               The "open" state is where both peers can send frames.  In this state, sending peers
-              observe advertised <xref target="FlowControl">flow control limits</xref>.
+              observe advertised <xref target="FlowControl">stream level flow control limits</xref>.
               <vspace blankLines="1"/>
               From this state either endpoint can send a frame with a END_STREAM flag set, which
               causes the stream to transition into one of the "half closed" states: an endpoint
@@ -833,7 +833,7 @@ HTTP2-Settings    = token68
               If this state is reached as a result of sending a RST_STREAM frame, the peer that receives
               the RST_STREAM might have already sent - or enqueued for sending - frames on the
               stream that cannot be withdrawn.  An endpoint that sends a RST_STREAM frame MUST ignore
-              frames that it receives on closed streams if it sends a RST_STREAM frame.  An endpoint MAY
+              frames that it receives on closed streams after it has sent a RST_STREAM frame.  An endpoint MAY
               choose to limit the period over which it ignores frames and treat frames that arrive
               after this time as being in error.
               <vspace blankLines="1"/>
@@ -849,7 +849,7 @@ HTTP2-Settings    = token68
             Streams are identified with an unsigned 31-bit integer.  Streams initiated by a client
             MUST use odd-numbered stream identifiers; those initiated by the server MUST use even-numbered
             stream identifiers.  A stream identifier of zero (0x0) is used for connection control
-            message; stream zero MUST NOT be used to establish a new stream.
+            message; the stream identifier zero MUST NOT be used to establish a new stream.
           </t>
           <t>
             The identifier of a newly established stream MUST be numerically greater than all
@@ -883,7 +883,7 @@ HTTP2-Settings    = token68
             SETTINGS_MAX_CONCURRENT_STREAMS setting (see <xref target="SettingValues"/>).
           </t>
           <t>
-            Streams in either of the "reserved" states do not count as open, but a small amount of
+            Streams in either of the "reserved" states do not count as open, even if a small amount of
             application state is retained to ensure that the promised stream can be successfully used.
           </t>
         </section>
@@ -1265,7 +1265,8 @@ HTTP2-Settings    = token68
         <section anchor="RST_STREAM" title="RST_STREAM">
           <t>
             The RST_STREAM frame (type=0x3) allows for abnormal termination of a stream.  When sent by
-            the initiator of a stream, it indicates that they wish to cancel the stream.  When
+            the initiator of a stream, it indicates that they wish to cancel the stream or
+            that an error condition has occurred.  When
             sent by the receiver of a stream, it indicates that either the
             receiver is rejecting the stream, requesting that the stream be
             cancelled or that an error condition has occurred.
@@ -1287,7 +1288,7 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            No type-flags are defined.
+            The RST_STREAM frame does not define any flags.
           </t>
 
           <t>
@@ -1343,7 +1344,7 @@ HTTP2-Settings    = token68
           <t>
             Over the lifetime of a connection, an endpoint MAY send multiple SETTINGS frames
             containing previously unspecified parameters or new values for parameters whose values
-            have already been established. Only the most recent value provided setting value
+            have already been established. Only the most recent provided setting value
             applies.
           </t>
           <t>
@@ -1400,7 +1401,7 @@ HTTP2-Settings    = token68
                 </x:lt>
                 <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
                   <t>
-                    indicates the sender's initial stream window size (in bytes) for new streams.
+                    indicates the sender's initial window size (in bytes) for stream level flow control.
                   </t>
                   <t>
                     This settings affects the window size of all streams, including existing streams,
@@ -1410,7 +1411,7 @@ HTTP2-Settings    = token68
                 <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
                   <t>
                     indicates that streams directed to the sender will not
-                    be subject to flow control.  The least significant bit (0x1) is set to indicate
+                    be subject to flow control.  The least significant bit (0x1) of the value is set to indicate
                     that new streams are not flow controlled.  All other bits are reserved.
                   </t>
                   <t>
@@ -1639,7 +1640,7 @@ HTTP2-Settings    = token68
             </list>
           </t>
           <t>
-            On streams with lower or equal numbered identifiers that do not close completely prior
+            On streams with lower or equal numbered identifiers that were not closed completely prior
             to the connection being closed, re-attempting requests, transactions, or any protocol
             activity is not possible (with the exception of idempotent actions like HTTP GET, PUT,
             or DELETE).  Any protocol activity that uses higher numbered streams can be safely
@@ -1647,7 +1648,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Activity on streams numbered lower or equal to the last stream identifier might still complete
-            successfully.  The sender of a GOAWAY frame gracefully shut down a connection by sending
+            successfully.  The sender of a GOAWAY frame might gracefully shut down a connection by sending
             a GOAWAY frame, maintaining the connection in an open state until all in-progress
             streams complete.
           </t>
@@ -1789,8 +1790,8 @@ HTTP2-Settings    = token68
               frames that cause the flow control window to become positive.
             </t>
             <t>
-              For example, if the server sets the initial window size to be 16KB, and the client
-              sends 64KB immediately on connection establishment, the client will recalculate the
+	      For example, if the client sends 64KB immediately on connection establishment, and the
+	      server sets the initial window size to be 16KB, the client will recalculate the
               available flow control window to be -48KB on receipt of the SETTINGS frame.  The
               client retains a negative flow control window until WINDOW_UPDATE frames restore the
               window to being positive, after which the client can resume sending.
