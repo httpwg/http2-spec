@@ -68,28 +68,28 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
      3.3.  Header Representation . . . . . . . . . . . . . . . . . .   5
        3.3.1.  Literal Representation  . . . . . . . . . . . . . . .   5
        3.3.2.  Indexed Representation  . . . . . . . . . . . . . . .   5
-     3.4.  Differential Coding . . . . . . . . . . . . . . . . . . .   5
-   4.  Detailed Format . . . . . . . . . . . . . . . . . . . . . . .   6
-     4.1.  Header Blocks . . . . . . . . . . . . . . . . . . . . . .   6
+     3.4.  Differential Coding . . . . . . . . . . . . . . . . . . .   6
+   4.  Detailed Format . . . . . . . . . . . . . . . . . . . . . . .   7
+     4.1.  Header Blocks . . . . . . . . . . . . . . . . . . . . . .   7
      4.2.  Low-level representations . . . . . . . . . . . . . . . .   7
        4.2.1.  Integer representation  . . . . . . . . . . . . . . .   7
        4.2.2.  String literal representation . . . . . . . . . . . .   9
      4.3.  Indexed Header Representation . . . . . . . . . . . . . .   9
      4.4.  Literal Header Representation . . . . . . . . . . . . . .   9
-       4.4.1.  Literal Header without Indexing . . . . . . . . . . .   9
-       4.4.2.  Literal Header with Incremental Indexing  . . . . . .  10
-       4.4.3.  Literal Header with Substitution Indexing . . . . . .  10
-   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  11
-   6.  Security Considerations . . . . . . . . . . . . . . . . . . .  11
-   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  11
-   8.  Informative References  . . . . . . . . . . . . . . . . . . .  11
-   Appendix A.  Initial header names . . . . . . . . . . . . . . . .  12
-     A.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  12
-     A.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  13
-   Appendix B.  Example  . . . . . . . . . . . . . . . . . . . . . .  14
-     B.1.  First header set  . . . . . . . . . . . . . . . . . . . .  14
-     B.2.  Second header set . . . . . . . . . . . . . . . . . . . .  15
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  16
+       4.4.1.  Literal Header without Indexing . . . . . . . . . . .  10
+       4.4.2.  Literal Header with Incremental Indexing  . . . . . .  11
+       4.4.3.  Literal Header with Substitution Indexing . . . . . .  11
+   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  13
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .  13
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
+   8.  Informative References  . . . . . . . . . . . . . . . . . . .  13
+   Appendix A.  Initial header names . . . . . . . . . . . . . . . .  13
+     A.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  14
+     A.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  15
+   Appendix B.  Example  . . . . . . . . . . . . . . . . . . . . . .  16
+     B.1.  First header set  . . . . . . . . . . . . . . . . . . . .  16
+     B.2.  Second header set . . . . . . . . . . . . . . . . . . . .  17
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  18
 
 1.  Introduction
 
@@ -184,14 +184,19 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    represented as an index which is its position in the table, starting
    with 0 for the first entry.
 
-   Header names are always represented as lower-case strings.  An input
-   header name matches the header name of a (name, value) pair stored in
-   the Header Table if they are equal using a character-based, _case
-   insensitive_ comparison.  An input header value matches the header
-   value of a (name, value) pair stored in the Header Table if they are
-   equal using a character-based, _case sensitive_ comparison.  An input
-   header (name, value) pair matches a pair in the Header Table if both
-   the name and value are matching as per above.
+   An input header name matches the header name of a (name, value) pair
+   stored in the Header Table if they are equal using a character-based,
+   _case sensitive_ comparison.  An input header value matches the
+   header value of a (name, value) pair stored in the Header Table if
+   they are equal using a character-based, _case sensitive_ comparison.
+   An input header (name, value) pair matches a pair in the Header Table
+   if both the name and value are matching as per above.
+
+   Generally, the header table will not contain duplicate header (name,
+   value) entries.  However, implementations MUST be prepared to accept
+   duplicates without signaling an error.  If duplicates are added to
+   the table, they MUST be treated as distinct entries with their own
+   index positions.
 
    The header table is progressively updated based on headers
    represented as literal (as defined in Section 3.3.1).  Two update
@@ -213,11 +218,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
    The header table size can be bounded so as to limit the memory
    requirements (see the SETTINGS_MAX_BUFFER_SIZE in Section 5).  The
-   header table size is defined as the sum of the size of each entry of
-   the table.  The size of an entry is the sum of the length in bytes
-   (as defined in Section 4.2.2) of its name, of value's length in bytes
-   and of 32 bytes (for accounting for the entry structure overhead).
-
 
 
 
@@ -225,6 +225,12 @@ Peon & Ruellan         Expires December 03, 2013                [Page 4]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+   header table size is defined as the sum of the size of each entry of
+   the table.  The size of an entry is the sum of the length in bytes
+   (as defined in Section 4.2.2) of its name, of value's length in bytes
+   and of 32 bytes (for accounting for the entry structure overhead).
+   The header table size MUST NOT exceed this limit.
 
    When the header table is modified, either by adding a new entry of by
    modifying an existing one, if the header table size is greater than
@@ -267,12 +273,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    o  An integer representing the index of the matching (name, value)
       pair, as described in Section 4.2.1.
 
-3.4.  Differential Coding
-
-   A set of headers is encoded as a difference from the previous
-   reference set of headers.  The initial reference set of headers is
-   the empty set.
-
 
 
 
@@ -281,6 +281,12 @@ Peon & Ruellan         Expires December 03, 2013                [Page 5]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+3.4.  Differential Coding
+
+   A set of headers is encoded as a difference from the previous
+   reference set of headers.  The initial reference set of headers is
+   the empty set.
 
    An indexed representation toggles the presence of the header in the
    current set of headers.  If the header corresponding to the indexed
@@ -322,13 +328,7 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    The new reference set of headers is computed by removing from the
    working set all the headers that are not present in the header table.
 
-   It should be noted that during the decoding of the header
-   representations, the same index may be associated to different
-   headers in the working set and in the header table.
 
-4.  Detailed Format
-
-4.1.  Header Blocks
 
 
 
@@ -337,6 +337,14 @@ Peon & Ruellan         Expires December 03, 2013                [Page 6]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+   It should be noted that during the decoding of the header
+   representations, the same index may be associated to different
+   headers in the working set and in the header table.
+
+4.  Detailed Format
+
+4.1.  Header Blocks
 
    A header block consists of a set of header fields, which are name-
    value pairs.  Each header field is encoded using one of the header
@@ -377,6 +385,15 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
        3.
 
+
+
+
+
+Peon & Ruellan         Expires December 03, 2013                [Page 7]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
+
            1.  Compute Q and R, quotient and remainder of I divided by
                2^7
 
@@ -386,13 +403,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
            3.  Encode R on the next 7 bits
 
            4.  I = Q
-
-
-
-Peon & Ruellan         Expires December 03, 2013                [Page 7]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
 
 4.2.1.1.  Example 1: Encoding 10 using a 5-bit prefix
 
@@ -432,6 +442,14 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
    o  The value to represent on next bytes is I = 10.
 
+
+
+
+Peon & Ruellan         Expires December 03, 2013                [Page 8]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
+
    o
 
       *  10 = 128*0 + 10, i.e.  Q=0 and R=10.
@@ -441,14 +459,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
       *  The remainder R=10 is encoded on next 7 bits.
 
       *  I is replaced by the quotient Q=0.
-
-
-
-
-Peon & Ruellan         Expires December 03, 2013                [Page 8]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
 
    o  The process ends.
 
@@ -479,23 +489,13 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    | 1 |        Index (7+)         |
    +---+---------------------------+
 
+                              Indexed Header
 
    This representation starts with the '1' 1-bit pattern, followed by
    the index of the matching pair, represented as an integer with a
    7-bit prefix.
 
 4.4.  Literal Header Representation
-
-4.4.1.  Literal Header without Indexing
-
-     0   1   2   3   4   5   6   7
-   +---+---+---+---+---+---+---+---+
-   | 0 | 1 | 1 |    Index (5+)     |
-   +---+---+---+-------------------+
-
-
-   This representation, which does not involve updating the header
-   table, starts with the '011' 3-bit pattern.
 
 
 
@@ -505,6 +505,37 @@ Peon & Ruellan         Expires December 03, 2013                [Page 9]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+4.4.1.  Literal Header without Indexing
+
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   | 0 | 1 | 1 |    Index (5+)     |
+   +---+---+---+-------------------+
+   |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
+   +-------------------------------+
+
+              Literal Header without Indexing - Indexed Name
+
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   | 0 | 1 | 1 |         0         |
+   +---+---+---+-------------------+
+   |       Name Length (8+)        |
+   +-------------------------------+
+   |  Name String (Length octets)  |
+   +-------------------------------+
+   |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
+   +-------------------------------+
+
+                Literal Header without Indexing - New Name
+
+   This representation, which does not involve updating the header
+   table, starts with the '011' 3-bit pattern.
 
    If the header name matches the header name of a (name, value) pair
    stored in the Header Table, the index of the pair increased by one
@@ -518,13 +549,46 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    Header name representation is followed by the header value
    represented as a literal string as described in Section 4.2.2.
 
+
+
+
+
+
+
+
+
+Peon & Ruellan         Expires December 03, 2013               [Page 10]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
+
 4.4.2.  Literal Header with Incremental Indexing
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 1 | 0 |    Index (5+)     |
    +---+---+---+-------------------+
+   |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
+   +-------------------------------+
 
+          Literal Header with Incremental Indexing - Indexed Name
+
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   | 0 | 1 | 0 |         0         |
+   +---+---+---+-------------------+
+   |       Name Length (8+)        |
+   +-------------------------------+
+   |  Name String (Length octets)  |
+   +-------------------------------+
+   |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
+   +-------------------------------+
+
+            Literal Header with Incremental Indexing - New Name
 
    This representation starts with the '010' 3-bit pattern.
 
@@ -548,19 +612,44 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    +---+---+-----------------------+
 
 
+
+Peon & Ruellan         Expires December 03, 2013               [Page 11]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
+
+   |    Substituted Index (8+)     |
+   +-------------------------------+
+   |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
+   +-------------------------------+
+
+         Literal Header with Substitution Indexing - Indexed Name
+
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   | 0 | 0 |           0           |
+   +---+---+-----------------------+
+   |       Name Length (8+)        |
+   +-------------------------------+
+   |  Name String (Length octets)  |
+   +-------------------------------+
+   |    Substituted Index (8+)     |
+   +-------------------------------+
+   |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
+   +-------------------------------+
+
+           Literal Header with Substitution Indexing - New Name
+
    This representation starts with the '00' 2-bit pattern.
 
    If the header name matches the header name of a (name, value) pair
    stored in the Header Table, the index of the pair increased by one
    (index + 1) is represented as an integer with a 6-bit prefix.  Note
    that if the index is strictly below 62, one byte is used.
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 10]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
 
    If the header name does not match a header name entry, the value 0 is
    represented on 6 bits followed by the header name, represented as a
@@ -569,13 +658,29 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    The index of the substituted (name, value) pair is inserted after the
    header name representation as a 0-bit prefix integer.
 
+   The index of the substituted pair MUST correspond to a position in
+   the header table containing a non-void entry.  An index for the
+   substituted pair that corresponds to empty position in the header
+   table MUST be treated as an error.
+
    This index is followed by the header value represented as a literal
    string as described in Section 4.2.2.
+
+
+
+
+Peon & Ruellan         Expires December 03, 2013               [Page 12]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
 
 5.  Parameter Negotiation
 
    A few parameters can be used to accomodate client and server
-   processing and memory requirements.
+   processing and memory requirements.  [[These settings are currently
+   not supported as they have not been integrated in the main
+   specification.  Therefore, the maximum buffer size for the header
+   table is fixed at 4096 bytes.  ]]
 
    SETTINGS_MAX_BUFFER_SIZE:  Allows the sender to inform the remote
       endpoint of the maximum size it accepts for the header table.
@@ -609,15 +714,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    [SPDY]     Belshe, M. and R. Peon, "SPDY Protocol", February 2012,
               <http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy>.
 
-
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 11]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
-
 Appendix A.  Initial header names
 
    [[The tables in this section should be updated based on statistical
@@ -626,6 +722,13 @@ Appendix A.  Initial header names
    [[These tables are not adapted for headers contained in PUSH_PROMISE
    frames.  Either the tables can be merged, or the table for responses
    can be updated.  ]]
+
+
+
+Peon & Ruellan         Expires December 03, 2013               [Page 13]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
 
 A.1.  Requests
 
@@ -640,7 +743,7 @@ A.1.  Requests
               | 1     | :scheme             | https        |
               | 2     | :host               |              |
               | 3     | :path               | /            |
-              | 4     | :method             | get          |
+              | 4     | :method             | GET          |
               | 5     | accept              |              |
               | 6     | accept-charset      |              |
               | 7     | accept-encoding     |              |
@@ -666,14 +769,6 @@ A.1.  Requests
               | 27    | if-none-match       |              |
               | 28    | if-range            |              |
               | 29    | if-unmodified-since |              |
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 12]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
-
               | 30    | max-forwards        |              |
               | 31    | pragma              |              |
               | 32    | proxy-authorization |              |
@@ -683,6 +778,13 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
               | 36    | via                 |              |
               | 37    | warning             |              |
               +-------+---------------------+--------------+
+
+
+
+Peon & Ruellan         Expires December 03, 2013               [Page 14]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
 
                                   Table 1
 
@@ -722,14 +824,6 @@ A.2.  Responses
           | 23    | link                        |              |
           | 24    | location                    |              |
           | 25    | p3p                         |              |
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 13]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
-
           | 26    | pragma                      |              |
           | 27    | proxy-authenticate          |              |
           | 28    | refresh                     |              |
@@ -740,6 +834,13 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
           | 33    | warning                     |              |
           | 34    | www-authenticate            |              |
           +-------+-----------------------------+--------------+
+
+
+
+Peon & Ruellan         Expires December 03, 2013               [Page 15]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
 
                                   Table 2
 
@@ -778,14 +879,6 @@ B.1.  First header set
 
    The header table is as follows after the processing of these headers:
 
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 14]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
-
    Header table
    +---------+----------------+---------------------------+
    |  Index  | Header Name    | Header Value              |
@@ -797,6 +890,14 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    |   ...   | ...            | ...                       |
    +---------+----------------+---------------------------+
    |   37    | warning        |                           |
+
+
+
+Peon & Ruellan         Expires December 03, 2013               [Page 16]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
+
    +---------+----------------+---------------------------+
    |   38    | :path          | /my-example/index.html    | added header
    +---------+----------------+---------------------------+
@@ -834,14 +935,6 @@ B.2.  Second header set
 
    0xa6       (indexed header, index = 38: removal from reference set)
    0xa8       (indexed header, index = 40: removal from reference set)
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 15]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
-
    0x04       (literal header, substitution indexing, name index = 3)
    0x26       (replaced entry index = 38)
    0x1f       (header value string length = 31)
@@ -852,6 +945,14 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
 
    The header table is updated as follow:
+
+
+
+
+Peon & Ruellan         Expires December 03, 2013               [Page 17]
+
+Internet-Draft        HTTP/2.0 Header Compression              June 2013
+
 
    Header table
    +---------+----------------+---------------------------+
@@ -888,16 +989,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
 Authors' Addresses
 
-
-
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 16]
-
-Internet-Draft        HTTP/2.0 Header Compression              June 2013
-
-
    Roberto Peon
    Google, Inc
 
@@ -913,39 +1004,4 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Peon & Ruellan         Expires December 03, 2013               [Page 17]
+Peon & Ruellan         Expires December 03, 2013               [Page 18]
