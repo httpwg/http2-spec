@@ -5,7 +5,7 @@ saxon = java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 draft_title = draft-ietf-httpbis-http2
 current_rev = $(shell git tag | tail -1 | awk -F- '{print $$NF}')
 next_rev = $(shell printf "%.2d" `echo ${current_rev}+1 | bc`)
-next_rev_name = $(next_rev_name)
+next_rev_name = $(draft_title)-$(next_rev)
 
 stylesheet = lib/myxml2rfc.xslt
 reduction  = lib/clean-for-DTD.xslt
