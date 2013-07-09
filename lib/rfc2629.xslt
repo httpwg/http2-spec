@@ -599,16 +599,17 @@
 
 <xsl:template match="text()[not(ancestor::artwork)]">
   <xsl:variable name="ws" select="'&#9;&#10;&#13;&#32;'"/>
-  <xsl:variable name="starts-with-ws" select="translate(substring(.,1,1),$ws,'')"/>
-  <xsl:variable name="ends-with-ws" select="translate(substring(.,string-length(.),1),$ws,'')"/>
+  <xsl:variable name="starts-with-ws" select="'' = translate(substring(.,1,1),$ws,'')"/>
+  <xsl:variable name="ends-with-ws" select="'' = translate(substring(.,string-length(.),1),$ws,'')"/>
+  <xsl:variable name="normalized" select="normalize-space(.)"/>
   <!--<xsl:message> Orig: "<xsl:value-of select="."/>"</xsl:message>
   <xsl:message>Start: "<xsl:value-of select="$starts-with-ws"/>"</xsl:message>
   <xsl:message>  End: "<xsl:value-of select="$ends-with-ws"/>"</xsl:message> -->
-  <xsl:if test="$starts-with-ws='' and preceding-sibling::node() | parent::ed:ins | parent::ed:del">
+  <xsl:if test="$starts-with-ws and (preceding-sibling::node() | parent::ed:ins | parent::ed:del)">
     <xsl:text> </xsl:text>
   </xsl:if>
-  <xsl:value-of select="normalize-space(.)"/>
-  <xsl:if test="$ends-with-ws='' and following-sibling::node() | parent::ed:ins | parent::ed:del">
+  <xsl:value-of select="$normalized"/>
+  <xsl:if test="$ends-with-ws and $normalized!='' and (following-sibling::node() | parent::ed:ins | parent::ed:del)">
     <xsl:text> </xsl:text>
   </xsl:if>
 </xsl:template>
@@ -6710,11 +6711,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.597 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.597 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.598 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.598 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2013/05/27 06:39:42 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/05/27 06:39:42 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2013/06/23 14:11:10 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/06/23 14:11:10 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
