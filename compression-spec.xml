@@ -20,7 +20,7 @@
 
 <rfc category="info"
     ipr="trust200902"
-    docName="draft-ietf-httpbis-header-compression-00"
+    docName="draft-ietf-httpbis-header-compression-01"
     >
     <front>
         <title abbrev="HTTP/2.0 Header Compression">HTTP/2.0 Header Compression</title>
@@ -219,17 +219,29 @@
                     table size MUST NOT exceed this limit.
                 </t>
                 <t>
-                    When the header table is modified, either by adding a new
-                    entry of by modifying an existing one, if the header
-                    table size is greater than the limit, the table size is
-                    reduced by dropping the entries at the beginning of the
-                    table until the header table size becomes lower than or
-                    equal to the limit. Dropping entries from the beginning of
-                    the table causes a renumbering of the remaining entries.
+                    Before adding a new entry to the header table or changing
+                    an existing one, a check has to be performed to ensure
+                    that the change will not cause the table to grow in size
+                    beyond the SETTINGS_MAX_BUFFER_SIZE limit. If necessary,
+                    one or more items from the beginning of the table are
+                    removed until there is enough free space available to make
+                    the modification. Dropping an entry from the beginning of
+                    the table causes the index positions of the remaining
+                    entries in the table to be decremented by 1.
                     <cref>
                         Feedback is needed on this automatic eviction
                         strategy.
                     </cref>
+                </t>
+                <t>
+                    When using substitution indexing, it is possible that the
+                    existing item being replaced might be one of the items
+                    removed when performing the necessary size adjustment. In
+                    such cases, the substituted value being added to the
+                    header table is inserted at the beginning of the header
+                    table (at index position #0) and the index positions of
+                    the other remaining entries in the table are incremented
+                    by 1.
                 </t>
                 <t>
                     To optimize the representation of the headers exchanged at

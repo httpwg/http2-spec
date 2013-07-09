@@ -10,7 +10,7 @@ Expires: December 03, 2013                                     Canon CRF
 
 
                       HTTP/2.0 Header Compression
-                draft-ietf-httpbis-header-compression-00
+                draft-ietf-httpbis-header-compression-01
 
 Abstract
 
@@ -67,7 +67,7 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
      3.2.  Header Table  . . . . . . . . . . . . . . . . . . . . . .   4
      3.3.  Header Representation . . . . . . . . . . . . . . . . . .   5
        3.3.1.  Literal Representation  . . . . . . . . . . . . . . .   5
-       3.3.2.  Indexed Representation  . . . . . . . . . . . . . . .   5
+       3.3.2.  Indexed Representation  . . . . . . . . . . . . . . .   6
      3.4.  Differential Coding . . . . . . . . . . . . . . . . . . .   6
    4.  Detailed Format . . . . . . . . . . . . . . . . . . . . . . .   7
      4.1.  Header Blocks . . . . . . . . . . . . . . . . . . . . . .   7
@@ -75,11 +75,11 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
        4.2.1.  Integer representation  . . . . . . . . . . . . . . .   7
        4.2.2.  String literal representation . . . . . . . . . . . .   9
      4.3.  Indexed Header Representation . . . . . . . . . . . . . .   9
-     4.4.  Literal Header Representation . . . . . . . . . . . . . .   9
+     4.4.  Literal Header Representation . . . . . . . . . . . . . .  10
        4.4.1.  Literal Header without Indexing . . . . . . . . . . .  10
-       4.4.2.  Literal Header with Incremental Indexing  . . . . . .  11
+       4.4.2.  Literal Header with Incremental Indexing  . . . . . .  10
        4.4.3.  Literal Header with Substitution Indexing . . . . . .  11
-   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  13
+   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  12
    6.  Security Considerations . . . . . . . . . . . . . . . . . . .  13
    7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  13
    8.  Informative References  . . . . . . . . . . . . . . . . . . .  13
@@ -232,13 +232,22 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    and of 32 bytes (for accounting for the entry structure overhead).
    The header table size MUST NOT exceed this limit.
 
-   When the header table is modified, either by adding a new entry of by
-   modifying an existing one, if the header table size is greater than
-   the limit, the table size is reduced by dropping the entries at the
-   beginning of the table until the header table size becomes lower than
-   or equal to the limit.  Dropping entries from the beginning of the
-   table causes a renumbering of the remaining entries.  [[Feedback is
-   needed on this automatic eviction strategy.  ]]
+   Before adding a new entry to the header table or changing an existing
+   one, a check has to be performed to ensure that the change will not
+   cause the table to grow in size beyond the SETTINGS_MAX_BUFFER_SIZE
+   limit.  If necessary, one or more items from the beginning of the
+   table are removed until there is enough free space available to make
+   the modification.  Dropping an entry from the beginning of the table
+   causes the index positions of the remaining entries in the table to
+   be decremented by 1.  [[Feedback is needed on this automatic eviction
+   strategy.  ]]
+
+   When using substitution indexing, it is possible that the existing
+   item being replaced might be one of the items removed when performing
+   the necessary size adjustment.  In such cases, the substituted value
+   being added to the header table is inserted at the beginning of the
+   header table (at index position #0) and the index positions of the
+   other remaining entries in the table are incremented by 1.
 
    To optimize the representation of the headers exchanged at the
    beginning of an HTTP/2.0 session, the header table is initialized
@@ -264,15 +273,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    o  The header value, represented as a literal string, as described in
       Section 4.2.2.
 
-3.3.2.  Indexed Representation
-
-   The indexed representation defines a header as a match to a (name,
-   value) pair in the header table.  An indexed header is represented
-   as:
-
-   o  An integer representing the index of the matching (name, value)
-      pair, as described in Section 4.2.1.
-
 
 
 
@@ -281,6 +281,15 @@ Peon & Ruellan         Expires December 03, 2013                [Page 5]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+3.3.2.  Indexed Representation
+
+   The indexed representation defines a header as a match to a (name,
+   value) pair in the header table.  An indexed header is represented
+   as:
+
+   o  An integer representing the index of the matching (name, value)
+      pair, as described in Section 4.2.1.
 
 3.4.  Differential Coding
 
@@ -322,21 +331,18 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    working set.  Otherwise, the entry in the working set contains an
    undefined index.
 
-   When all the header representations have been processed, the working
-   set contains all the headers of the set of headers.
-
-   The new reference set of headers is computed by removing from the
-   working set all the headers that are not present in the header table.
-
-
-
-
 
 
 Peon & Ruellan         Expires December 03, 2013                [Page 6]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+   When all the header representations have been processed, the working
+   set contains all the headers of the set of headers.
+
+   The new reference set of headers is computed by removing from the
+   working set all the headers that are not present in the header table.
 
    It should be noted that during the decoding of the header
    representations, the same index may be associated to different
@@ -381,18 +387,16 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
        1.  Set I to (I - (2^N - 1)) and Q to 1
 
-       2.  While Q > 0
-
-       3.
-
-
-
 
 
 Peon & Ruellan         Expires December 03, 2013                [Page 7]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+       2.  While Q > 0
+
+       3.
 
            1.  Compute Q and R, quotient and remainder of I divided by
                2^7
@@ -438,10 +442,6 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
       *  The remainder R=26 is encoded on next 7 bits.
 
-      *  I is replaced by the quotient Q=10.
-
-   o  The value to represent on next bytes is I = 10.
-
 
 
 
@@ -449,6 +449,10 @@ Peon & Ruellan         Expires December 03, 2013                [Page 8]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+      *  I is replaced by the quotient Q=10.
+
+   o  The value to represent on next bytes is I = 10.
 
    o
 
@@ -495,16 +499,14 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    the index of the matching pair, represented as an integer with a
    7-bit prefix.
 
-4.4.  Literal Header Representation
-
-
-
 
 
 Peon & Ruellan         Expires December 03, 2013                [Page 9]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
+
+4.4.  Literal Header Representation
 
 4.4.1.  Literal Header without Indexing
 
@@ -549,9 +551,7 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    Header name representation is followed by the header value
    represented as a literal string as described in Section 4.2.2.
 
-
-
-
+4.4.2.  Literal Header with Incremental Indexing
 
 
 
@@ -561,8 +561,6 @@ Peon & Ruellan         Expires December 03, 2013               [Page 10]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
-
-4.4.2.  Literal Header with Incremental Indexing
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -610,6 +608,8 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    +---+---+---+---+---+---+---+---+
    | 0 | 0 |      Index (6+)       |
    +---+---+-----------------------+
+   |    Substituted Index (8+)     |
+   +-------------------------------+
 
 
 
@@ -618,8 +618,6 @@ Peon & Ruellan         Expires December 03, 2013               [Page 11]
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
 
-   |    Substituted Index (8+)     |
-   +-------------------------------+
    |       Value Length (8+)       |
    +-------------------------------+
    | Value String (Length octets)  |
@@ -666,6 +664,8 @@ Internet-Draft        HTTP/2.0 Header Compression              June 2013
    This index is followed by the header value represented as a literal
    string as described in Section 4.2.2.
 
+5.  Parameter Negotiation
+
 
 
 
@@ -673,8 +673,6 @@ Peon & Ruellan         Expires December 03, 2013               [Page 12]
 
 Internet-Draft        HTTP/2.0 Header Compression              June 2013
 
-
-5.  Parameter Negotiation
 
    A few parameters can be used to accomodate client and server
    processing and memory requirements.  [[These settings are currently
@@ -722,6 +720,8 @@ Appendix A.  Initial header names
    [[These tables are not adapted for headers contained in PUSH_PROMISE
    frames.  Either the tables can be merged, or the table for responses
    can be updated.  ]]
+
+
 
 
 
