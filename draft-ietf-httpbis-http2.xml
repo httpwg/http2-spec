@@ -799,8 +799,11 @@ HTTP2-Settings    = token68
               <vspace blankLines="0"/>
               A stream that is "half closed (local)" cannot be used for sending frames.
               <vspace blankLines="1"/>
-              A stream transitions from this state to "closed" when a frame that contains
-              a END_STREAM flag is received, or when either peer sends a RST_STREAM frame.
+              A stream transitions from this state to "closed" when a frame that contains a
+              END_STREAM flag is received, or when either peer sends a RST_STREAM frame.
+              <vspace blankLines="1"/>
+              A receiver can ignore WINDOW_UPDATE or PRIORITY frames in this state.  These frame
+              types might arrive for a short period after a frame bearing the END_STREAM flag is sent.
             </t>
 
             <t hangText="half closed (remote):">
@@ -838,6 +841,12 @@ HTTP2-Settings    = token68
               desired, a RST_STREAM can be used to close any of those streams.
             </t>
           </list>
+        </t>
+        <t>
+          In the absence of more specific guidance elsewhere in this document, implementations
+          SHOULD treat the receipt of a message that is not expressly permitted in the description
+          of a state as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+          PROTOCOL_ERROR.
         </t>
 
         <section anchor="StreamIdentifiers" title="Stream Identifiers">
@@ -1001,32 +1010,28 @@ HTTP2-Settings    = token68
           is represented as an unsigned 31-bit integer.  0 represents the highest priority and
           2<x:sup>31</x:sup>-1 represents the lowest priority.
         </t>
-
         <t>
-          The purpose of this value is to allow the initiating endpoint to request that frames for
-          the stream be processed with a specified priority relative to other concurrently active
-          streams. That is, if an endpoint receives interleaved frames for multiple streams, the
-          endpoint ought to make a best-effort attempt at processing frames for higher priority
-          streams before processing those for lower priority streams.
+          The purpose of this value is to allow an endpoint to express the relative priority of a
+          stream.  An endpoint can use this information to preferentially allocate resources to a
+          stream.  Within HTTP/2.0, priority can be used to select streams for transmitting frames
+          when there is limited capacity for sending.  For instance, an endpoint might enqueue
+          frames for all concurrently active streams.  As transmission capacity becomes available,
+          frames from higher priority streams might be sent before lower priority streams.
         </t>
-
         <t>
-          Explicitly setting the priority for a stream does not guarantee any particular
-          processing order for the stream relative to any other stream. Nor is there any
+          Explicitly setting the priority for a stream does not guarantee any particular processing
+          or transmision order for the stream relative to any other stream. Nor is there any
           mechanism provided by which the initiator of a stream can force or require a receiving
-          endpoint to process frames from one stream before processing frames from another.
+          endpoint to process concurrent streams in a particular order.
         </t>
-
         <t>
           Unless explicitly specified in the <xref target="HEADERS">HEADERS frame</xref> during stream creation,
           the default stream priority is 2<x:sup>30</x:sup>.
-
-          <!--PUSH_PROMISE has no priority, so "If priority is not assigned through other means,"
-              wouldn't apply below-->
-          <xref target="PushResources">Pushed streams</xref>
-          are assumed to inherit the priority of the associated stream plus one
-          (up to a maximum of 2<x:sup>31</x:sup>-1 if the the associated stream priority is 2<x:sup>31</x:sup>-1).
-          i.e. they have priority one lower than the associated stream.
+        </t>
+        <t>
+          <xref target="PushResources">Pushed streams</xref> have a lower priority than their
+          associated stream.  The promised stream inherits the priority value of the associated
+          stream plus one, up to a maximum of 2<x:sup>31</x:sup>-1.
         </t>
 
       </section>
@@ -1252,7 +1257,6 @@ HTTP2-Settings    = token68
             The payload of a PRIORITY frame contains a single reserved bit and a
             31-bit priority.
           </t>
-
           <t>
             The PRIORITY frame does not define any flags.
           </t>
@@ -1263,6 +1267,13 @@ HTTP2-Settings    = token68
             the recipient MUST respond with a
             <xref target="ConnectionErrorHandler">connection error</xref> of type
             PROTOCOL_ERROR.
+          </t>
+          <t>
+            The PRIORITY frame can be sent on a stream in any of the "open", "half-closed (local)",
+            or "half-closed (remote)" states.  Note that this frame could arrive after processing or
+            frame sending has completed, which would cause it to have no effect.  For a stream that
+            is in the "half-closed (remote)" state, this frame can only affect processing of the
+            stream and not frame transmissin.
           </t>
         </section>
 
