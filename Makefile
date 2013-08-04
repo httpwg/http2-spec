@@ -55,4 +55,4 @@ clean:
 # backup issues
 .PHONY: issues
 issues:
-	curl https://api.github.com/repos/http2/http2-spec/issues > issues.json
+	curl https://api.github.com/repos/http2/http2-spec/issues?state=open > issues.json
