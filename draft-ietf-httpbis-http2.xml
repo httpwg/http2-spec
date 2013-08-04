@@ -855,6 +855,10 @@ HTTP2-Settings    = token68
             <xref target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
           </t>
           <t>
+            The first use of a new stream identifier implicitly closes all idle streams that might
+            have been initiated by that peer with a lower-valued stream identifier.
+          </t>
+          <t>
             Stream identifiers cannot be reused.  Long-lived connections can
             result in endpoint exhausting the available range of stream identifiers. A client that
             is unable to establish a new stream identifier can establish a new connection for new
@@ -1021,7 +1025,7 @@ HTTP2-Settings    = token68
               wouldn't apply below-->
           <xref target="PushResources">Pushed streams</xref>
           are assumed to inherit the priority of the associated stream plus one
-          (or 2<x:sup>31</x:sup>-1 if the the associated stream priority is 2<x:sup>31</x:sup>-1),
+          (up to a maximum of 2<x:sup>31</x:sup>-1 if the the associated stream priority is 2<x:sup>31</x:sup>-1).
           i.e. they have priority one lower than the associated stream.
         </t>
 
@@ -1506,7 +1510,25 @@ HTTP2-Settings    = token68
             The PUSH_PROMISE frame modifies the connection state as
             defined in <xref target="HeaderBlock" />.
           </t>
-
+          <t>
+            A PUSH_PROMISE frame modifies the connection state in two ways.  The inclusion of a
+            <xref target="HeaderBlock">header block</xref> potentially modifies the compression
+            state.  PUSH_PROMISE also reserves a stream for later use, causing the promised stream
+            to enter the "reserved" state.  A sender MUST NOT send a PUSH_PROMISE on a stream unless
+            that stream is either "open" or "half-closed (remote)"; the sender MUST ensure that the
+            promised stream is a valid choice for a <xref target="StreamIdentifiers">new stream
+            identifier</xref> (that is, the promised stream MUST be in the "idle" state).
+          </t>
+          <t>
+            Since PUSH_PROMISE reserves a stream, ignoring a PUSH_PROMISE frame causes the stream
+            state to become indeterminate.  A receiver MUST treat the receipt of a PUSH_PROMISE on a
+            stream that is neither "open" nor "half-closed (local)" as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
+            Similarly, a receiver MUST treat the receipt of a PUSH_PROMISE that promises an <xref
+            target="StreamIdentifiers">illegal stream identifier</xref> (that is, an identifier for
+            a stream that is not currently in the "idle" state) as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
+          </t>
         </section>
 
         <section anchor="PING" title="PING">
