@@ -761,7 +761,9 @@ HTTP2-Settings    = token68
                   "closed".  This releases the stream reservation.
                 </t>
               </list>
-              An endpoint MUST NOT send any other type of frame in this state.  
+              An endpoint MUST NOT send any other type of frame in this state.  Receiving any frame
+              other than RST_STREAM or PRIORITY MUST be treated as a <xref
+              target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
             </t>
 
             <t hangText="reserved (remote):">
@@ -778,14 +780,17 @@ HTTP2-Settings    = token68
                   "closed".  This releases the stream reservation.
                 </t>
               </list>
-              Receiving any other type of frame MUST be treated as a <xref target="StreamErrorHandler">stream
-              error</xref> of type PROTOCOL_ERROR.
+              Receiving any other type of frame MUST be treated as a <xref
+              target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.  An endpoint
+              MAY send RST_STREAM or PRIORITY frames in this state to cancel or reprioritize the
+              reserved stream.
             </t>
 
             <t hangText="open:">
               <vspace blankLines="0"/>
-              The "open" state is where both peers can send frames.  In this state, sending peers
-              observe advertised <xref target="FlowControl">stream level flow control limits</xref>.
+              The "open" state is where both peers can send frames of any type.  In this state,
+              sending peers observe advertised <xref target="FlowControl">stream level flow control
+              limits</xref>.
               <vspace blankLines="1"/>
               From this state either endpoint can send a frame with a END_STREAM flag set, which
               causes the stream to transition into one of the "half closed" states: an endpoint
@@ -1271,11 +1276,11 @@ HTTP2-Settings    = token68
             PROTOCOL_ERROR.
           </t>
           <t>
-            The PRIORITY frame can be sent on a stream in any of the "open", "half-closed (local)",
-            or "half-closed (remote)" states.  Note that this frame could arrive after processing or
-            frame sending has completed, which would cause it to have no effect.  For a stream that
-            is in the "half-closed (remote)" state, this frame can only affect processing of the
-            stream and not frame transmissin.
+            The PRIORITY frame can be sent on a stream in any of the "reserved (remote)", "open",
+            "half-closed (local)", or "half-closed (remote)" states.  Note that this frame could
+            arrive after processing or frame sending has completed, which would cause it to have no
+            effect.  For a stream that is in the "half-closed (remote)" state, this frame can only
+            affect processing of the stream and not frame transmission.
           </t>
         </section>
 
