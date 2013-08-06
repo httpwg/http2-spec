@@ -2105,47 +2105,16 @@ HTTP2-Settings    = token68
         </figure>
       </section>        
 
-      <section anchor="HttpRequest" title="Request Header Fields">
+      <section anchor="HttpHeaders" title="HTTP Header Fields">
         <t>
-          HTTP/2.0 request header fields carry information as a series of key-value pairs.  This
-          includes the target URI for the request, as well as HTTP header fields.  
+          HTTP/2.0 request and response header fields carry information as a series of key-value
+          pairs.  This includes the target URI for the request, the status code for the response, as
+          well as HTTP header fields.
         </t>
         <t>
           HTTP header field names are strings of ASCII characters that are compared in a
           case-insensitive fashion.  Note that header compression could cause case information to be
           lost.
-        </t>
-        <t>
-          HTTP/2.0 defines a number of headers starting with a ':' character that carry information
-          about the request target:
-          <list style="symbols">
-            <t>
-              The <spanx style="verb">:method</spanx> header field includes the HTTP method (<xref
-              target="HTTP-p2" x:fmt="," x:sec="4"/>).
-            </t>
-            <t>
-              The <spanx style="verb">:scheme</spanx> header field includes the scheme portion of
-              the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
-            </t>
-            <t>
-              The <spanx style="verb">:host</spanx> header field includes the authority portion of
-              the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).
-            </t>
-            <t>
-              The <spanx style="verb">:path</spanx> header field includes the path and query parts
-              of the target URI (the <spanx style="verb">path-absolute</spanx> production from <xref
-              target="RFC3986"/> and optionally a '?' character followed by the <spanx
-              style="verb">query</spanx> production, see <xref target="RFC3986" x:fmt=","
-              x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  This field MUST
-              NOT be empty; URIs that do not contain a path component MUST include a value of '/',
-              unless the request is an OPTIONS request for '*', in which case the <spanx
-              style="verb">:path</spanx> header field MUST include '*'.
-            </t>
-          </list>
-          All HTTP/2.0 requests MUST include valid values for all of these header fields.  An
-          intermediary MUST ensure that requests that it forwards are correct.  A server MUST treat
-          the absence of any of these header fields, or the presence of an invalid value, as a <xref
-          target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
         </t>
         <t>
           The semantics of HTTP header fields are not altered by this specification, though header
@@ -2155,57 +2124,70 @@ HTTP2-Settings    = token68
           of any of these header fields as a <xref target="StreamErrorHandler">stream error</xref>
           of type PROTOCOL_ERROR.
         </t>
-        <t>
-          All HTTP Requests that include a body SHOULD include the <spanx
-          style="verb">content-length</spanx> header field. If a server receives a request where the
-          sum of the DATA frame payload lengths does not equal the value of the "content-length"
-          header field, the server MUST return a 400 (Bad Request) error.
-        </t>
-      </section>
-
-      <section anchor="HttpResponse" title="Response Header Fields">
         
-        <t>
-          The definitions of the response header fields are largely unchanged 
-          relative to HTTP/1.1, with a few notable exceptions:
-          <list style="symbols">
-            <t>
-              The response status line has been reduced to a single ":status" 
-              header field whose value specifies only the numeric response
-              status code. The status text component of the HTTP/1.1 response
-              has been dropped entirely.
-            </t>
-            <t>
-              The response MUST contain exactly one :status header field with
-              exactly one response status value. If the client receives
-              an HTTP response that does not include the :status field, or 
-              provides multiple response status code values, it MUST respond 
-              with a <xref target="StreamErrorHandler">stream error</xref> of 
-              type PROTOCOL_ERROR.
-            </t>
-            <t>
-              All header field names MUST be lowercased, and the definitions 
-              of all header field names defined by HTTP/1.1 are updated to 
-              be all lowercase.
-            </t>
-            <t>
-              The Connection, Keep-Alive, Proxy-Connection, and 
-              Transfer-Encoding header fields are not valid and MUST NOT be 
-              sent.
-            </t>
-          </list>
-        </t>
+        <section anchor="HttpRequest" title="Request Header Fields">
+          <t>
+            HTTP/2.0 defines a number of headers starting with a ':' character that carry
+            information about the request target:
+            <list style="symbols">
+              <t>
+                The <spanx style="verb">:method</spanx> header field includes the HTTP method (<xref
+                target="HTTP-p2" x:fmt="," x:sec="4"/>).
+              </t>
+              <t>
+                The <spanx style="verb">:scheme</spanx> header field includes the scheme portion of
+                the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
+              </t>
+              <t>
+                The <spanx style="verb">:host</spanx> header field includes the authority portion of
+                the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).
+              </t>
+              <t>
+                The <spanx style="verb">:path</spanx> header field includes the path and query parts
+                of the target URI (the <spanx style="verb">path-absolute</spanx> production from <xref
+                target="RFC3986"/> and optionally a '?' character followed by the <spanx
+                style="verb">query</spanx> production, see <xref target="RFC3986" x:fmt=","
+                x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  This field MUST
+                NOT be empty; URIs that do not contain a path component MUST include a value of '/',
+                unless the request is an OPTIONS request for '*', in which case the <spanx
+                style="verb">:path</spanx> header field MUST include '*'.
+              </t>
+            </list>
+            All HTTP/2.0 requests MUST include exactly one valid value for all of these header fields.
+            An intermediary MUST ensure that requests that it forwards are correct.  A server MUST
+            treat the absence of any of these header fields, presence of multiple values, or an
+            invalid value as a <xref target="StreamErrorHandler">stream error</xref> of type
+            PROTOCOL_ERROR.
+          </t>
+          <t>
+            HTTP/2.0 does not define a way to carry the version identifier that is included in the
+            HTTP/1.1 request line.
+          </t>
+          <t>
+            All HTTP Requests that include a body SHOULD include the <spanx
+            style="verb">content-length</spanx> header field. If a server receives a request where the
+            sum of the DATA frame payload lengths does not equal the value of the "content-length"
+            header field, the server MUST return a 400 (Bad Request) error.
+          </t>
+        </section>
 
-        <t>
-          Header fields whose names begin with ":" (whether defined in this 
-          document or future extensions to this document) MUST appear before 
-          any other header fields. <cref>Ed. Note: This requirement is currently
-          pending review. Consider it "on hold" for the moment.</cref>
-        </t>
-
+        <section anchor="HttpResponse" title="Response Header Fields">
+          <t>
+            A single <spanx style="verb">:status</spanx> header field is defined that carries the HTTP
+            status code field (see <xref target="HTTP-p2" x:fmt="," x:sec="6"/>).  This header field
+            MUST be included in all responses.  An intermediary MUST ensure that it does not forward
+            responses with absent or invalid values.  A client MUST treat the absence of the <spanx
+            style="verb">:status"</spanx> header field, the presence of multiple values, or an invalid
+            value as a <xref target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
+          </t>
+          <t>
+            HTTP/2.0 does not define a way to carry the version or reason phrase that is included in
+            an HTTP/1.1 status line.
+          </t>
+        </section>
       </section>
 
-        <section anchor="Reliability" title="Request Reliability Mechanisms in HTTP/2.0">
+      <section anchor="Reliability" title="Request Reliability Mechanisms in HTTP/2.0">
           <t>
             In HTTP/1.1, an HTTP client is unable to retry a non-idempotent request when an error
             occurs, because there is no means to determine the nature of the error.  It is possible
