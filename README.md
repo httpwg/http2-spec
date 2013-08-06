@@ -9,7 +9,9 @@ Quick Links:
 * [Editor's Copy](http://http2.github.io/compression-spec/compression-spec.html) (HTML)
 * [Editor's Copy](http://http2.github.io/compression-spec/compression-spec.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression)
+* [Issues List](https://github.com/http2/http2-spec/issues?labels=header+compression&page=1&state=open)
 
+Note that the http2/http2-spec repository's issues list is used for this specification.
 
 
 Contributing
