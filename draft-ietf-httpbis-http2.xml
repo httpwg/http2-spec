@@ -832,16 +832,24 @@ HTTP2-Settings    = token68
               The "closed" state is the terminal state.
               <vspace blankLines="1"/>
               An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives a
-              frame after receiving a RST_STREAM or a frame containing a END_STREAM flag on that stream
-              MUST treat that as a <xref target="StreamErrorHandler">stream error</xref> of type
-              STREAM_CLOSED.
+              frame after receiving a RST_STREAM or a frame containing a END_STREAM flag on that
+              stream MUST treat that as a <xref target="StreamErrorHandler">stream error</xref> of
+              type STREAM_CLOSED.
               <vspace blankLines="1"/>
-              If this state is reached as a result of sending a RST_STREAM frame, the peer that receives
-              the RST_STREAM might have already sent - or enqueued for sending - frames on the
-              stream that cannot be withdrawn.  An endpoint that sends a RST_STREAM frame MUST ignore
-              frames that it receives on closed streams after it has sent a RST_STREAM frame.  An endpoint MAY
-              choose to limit the period over which it ignores frames and treat frames that arrive
-              after this time as being in error.
+              WINDOW_UPDATE or PRIORITY frames can be received in this state for a short period
+              after a a frame containing an END_STREAM flag is sent.  Until the remote peer receives
+              and processes the frame bearing the END_STREAM flag, it might send either frame type.
+              Endpoints MUST ignore WINDOW_UPDATE frames received in this state, though endpoints
+              MAY choose to treat WINDOW_UPDATE frames that arrive a significant time after sending
+              END_STREAM as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+              PROTOCOL_ERROR.
+              <vspace blankLines="1"/>
+              If this state is reached as a result of sending a RST_STREAM frame, the peer that
+              receives the RST_STREAM might have already sent - or enqueued for sending - frames on
+              the stream that cannot be withdrawn.  An endpoint that sends a RST_STREAM frame MUST
+              ignore frames that it receives on closed streams after it has sent a RST_STREAM frame.
+              An endpoint MAY choose to limit the period over which it ignores frames and treat
+              frames that arrive after this time as being in error.
               <vspace blankLines="1"/>
               An endpoint might receive a PUSH_PROMISE frame after it sends RST_STREAM.
               PUSH_PROMISE causes a stream to become "reserved".  If promised streams are not
@@ -1277,9 +1285,9 @@ HTTP2-Settings    = token68
           </t>
           <t>
             The PRIORITY frame can be sent on a stream in any of the "reserved (remote)", "open",
-            "half-closed (local)", or "half-closed (remote)" states.  Note that this frame could
+            "half-closed (local)", or "half closed (remote)" states.  Note that this frame could
             arrive after processing or frame sending has completed, which would cause it to have no
-            effect.  For a stream that is in the "half-closed (remote)" state, this frame can only
+            effect.  For a stream that is in the "half closed (remote)" state, this frame can only
             affect processing of the stream and not frame transmission.
           </t>
         </section>
@@ -1526,7 +1534,7 @@ HTTP2-Settings    = token68
             <xref target="HeaderBlock">header block</xref> potentially modifies the compression
             state.  PUSH_PROMISE also reserves a stream for later use, causing the promised stream
             to enter the "reserved" state.  A sender MUST NOT send a PUSH_PROMISE on a stream unless
-            that stream is either "open" or "half-closed (remote)"; the sender MUST ensure that the
+            that stream is either "open" or "half closed (remote)"; the sender MUST ensure that the
             promised stream is a valid choice for a <xref target="StreamIdentifiers">new stream
             identifier</xref> (that is, the promised stream MUST be in the "idle" state).
           </t>
@@ -1741,6 +1749,12 @@ HTTP2-Settings    = token68
             in the latter, the value "0" indicates that the entire connection is the subject of
             the frame.
           </t>
+          <t>
+            WINDOW_UPDATE can be sent by a peer that has sent a frame bearing the END_STREAM flag.
+            This means that a receiver could receive a WINDOW_UPDATE frame on a "half closed
+            (remote)" or "closed" stream.  A receiver MUST NOT treat this as an error, see <xref
+            target="StreamStates"/>.
+          </t>
 
           <section title="The Flow Control Window">
             <t>
@@ -1750,12 +1764,12 @@ HTTP2-Settings    = token68
               measure of the buffering capability of the receiver.
             </t>
             <t>
-              Two flow control windows are applicable; the stream flow
-              control window and the connection flow control window.  The sender MUST NOT send a flow
-              controlled frame with a length that exceeds the space available in either of the flow
-              control windows advertised by the receiver.  Frames with zero length with the END_STREAM
-              flag set (for example, an empty data frame) MAY be sent if there is no available space
-              in either flow control window.
+              Two flow control windows are applicable: the stream flow control window and the
+              connection flow control window.  The sender MUST NOT send a flow controlled frame with
+              a length that exceeds the space available in either of the flow control windows
+              advertised by the receiver.  Frames with zero length with the END_STREAM flag set (for
+              example, an empty data frame) MAY be sent if there is no available space in either
+              flow control window.
             </t>
             <t>
               For flow control calculations, the 8 byte frame header is not counted.
