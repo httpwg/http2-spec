@@ -2106,67 +2106,60 @@ HTTP2-Settings    = token68
       </section>        
 
       <section anchor="HttpRequest" title="Request Header Fields">
-        
         <t>
-          The definitions of the request header fields are largely unchanged 
-          relative to HTTP/1.1, with a few notable exceptions:
+          HTTP/2.0 request header fields carry information as a series of key-value pairs.  This
+          includes the target URI for the request, as well as HTTP header fields.  
+        </t>
+        <t>
+          HTTP header field names are strings of ASCII characters that are compared in a
+          case-insensitive fashion.  Note that header compression could cause case information to be
+          lost.
+        </t>
+        <t>
+          HTTP/2.0 defines a number of headers starting with a ':' character that carry information
+          about the request target:
           <list style="symbols">
             <t>
-              The HTTP/1.1 request-line has been split into two separate
-              header fields named :method and :path, whose values 
-              specify the HTTP method for the request and the request-target,
-              respectively. The HTTP-version component of the request-line
-              is removed entirely from the headers.
+              The <spanx style="verb">:method</spanx> header field includes the HTTP method (<xref
+              target="HTTP-p2" x:fmt="," x:sec="4"/>).
             </t>
             <t>
-              The host and optional port portions of the request URI 
-              (see <xref target="RFC3986" x:fmt="," x:sec="3.2"/>), 
-              are specified using the new :host header field. <cref>Ed. Note: it 
-              needs to be clarified whether or not this replaces the
-              existing HTTP/1.1 Host header.</cref>
+              The <spanx style="verb">:scheme</spanx> header field includes the scheme portion of
+              the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
             </t>
             <t>
-              A new :scheme header field has been added to specify the 
-              scheme portion of the request-target (e.g. "https")
+              The <spanx style="verb">:host</spanx> header field includes the authority portion of
+              the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).
             </t>
             <t>
-              All header field names MUST be lowercased, and the 
-              definitions of all header field names defined by 
-              HTTP/1.1 are updated to be all lowercase.
-            </t>
-            <t>
-              The Connection, Host, Keep-Alive, Proxy-Connection, and 
-              Transfer-Encoding header fields are no longer valid and 
-              MUST NOT be sent. <cref>Ed. Note: And "TE" I presume?</cref>
+              The <spanx style="verb">:path</spanx> header field includes the path and query parts
+              of the target URI (the <spanx style="verb">path-absolute</spanx> production from <xref
+              target="RFC3986"/> and optionally a '?' character followed by the <spanx
+              style="verb">query</spanx> production, see <xref target="RFC3986" x:fmt=","
+              x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  This field MUST
+              NOT be empty; URIs that do not contain a path component MUST include a value of '/',
+              unless the request is an OPTIONS request for '*', in which case the <spanx
+              style="verb">:path</spanx> header field MUST include '*'.
             </t>
           </list>
+          All HTTP/2.0 requests MUST include valid values for all of these header fields.  A server
+          MUST treat the absence of any of these header fields, or the presence of an invalid value,
+          as a <xref target="StreamErrorHandler">stream error</xref> of type PROTOCOL_ERROR.
         </t>
-
         <t>
-          All HTTP Requests MUST include the ":method", ":path", ":host",
-          and ":scheme" header fields.
+          The semantics of HTTP header fields are not altered by this specification, though header
+          fields relating to connection management or request framing are no longer necessary.  An
+          HTTP/2.0 request MUST NOT include any of the following header fields: Connection, Host,
+          Keep-Alive, Proxy-Connection, TE, and Transfer-Encoding.  A server MUST treat the presence
+          of any of these header fields as a <xref target="StreamErrorHandler">stream error</xref>
+          of type PROTOCOL_ERROR.
         </t>
-        
         <t>
-          Header fields whose names begin with ":" (whether defined in this 
-          document or future extensions to this document) MUST appear before 
-          any other header fields. <cref>Ed. Note: This requirement is currently
-          pending review. Consider it "on hold" for the moment.</cref>
+          All HTTP Requests that include a body SHOULD include the <spanx
+          style="verb">content-length</spanx> header field. If a server receives a request where the
+          sum of the DATA frame payload lengths does not equal the value of the "content-length"
+          header field, the server MUST return a 400 (Bad Request) error.
         </t>
-        
-        <t>
-          All HTTP Requests that include a body SHOULD include the 
-          "content-length" header field. If a server receives a request
-          where the sum of the DATA frame payload lengths does not equal
-          the value of the "content-length" header field, the server MUST
-          return a 400 (Bad Request) error.
-        </t>
-
-        <t>
-          If a client omits a mandatory header field from the request, the server 
-          MUST reply with a HTTP 400 Bad Request reply.
-        </t>
-        
       </section>
 
       <section anchor="HttpResponse" title="Response Header Fields">
