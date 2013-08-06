@@ -969,9 +969,9 @@ HTTP2-Settings    = token68
                 ensures that important control frames are not blocked by flow control.
               </t>
               <t>
-                Flow control can be disabled by a receiver.  A receiver can choose to either disable
-                flow control for a stream or connection by sending a window update frame with a specific
-                flag. See <xref target="EndFlowControl">Ending Flow Control</xref> for more details.
+                Flow control can be disabled by a receiver.  A receiver can choose to disable both
+                forms of flow control by sending the SETTINGS_FLOW_CONTROL_OPTIONS setting.  See
+                <xref target="EndFlowControl">Ending Flow Control</xref> for more details.
               </t>
               <t>
                 HTTP/2.0 standardizes only the format of the <xref target="WINDOW_UPDATE">
@@ -1436,15 +1436,12 @@ HTTP2-Settings    = token68
                 </x:lt>
                 <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
                   <t>
-                    indicates that streams directed to the sender will not
-                    be subject to flow control.  The least significant bit (0x1) of the value is set to indicate
-                    that new streams are not flow controlled.  All other bits are reserved.
+                    indicates flow control options.  The least significant bit (0x1) of the value is
+                    set to indicate that the sender has disabled all flow control.  This bit cannot
+                    be cleared once set, see <xref target="EndFlowControl"/>.
                   </t>
                   <t>
-                    This setting applies to all streams, including existing streams.
-                  </t>
-                  <t>
-                    These bits cannot be cleared once set, see <xref target="EndFlowControl"/>.
+                    All bits other than the least significant are reserved.
                   </t>
                 </x:lt>
               </list>
@@ -1738,13 +1735,7 @@ HTTP2-Settings    = token68
             window is 1 to 2<x:sup>31</x:sup> - 1 (0x7fffffff) bytes.
           </t>
           <t>
-            The WINDOW_UPDATE frame defines the following flags:
-            <list style="hanging">
-              <t hangText="END_FLOW_CONTROL (0x1):">
-                Bit 1 being set indicates that flow control for the identified stream or connection has been
-                ended; subsequent frames do not need to be flow controlled.
-              </t>
-            </list>
+            The WINDOW_UPDATE frame does not define any flags.
           </t>
           <t>
             The WINDOW_UPDATE frame can be specific to a stream or to the entire connection.
@@ -1873,14 +1864,10 @@ HTTP2-Settings    = token68
               for streams that it is no longer sending on.
             </t>
             <t>
-              Flow control can be disabled for all streams on the connection using the
-              SETTINGS_FLOW_CONTROL_OPTIONS setting.  An implementation that does not wish to
-              perform stream flow control can use this in the initial SETTINGS exchange.
-            </t>
-            <t>
-              Flow control can be disabled for an individual stream or the overall connection by
-              sending a WINDOW_UPDATE with the END_FLOW_CONTROL flag set.  The payload of a
-              WINDOW_UPDATE frame that has the END_FLOW_CONTROL flag set is ignored.
+              Flow control can be disabled the entire connection using the
+              SETTINGS_FLOW_CONTROL_OPTIONS setting.  This setting ends all forms of flow control.
+              An implementation that does not wish to perform flow control can use this in the
+              initial SETTINGS exchange.
             </t>
             <t>
               Flow control cannot be enabled again once disabled.  Any attempt to re-enable flow
@@ -2511,7 +2498,7 @@ HTTP2-Settings    = token68
           <c>5</c><c>PUSH_PROMISE</c><c>END_PUSH_PROMISE(1)</c>
           <c>6</c><c>PING</c><c>PONG(1)</c>
           <c>7</c><c>GOAWAY</c><c>-</c>
-          <c>9</c><c>WINDOW_UPDATE</c><c>END_FLOW_CONTROL(1)</c>
+          <c>9</c><c>WINDOW_UPDATE</c><c>-</c>
         </texttable>
       </section>
 
