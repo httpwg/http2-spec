@@ -12,7 +12,7 @@
 <?rfc editing="no"?>
 <?rfc comments="yes"?>
 <?rfc inline="yes"?>
-<?ref rfcedstyle="yes"?>
+<?rfc rfcedstyle="yes"?>
 <?rfc-ext allow-markup-in-artwork="yes" ?>
 <?rfc-ext include-index="no" ?>
 <!-- <?rfc topblock="no"?> -->
@@ -71,7 +71,9 @@
                 lower bandwidth links. This indicates that an alternate
                 encoding for headers would be beneficial to latency, and that
                 is what is proposed here.
+            </t>
 
+           <t>
                 As shown by <xref target="SPDY">SPDY</xref>, Deflate
                 compresses HTTP very effectively. However, the use of a
                 compression scheme which allows for arbitrary matches against
@@ -82,7 +84,9 @@
                 with other data controlled by an attacker, may lead to leakage
                 of that sensitive data, even when the resultant bytes are
                 transmitted over an encrypted channel.
+            </t>
 
+            <t>
                 Another consideration is that processing and memory costs of a
                 compressor such as Deflate may also be too high for some
                 classes of devices, for example when doing forward or reverse
@@ -110,15 +114,11 @@
                     understand a wide variety of encoders.
                 </t>
                 <t>
-                    A header may be represented as a literal or as an index.
-                    If represented as a literal, the representation specifies
-                    whether this header is used to update the indexing table.
-                    The different representations are described in <xref
-                        target="header.representation" />.
-                </t>
-                <t>
-                    A set of headers is coded as a difference from the
-                    previous set of headers.
+                    As two consecutive sets of headers often have common
+                    headers, each set of headers is coded as a difference from
+                    the previous set of headers. The goal is to only encode
+                    the changes (headers present in one of the set and not the
+                    other) between the two sets of headers.
                 </t>
                 <t>
                     An example illustrating the use these different mechanisms
@@ -129,60 +129,281 @@
         </section>
 
         <section title="Header Encoding" anchor="header.encoding">
-            <section title="Encoding Components" anchor="encoding.components">
+            <section title="Encoding Concepts" anchor="encoding.concepts">
                 <t>
-                    The encoding and decoding of headers relies on a few
-                    components. First, a header table (see <xref
-                        target="header.table"/>) is used to associate headers
-                    to index values. Second, a set of headers is encoded as a
-                    difference from the previous reference set of headers (see
-                    <xref target="differential.coding"/>).
+                    The encoding and decoding of headers relies on some
+                    components and concepts. The set of components used form
+                    an encoding context.
+                    <list style="hanging">
+                        <t hangText="Header Table:">
+                            The header table (see <xref
+                                target="header.table"/>) is a component used
+                            to associate headers to index values.
+                        </t>
+                        <t hangText="Reference Set:">
+                            The reference set (see <xref
+                                target="reference.set"/> is a component
+                            containing set of headers used as a reference for
+                            the differential encoding of a new set of headers.
+                        </t>
+                        <t hangText="Header Emission:">
+                            When decoding a set of headers, some operations
+                            emit a header. An emitted header is added to the
+                            set of headers. Once emitted, a header can't be
+                            removed from the set of headers.
+                        </t>
+                        <t hangText="Header Representation:">
+                            A header can be represented in encoded form either
+                            as a literal or as an index. The indexed
+                            representation is based on the header table.
+                        </t>
+                    </list>
+                </t>
+                <t><cref>Split the following.</cref></t>
+                <t>
+                    Using HTTP, messages are exchanged in the two directions
+                    between a client and a server. The encoding of headers in
+                    each direction is independent from the other direction. As
+                    such, there is one encoding context for each direction.
                 </t>
                 <t>
-                    As messages are exchanged in two directions, from client
-                    to server and from server to client, there are two sets of
-                    components: one for each direction. All the headers sent
-                    in messages from the client to the server are encoded (and
-                    decoded) using one set of components. All the headers sent
-                    in messages from the server to the client (including
-                    headers contained in PUSH_PROMISE frame) are encoded
-                    using the other set of compotents.
+                    It should be noted that the headers contained in a
+                    PUSH_PROMISE frame are encoded within the same context as
+                    the headers contained in the HEADERS frame corresponding
+                    to a response sent from the server to the client.
                 </t>
+
+                <section title="Header Table" anchor="header.table">
+                    <t>
+                        A header table consists of an ordered list of (name,
+                        value) pairs. The first entry of a header table is
+                        assigned the index 0.
+                    </t>
+                    <t>
+                        A header can be represented by an entry of the header
+                        table if they match. A header and an entry match if
+                        both their name and their value match. A header name
+                        and an entry name match if they are equal using a
+                        character-based, <spanx>case insensitive</spanx>
+                        comparison (the case insensitive comparison is used
+                        because HTTP header names are defined in a case
+                        insensitive way). A header value and an entry value
+                        match if they are equal using a character-based,
+                        <spanx>case sensitive</spanx> comparison.
+                    </t>
+                    <t>
+                        Generally, the header table will not contain duplicate
+                        header (name, value) entries. However, implementations
+                        MUST be prepared to accept duplicates without
+                        signaling an error. If duplicates are added to the
+                        table, they MUST be treated as distinct entries with
+                        their own index positions.
+                    </t>
+                    <t>
+                        Initialy, a header table contains a list of common
+                        headers. Two initial lists of header are provided in
+                        <xref target="initial.headers"/>. One list is for
+                        headers transmitted from a client to a server, the
+                        other for the reverse direction.
+                    </t>
+                    <t>
+                        A header table is modified by either adding a new
+                        entry at the end of the table, or by replacing an
+                        existing entry.
+                    </t>
+                    <t>
+                        The encoder decides how to update the header table and
+                        as such can control how much memory is used by the
+                        header table. To limit the memory requirements on the
+                        decoder side, the header table size is bounded (see
+                        the SETTINGS_MAX_BUFFER_SIZE in <xref
+                            target="parameter.negotiation"/>).
+                    </t>
+                    <t>
+                        The size of an entry is the sum of its name's length
+                        in bytes (as defined in <xref
+                            target="string.literal.representation" />), of its
+                        value's length in bytes and of 32 bytes. The 32 bytes
+                        are an accounting for the entry structure overhead.
+                        For example, an entry structure using two 64-bits
+                        pointers to reference the name and the value and the
+                        entry, and two 64-bits integer for counting the number
+                        of references to these name and value would use these
+                        32 bytes.
+                    </t>
+                    <t>
+                        The size of a header table is the sum of the sizes of
+                        its entries.
+                    </t>
+                </section>
+
+                <section title="Reference Set" anchor="reference.set">
+                    <t>
+                        A reference set is defined as an unordered set of
+                        references to entries of the header table.
+                    </t>
+                    <t>
+                        The initial reference set is the empty set.
+                    </t>
+                    <t>
+                        The reference set is updated during the processing of
+                        a set of headers.
+                    </t>
+                    <t>
+                        Using the differential encoding, a header that is not
+                        present in the reference set can be encoded either
+                        with an indexed representation (if the header is
+                        present in the header table), or with a literal
+                        representation (if the header is not present in the
+                        header table).
+                    </t>
+                    <t>
+                        A header that is to be removed from the reference set
+                        is encoded with an indexed representation.
+                    </t>
+                </section>
+
+                <section title="Header Emission" anchor="header.emission">
+                    <t>
+                        The emission of header is the process of adding a
+                        header to the current set of headers. Once an header
+                        is emitted, it can't be removed from the current set
+                        of headers.
+                    </t>
+                    <t>
+                        The concept of header emission allows a decoder to
+                        know when it can pass a header safely to a higher
+                        level on the receiver side. This allows a decoder to
+                        be implemented in a streaming way, and as such to only
+                        keep in memory the header table and the reference set.
+                        With such an implementation, the amount of memory used
+                        by the decoder is bounded, even in presence of a very
+                        large set of headers. The management of memory for
+                        handling very large sets of headers can therefore be
+                        deferred to the application.
+                    </t>
+                </section>
+
+                <section title="Header Representation"
+                    anchor="header.representation">
+                    <t>
+                        <list style="hanging">
+                            <t hangText="Literal Representation:">
+                                The literal representation defines a new
+                                header. The header name is represented either
+                                literally or as a reference to an entry of the
+                                header table. The header value is represented
+                                literally.
+                            </t>
+                            <t hangText="Indexed Representation:">
+                                The indexed representation defines a header as
+                                a reference in the header table.
+                            </t>
+                        </list>
+                    </t>
+                </section>
             </section>
-            <section title="Header Table" anchor="header.table">
+
+            <section title="Header Set Processing"
+                anchor="header.set.processing">
+
                 <t>
-                    A header table consists of an ordered list of (name,
-                    value) pairs. A pair is either inserted at the end of the
-                    table or replaces an existing pair depending on the chosen
-                    representation. A pair can be represented as an index
-                    which is its position in the table, starting with 0 for
-                    the first entry.
+                    To ensure a correct decoding of a set of headers, a
+                    decoder MUST execute the following steps or equivalent
+                    ones.
                 </t>
-                <t>
-                    An input header name matches the header name of a (name,
-                    value) pair stored in the Header Table if they are
-                    equal using a character-based, <spanx>case
-                        sensitive</spanx> comparison.
-                    An input header value matches the header value of a
-                    (name, value) pair stored in the Header Table if they are
-                    equal using a character-based, <spanx>case
-                        sensitive</spanx> comparison. 
-                    An input header (name, value) pair matches a pair in the
-                    Header Table if both the name and value are matching as
-                    per above.
-                </t>
-                <t>
-                    Generally, the header table will not contain duplicate
-                    header (name, value) entries. However, implementations
-                    MUST be prepared to accept duplicates without signaling an
-                    error. If duplicates are added to the table, they MUST be
-                    treated as distinct entries with their own index
-                    positions.
-                </t>
+
+                <section title="Header Representation Processing"
+                    anchor="header.representation.processing">
+                    <t>
+                        An <spanx>indexed representation</spanx> corresponding
+                        to an entry <spanx>not present</spanx> in the
+                        reference set entails the following actions:
+                        <list style="symbols">
+                            <t>The header corresponding to the entry is
+                                emitted.</t>
+                            <t>The entry is added to the reference set.</t>
+                        </list>
+                    </t>
+                    <t>
+                        An <spanx>indexed representation</spanx> corresponding
+                        to an entry <spanx>not present</spanx> in the
+                        reference set entails the following actions:
+                        <list style="symbols">
+                            <t>The entry is removed from the reference set.</t>
+                        </list>
+                    </t>
+                    <t>
+                        A <spanx>literal representation</spanx> that is
+                        <spanx>not added</spanx> to the header table entails
+                        the following actions:
+                        <list style="symbols">
+                            <t>The header is emitted.</t>
+                        </list>
+                    </t>
+                    <t>
+                        A <spanx>literal representation</spanx> that is
+                        <spanx>added</spanx> to the header table entails
+                        the following actions:
+                        <list style="symbols">
+                            <t>The header is emitted.</t>
+                            <t>The header is added to the header table, at a
+                                location defined by the representation.</t>
+                            <t>The new entry is added to the reference set.</t>
+                        </list>
+                    </t>
+                </section>
+
+                <section title="Header Table Management"
+                    anchor="header.table.management">
+                    <t>
+                        The header table can be modified by either adding a
+                        new entry to it or by replacing an existing one.
+                        Before doing such a modification, it has to be ensured
+                        that the header table size will stay lower than or
+                        equal to the SETTINGS_MAX_BUFFER_SIZE limit (see <xref
+                            target="parameter.negotiation"/>). If necessary,
+                        some entries are removed from the header table.
+                        Repeatedly, the first entry of the header table is
+                        removed, until enough space is available for the
+                        modification.
+                    </t>
+                    <t>
+                        A consequence of removing one or more entries at the
+                        beginning of the header table is that the remaining
+                        entries are renumbered. The first entry of the header
+                        table is always associated to the index 0.
+                    </t>
+                    <t>
+                        When the modification is the replacement of an
+                        existing entry, the replace entry is the one indicated
+                        in the literal representation before any entry is
+                        removed from the header table. If the entry to be
+                        replaced is removed from the header table when
+                        performing the size adjustment, the replacement entry
+                        is inserted at the beginning of the header table.
+                    </t>
+                    <t>
+                        The addition of a new entry with a size greater than
+                        the SETTINGS_MAX_BUFFER_SIZE limit cause all the
+                        entries from the header table to be dropped and the
+                        new entry not to be added to the header table. The
+                        replacement of an existing entry with a new entry with
+                        a size greater than the SETTINGS_MAX_BUFFER_SIZE has
+                        the same consequences.
+                    </t>
+                </section>
+
+                <section title="">
+                    <t><cref>TODO: emit remaining.</cref></t>
+                </section>
+
+            </section>
+
+            <section title="Header Table Old">
                 <t>
                     The header table is progressively updated based on headers
-                    represented as literal (as defined in <xref
-                        target="literal" />).  Two update mechanisms are
+                    represented as literal.  Two update mechanisms are
                     defined:
                     <list style="symbols">
                         <t>
@@ -206,175 +427,12 @@
                     happens on the header table when processing an indexed
                     representation.
                 </t>
-                <t>
-                    The header table size can be bounded so as to limit the
-                    memory requirements (see the SETTINGS_MAX_BUFFER_SIZE in
-                    <xref target="parameter.negotiation"/>).  The header table
-                    size is defined as the sum of the size of each entry of
-                    the table. The size of an entry is the sum of the length
-                    in bytes (as defined in <xref
-                        target="string.literal.representation" />) of its
-                    name, of value's length in bytes and of 32 bytes (for
-                    accounting for the entry structure overhead). The header
-                    table size MUST NOT exceed this limit.
-                </t>
-                <t>
-                    Before adding a new entry to the header table or changing
-                    an existing one, a check has to be performed to ensure
-                    that the change will not cause the table to grow in size
-                    beyond the SETTINGS_MAX_BUFFER_SIZE limit. If necessary,
-                    one or more items from the beginning of the table are
-                    removed until there is enough free space available to make
-                    the modification. Dropping an entry from the beginning of
-                    the table causes the index positions of the remaining
-                    entries in the table to be decremented by 1.
-                    <cref>
-                        Feedback is needed on this automatic eviction
-                        strategy.
-                    </cref>
-                </t>
-                <t>
-                    When using substitution indexing, it is possible that the
-                    existing item being replaced might be one of the items
-                    removed when performing the necessary size adjustment. In
-                    such cases, the substituted value being added to the
-                    header table is inserted at the beginning of the header
-                    table (at index position #0) and the index positions of
-                    the other remaining entries in the table are incremented
-                    by 1.
-                </t>
-                <t>
-                    To optimize the representation of the headers exchanged at
-                    the beginning of an HTTP/2.0 session, the header table is
-                    initialized with common headers. Two lists of initial
-                    headers are provided in <xref target="initial.headers"/>.
-                    One is for messages sent from a client to a server, the
-                    other is for messages sent from a server to a client.
-                </t>
             </section>
 
-            <section title="Header Representation" anchor="header.representation">
-                <section title="Literal Representation" anchor="literal">
-                    <t>
-                        The literal representation defines a new header.  A
-                        literal header is represented as:
-                        <list style="symbols">
-                            <t>
-                                A header name, with two possible
-                                representations:
-                                <list style="symbols">
-                                    <t>
-                                        A literal string, as described in
-                                        <xref
-                                            target="string.literal.representation"/>.
-                                    </t>
-                                    <t>
-                                        A index in the header table
-                                        referencing the name of the
-                                        corresponding header. The index is
-                                        represented as an integer, as
-                                        described in <xref
-                                            target="integer.representation"/>.
-                                    </t>
-                                </list>
-                            </t>
-                            <t>
-                                The header value, represented as a literal
-                                string, as described in <xref
-                                    target="string.literal.representation" />.
-                            </t>
-                        </list>
-                    </t>
-                </section>
-
-                <section title="Indexed Representation" anchor="indexed">
-                    <t>
-                        The indexed representation defines a header as a match
-                        to a (name, value) pair in the header table.  An
-                        indexed header is  represented as:
-                        <list style="symbols">
-                            <t>
-                                An integer representing the index of the
-                                matching (name, value) pair, as described in
-                                <xref target="integer.representation" />.
-                            </t>
-                        </list>
-                    </t>
-                </section>
-            </section>
-
-            <section title="Differential Coding" anchor="differential.coding">
-                <t>
-                    A set of headers is encoded as a difference from the
-                    previous reference set of headers. The initial reference
-                    set of headers is the empty set.
-                </t>
-
-                <t>
-                    An indexed representation toggles the presence of the
-                    header in the current set of headers. If the header
-                    corresponding to the indexed representation was not in the
-                    set, it is added to the set. If the header index was in
-                    the set, it is removed from it.
-                </t>
-                <t>
-                    A literal representation adds a header to the current set
-                    of headers.
-                </t>
-
-                <t>
-                    To ensure a correct decoding of a set of headers, the
-                    following steps or equivalent ones MUST be executed by the
-                    decoder.
-                </t>
-                <t>
-                    First, upon starting the decoding of a new set of headers,
-                    the reference set of headers is interpreted into the
-                    working set of headers: for each header in the reference
-                    set, an entry is added to the working set, containing the
-                    header name, its value, and its current index in the
-                    header table.
-                </t>
+            <section title="Differential Coding Old">
                 <t>
                     Then, the header representations are processed in their
                     order of occurrence in the frame.
-                </t>
-                <t>
-                    For an indexed representation, the decoder checks whether
-                    the index is present in the working set. If true, the
-                    corresponding entry is removed from the working set. If
-                    several entries correspond to this encoded index, all
-                    these entries are removed from the working set. If
-                    the index is not present in the working set, it is used to
-                    retrieve the corresponding header from the header table,
-                    and a new entry is added to the working set representing
-                    this header.
-                </t>
-                <t>
-                    For a literal representation, a new entry is added to the
-                    working set representing this header. If the literal
-                    representation specifies that the header is to be indexed,
-                    the header is added accordingly to the header table, and
-                    its index is included in the entry in the working set.
-                    Otherwise, the entry in the working set contains an
-                    undefined index.
-                </t>
-                <t>
-                    When all the header representations have been processed,
-                    the working set contains all the headers of the set of
-                    headers.
-                </t>
-                <t>
-                    The new reference set of headers is computed by removing
-                    from the working set all the headers that are not present
-                    in the header table.
-                </t>
-
-                <t>
-                    It should be noted that during the decoding of the header
-                    representations, the same index may be associated to
-                    different headers in the working set and in the header
-                    table. 
                 </t>
             </section>
         </section>
@@ -791,6 +849,19 @@
         </references>
 
 
+        <section title="Change Log (to be removed by RFC Editor before publication">
+            <section title="Since draft-ietf-httpbis-header-compression-01">
+                <t>
+                    <list style="symbols">
+                        <t>Refactored of Header Encoding Section: split
+                            definitions and processing rule.</t>
+                        <t>Updated reference set management as per issue
+                            #214</t>
+                        <t>Added example of 32 bytes entry structure (issue #191).</t>
+                    </list>
+                </t>
+            </section>
+        </section>
         <section title="Initial header names" anchor="initial.headers">
             <t>
                 <cref>
