@@ -1887,8 +1887,8 @@ HTTP2-Settings    = token68
             <t>
               Flow control cannot be enabled again once disabled.  Any attempt to re-enable flow
               control - by sending a <x:ref>WINDOW_UPDATE</x:ref> or by clearing the bits on the
-              SETTINGS_FLOW_CONTROL_OPTIONS setting - MUST be rejected with a <x:ref>FLOW_CONTROL_ERROR</x:ref>
-              error code.
+              SETTINGS_FLOW_CONTROL_OPTIONS setting - MUST be rejected with a
+              <x:ref>FLOW_CONTROL_ERROR</x:ref> error code.
             </t>
           </section>
         </section>
@@ -1978,8 +1978,9 @@ HTTP2-Settings    = token68
           The last frame in the sequence bears an END_STREAM flag.
         </t>
         <t>
-          Other frames, including <x:ref>HEADERS</x:ref>, MAY be interspersed with these frames, but
-          those frames do not carry HTTP semantics.
+          Other frames MAY be interspersed with these frames, but those frames do not carry HTTP
+          semantics.  In particular, <x:ref>HEADERS</x:ref> frames other than the first and optional
+          last frames in this sequence do not carry HTTP semantics.
         </t>
 
         <t>
@@ -2245,7 +2246,7 @@ HTTP2-Settings    = token68
           when the server knows the client will need to have those resources available in order to
           fully process the originally requested resource.
         </t>
-       
+        
         <t>
           Pushing additional resources is optional, and is negotiated only between individual
           endpoints.  For instance, an intermediary could receive pushed resources from the server
@@ -2253,99 +2254,100 @@ HTTP2-Settings    = token68
           resources is up to that intermediary.  Equally, the intermediary might choose to push
           additional resources to the client, without any action taken by the server.
         </t>
+
+        <section title="Push Requests">
+          <t>
+            Server push is semantically equivalent to a server responding to a request. The
+            <x:ref>PUSH_PROMISE</x:ref> frame, or frames, sent by the server includes a header block
+            that contains a complete set of request headers that the server attributes to the request.
+            It is not possible to push a response to a request that includes a request body.
+          </t>
+          
+          <t>
+            Pushed resources are always associated with an explicit request from a client.  The
+            <x:ref>PUSH_PROMISE</x:ref> frames sent by the server are sent on the stream created for
+            the original request.  The <x:ref>PUSH_PROMISE</x:ref> frame includes a promised stream
+            identifier, chosen from the stream identifiers available to the server (see <xref
+            target="StreamIdentifiers"/>).
+          </t>
+
+          <t>
+            The header fields in <x:ref>PUSH_PROMISE</x:ref> MUST be a valid and complete set of <xref
+            target="HttpRequest">request headers</xref>.  The server MUST include a method in the
+            <spanx style="verb">:method</spanx> header field that is safe (see <xref target="HTTP-p2"
+            x:fmt="," x:sec="4.2.1"/>).  If a client receives a <x:ref>PUSH_PROMISE</x:ref> that does not
+            include a complete and valid set of header fields, or the <spanx
+            style="verb">:method</spanx> header field identifies a method that is not safe, it MUST
+            respond with a <xref target="StreamErrorHandler">stream error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
+          </t>
+
+          <t>
+            The server SHOULD send <x:ref>PUSH_PROMISE</x:ref> (<xref target="PUSH_PROMISE"/>) frames
+            prior to sending any <x:ref>HEADERS</x:ref> or <x:ref>DATA</x:ref> frames that reference
+            the promised resources.  This avoids a race where clients issue requests for resources
+            prior to receiving any <x:ref>PUSH_PROMISE</x:ref> frames.
+          </t>
+          <t>
+            For example, if the server receives a request for a document containing embedded links to
+            multiple image files, and the server chooses to push those additional images to the
+            client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the image
+            links ensure that the client is able to see the promises before discovering the resources.
+            Similarly, if the server pushes resources referenced by the header block (for instance, in
+            Link header fields), sending the push promises before sending the header block ensures
+            that clients do not request those resources.
+          </t>
+          
+          <t>
+            <x:ref>PUSH_PROMISE</x:ref> frames MUST NOT be sent by the client.
+            <x:ref>PUSH_PROMISE</x:ref> frames can be sent by the server on any stream that was
+            opened by the client.  They MUST be sent on a stream that is in either the "open" or
+            "half closed (remote)" to the server.  <x:ref>PUSH_PROMISE</x:ref> frames are
+            interspersed with the frames that comprise a response, though they cannot be
+            interspersed with <x:ref>HEADERS</x:ref> frames that comprise a single header block.
+          </t>
+        </section>
         
-        <t>
-          Server push is semantically equivalent to a server responding to a GET request for that
-          resource. The <x:ref>PUSH_PROMISE</x:ref> frame, or frames, sent by the server includes a
-          header block that contains the request headers that the server has assumed.
-        </t>
-      
-        <t>
-          Pushed resources are always associated with an explicit request from a client.  The
-          <x:ref>PUSH_PROMISE</x:ref> frames sent by the server are sent on the stream created for
-          the original request.  The <x:ref>PUSH_PROMISE</x:ref> frame includes a promised stream
-          identifier, chosen from the stream identifiers available to the server (see <xref
-          target="StreamIdentifiers"/>).  Any header fields that are not specified in the
-          <x:ref>PUSH_PROMISE</x:ref> frames sent by the server are inherited from the original
-          request sent by the client.
-        </t>
+        <section title="Push Responses">
+          <t>
+            After sending the <x:ref>PUSH_PROMISE</x:ref> frame, the server can begin delivering the
+            pushed resource as a <xref target="HttpResponse">response</xref> on a server-initiated
+            stream that uses the promised stream identifier.  The server uses this stream to transmit
+            an HTTP response, using the same sequence of frames as defined in <xref
+            target="HttpSequence"/>.  This stream becomes <xref target="StreamStates">"half closed" to
+            the client</xref> after the initial <x:ref>HEADERS</x:ref> frame is sent.
+          </t>
 
-        <t>
-          The header fields in <x:ref>PUSH_PROMISE</x:ref> MUST include the <spanx
-          style="verb">:scheme</spanx>, <spanx style="verb">:host</spanx> and <spanx
-          style="verb">:path</spanx> header fields that identify the resource that is being pushed.
-          A <x:ref>PUSH_PROMISE</x:ref> always implies an HTTP method of "GET".  If a client
-          receives a <x:ref>PUSH_PROMISE</x:ref> that does not include these header fields, or a
-          value for the <spanx style="verb">:method</spanx> header field, it MUST respond with a
-          <xref target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
-        </t>
-        
-        <t>
-          After sending the <x:ref>PUSH_PROMISE</x:ref> frame, the server can begin delivering the
-          pushed resource on a new, server-initiated stream that uses the promised stream
-          identifier.  This stream is already implicitly <xref target="StreamStates">"half closed"
-          to the client</xref>.  The server uses this stream to transmit an HTTP response, using the
-          same sequence of frames as defined in <xref target="HttpSequence"/>.
-        </t>
+          <t>
+            Once a client receives a <x:ref>PUSH_PROMISE</x:ref> frame and chooses to accept the
+            pushed resource, the client SHOULD NOT issue any requests for the promised resource until
+            after the promised stream has closed.
+          </t>
+          
+          <t>
+            If the client determines, for any reason, that it does not wish to receive the pushed
+            resource from the server, or if the server takes too long to begin sending the promised
+            resource, the client can send an <x:ref>RST_STREAM</x:ref> frame, using either the
+            <x:ref>CANCEL</x:ref> or <x:ref>REFUSED_STREAM</x:ref> codes, and referencing the pushed
+            stream's identifier.
+          </t>
+          <t>
+            A client can use the SETTINGS_MAX_CONCURRENT_STREAMS setting to limit the number of
+            resources that can be concurrently pushed by a server.  Advertising a
+            SETTINGS_MAX_CONCURRENT_STREAMS value of zero disables server push by preventing the
+            server from creating the necessary streams.  This does not prohibit a server from
+            sending PUSH_PROMISE frames; clients need to reset any promised streams that are not
+            wanted.
+          </t>
 
-        <t>
-          Once a client receives a <x:ref>PUSH_PROMISE</x:ref> frame and chooses to accept the
-          pushed resource, the client SHOULD NOT issue any subsequent GET requests for the promised
-          resource until after the promised stream has closed.
-        </t>
-
-        <t>
-          The server SHOULD send <x:ref>PUSH_PROMISE</x:ref> (<xref target="PUSH_PROMISE"/>) frames
-          prior to sending any <x:ref>HEADERS</x:ref> or <x:ref>DATA</x:ref> frames that reference
-          the promised resources.  This avoids a race where clients issue requests for resources
-          prior to receiving any <x:ref>PUSH_PROMISE</x:ref> frames.
-        </t>
-
-        <t>
-          For example, if the server receives a request for a document containing embedded links to
-          multiple image files, and the server chooses to push those additional images to the
-          client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the image
-          links ensure that the client is able to see the promises before discovering the
-          resources. Likewise, if the server pushes resources referenced by the header block (for
-          instance, in Link header fields), sending the push promises before sending the header
-          block ensures that clients do not request those resources.
-        </t>
-        
-        <t>
-          <x:ref>PUSH_PROMISE</x:ref> frames MUST NOT be sent by the client.
-          <x:ref>PUSH_PROMISE</x:ref> frames can be sent by the server on any stream that was opened
-          by the client.  They MUST be sent on a stream that is in either the "open" or "half closed
-          (remote)" to the server.  <x:ref>PUSH_PROMISE</x:ref> frames can be interspersed within
-          the frames that comprise response, with the exception that they cannot be interspersed
-          with <x:ref>HEADERS</x:ref> frames that comprise a single header block.
-        </t>
-
-        <t>
-          A client can use the SETTINGS_MAX_CONCURRENT_STREAMS setting to limit the number of
-          resources that can be concurrently pushed by a server.  Advertising a
-          SETTINGS_MAX_CONCURRENT_STREAMS value of zero disables server push by preventing the
-          server from creating the necessary streams.  This does not prevent a server from sending
-          PUSH_PROMISE frames, therefore clients need to reset any promised streams that they do not
-          want.
-        </t>
-        
-        <t>
-          The request header fields provided in the <x:ref>PUSH_PROMISE</x:ref> frame SHOULD include
-          enough information for a client to determine whether a cached representation of the
-          resource is already available.  If the client determines, for any reason, that it does not
-          wish to receive the pushed resource from the server, or if the server takes too long to
-          begin sending the promised resource, the client can send an <x:ref>RST_STREAM</x:ref>
-          frame, using either the <x:ref>CANCEL</x:ref> or <x:ref>REFUSED_STREAM</x:ref> codes, and referencing the pushed
-          stream's identifier.
-        </t>
-       
-        <t>
-          Clients receiving a pushed response MUST validate that the server is authorized to push
-          the resource using the same-origin policy (<xref target="RFC6454" x:fmt="," x:sec="3"/>).
-          For example, a HTTP/2.0 connection to <spanx style="verb">example.com</spanx> is generally
-          <cref>Ed: weaselly use of "generally", needs better definition</cref> not permitted to
-          push a response for <spanx style="verb">www.example.org</spanx>.
-        </t>        
+          <t>
+            Clients receiving a pushed response MUST validate that the server is authorized to push
+            the resource using the same-origin policy (<xref target="RFC6454" x:fmt="," x:sec="3"/>).
+            For example, a HTTP/2.0 connection to <spanx style="verb">example.com</spanx> is generally
+            <cref>Ed: weaselly use of "generally", needs better definition</cref> not permitted to
+            push a response for <spanx style="verb">www.example.org</spanx>.
+          </t>        
+        </section>
       </section>
 
     </section>
@@ -2985,6 +2987,9 @@ HTTP2-Settings    = token68
         <t>
           PUSH_PROMISE is no longer implicitly prohibited if SETTINGS_MAX_CONCURRENT_STREAMS is
           zero.
+        </t>
+        <t>
+          Push expanded to allow all safe methods without a request body.
         </t>
       </section>
 
