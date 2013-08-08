@@ -9,13 +9,13 @@ Expires: January 02, 2014                                      Canon CRF
                                                                July 2013
 
 
-                      HTTP/2.0 Header Compression
+                                 HPACK
                 draft-ietf-httpbis-header-compression-01
 
 Abstract
 
-   This document describes a format adapted to efficiently represent
-   HTTP headers in the context of HTTP/2.0.
+   This document describes HPACK, a format adapted to efficiently
+   represent HTTP headers in the context of HTTP/2.0.
 
 Status of This Memo
 
@@ -55,64 +55,66 @@ Table of Contents
 
 Peon & Ruellan          Expires January 02, 2014                [Page 1]
 
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
+Internet-Draft                   HPACK                         July 2013
 
 
 
    1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
-   2.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   3
      2.1.  Outline . . . . . . . . . . . . . . . . . . . . . . . . .   3
-   3.  Header Encoding . . . . . . . . . . . . . . . . . . . . . . .   3
+   3.  Header Encoding . . . . . . . . . . . . . . . . . . . . . . .   4
      3.1.  Encoding Concepts . . . . . . . . . . . . . . . . . . . .   4
-       3.1.1.  Header Table  . . . . . . . . . . . . . . . . . . . .   4
-       3.1.2.  Reference Set . . . . . . . . . . . . . . . . . . . .   5
-       3.1.3.  Header Emission . . . . . . . . . . . . . . . . . . .   5
-       3.1.4.  Header Representation . . . . . . . . . . . . . . . .   6
-     3.2.  Header Set Processing . . . . . . . . . . . . . . . . . .   6
-       3.2.1.  Header Representation Processing  . . . . . . . . . .   6
+       3.1.1.  Encoding Context  . . . . . . . . . . . . . . . . . .   4
+       3.1.2.  Header Table  . . . . . . . . . . . . . . . . . . . .   5
+       3.1.3.  Reference Set . . . . . . . . . . . . . . . . . . . .   6
+       3.1.4.  Header Emission . . . . . . . . . . . . . . . . . . .   6
+       3.1.5.  Header Representation . . . . . . . . . . . . . . . .   6
+     3.2.  Header Set Processing . . . . . . . . . . . . . . . . . .   7
+       3.2.1.  Header Representation Processing  . . . . . . . . . .   7
        3.2.2.  Header Table Management . . . . . . . . . . . . . . .   7
-       3.2.3.  . . . . . . . . . . . . . . . . . . . . . . . . . . .   7
-     3.3.  Header Table Old  . . . . . . . . . . . . . . . . . . . .   7
+       3.2.3.  . . . . . . . . . . . . . . . . . . . . . . . . . . .   8
+     3.3.  Header Table Old  . . . . . . . . . . . . . . . . . . . .   8
      3.4.  Differential Coding Old . . . . . . . . . . . . . . . . .   8
    4.  Detailed Format . . . . . . . . . . . . . . . . . . . . . . .   8
      4.1.  Header Blocks . . . . . . . . . . . . . . . . . . . . . .   8
-     4.2.  Low-level representations . . . . . . . . . . . . . . . .   8
-       4.2.1.  Integer representation  . . . . . . . . . . . . . . .   8
-       4.2.2.  String literal representation . . . . . . . . . . . .  10
+     4.2.  Low-level representations . . . . . . . . . . . . . . . .   9
+       4.2.1.  Integer representation  . . . . . . . . . . . . . . .   9
+       4.2.2.  String literal representation . . . . . . . . . . . .  11
      4.3.  Indexed Header Representation . . . . . . . . . . . . . .  11
      4.4.  Literal Header Representation . . . . . . . . . . . . . .  11
        4.4.1.  Literal Header without Indexing . . . . . . . . . . .  11
        4.4.2.  Literal Header with Incremental Indexing  . . . . . .  12
        4.4.3.  Literal Header with Substitution Indexing . . . . . .  13
-   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  14
-   6.  Security Considerations . . . . . . . . . . . . . . . . . . .  14
-   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  14
+   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  15
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .  15
+   7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  15
    8.  Informative References  . . . . . . . . . . . . . . . . . . .  15
    Appendix A.  Change Log (to be removed by RFC Editor before
-                publication  . . . . . . . . . . . . . . . . . . . .  15
-     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  15
-   Appendix B.  Initial header names . . . . . . . . . . . . . . . .  15
-     B.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  15
-     B.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  16
-   Appendix C.  Example  . . . . . . . . . . . . . . . . . . . . . .  17
-     C.1.  First header set  . . . . . . . . . . . . . . . . . . . .  17
-     C.2.  Second header set . . . . . . . . . . . . . . . . . . . .  18
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  20
+                publication  . . . . . . . . . . . . . . . . . . . .  16
+     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  16
+   Appendix B.  Initial header names . . . . . . . . . . . . . . . .  16
+     B.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  16
+     B.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  17
+   Appendix C.  Example  . . . . . . . . . . . . . . . . . . . . . .  18
+     C.1.  First header set  . . . . . . . . . . . . . . . . . . . .  18
+     C.2.  Second header set . . . . . . . . . . . . . . . . . . . .  19
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  21
 
 1.  Introduction
 
-   This document describes a format adapted to efficiently represent
-   HTTP headers in the context of HTTP/2.0.
+   This document describes HPACK, a format adapted to efficiently
+   represent HTTP headers in the context of HTTP/2.0.
 
-2.  Overview
 
 
 
 
 Peon & Ruellan          Expires January 02, 2014                [Page 2]
 
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
+Internet-Draft                   HPACK                         July 2013
 
+
+2.  Overview
 
    In HTTP/1.X, HTTP headers, which are necessary for the functioning of
    the protocol, are transmitted with no transformations.
@@ -159,50 +161,72 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    An example illustrating the use these different mechanisms to
    represent headers is available in Appendix C.
 
-3.  Header Encoding
-
 
 
 
 
 Peon & Ruellan          Expires January 02, 2014                [Page 3]
 
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
+Internet-Draft                   HPACK                         July 2013
 
+
+3.  Header Encoding
 
 3.1.  Encoding Concepts
 
    The encoding and decoding of headers relies on some components and
    concepts.  The set of components used form an encoding context.
 
-   Header Table:  The header table (see Section 3.1.1) is a component
+   Header Table:  The header table (see Section 3.1.2) is a component
       used to associate headers to index values.
 
-   Reference Set:  The reference set (see Section 3.1.2 is a component
-      containing set of headers used as a reference for the differential
-      encoding of a new set of headers.
+   Reference Set:  The reference set (see Section 3.1.3) is a component
+      containing a group of headers used as a reference for the
+      differential encoding of a new set of headers.
+
+   Header Set:  A header set is a group of headers that is encoded
+      jointly.  A header set usually consists of all the headers
+      contained in an HTTP request or an HTTP response.
 
    Header Emission:  When decoding a set of headers, some operations
-      emit a header.  An emitted header is added to the set of headers.
-      Once emitted, a header can't be removed from the set of headers.
+      emit a header (see Section 3.1.4).  An emitted header is added to
+      the set of headers.  Once emitted, a header can't be removed from
+      the set of headers.
 
    Header Representation:  A header can be represented in encoded form
-      either as a literal or as an index.  The indexed representation is
-      based on the header table.
+      either as a literal or as an index (see Section 3.1.5).  The
+      indexed representation is based on the header table.
 
-   [[Split the following.]]
+3.1.1.  Encoding Context
+
+   The set of components used to encode or decode a header set form an
+   encoding context.  As such, an encoding context contains a header
+   table and a reference set.
 
    Using HTTP, messages are exchanged in the two directions between a
-   client and a server.  The encoding of headers in each direction is
-   independent from the other direction.  As such, there is one encoding
-   context for each direction.
+   client and a server.  As the encoding of headers in each direction is
+   independent from the other direction, there is one encoding context
+   for each direction.
 
    It should be noted that the headers contained in a PUSH_PROMISE frame
    are encoded within the same context as the headers contained in the
    HEADERS frame corresponding to a response sent from the server to the
    client.
 
-3.1.1.  Header Table
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 4]
+
+Internet-Draft                   HPACK                         July 2013
+
+
+3.1.2.  Header Table
 
    A header table consists of an ordered list of (name, value) pairs.
    The first entry of a header table is assigned the index 0.
@@ -218,14 +242,6 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
    Generally, the header table will not contain duplicate header (name,
    value) entries.  However, implementations MUST be prepared to accept
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 4]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    duplicates without signaling an error.  If duplicates are added to
    the table, they MUST be treated as distinct entries with their own
    index positions.
@@ -253,7 +269,20 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
    The size of a header table is the sum of the sizes of its entries.
 
-3.1.2.  Reference Set
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 5]
+
+Internet-Draft                   HPACK                         July 2013
+
+
+3.1.3.  Reference Set
 
    A reference set is defined as an unordered set of references to
    entries of the header table.
@@ -271,16 +300,7 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    A header that is to be removed from the reference set is encoded with
    an indexed representation.
 
-3.1.3.  Header Emission
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 5]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
+3.1.4.  Header Emission
 
    The emission of header is the process of adding a header to the
    current set of headers.  Once an header is emitted, it can't be
@@ -295,7 +315,7 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    management of memory for handling very large sets of headers can
    therefore be deferred to the application.
 
-3.1.4.  Header Representation
+3.1.5.  Header Representation
 
    Literal Representation:  The literal representation defines a new
       header.  The header name is represented either literally or as a
@@ -304,6 +324,19 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
    Indexed Representation:  The indexed representation defines a header
       as a reference in the header table.
+
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 6]
+
+Internet-Draft                   HPACK                         July 2013
+
 
 3.2.  Header Set Processing
 
@@ -329,15 +362,6 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
    o  The header is emitted.
 
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 6]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    A _literal representation_ that is _added_ to the header table
    entails the following actions:
 
@@ -362,6 +386,14 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    header table is that the remaining entries are renumbered.  The first
    entry of the header table is always associated to the index 0.
 
+
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 7]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    When the modification is the replacement of an existing entry, the
    replace entry is the one indicated in the literal representation
    before any entry is removed from the header table.  If the entry to
@@ -385,15 +417,6 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    The header table is progressively updated based on headers
    represented as literal.  Two update mechanisms are defined:
 
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 7]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    o  Incremental indexing: the represented header is inserted at the
       end of the header table as a (name, value) pair.  The inserted
       pair index is set to the next free index in the table: it is equal
@@ -416,6 +439,16 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 4.  Detailed Format
 
 4.1.  Header Blocks
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 8]
+
+Internet-Draft                   HPACK                         July 2013
+
 
    A header block consists of a set of header fields, which are name-
    value pairs.  Each header field is encoded using one of the header
@@ -442,14 +475,6 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    the value is encoded using an unsigned variable length integer [1]
    representation.
 
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 8]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    The algorithm to represent an integer I is as follows:
 
    1.  If I < 2^N - 1, encode I on N bits
@@ -474,6 +499,13 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
            4.  I = Q
 
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 9]
+
+Internet-Draft                   HPACK                         July 2013
+
+
 4.2.1.1.  Example 1: Encoding 10 using a 5-bit prefix
 
    The value 10 is to be encoded with a 5-bit prefix.
@@ -496,15 +528,6 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    o
 
       *  The 5-bit prefix is filled with its max value (31).
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 9]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
 
    o  The value to represent on next bytes is I = 1337 - (2^5 - 1) =
       1306.
@@ -531,6 +554,14 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
       *  I is replaced by the quotient Q=0.
 
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 10]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    o  The process ends.
 
      0   1   2   3   4   5   6   7
@@ -553,15 +584,6 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
    2.  The string value represented as a list of UTF-8 characters.
 
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 10]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
 4.3.  Indexed Header Representation
 
      0   1   2   3   4   5   6   7
@@ -578,6 +600,23 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 4.4.  Literal Header Representation
 
 4.4.1.  Literal Header without Indexing
+
+
+
+
+
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 11]
+
+Internet-Draft                   HPACK                         July 2013
+
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -610,14 +649,6 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
    If the header name matches the header name of a (name, value) pair
    stored in the Header Table, the index of the pair increased by one
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 11]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    (index + 1) is represented as an integer with a 5-bit prefix.  Note
    that if the index is strictly below 31, one byte is used.
 
@@ -635,6 +666,14 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    | 0 | 1 | 0 |    Index (5+)     |
    +---+---+---+-------------------+
    |       Value Length (8+)       |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 12]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    +-------------------------------+
    | Value String (Length octets)  |
    +-------------------------------+
@@ -667,17 +706,29 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    represented on 5 bits followed by the header name, represented as a
    literal string.
 
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 12]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    Header name representation is followed by the header value
    represented as a literal string as described in Section 4.2.2.
 
 4.4.3.  Literal Header with Substitution Indexing
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 13]
+
+Internet-Draft                   HPACK                         July 2013
+
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -723,17 +774,17 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    The index of the substituted (name, value) pair is inserted after the
    header name representation as a 0-bit prefix integer.
 
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 13]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    The index of the substituted pair MUST correspond to a position in
    the header table containing a non-void entry.  An index for the
    substituted pair that corresponds to empty position in the header
    table MUST be treated as an error.
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 14]
+
+Internet-Draft                   HPACK                         July 2013
+
 
    This index is followed by the header value represented as a literal
    string as described in Section 4.2.2.
@@ -773,23 +824,23 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
 
    This memo includes no request to IANA.
 
-
-
-
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 14]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
 8.  Informative References
 
    [SPDY]     Belshe, M. and R. Peon, "SPDY Protocol", February 2012,
               <http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy>.
+
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 15]
+
+Internet-Draft                   HPACK                         July 2013
+
 
 Appendix A.  Change Log (to be removed by RFC Editor before publication
 
@@ -834,19 +885,19 @@ B.1.  Requests
               | 11    | keep-alive          |              |
               | 12    | user-agent          |              |
               | 13    | proxy-connection    |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 15]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
               | 14    | referer             |              |
               | 15    | accept-datetime     |              |
               | 16    | authorization       |              |
               | 17    | allow               |              |
               | 18    | cache-control       |              |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 16]
+
+Internet-Draft                   HPACK                         July 2013
+
+
               | 19    | connection          |              |
               | 20    | content-length      |              |
               | 21    | content-md5         |              |
@@ -890,19 +941,19 @@ B.2.  Responses
           | 7     | expires                     |              |
           | 8     | last-modified               |              |
           | 9     | server                      |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 16]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
           | 10    | set-cookie                  |              |
           | 11    | vary                        |              |
           | 12    | via                         |              |
           | 13    | access-control-allow-origin |              |
           | 14    | accept-ranges               |              |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 17]
+
+Internet-Draft                   HPACK                         July 2013
+
+
           | 15    | allow                       |              |
           | 16    | connection                  |              |
           | 17    | content-disposition         |              |
@@ -947,17 +998,18 @@ C.1.  First header set
    header name table and is encoded literally.  This gives the following
    representation:
 
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 17]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    0x44      (literal header with incremental indexing, name index = 3)
    0x16      (header value string length = 22)
    /my-example/index.html
    0x4D      (literal header with incremental indexing, name index = 12)
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 18]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    0x0D      (header value string length = 13)
    my-user-agent
    0x40      (literal header with incremental indexing, new name)
@@ -1002,17 +1054,16 @@ C.2.  Second header set
 
    The second header set to represent is the following:
 
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 18]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    :path: /my-example/resources/script.js
    user-agent: my-user-agent
    x-my-header: second
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 19]
+
+Internet-Draft                   HPACK                         July 2013
 
 
    Comparing this second header set to the reference set, the first and
@@ -1059,16 +1110,17 @@ Internet-Draft        HTTP/2.0 Header Compression              July 2013
    +---------+----------------+---------------------------+
 
 
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 19]
-
-Internet-Draft        HTTP/2.0 Header Compression              July 2013
-
-
    All the headers in this second header set are indexed in the header
    table, therefore, all are kept in the reference set of headers, which
    becomes:
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 20]
+
+Internet-Draft                   HPACK                         July 2013
+
 
    Reference Set:
    :path, /my-example/resources/script.js
@@ -1116,4 +1168,8 @@ Authors' Addresses
 
 
 
-Peon & Ruellan          Expires January 02, 2014               [Page 20]
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 21]
