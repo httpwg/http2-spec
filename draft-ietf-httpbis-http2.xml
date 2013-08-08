@@ -229,7 +229,6 @@
         structure as necessary.
       </t>
       
-      <!-- we need to, at some stage, introduce a "message" term and provide a definition, this is the place that starts talking about that concept... -->
       <section title="HTTP Frames">
         <t>
           HTTP/2.0 provides an efficient serialization of HTTP semantics.  HTTP requests and
@@ -353,7 +352,7 @@ HTTP2-Settings: &lt;base64url encoding of HTTP/2.0 SETTINGS payload>
           header field were absent:
         </t>
         <figure>
-          <artwork type="message/http; msgtype=&#34;responset&#34;" x:indent-with="  ">
+          <artwork type="message/http; msgtype=&#34;response&#34;" x:indent-with="  ">
 HTTP/1.1 200 OK
 Content-length: 243
 Content-type: text/html
@@ -442,7 +441,6 @@ HTTP2-Settings    = token68
           HTTP/2.0 uses <xref target="TLS12">TLS</xref> with the <xref target="TLSALPN">application
           layer protocol negotiation extension</xref>.
         </t>
-
         <t>
           Once TLS negotiation is complete, both the client and the server send a <xref
           target="ConnectionHeader">connection header</xref>.
@@ -471,7 +469,6 @@ HTTP2-Settings    = token68
           both peers, each endpoint MUST send a connection header as a final confirmation and to
           establish the initial settings for the HTTP/2.0 connection.
         </t>
-
         <t>
           The client connection header is a sequence of 24 octets, which in hex notation are:
         </t>
@@ -603,7 +600,6 @@ HTTP2-Settings    = token68
           used within HTTP request and response messages as well as server push operations (see
           <xref target="PushResources" />).
         </t>
-        
         <t>
           Header sets are logical collections of zero or more header fields arranged at the
           application layer.  When transmitted over a connection, the header set is serialized into
@@ -614,12 +610,10 @@ HTTP2-Settings    = token68
           The receiving endpoint reassembles the header block by concatenating the individual
           fragments, then decompresses the block to reconstruct the header set.
         </t>
-
         <t>
           Header block fragments can only be sent as the payload of <x:ref>HEADERS</x:ref> or
           <x:ref>PUSH_PROMISE</x:ref> frames.
         </t>
-
         <t>
           A compressed and encoded header block is transmitted in one or more <x:ref>HEADERS</x:ref>
           or <x:ref>PUSH_PROMISE</x:ref> frames.  If the number of octets in the block is greater
@@ -632,7 +626,6 @@ HTTP2-Settings    = token68
           <x:ref>HEADERS</x:ref> frames MUST have the END_HEADERS flag set.  The last frame in a
           sequence of <x:ref>PUSH_PROMISE</x:ref> frames MUST have the END_PUSH_PROMISE flag set.
         </t>
-
         <t>
           <x:ref>HEADERS</x:ref> and <x:ref>PUSH_PROMISE</x:ref> frames carry data that can modify
           the compression context maintained by a receiver.  An endpoint receiving
@@ -850,11 +843,17 @@ HTTP2-Settings    = token68
               <vspace blankLines="1"/>
               If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame, the
               peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or enqueued
-              for sending - frames on the stream that cannot be withdrawn.  An endpoint that sends a
-              <x:ref>RST_STREAM</x:ref> frame MUST ignore frames that it receives on closed streams
-              after it has sent a <x:ref>RST_STREAM</x:ref> frame.  An endpoint MAY choose to limit
-              the period over which it ignores frames and treat frames that arrive after this time
-              as being in error.
+              for sending - frames on the stream that cannot be withdrawn.  An endpoint MUST ignore
+              frames that it receives on closed streams after it has sent a
+              <x:ref>RST_STREAM</x:ref> frame.  An endpoint MAY choose to limit the period over
+              which it ignores frames and treat frames that arrive after this time as being in
+              error.
+              <vspace blankLines="1"/>
+              Flow controlled frames (i.e., <x:ref>DATA</x:ref>) received after sending
+              <x:ref>RST_STREAM</x:ref> are counted toward the connection flow control window.  Even
+              though these frames might be ignored, because they are sent before the sender receives
+              the <x:ref>RST_STREAM</x:ref>, the sender will consider the frames to count against
+              the flow control window.
               <vspace blankLines="1"/>
               An endpoint might receive a <x:ref>PUSH_PROMISE</x:ref> frame after it sends
               <x:ref>RST_STREAM</x:ref>.  <x:ref>PUSH_PROMISE</x:ref> causes a stream to become
@@ -924,7 +923,6 @@ HTTP2-Settings    = token68
       </section>
 
      <section anchor="FlowControl" title="Flow Control">
-        <!-- details -->
         <t>
           Using streams for multiplexing introduces contention over use of the TCP connection,
           resulting in blocked streams.  A flow control scheme ensures that streams on the same
@@ -995,7 +993,6 @@ HTTP2-Settings    = token68
             managing the creation of new streams.  Algorithm choices for these could interact with
             any flow control algorithm.
           </t>
-
         </section>
         
         <section anchor="DisableFlowControl" title="Appropriate Use of Flow Control">
@@ -1022,8 +1019,8 @@ HTTP2-Settings    = token68
             control can be difficult.  When using flow control, the receive MUST read from the TCP
             receive buffer in a timely fashion.  Failure to do so could lead to a deadlock when
             critical frames, such as <x:ref>WINDOW_UPDATE</x:ref>, are not available to HTTP/2.0.
-            However, it can ensure that constrained resources are protected without any reduction in
-            connection utilization.
+            However, flow control can ensure that constrained resources are protected without any
+            reduction in connection utilization.
           </t>
         </section>
       </section>
@@ -1049,8 +1046,8 @@ HTTP2-Settings    = token68
           endpoint to process concurrent streams in a particular order.
         </t>
         <t>
-          Unless explicitly specified in the <x:ref>HEADERS</x:ref> frame (<xref target="HEADERS"/>) during stream creation,
-          the default stream priority is 2<x:sup>30</x:sup>.
+          Unless explicitly specified in the <x:ref>HEADERS</x:ref> frame (<xref target="HEADERS"/>)
+          during stream creation, the default stream priority is 2<x:sup>30</x:sup>.
         </t>
         <t>
           <xref target="PushResources">Pushed streams</xref> have a lower priority than their
@@ -1072,7 +1069,6 @@ HTTP2-Settings    = token68
             </t>
           </list>
         </t>
-
         <t>
           A list of error codes is included in <xref target="ErrorCodes"/>.
         </t>
@@ -1097,9 +1093,9 @@ HTTP2-Settings    = token68
           </t>
           <t>
             An endpoint can end a connection at any time.  In particular, an endpoint MAY choose to
-            treat a stream error as a connection error if the error is recurrent.  Endpoints SHOULD
-            send a <x:ref>GOAWAY</x:ref> frame when ending a connection, as long as circumstances
-            permit it.
+            treat a stream error as a connection error.  Endpoints SHOULD send a
+            <x:ref>GOAWAY</x:ref> frame when ending a connection, as long as circumstances permit
+            it.
           </t>
         </section>
 
@@ -1144,13 +1140,11 @@ HTTP2-Settings    = token68
     </section>
 
     <section  anchor="frame-types" title="Frame Definitions">
-
         <t>
           This specification defines a number of frame types, each identified by a unique 8-bit type
           code. Each frame type serves a distinct purpose either in the establishment and management
           of the connection as a whole, or of individual streams.
         </t>
-
         <t>
           The transmission of specific frame types can alter the state of a connection. If endpoints
           fail to maintain a synchronized view of the connection state, successful communication
@@ -1167,7 +1161,6 @@ HTTP2-Settings    = token68
             octets associated with a stream. One or more <x:ref>DATA</x:ref> frames are used, for
             instance, to carry HTTP request or response payloads.
           </t>
-
           <t>
             The <x:ref>DATA</x:ref> frame defines the following flags:
             <list style="hanging">
@@ -1181,13 +1174,11 @@ HTTP2-Settings    = token68
               </t>
             </list>
           </t>
-
           <t>
             <x:ref>DATA</x:ref> frames MUST be associated with a stream. If a <x:ref>DATA</x:ref>
             frame is received whose stream identifier field is 0x0, the recipient MUST respond with
             a <xref target="ConnectionErrorHandler">connection error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
-
         </section>
 
         <section anchor="HEADERS" title="HEADERS">
@@ -1255,10 +1246,9 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            The <x:ref>HEADERS</x:ref> frame changes the connection state as defined in <xref
+            The <x:ref>HEADERS</x:ref> frame changes the connection state as described in <xref
             target="HeaderBlock" />.
           </t>
-
         </section>
 
         <section anchor="PRIORITY" title="PRIORITY">
