@@ -78,25 +78,25 @@ Internet-Draft                   HPACK                         July 2013
      4.1.  Low-level representations . . . . . . . . . . . . . . . .   8
        4.1.1.  Integer representation  . . . . . . . . . . . . . . .   8
        4.1.2.  String literal representation . . . . . . . . . . . .  10
-     4.2.  Indexed Header Representation . . . . . . . . . . . . . .  10
+     4.2.  Indexed Header Representation . . . . . . . . . . . . . .  11
      4.3.  Literal Header Representation . . . . . . . . . . . . . .  11
        4.3.1.  Literal Header without Indexing . . . . . . . . . . .  11
        4.3.2.  Literal Header with Incremental Indexing  . . . . . .  12
-       4.3.3.  Literal Header with Substitution Indexing . . . . . .  12
+       4.3.3.  Literal Header with Substitution Indexing . . . . . .  13
    5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  14
    6.  Security Considerations . . . . . . . . . . . . . . . . . . .  14
    7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  14
-   8.  Informative References  . . . . . . . . . . . . . . . . . . .  14
+   8.  Informative References  . . . . . . . . . . . . . . . . . . .  15
    Appendix A.  Change Log (to be removed by RFC Editor before
-                publication  . . . . . . . . . . . . . . . . . . . .  14
-     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  14
+                publication  . . . . . . . . . . . . . . . . . . . .  15
+     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  15
    Appendix B.  Initial header names . . . . . . . . . . . . . . . .  15
      B.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  15
      B.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  16
    Appendix C.  Example  . . . . . . . . . . . . . . . . . . . . . .  17
      C.1.  First header set  . . . . . . . . . . . . . . . . . . . .  17
      C.2.  Second header set . . . . . . . . . . . . . . . . . . . .  18
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  19
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  20
 
 1.  Introduction
 
@@ -370,19 +370,19 @@ Internet-Draft                   HPACK                         July 2013
 
 3.2.2.  Reference Set Emission
 
-   Once all the representations corresponding to a header set have been
-   processed, the headers contained in the reference set that have not
-   yet been emitted are emitted.
+   Once all the representations contained in a header block have been
+   processed, the reference set is emitted: each header contained in the
+   reference set that has not been emitted during the processing of the
+   header block is emitted.
+
+   The reference set emission targets the headers that are in common
+   with the previous header set and were kept in the reference set.
 
 3.2.3.  Header Table Management
 
-   The header table can be modified by either adding a new entry to it
-   or by replacing an existing one.  Before doing such a modification,
-   it has to be ensured that the header table size will stay lower than
-   or equal to the SETTINGS_MAX_BUFFER_SIZE limit (see Section 5).  If
-   necessary, some entries are removed from the header table.
-   Repeatedly, the first entry of the header table is removed, until
-   enough space is available for the modification.
+
+
+
 
 
 
@@ -393,6 +393,14 @@ Peon & Ruellan          Expires January 02, 2014                [Page 7]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+   The header table can be modified by either adding a new entry to it
+   or by replacing an existing one.  Before doing such a modification,
+   it has to be ensured that the header table size will stay lower than
+   or equal to the SETTINGS_MAX_BUFFER_SIZE limit (see Section 5).  If
+   necessary, some entries are removed from the header table.
+   Repeatedly, the first entry of the header table is removed, until
+   enough space is available for the modification.
 
    A consequence of removing one or more entries at the beginning of the
    header table is that the remaining entries are renumbered.  The first
@@ -435,6 +443,13 @@ Internet-Draft                   HPACK                         July 2013
    the value is encoded using an unsigned variable length integer [1]
    representation.
 
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 8]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    The algorithm to represent an integer I is as follows:
 
    1.  If I < 2^N - 1, encode I on N bits
@@ -442,13 +457,6 @@ Internet-Draft                   HPACK                         July 2013
    2.  Else, encode 2^N - 1 on N bits and do the following steps:
 
    3.
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 8]
-
-Internet-Draft                   HPACK                         July 2013
-
 
        1.  Set I to (I - (2^N - 1)) and Q to 1
 
@@ -489,14 +497,6 @@ Internet-Draft                   HPACK                         July 2013
 
       *  The 5-bit prefix is filled with its max value (31).
 
-   o  The value to represent on next bytes is I = 1337 - (2^5 - 1) =
-      1306.
-
-   o
-
-      *  1306 = 128*10 + 26, i.e.  Q=10 and R=26.
-
-      *  Q is greater than 1, bit 8 is set to 1.
 
 
 
@@ -505,6 +505,15 @@ Peon & Ruellan          Expires January 02, 2014                [Page 9]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+   o  The value to represent on next bytes is I = 1337 - (2^5 - 1) =
+      1306.
+
+   o
+
+      *  1306 = 128*10 + 26, i.e.  Q=10 and R=26.
+
+      *  Q is greater than 1, bit 8 is set to 1.
 
       *  The remainder R=26 is encoded on next 7 bits.
 
@@ -544,15 +553,6 @@ Internet-Draft                   HPACK                         July 2013
 
    2.  The string value represented as a list of UTF-8 characters.
 
-4.2.  Indexed Header Representation
-
-     0   1   2   3   4   5   6   7
-   +---+---+---+---+---+---+---+---+
-   | 1 |        Index (7+)         |
-   +---+---------------------------+
-
-                              Indexed Header
-
 
 
 
@@ -561,6 +561,15 @@ Peon & Ruellan          Expires January 02, 2014               [Page 10]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+4.2.  Indexed Header Representation
+
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   | 1 |        Index (7+)         |
+   +---+---------------------------+
+
+                              Indexed Header
 
    This representation starts with the '1' 1-bit pattern, followed by
    the index of the matching pair, represented as an integer with a
@@ -601,6 +610,14 @@ Internet-Draft                   HPACK                         July 2013
 
    If the header name matches the header name of a (name, value) pair
    stored in the Header Table, the index of the pair increased by one
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 11]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    (index + 1) is represented as an integer with a 5-bit prefix.  Note
    that if the index is strictly below 31, one byte is used.
 
@@ -610,13 +627,6 @@ Internet-Draft                   HPACK                         July 2013
 
    Header name representation is followed by the header value
    represented as a literal string as described in Section 4.1.2.
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 11]
-
-Internet-Draft                   HPACK                         July 2013
-
 
 4.3.2.  Literal Header with Incremental Indexing
 
@@ -657,6 +667,13 @@ Internet-Draft                   HPACK                         July 2013
    represented on 5 bits followed by the header name, represented as a
    literal string.
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 12]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    Header name representation is followed by the header value
    represented as a literal string as described in Section 4.1.2.
 
@@ -666,14 +683,6 @@ Internet-Draft                   HPACK                         July 2013
    +---+---+---+---+---+---+---+---+
    | 0 | 0 |      Index (6+)       |
    +---+---+-----------------------+
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 12]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    |    Substituted Index (8+)     |
    +-------------------------------+
    |       Value Length (8+)       |
@@ -714,6 +723,13 @@ Internet-Draft                   HPACK                         July 2013
    The index of the substituted (name, value) pair is inserted after the
    header name representation as a 0-bit prefix integer.
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 13]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    The index of the substituted pair MUST correspond to a position in
    the header table containing a non-void entry.  An index for the
    substituted pair that corresponds to empty position in the header
@@ -721,14 +737,6 @@ Internet-Draft                   HPACK                         July 2013
 
    This index is followed by the header value represented as a literal
    string as described in Section 4.1.2.
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 13]
-
-Internet-Draft                   HPACK                         July 2013
-
 
 5.  Parameter Negotiation
 
@@ -765,6 +773,19 @@ Internet-Draft                   HPACK                         July 2013
 
    This memo includes no request to IANA.
 
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 14]
+
+Internet-Draft                   HPACK                         July 2013
+
+
 8.  Informative References
 
    [SPDY]     Belshe, M. and R. Peon, "SPDY Protocol", February 2012,
@@ -778,13 +799,6 @@ A.1.  Since draft-ietf-httpbis-header-compression-01
       processing rule.
 
    o  Updated reference set management as per issue #214
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 14]
-
-Internet-Draft                   HPACK                         July 2013
-
 
    o  Added example of 32 bytes entry structure (issue #191).
 
@@ -820,6 +834,14 @@ B.1.  Requests
               | 11    | keep-alive          |              |
               | 12    | user-agent          |              |
               | 13    | proxy-connection    |              |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 15]
+
+Internet-Draft                   HPACK                         July 2013
+
+
               | 14    | referer             |              |
               | 15    | accept-datetime     |              |
               | 16    | authorization       |              |
@@ -834,14 +856,6 @@ B.1.  Requests
               | 25    | from                |              |
               | 26    | if-match            |              |
               | 27    | if-none-match       |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 15]
-
-Internet-Draft                   HPACK                         July 2013
-
-
               | 28    | if-range            |              |
               | 29    | if-unmodified-since |              |
               | 30    | max-forwards        |              |
@@ -876,6 +890,14 @@ B.2.  Responses
           | 7     | expires                     |              |
           | 8     | last-modified               |              |
           | 9     | server                      |              |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 16]
+
+Internet-Draft                   HPACK                         July 2013
+
+
           | 10    | set-cookie                  |              |
           | 11    | vary                        |              |
           | 12    | via                         |              |
@@ -890,14 +912,6 @@ B.2.  Responses
           | 21    | content-md5                 |              |
           | 22    | content-range               |              |
           | 23    | link                        |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 16]
-
-Internet-Draft                   HPACK                         July 2013
-
-
           | 24    | location                    |              |
           | 25    | p3p                         |              |
           | 26    | pragma                      |              |
@@ -933,6 +947,13 @@ C.1.  First header set
    header name table and is encoded literally.  This gives the following
    representation:
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 17]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    0x44      (literal header with incremental indexing, name index = 3)
    0x16      (header value string length = 22)
    /my-example/index.html
@@ -944,14 +965,6 @@ C.1.  First header set
    x-my-header
    0x05      (header value string length = 5)
    first
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 17]
-
-Internet-Draft                   HPACK                         July 2013
 
 
    The header table is as follows after the processing of these headers:
@@ -989,6 +1002,14 @@ C.2.  Second header set
 
    The second header set to represent is the following:
 
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 18]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    :path: /my-example/resources/script.js
    user-agent: my-user-agent
    x-my-header: second
@@ -1001,14 +1022,6 @@ C.2.  Second header set
    represented as a literal header with substitution indexing.  The x
    -my-header will be represented as a literal header with incremental
    indexing.
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 18]
-
-Internet-Draft                   HPACK                         July 2013
-
 
    0xa6       (indexed header, index = 38: removal from reference set)
    0xa8       (indexed header, index = 40: removal from reference set)
@@ -1046,6 +1059,13 @@ Internet-Draft                   HPACK                         July 2013
    +---------+----------------+---------------------------+
 
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 19]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    All the headers in this second header set are indexed in the header
    table, therefore, all are kept in the reference set of headers, which
    becomes:
@@ -1058,14 +1078,6 @@ Internet-Draft                   HPACK                         July 2013
 
 Authors' Addresses
 
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 19]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    Roberto Peon
    Google, Inc
 
@@ -1076,18 +1088,6 @@ Internet-Draft                   HPACK                         July 2013
    Canon CRF
 
    EMail: herve.ruellan@crf.canon.fr
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
