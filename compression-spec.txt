@@ -91,7 +91,7 @@ Internet-Draft                   HPACK                         July 2013
    Appendix A.  Change Log (to be removed by RFC Editor before
                 publication  . . . . . . . . . . . . . . . . . . . .  16
      A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  16
-   Appendix B.  Initial header names . . . . . . . . . . . . . . . .  16
+   Appendix B.  Initial Header Tables  . . . . . . . . . . . . . . .  16
      B.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  16
      B.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  17
    Appendix C.  Example  . . . . . . . . . . . . . . . . . . . . . .  18
@@ -849,11 +849,17 @@ A.1.  Since draft-ietf-httpbis-header-compression-01
    o  Refactored of Header Encoding Section: split definitions and
       processing rule.
 
-   o  Updated reference set management as per issue #214
+   o  Backward incompatible change: Updated reference set management as
+      per issue #214.  This changes how the interaction between the
+      reference set and eviction works.  This also changes the working
+      of the reference set in some specific cases.
+
+   o  Backward incompatible change: modified initial header list, as per
+      issue #188.
 
    o  Added example of 32 bytes entry structure (issue #191).
 
-Appendix B.  Initial header names
+Appendix B.  Initial Header Tables
 
    [[The tables in this section should be updated based on statistical
    analysis of header names frequency and specific HTTP 2.0 header rules
@@ -882,14 +888,8 @@ B.1.  Requests
               | 8     | accept-language     |              |
               | 9     | cookie              |              |
               | 10    | if-modified-since   |              |
-              | 11    | keep-alive          |              |
-              | 12    | user-agent          |              |
-              | 13    | proxy-connection    |              |
-              | 14    | referer             |              |
-              | 15    | accept-datetime     |              |
-              | 16    | authorization       |              |
-              | 17    | allow               |              |
-              | 18    | cache-control       |              |
+              | 11    | user-agent          |              |
+              | 12    | referer             |              |
 
 
 
@@ -898,25 +898,23 @@ Peon & Ruellan          Expires January 02, 2014               [Page 16]
 Internet-Draft                   HPACK                         July 2013
 
 
-              | 19    | connection          |              |
-              | 20    | content-length      |              |
-              | 21    | content-md5         |              |
-              | 22    | content-type        |              |
-              | 23    | date                |              |
-              | 24    | expect              |              |
-              | 25    | from                |              |
-              | 26    | if-match            |              |
-              | 27    | if-none-match       |              |
-              | 28    | if-range            |              |
-              | 29    | if-unmodified-since |              |
-              | 30    | max-forwards        |              |
-              | 31    | pragma              |              |
-              | 32    | proxy-authorization |              |
-              | 33    | range               |              |
-              | 34    | te                  |              |
-              | 35    | upgrade             |              |
-              | 36    | via                 |              |
-              | 37    | warning             |              |
+              | 13    | authorization       |              |
+              | 14    | allow               |              |
+              | 15    | cache-control       |              |
+              | 16    | connection          |              |
+              | 17    | content-length      |              |
+              | 18    | content-type        |              |
+              | 19    | date                |              |
+              | 20    | expect              |              |
+              | 21    | from                |              |
+              | 22    | if-match            |              |
+              | 23    | if-none-match       |              |
+              | 24    | if-range            |              |
+              | 25    | if-unmodified-since |              |
+              | 26    | max-forwards        |              |
+              | 27    | proxy-authorization |              |
+              | 28    | range               |              |
+              | 29    | via                 |              |
               +-------+---------------------+--------------+
 
                                   Table 1
@@ -946,6 +944,8 @@ B.2.  Responses
           | 12    | via                         |              |
           | 13    | access-control-allow-origin |              |
           | 14    | accept-ranges               |              |
+          | 15    | allow                       |              |
+          | 16    | connection                  |              |
 
 
 
@@ -954,26 +954,19 @@ Peon & Ruellan          Expires January 02, 2014               [Page 17]
 Internet-Draft                   HPACK                         July 2013
 
 
-          | 15    | allow                       |              |
-          | 16    | connection                  |              |
           | 17    | content-disposition         |              |
           | 18    | content-encoding            |              |
           | 19    | content-language            |              |
           | 20    | content-location            |              |
-          | 21    | content-md5                 |              |
-          | 22    | content-range               |              |
-          | 23    | link                        |              |
-          | 24    | location                    |              |
-          | 25    | p3p                         |              |
-          | 26    | pragma                      |              |
-          | 27    | proxy-authenticate          |              |
-          | 28    | refresh                     |              |
-          | 29    | retry-after                 |              |
-          | 30    | strict-transport-security   |              |
-          | 31    | trailer                     |              |
-          | 32    | transfer-encoding           |              |
-          | 33    | warning                     |              |
-          | 34    | www-authenticate            |              |
+          | 21    | content-range               |              |
+          | 22    | link                        |              |
+          | 23    | location                    |              |
+          | 24    | proxy-authenticate          |              |
+          | 25    | refresh                     |              |
+          | 26    | retry-after                 |              |
+          | 27    | strict-transport-security   |              |
+          | 28    | transfer-encoding           |              |
+          | 29    | www-authenticate            |              |
           +-------+-----------------------------+--------------+
 
                                   Table 2
@@ -981,8 +974,9 @@ Internet-Draft                   HPACK                         July 2013
 Appendix C.  Example
 
    Here is an example that illustrates different representations and how
-   tables are updated.  [[This section needs to be updated to integrate
-   differential coding.]]
+   tables are updated.  [[This section needs to be updated to better
+   reflect the new processing of header fields, and include more
+   examples.]]
 
 C.1.  First header set
 
@@ -1002,6 +996,12 @@ C.1.  First header set
    0x16      (header value string length = 22)
    /my-example/index.html
    0x4D      (literal header with incremental indexing, name index = 12)
+   0x0D      (header value string length = 13)
+   my-user-agent
+   0x40      (literal header with incremental indexing, new name)
+   0x0B      (header name string length = 11)
+   x-my-header
+   0x05      (header value string length = 5)
 
 
 
@@ -1010,12 +1010,6 @@ Peon & Ruellan          Expires January 02, 2014               [Page 18]
 Internet-Draft                   HPACK                         July 2013
 
 
-   0x0D      (header value string length = 13)
-   my-user-agent
-   0x40      (literal header with incremental indexing, new name)
-   0x0B      (header name string length = 11)
-   x-my-header
-   0x05      (header value string length = 5)
    first
 
 
@@ -1059,6 +1053,12 @@ C.2.  Second header set
    x-my-header: second
 
 
+   Comparing this second header set to the reference set, the first and
+   third headers are from the reference set are not present in this
+   second header set and must be removed.  In addition, in this new set,
+   the first and third headers have to be encoded.  The path header is
+   represented as a literal header with substitution indexing.  The x
+
 
 
 Peon & Ruellan          Expires January 02, 2014               [Page 19]
@@ -1066,11 +1066,6 @@ Peon & Ruellan          Expires January 02, 2014               [Page 19]
 Internet-Draft                   HPACK                         July 2013
 
 
-   Comparing this second header set to the reference set, the first and
-   third headers are from the reference set are not present in this
-   second header set and must be removed.  In addition, in this new set,
-   the first and third headers have to be encoded.  The path header is
-   represented as a literal header with substitution indexing.  The x
    -my-header will be represented as a literal header with incremental
    indexing.
 
@@ -1114,18 +1109,17 @@ Internet-Draft                   HPACK                         July 2013
    table, therefore, all are kept in the reference set of headers, which
    becomes:
 
+   Reference Set:
+   :path, /my-example/resources/script.js
+   user-agent, my-user-agent
+   x-my-header, second
+
 
 
 
 Peon & Ruellan          Expires January 02, 2014               [Page 20]
 
 Internet-Draft                   HPACK                         July 2013
-
-
-   Reference Set:
-   :path, /my-example/resources/script.js
-   user-agent, my-user-agent
-   x-my-header, second
 
 
 Authors' Addresses
@@ -1140,6 +1134,12 @@ Authors' Addresses
    Canon CRF
 
    EMail: herve.ruellan@crf.canon.fr
+
+
+
+
+
+
 
 
 
