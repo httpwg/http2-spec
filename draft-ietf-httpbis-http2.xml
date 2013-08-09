@@ -1620,42 +1620,39 @@ HTTP2-Settings    = token68
 
         <section anchor="GOAWAY" title="GOAWAY">
           <t>
-            The <x:ref>GOAWAY</x:ref> frame (type=0x7) informs the remote peer to stop creating
-            streams on this connection.  It can be sent from the client or the server. Once sent,
-            the sender will ignore frames sent on new streams for the remainder of the
-            connection. Receivers of a <x:ref>GOAWAY</x:ref> frame MUST NOT open additional streams
-            on the connection, although a new connection can be established for new streams.  The
-            purpose of this frame is to allow an endpoint to gracefully stop accepting new streams
-            (perhaps for a reboot or maintenance), while still finishing processing of previously
-            established streams.
+            The GOAWAY frame (type=0x7) informs the remote peer to stop creating streams on this
+            connection.  It can be sent from the client or the server. Once sent, the sender will
+            ignore frames sent on new streams for the remainder of the connection. Receivers of a
+            GOAWAY frame MUST NOT open additional streams on the connection, although a new
+            connection can be established for new streams.  The purpose of this frame is to allow an
+            endpoint to gracefully stop accepting new streams (perhaps for a reboot or maintenance),
+            while still finishing processing of previously established streams.
           </t>
           <t>
             There is an inherent race condition between an endpoint starting new streams and the
-            remote sending a <x:ref>GOAWAY</x:ref> frame.  To deal with this case, the
-            <x:ref>GOAWAY</x:ref> contains the stream identifier of the last stream which was
-            processed on the sending endpoint in this connection.  If the receiver of the
-            <x:ref>GOAWAY</x:ref> used streams that are newer than the indicated stream identifier,
-            they were not processed by the sender and the receiver may treat the streams as though
-            they had never been created at all (hence the receiver may want to re-create the streams
-            later on a new connection).
+            remote sending a GOAWAY frame.  To deal with this case, the GOAWAY contains the stream
+            identifier of the last stream which was processed on the sending endpoint in this
+            connection.  If the receiver of the GOAWAY used streams that are newer than the
+            indicated stream identifier, they were not processed by the sender and the receiver may
+            treat the streams as though they had never been created at all (hence the receiver may
+            want to re-create the streams later on a new connection).
           </t>
           <t>
-            Endpoints SHOULD always send a <x:ref>GOAWAY</x:ref> frame before closing a connection
-            so that the remote can know whether a stream has been partially processed or not.  For
-            example, if an HTTP client sends a POST at the same time that a server closes a
-            connection, the client cannot know if the server started to process that POST request if
-            the server does not send a <x:ref>GOAWAY</x:ref> frame to indicate where it stopped
-            working.  An endpoint might choose to close a connection without sending
-            <x:ref>GOAWAY</x:ref> for misbehaving peers.
+            Endpoints SHOULD always send a GOAWAY frame before closing a connection so that the
+            remote can know whether a stream has been partially processed or not.  For example, if
+            an HTTP client sends a POST at the same time that a server closes a connection, the
+            client cannot know if the server started to process that POST request if the server does
+            not send a GOAWAY frame to indicate where it stopped working.  An endpoint might choose
+            to close a connection without sending GOAWAY for misbehaving peers.
           </t>
 
           <t>
-            After sending a <x:ref>GOAWAY</x:ref> frame, the sender can discard frames for new
-            streams.  However, any frames that alter connection state cannot be completely ignored.
-            For instance, <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and
-            <x:ref>CONTINUATION</x:ref> frames MUST be minimally processed to ensure a consistent
-            compression state (see <xref target="HeaderBlock"/>); similarly DATA frames MUST be
-            counted toward the connection flow control window.
+            After sending a GOAWAY frame, the sender can discard frames for new streams.  However,
+            any frames that alter connection state cannot be completely ignored.  For instance,
+            <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref>
+            frames MUST be minimally processed to ensure a consistent compression state (see <xref
+            target="HeaderBlock"/>); similarly DATA frames MUST be counted toward the connection
+            flow control window.
           </t>
 
           <figure title="GOAWAY Payload Format">
@@ -1672,18 +1669,18 @@ HTTP2-Settings    = token68
             </artwork>
           </figure>
           <t>
-            The <x:ref>GOAWAY</x:ref> frame does not define any flags.
+            The GOAWAY frame does not define any flags.
           </t>
           <t>
-            The <x:ref>GOAWAY</x:ref> frame applies to the connection, not a specific stream.  The
-            stream identifier MUST be zero.
+            The GOAWAY frame applies to the connection, not a specific stream.  The stream
+            identifier MUST be zero.
           </t>
           <t>
-            The last stream identifier in the <x:ref>GOAWAY</x:ref> frame contains the highest
-            numbered stream identifier for which the sender of the <x:ref>GOAWAY</x:ref> frame has
-            received frames on and might have taken some action on.  All streams up to and including
-            the identified stream might have been processed in some way.  The last stream identifier
-            is set to 0 if no streams were processed.
+            The last stream identifier in the GOAWAY frame contains the highest numbered stream
+            identifier for which the sender of the GOAWAY frame has received frames on and might
+            have taken some action on.  All streams up to and including the identified stream might
+            have been processed in some way.  The last stream identifier is set to 0 if no streams
+            were processed.
             <list>
               <t>
                 Note: In this case, "processed" means that some data from the stream was passed to
@@ -1698,26 +1695,25 @@ HTTP2-Settings    = token68
             prior to the connection being closed, re-attempting requests, transactions, or any
             protocol activity is not possible (with the exception of idempotent actions like HTTP
             GET, PUT, or DELETE).  Any protocol activity that uses higher numbered streams can be
-            safely retried using a new connection.  
+            safely retried using a new connection.
           </t>
           <t>
             Activity on streams numbered lower or equal to the last stream identifier might still
-            complete successfully.  The sender of a <x:ref>GOAWAY</x:ref> frame might gracefully
-            shut down a connection by sending a <x:ref>GOAWAY</x:ref> frame, maintaining the
-            connection in an open state until all in-progress streams complete.
+            complete successfully.  The sender of a GOAWAY frame might gracefully shut down a
+            connection by sending a GOAWAY frame, maintaining the connection in an open state until
+            all in-progress streams complete.
           </t>
           <t>
             The last stream ID MUST be 0 if no streams were acted upon.
           </t>
           <t>
-            The <x:ref>GOAWAY</x:ref> frame also contains a 32-bit <xref target="ErrorCodes">error
-            code</xref> that contains the reason for closing the connection.
+            The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
+            contains the reason for closing the connection.
           </t>
           <t>
-            Endpoints MAY append opaque data to the payload of any <x:ref>GOAWAY</x:ref> frame.
-            Additional debug data is intended for diagnostic purposes only and carries no semantic
-            value.  Debug data MUST NOT be persistently stored, since it could contain sensitive
-            information.
+            Endpoints MAY append opaque data to the payload of any GOAWAY frame.  Additional debug
+            data is intended for diagnostic purposes only and carries no semantic value.  Debug data
+            MUST NOT be persistently stored, since it could contain sensitive information.
           </t>
         </section>
 
@@ -1958,7 +1954,7 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            The payload of a CONTINUATION frame contains a <xref target="HeaderBlock"> header block
+            The payload of a CONTINUATION frame contains a <xref target="HeaderBlock">header block
             fragment</xref>.
           </t>
 
