@@ -66,11 +66,11 @@
                 In HTTP/1.X, HTTP headers, which are necessary for the
                 functioning of the protocol, are transmitted with no
                 transformations. Unfortunately, the amount of redundancy in
-                both the keys and the values of these headers is astonishingly
-                high, and is the cause of increased latency on
-                lower bandwidth links. This indicates that an alternate
-                encoding for headers would be beneficial to latency, and that
-                is what is proposed here.
+                both the keys and the values of these headers is high, and is
+                the cause of increased latency on lower bandwidth links. This
+                indicates that an alternate more compact encoding for headers
+                would be beneficial to latency, and that is what is proposed
+                here.
             </t>
 
            <t>
@@ -95,34 +95,30 @@
 
             <section title="Outline">
                 <t>
-                    The HTTP header representation described in this document
-                    is based on indexing tables that store (name, value) pairs,
-                    called header tables in the remainder of this document.
+                    The HTTP header encoding described in this document
+                    is based on a header table that map (name, value) pairs to index values.
                     This scheme is believed to be safe for all known attacks
                     against the compression context today.  Header tables are
-                    incrementally updated during the whole HTTP/2.0 session.
-                    Two independent header tables are used during a HTTP/2.0
-                    session, one for HTTP request headers and one for HTTP
-                    response headers.
+                    incrementally updated during the HTTP/2.0 session.
                 </t>
                 <t>
                     The encoder is responsible for deciding which headers to
-                    insert as (name, value) pairs in the header table.  The
+                    insert as new entries in the header table.  The
                     decoder then does exactly what the encoder prescribes,
                     ending in a state that exactly matches the encoder's
                     state.  This enables decoders to remain simple and
                     understand a wide variety of encoders.
                 </t>
                 <t>
-                    As two consecutive sets of headers often have common
-                    headers, each set of headers is coded as a difference from
+                    As two consecutive sets of headers often have headers in
+                    common, each set of headers is coded as a difference from
                     the previous set of headers. The goal is to only encode
-                    the changes (headers present in one of the set and not the
-                    other) between the two sets of headers.
+                    the changes (headers present in one of the set and not in
+                    the other) between the two sets of headers.
                 </t>
                 <t>
-                    An example illustrating the use these different mechanisms
-                    to represent headers is available in <xref
+                    An example illustrating the use of these different
+                    mechanisms to represent headers is available in <xref
                         target="example"/>.
                 </t>
             </section>
@@ -153,6 +149,12 @@
                             header set usually consists of all the headers
                             contained in an HTTP request or an HTTP response.
                         </t>
+                        <t hangText="Header Representation:">
+                            A header can be represented in encoded form either
+                            as a literal or as an index (see <xref
+                                target="header.representation"/>). The indexed
+                            representation is based on the header table.
+                        </t>
                         <t hangText="Header Emission:">
                             When decoding a set of headers, some operations
                             emit a header (see <xref
@@ -160,33 +162,26 @@
                             is added to the set of headers. Once emitted, a
                             header can't be removed from the set of headers.
                         </t>
-                        <t hangText="Header Representation:">
-                            A header can be represented in encoded form either
-                            as a literal or as an index (see <xref
-                                target="header.representation"/>). The indexed
-                            representation is based on the header table.
-                        </t>
                     </list>
                 </t>
 
                 <section title="Encoding Context" anchor="encoding.context">
                     <t>
                         The set of components used to encode or decode a
-                        header set form an encoding context. As such, an
-                        encoding context contains a header table and a
-                        reference set.
+                        header set form an encoding context: an encoding
+                        context contains a header table and a reference set.
                     </t>
                     <t>
-                        Using HTTP, messages are exchanged in the two
-                        directions between a client and a server. As the
-                        encoding of headers in each direction is independent
-                        from the other direction, there is one encoding
-                        context for each direction.
+                        Using HTTP, messages are exchanged between a client
+                        and a server in both direction. To keep the encoding
+                        of headers in each direction independent from the
+                        other direction, there is one encoding context for
+                        each direction.
                     </t>
                     <t>
-                        It should be noted that the headers contained in a
-                        PUSH_PROMISE frame are encoded within the same context
-                        as the headers contained in the HEADERS frame
+                        The headers contained in a PUSH_PROMISE frame sent by
+                        a server to a client are encoded within the same
+                        context as the headers contained in the HEADERS frame
                         corresponding to a response sent from the server to
                         the client.
                     </t>
@@ -212,14 +207,14 @@
                     </t>
                     <t>
                         Generally, the header table will not contain duplicate
-                        header (name, value) entries. However, implementations
-                        MUST be prepared to accept duplicates without
-                        signaling an error. If duplicates are added to the
-                        table, they MUST be treated as distinct entries with
-                        their own index positions.
+                        entries. However, implementations MUST be prepared to
+                        accept duplicates without signalling an error. If
+                        duplicates are added to the table, they MUST be
+                        treated as distinct entries with their own index
+                        positions.
                     </t>
                     <t>
-                        Initialy, a header table contains a list of common
+                        Initially, a header table contains a list of common
                         headers. Two initial lists of header are provided in
                         <xref target="initial.headers"/>. One list is for
                         headers transmitted from a client to a server, the
@@ -251,7 +246,7 @@
                         32 bytes.
                     </t>
                     <t>
-                        The size of a header table is the sum of the sizes of
+                        The size of a header table is the sum of the size of
                         its entries.
                     </t>
                 </section>
@@ -291,29 +286,8 @@
                     <t>
                         A header set is encoded using an ordered list of zero
                         or more header representations. All the header
-                        representation describing a header set a grouped into
+                        representations describing a header set a grouped into
                         a header block.
-                    </t>
-                </section>
-
-                <section title="Header Emission" anchor="header.emission">
-                    <t>
-                        The emission of header is the process of adding a
-                        header to the current set of headers. Once an header
-                        is emitted, it can't be removed from the current set
-                        of headers.
-                    </t>
-                    <t>
-                        The concept of header emission allows a decoder to
-                        know when it can pass a header safely to a higher
-                        level on the receiver side. This allows a decoder to
-                        be implemented in a streaming way, and as such to only
-                        keep in memory the header table and the reference set.
-                        With such an implementation, the amount of memory used
-                        by the decoder is bounded, even in presence of a very
-                        large set of headers. The management of memory for
-                        handling very large sets of headers can therefore be
-                        deferred to the application.
                     </t>
                 </section>
 
@@ -326,7 +300,7 @@
                     <t>
                         <list style="hanging">
                             <t hangText="Literal Representation:">
-                                The literal representation defines a new
+                                A literal representation defines a new
                                 header. The header name is represented either
                                 literally or as a reference to an entry of the
                                 header table. The header value is represented
@@ -365,6 +339,28 @@
                         </list>
                     </t>
                 </section>
+
+                <section title="Header Emission" anchor="header.emission">
+                    <t>
+                        The emission of header is the process of adding a
+                        header to the current set of headers. Once an header
+                        is emitted, it can't be removed from the current set
+                        of headers.
+                    </t>
+                    <t>
+                        The concept of header emission allows a decoder to
+                        know when it can pass a header safely to a higher
+                        level on the receiver side. This allows a decoder to
+                        be implemented in a streaming way, and as such to only
+                        keep in memory the header table and the reference set.
+                        With such an implementation, the amount of memory used
+                        by the decoder is bounded, even in presence of a very
+                        large set of headers. The management of memory for
+                        handling very large sets of headers can therefore be
+                        deferred to the application.
+                    </t>
+                </section>
+
             </section>
 
             <section title="Header Set Processing"
@@ -380,8 +376,9 @@
                 <section title="Header Representation Processing"
                     anchor="header.representation.processing">
                     <t>
-                        All the representations corresponding to a header set
-                        are processed in order, as specified below.
+                        All the header representations contained in a header
+                        block are processed in their occurring order, as
+                        specified below.
                     </t>
                     <t>
                         An <spanx>indexed representation</spanx> corresponding
@@ -395,7 +392,7 @@
                     </t>
                     <t>
                         An <spanx>indexed representation</spanx> corresponding
-                        to an entry <spanx>not present</spanx> in the
+                        to an entry <spanx>present</spanx> in the
                         reference set entails the following actions:
                         <list style="symbols">
                             <t>The entry is removed from the reference set.</t>
@@ -404,7 +401,7 @@
                     <t>
                         A <spanx>literal representation</spanx> that is
                         <spanx>not added</spanx> to the header table entails
-                        the following actions:
+                        the following action:
                         <list style="symbols">
                             <t>The header is emitted.</t>
                         </list>
@@ -415,7 +412,7 @@
                         the following actions:
                         <list style="symbols">
                             <t>The header is emitted.</t>
-                            <t>The header is added to the header table, at a
+                            <t>The header is added to the header table, at the 
                                 location defined by the representation.</t>
                             <t>The new entry is added to the reference set.</t>
                         </list>
@@ -426,15 +423,14 @@
                     anchor="reference.set.emission">
                     <t>
                         Once all the representations contained in a header
-                        block have been processed, the reference set is
-                        emitted: each header contained in the reference set
-                        that has not been emitted during the processing of the
-                        header block is emitted.
+                        block have been processed, the headers that are in
+                        common with the previous header set are emitted,
+                        during the reference set emission.
                     </t>
                     <t>
-                        The reference set emission targets the headers that
-                        are in common with the previous header set and were
-                        kept in the reference set.
+                        For the reference set emission, each header contained
+                        in the reference set that has not been emitted during
+                        the processing of the header block is emitted.
                     </t>
                 </section>
 
@@ -446,10 +442,9 @@
                         Before doing such a modification, it has to be ensured
                         that the header table size will stay lower than or
                         equal to the SETTINGS_MAX_BUFFER_SIZE limit (see <xref
-                            target="parameter.negotiation"/>). If necessary,
-                        some entries are removed from the header table.
-                        Repeatedly, the first entry of the header table is
-                        removed, until enough space is available for the
+                            target="parameter.negotiation"/>).  To achieve
+                        this, repeatedly, the first entry of the header table
+                        is removed, until enough space is available for the
                         modification.
                     </t>
                     <t>
@@ -459,17 +454,18 @@
                         table is always associated to the index 0.
                     </t>
                     <t>
-                        When the modification is the replacement of an
-                        existing entry, the replace entry is the one indicated
-                        in the literal representation before any entry is
-                        removed from the header table. If the entry to be
-                        replaced is removed from the header table when
-                        performing the size adjustment, the replacement entry
-                        is inserted at the beginning of the header table.
+                        When the modification of the header table is the
+                        replacement of an existing entry, the replaced entry
+                        is the one indicated in the literal representation
+                        before any entry is removed from the header table. If
+                        the entry to be replaced is removed from the header
+                        table when performing the size adjustment, the
+                        replacement entry is inserted at the beginning of the
+                        header table.
                     </t>
                     <t>
                         The addition of a new entry with a size greater than
-                        the SETTINGS_MAX_BUFFER_SIZE limit cause all the
+                        the SETTINGS_MAX_BUFFER_SIZE limit causes all the
                         entries from the header table to be dropped and the
                         new entry not to be added to the header table. The
                         replacement of an existing entry with a new entry with
@@ -483,11 +479,11 @@
                     <t>
                         Three occurrences of the same indexed representation,
                         corresponding to an entry not present in the reference
-                        set emit the associated header twice:
+                        set, emit the associated header twice:
                         <list style="symbols">
                             <t>
                                 The first occurrence emits the header a first
-                                time and add the corresponding entry to the
+                                time and adds the corresponding entry to the
                                 reference set.
                             </t>
                             <t>
@@ -496,7 +492,7 @@
                             </t>
                             <t>
                                 The third occurrence emits the header a second
-                                time and add again its entry to the reference
+                                time and adds again its entry to the reference
                                 set.
                             </t>
                         </list>
@@ -853,7 +849,7 @@
 
         <section anchor="parameter.negotiation" title="Parameter Negotiation">
             <t>
-                A few parameters can be used to accomodate client and server
+                A few parameters can be used to accommodate client and server
                 processing and memory requirements.
                 <cref>
                     These settings are currently not supported as they have
@@ -893,7 +889,7 @@
             </t>
         </section>
         <section anchor="Security" title="Security Considerations">
-            <t>TODO?</t>
+            <t>TODO</t>
         </section>
         <section anchor="IANA" title="IANA Considerations">
             <t>This memo includes no request to IANA.</t>
@@ -965,7 +961,8 @@
                     make-up the initial header table user to represent
                     requests sent from a client to a server.
                 </t>
-                <texttable anchor="initial.headers.request">
+                <texttable title="Initial Header Table for Requests"
+                    anchor="initial.headers.request">
                     <ttcol>Index</ttcol>
                     <ttcol>Header Name</ttcol>
                     <ttcol>Header Value</ttcol>
@@ -1010,7 +1007,8 @@
                     table is also used to represent request headers sent from
                     a server to a client in a PUSH_PROMISE frame.
                 </t>
-                <texttable anchor="initial.headers.response">
+                <texttable title="Initial Header Table for Responses"
+                    anchor="initial.headers.response">
                     <ttcol>Index</ttcol>
                     <ttcol>Header Name</ttcol>
                     <ttcol>Header Value</ttcol>

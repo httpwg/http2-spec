@@ -63,13 +63,13 @@ Internet-Draft                   HPACK                         July 2013
    2.  Overview  . . . . . . . . . . . . . . . . . . . . . . . . . .   2
      2.1.  Outline . . . . . . . . . . . . . . . . . . . . . . . . .   3
    3.  Header Encoding . . . . . . . . . . . . . . . . . . . . . . .   3
-     3.1.  Encoding Concepts . . . . . . . . . . . . . . . . . . . .   4
+     3.1.  Encoding Concepts . . . . . . . . . . . . . . . . . . . .   3
        3.1.1.  Encoding Context  . . . . . . . . . . . . . . . . . .   4
        3.1.2.  Header Table  . . . . . . . . . . . . . . . . . . . .   4
        3.1.3.  Reference Set . . . . . . . . . . . . . . . . . . . .   5
        3.1.4.  Header set  . . . . . . . . . . . . . . . . . . . . .   6
-       3.1.5.  Header Emission . . . . . . . . . . . . . . . . . . .   6
-       3.1.6.  Header Representation . . . . . . . . . . . . . . . .   6
+       3.1.5.  Header Representation . . . . . . . . . . . . . . . .   6
+       3.1.6.  Header Emission . . . . . . . . . . . . . . . . . . .   6
      3.2.  Header Set Processing . . . . . . . . . . . . . . . . . .   7
        3.2.1.  Header Representation Processing  . . . . . . . . . .   7
        3.2.2.  Reference Set Emission  . . . . . . . . . . . . . . .   7
@@ -84,19 +84,19 @@ Internet-Draft                   HPACK                         July 2013
        4.3.1.  Literal Header without Indexing . . . . . . . . . . .  11
        4.3.2.  Literal Header with Incremental Indexing  . . . . . .  12
        4.3.3.  Literal Header with Substitution Indexing . . . . . .  13
-   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  15
+   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  14
    6.  Security Considerations . . . . . . . . . . . . . . . . . . .  15
    7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  15
    8.  Informative References  . . . . . . . . . . . . . . . . . . .  15
    Appendix A.  Change Log (to be removed by RFC Editor before
-                publication  . . . . . . . . . . . . . . . . . . . .  16
-     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  16
-   Appendix B.  Initial Header Tables  . . . . . . . . . . . . . . .  16
+                publication  . . . . . . . . . . . . . . . . . . . .  15
+     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  15
+   Appendix B.  Initial Header Tables  . . . . . . . . . . . . . . .  15
      B.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  16
      B.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  17
    Appendix C.  Example  . . . . . . . . . . . . . . . . . . . . . .  18
      C.1.  First header set  . . . . . . . . . . . . . . . . . . . .  18
-     C.2.  Second header set . . . . . . . . . . . . . . . . . . . .  19
+     C.2.  Second header set . . . . . . . . . . . . . . . . . . . .  20
    Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  21
 
 1.  Introduction
@@ -117,9 +117,9 @@ Internet-Draft                   HPACK                         July 2013
    In HTTP/1.X, HTTP headers, which are necessary for the functioning of
    the protocol, are transmitted with no transformations.
    Unfortunately, the amount of redundancy in both the keys and the
-   values of these headers is astonishingly high, and is the cause of
-   increased latency on lower bandwidth links.  This indicates that an
-   alternate encoding for headers would be beneficial to latency, and
+   values of these headers is high, and is the cause of increased
+   latency on lower bandwidth links.  This indicates that an alternate
+   more compact encoding for headers would be beneficial to latency, and
    that is what is proposed here.
 
    As shown by SPDY [SPDY], Deflate compresses HTTP very effectively.
@@ -136,32 +136,32 @@ Internet-Draft                   HPACK                         July 2013
 
 2.1.  Outline
 
-   The HTTP header representation described in this document is based on
-   indexing tables that store (name, value) pairs, called header tables
-   in the remainder of this document.  This scheme is believed to be
-   safe for all known attacks against the compression context today.
-   Header tables are incrementally updated during the whole HTTP/2.0
-   session.  Two independent header tables are used during a HTTP/2.0
-   session, one for HTTP request headers and one for HTTP response
-   headers.
+   The HTTP header encoding described in this document is based on a
+   header table that map (name, value) pairs to index values.  This
+   scheme is believed to be safe for all known attacks against the
+   compression context today.  Header tables are incrementally updated
+   during the HTTP/2.0 session.
 
    The encoder is responsible for deciding which headers to insert as
-   (name, value) pairs in the header table.  The decoder then does
-   exactly what the encoder prescribes, ending in a state that exactly
-   matches the encoder's state.  This enables decoders to remain simple
-   and understand a wide variety of encoders.
+   new entries in the header table.  The decoder then does exactly what
+   the encoder prescribes, ending in a state that exactly matches the
+   encoder's state.  This enables decoders to remain simple and
+   understand a wide variety of encoders.
 
-   As two consecutive sets of headers often have common headers, each
+   As two consecutive sets of headers often have headers in common, each
    set of headers is coded as a difference from the previous set of
    headers.  The goal is to only encode the changes (headers present in
-   one of the set and not the other) between the two sets of headers.
+   one of the set and not in the other) between the two sets of headers.
 
-   An example illustrating the use these different mechanisms to
+   An example illustrating the use of these different mechanisms to
    represent headers is available in Appendix C.
 
 3.  Header Encoding
 
+3.1.  Encoding Concepts
 
+   The encoding and decoding of headers relies on some components and
+   concepts.  The set of components used form an encoding context.
 
 
 
@@ -169,11 +169,6 @@ Peon & Ruellan          Expires January 02, 2014                [Page 3]
 
 Internet-Draft                   HPACK                         July 2013
 
-
-3.1.  Encoding Concepts
-
-   The encoding and decoding of headers relies on some components and
-   concepts.  The set of components used form an encoding context.
 
    Header Table:  The header table (see Section 3.1.2) is a component
       used to associate headers to index values.
@@ -186,38 +181,43 @@ Internet-Draft                   HPACK                         July 2013
       that are encoded jointly.  A header set usually consists of all
       the headers contained in an HTTP request or an HTTP response.
 
+   Header Representation:  A header can be represented in encoded form
+      either as a literal or as an index (see Section 3.1.5).  The
+      indexed representation is based on the header table.
+
    Header Emission:  When decoding a set of headers, some operations
-      emit a header (see Section 3.1.5).  An emitted header is added to
+      emit a header (see Section 3.1.6).  An emitted header is added to
       the set of headers.  Once emitted, a header can't be removed from
       the set of headers.
-
-   Header Representation:  A header can be represented in encoded form
-      either as a literal or as an index (see Section 3.1.6).  The
-      indexed representation is based on the header table.
 
 3.1.1.  Encoding Context
 
    The set of components used to encode or decode a header set form an
-   encoding context.  As such, an encoding context contains a header
-   table and a reference set.
+   encoding context: an encoding context contains a header table and a
+   reference set.
 
-   Using HTTP, messages are exchanged in the two directions between a
-   client and a server.  As the encoding of headers in each direction is
+   Using HTTP, messages are exchanged between a client and a server in
+   both direction.  To keep the encoding of headers in each direction
    independent from the other direction, there is one encoding context
    for each direction.
 
-   It should be noted that the headers contained in a PUSH_PROMISE frame
-   are encoded within the same context as the headers contained in the
-   HEADERS frame corresponding to a response sent from the server to the
-   client.
+   The headers contained in a PUSH_PROMISE frame sent by a server to a
+   client are encoded within the same context as the headers contained
+   in the HEADERS frame corresponding to a response sent from the server
+   to the client.
 
 3.1.2.  Header Table
 
    A header table consists of an ordered list of (name, value) pairs.
    The first entry of a header table is assigned the index 0.
 
-   A header can be represented by an entry of the header table if they
-   match.  A header and an entry match if both their name and their
+
+
+
+
+
+
+
 
 
 
@@ -226,6 +226,8 @@ Peon & Ruellan          Expires January 02, 2014                [Page 4]
 Internet-Draft                   HPACK                         July 2013
 
 
+   A header can be represented by an entry of the header table if they
+   match.  A header and an entry match if both their name and their
    value match.  A header name and an entry name match if they are equal
    using a character-based, _case insensitive_ comparison (the case
    insensitive comparison is used because HTTP header names are defined
@@ -233,13 +235,13 @@ Internet-Draft                   HPACK                         July 2013
    if they are equal using a character-based, _case sensitive_
    comparison.
 
-   Generally, the header table will not contain duplicate header (name,
-   value) entries.  However, implementations MUST be prepared to accept
-   duplicates without signaling an error.  If duplicates are added to
-   the table, they MUST be treated as distinct entries with their own
-   index positions.
+   Generally, the header table will not contain duplicate entries.
+   However, implementations MUST be prepared to accept duplicates
+   without signalling an error.  If duplicates are added to the table,
+   they MUST be treated as distinct entries with their own index
+   positions.
 
-   Initialy, a header table contains a list of common headers.  Two
+   Initially, a header table contains a list of common headers.  Two
    initial lists of header are provided in Appendix B.  One list is for
    headers transmitted from a client to a server, the other for the
    reverse direction.
@@ -260,7 +262,7 @@ Internet-Draft                   HPACK                         July 2013
    integer for counting the number of references to these name and value
    would use these 32 bytes.
 
-   The size of a header table is the sum of the sizes of its entries.
+   The size of a header table is the sum of the size of its entries.
 
 3.1.3.  Reference Set
 
@@ -272,8 +274,6 @@ Internet-Draft                   HPACK                         July 2013
    The reference set is updated during the processing of a set of
    headers.
 
-   Using the differential encoding, a header that is not present in the
-   reference set can be encoded either with an indexed representation
 
 
 
@@ -282,6 +282,8 @@ Peon & Ruellan          Expires January 02, 2014                [Page 5]
 Internet-Draft                   HPACK                         July 2013
 
 
+   Using the differential encoding, a header that is not present in the
+   reference set can be encoded either with an indexed representation
    (if the header is present in the header table), or with a literal
    representation (if the header is not present in the header table).
 
@@ -294,29 +296,14 @@ Internet-Draft                   HPACK                         July 2013
    Each header field is a (name, value) pair.
 
    A header set is encoded using an ordered list of zero or more header
-   representations.  All the header representation describing a header
+   representations.  All the header representations describing a header
    set a grouped into a header block.
 
-3.1.5.  Header Emission
-
-   The emission of header is the process of adding a header to the
-   current set of headers.  Once an header is emitted, it can't be
-   removed from the current set of headers.
-
-   The concept of header emission allows a decoder to know when it can
-   pass a header safely to a higher level on the receiver side.  This
-   allows a decoder to be implemented in a streaming way, and as such to
-   only keep in memory the header table and the reference set.  With
-   such an implementation, the amount of memory used by the decoder is
-   bounded, even in presence of a very large set of headers.  The
-   management of memory for handling very large sets of headers can
-   therefore be deferred to the application.
-
-3.1.6.  Header Representation
+3.1.5.  Header Representation
 
    A header can be represented either as a literal or as an index.
 
-   Literal Representation:  The literal representation defines a new
+   Literal Representation:  A literal representation defines a new
       header.  The header name is represented either literally or as a
       reference to an entry of the header table.  The header value is
       represented literally.
@@ -329,7 +316,20 @@ Internet-Draft                   HPACK                         July 2013
       *  A literal representation that adds the header at the end of the
          header table (see Section 4.3.2).
 
+      *  A literal representation that uses the header to replace an
+         existing entry of the header table (see Section 4.3.3).
 
+   Indexed Representation:  The indexed representation defines a header
+      as a reference in the header table (see Section 4.2).
+
+3.1.6.  Header Emission
+
+   The emission of header is the process of adding a header to the
+   current set of headers.  Once an header is emitted, it can't be
+   removed from the current set of headers.
+
+   The concept of header emission allows a decoder to know when it can
+   pass a header safely to a higher level on the receiver side.  This
 
 
 
@@ -338,11 +338,12 @@ Peon & Ruellan          Expires January 02, 2014                [Page 6]
 Internet-Draft                   HPACK                         July 2013
 
 
-      *  A literal representation that uses the header to replace an
-         existing entry of the header table (see Section 4.3.3).
-
-   Indexed Representation:  The indexed representation defines a header
-      as a reference in the header table (see Section 4.2).
+   allows a decoder to be implemented in a streaming way, and as such to
+   only keep in memory the header table and the reference set.  With
+   such an implementation, the amount of memory used by the decoder is
+   bounded, even in presence of a very large set of headers.  The
+   management of memory for handling very large sets of headers can
+   therefore be deferred to the application.
 
 3.2.  Header Set Processing
 
@@ -352,8 +353,8 @@ Internet-Draft                   HPACK                         July 2013
 
 3.2.1.  Header Representation Processing
 
-   All the representations corresponding to a header set are processed
-   in order, as specified below.
+   All the header representations contained in a header block are
+   processed in their occurring order, as specified below.
 
    An _indexed representation_ corresponding to an entry _not present_
    in the reference set entails the following actions:
@@ -362,13 +363,13 @@ Internet-Draft                   HPACK                         July 2013
 
    o  The entry is added to the reference set.
 
-   An _indexed representation_ corresponding to an entry _not present_
-   in the reference set entails the following actions:
+   An _indexed representation_ corresponding to an entry _present_ in
+   the reference set entails the following actions:
 
    o  The entry is removed from the reference set.
 
    A _literal representation_ that is _not added_ to the header table
-   entails the following actions:
+   entails the following action:
 
    o  The header is emitted.
 
@@ -377,15 +378,14 @@ Internet-Draft                   HPACK                         July 2013
 
    o  The header is emitted.
 
-   o  The header is added to the header table, at a location defined by
-      the representation.
+   o  The header is added to the header table, at the location defined
+      by the representation.
 
    o  The new entry is added to the reference set.
 
 3.2.2.  Reference Set Emission
 
-   Once all the representations contained in a header block have been
-   processed, the reference set is emitted: each header contained in the
+
 
 
 
@@ -394,35 +394,36 @@ Peon & Ruellan          Expires January 02, 2014                [Page 7]
 Internet-Draft                   HPACK                         July 2013
 
 
+   Once all the representations contained in a header block have been
+   processed, the headers that are in common with the previous header
+   set are emitted, during the reference set emission.
+
+   For the reference set emission, each header contained in the
    reference set that has not been emitted during the processing of the
    header block is emitted.
-
-   The reference set emission targets the headers that are in common
-   with the previous header set and were kept in the reference set.
 
 3.2.3.  Header Table Management
 
    The header table can be modified by either adding a new entry to it
    or by replacing an existing one.  Before doing such a modification,
    it has to be ensured that the header table size will stay lower than
-   or equal to the SETTINGS_MAX_BUFFER_SIZE limit (see Section 5).  If
-   necessary, some entries are removed from the header table.
-   Repeatedly, the first entry of the header table is removed, until
-   enough space is available for the modification.
+   or equal to the SETTINGS_MAX_BUFFER_SIZE limit (see Section 5).  To
+   achieve this, repeatedly, the first entry of the header table is
+   removed, until enough space is available for the modification.
 
    A consequence of removing one or more entries at the beginning of the
    header table is that the remaining entries are renumbered.  The first
    entry of the header table is always associated to the index 0.
 
-   When the modification is the replacement of an existing entry, the
-   replace entry is the one indicated in the literal representation
-   before any entry is removed from the header table.  If the entry to
-   be replaced is removed from the header table when performing the size
-   adjustment, the replacement entry is inserted at the beginning of the
-   header table.
+   When the modification of the header table is the replacement of an
+   existing entry, the replaced entry is the one indicated in the
+   literal representation before any entry is removed from the header
+   table.  If the entry to be replaced is removed from the header table
+   when performing the size adjustment, the replacement entry is
+   inserted at the beginning of the header table.
 
    The addition of a new entry with a size greater than the
-   SETTINGS_MAX_BUFFER_SIZE limit cause all the entries from the header
+   SETTINGS_MAX_BUFFER_SIZE limit causes all the entries from the header
    table to be dropped and the new entry not to be added to the header
    table.  The replacement of an existing entry with a new entry with a
    size greater than the SETTINGS_MAX_BUFFER_SIZE has the same
@@ -431,17 +432,16 @@ Internet-Draft                   HPACK                         July 2013
 3.2.4.  Specific Use Cases
 
    Three occurrences of the same indexed representation, corresponding
-   to an entry not present in the reference set emit the associated
+   to an entry not present in the reference set, emit the associated
    header twice:
 
-   o  The first occurrence emits the header a first time and add the
+   o  The first occurrence emits the header a first time and adds the
       corresponding entry to the reference set.
 
    o  The second occurrence removes the header's entry from the
       reference set.
 
-   o  The third occurrence emits the header a second time and add again
-      its entry to the reference set.
+
 
 
 
@@ -449,6 +449,9 @@ Peon & Ruellan          Expires January 02, 2014                [Page 8]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+   o  The third occurrence emits the header a second time and adds again
+      its entry to the reference set.
 
    The first occurrence of the indexed representation can be replaced by
    a literal representation creating an entry for the header.
@@ -496,15 +499,14 @@ Internet-Draft                   HPACK                         July 2013
 
            3.  Encode R on the next 7 bits
 
-           4.  I = Q
-
-
 
 
 Peon & Ruellan          Expires January 02, 2014                [Page 9]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+           4.  I = Q
 
 4.1.1.1.  Example 1: Encoding 10 using a 5-bit prefix
 
@@ -552,8 +554,6 @@ Internet-Draft                   HPACK                         July 2013
 
       *  The remainder R=10 is encoded on next 7 bits.
 
-      *  I is replaced by the quotient Q=0.
-
 
 
 
@@ -561,6 +561,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 10]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+      *  I is replaced by the quotient Q=0.
 
    o  The process ends.
 
@@ -601,15 +603,13 @@ Internet-Draft                   HPACK                         July 2013
 
 4.3.1.  Literal Header without Indexing
 
-
-
-
-
-
-
-
-
-
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   | 0 | 1 | 1 |    Index (5+)     |
+   +---+---+---+-------------------+
+   |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
 
 
 
@@ -618,13 +618,6 @@ Peon & Ruellan          Expires January 02, 2014               [Page 11]
 Internet-Draft                   HPACK                         July 2013
 
 
-     0   1   2   3   4   5   6   7
-   +---+---+---+---+---+---+---+---+
-   | 0 | 1 | 1 |    Index (5+)     |
-   +---+---+---+-------------------+
-   |       Value Length (8+)       |
-   +-------------------------------+
-   | Value String (Length octets)  |
    +-------------------------------+
 
               Literal Header without Indexing - Indexed Name
@@ -666,6 +659,13 @@ Internet-Draft                   HPACK                         July 2013
    | 0 | 1 | 0 |    Index (5+)     |
    +---+---+---+-------------------+
    |       Value Length (8+)       |
+   +-------------------------------+
+   | Value String (Length octets)  |
+   +-------------------------------+
+
+          Literal Header with Incremental Indexing - Indexed Name
+
+
 
 
 
@@ -673,12 +673,6 @@ Peon & Ruellan          Expires January 02, 2014               [Page 12]
 
 Internet-Draft                   HPACK                         July 2013
 
-
-   +-------------------------------+
-   | Value String (Length octets)  |
-   +-------------------------------+
-
-          Literal Header with Incremental Indexing - Indexed Name
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -711,25 +705,6 @@ Internet-Draft                   HPACK                         July 2013
 
 4.3.3.  Literal Header with Substitution Indexing
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 13]
-
-Internet-Draft                   HPACK                         July 2013
-
-
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 0 |      Index (6+)       |
@@ -747,6 +722,14 @@ Internet-Draft                   HPACK                         July 2013
    +---+---+---+---+---+---+---+---+
    | 0 | 0 |           0           |
    +---+---+-----------------------+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 13]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    |       Name Length (8+)        |
    +-------------------------------+
    |  Name String (Length octets)  |
@@ -779,19 +762,12 @@ Internet-Draft                   HPACK                         July 2013
    substituted pair that corresponds to empty position in the header
    table MUST be treated as an error.
 
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 14]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    This index is followed by the header value represented as a literal
    string as described in Section 4.1.2.
 
 5.  Parameter Negotiation
 
-   A few parameters can be used to accomodate client and server
+   A few parameters can be used to accommodate client and server
    processing and memory requirements.  [[These settings are currently
    not supported as they have not been integrated in the main
    specification.  Therefore, the maximum buffer size for the header
@@ -802,6 +778,14 @@ Internet-Draft                   HPACK                         July 2013
       The default value is 4096 bytes.
       [[Is this default value OK?  Do we need a maximum size?  Do we
       want to allow infinite buffer?]]
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 14]
+
+Internet-Draft                   HPACK                         July 2013
+
+
       When the remote endpoint receives a SETTINGS frame containing a
       SETTINGS_MAX_BUFFER_SIZE setting with a value smaller than the one
       currently in use, it MUST send as soon as possible a HEADER frame
@@ -818,7 +802,7 @@ Internet-Draft                   HPACK                         July 2013
 
 6.  Security Considerations
 
-   TODO?
+   TODO
 
 7.  IANA Considerations
 
@@ -828,19 +812,6 @@ Internet-Draft                   HPACK                         July 2013
 
    [SPDY]     Belshe, M. and R. Peon, "SPDY Protocol", February 2012,
               <http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy>.
-
-
-
-
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 15]
-
-Internet-Draft                   HPACK                         July 2013
-
 
 Appendix A.  Change Log (to be removed by RFC Editor before publication
 
@@ -861,6 +832,16 @@ A.1.  Since draft-ietf-httpbis-header-compression-01
 
 Appendix B.  Initial Header Tables
 
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 15]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    [[The tables in this section should be updated based on statistical
    analysis of header names frequency and specific HTTP 2.0 header rules
    (like removal of some headers).  ]]
@@ -873,6 +854,49 @@ B.1.  Requests
    The following table lists the pre-defined headers that make-up the
    initial header table user to represent requests sent from a client to
    a server.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 16]
+
+Internet-Draft                   HPACK                         July 2013
+
 
               +-------+---------------------+--------------+
               | Index | Header Name         | Header Value |
@@ -890,14 +914,6 @@ B.1.  Requests
               | 10    | if-modified-since   |              |
               | 11    | user-agent          |              |
               | 12    | referer             |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 16]
-
-Internet-Draft                   HPACK                         July 2013
-
-
               | 13    | authorization       |              |
               | 14    | allow               |              |
               | 15    | cache-control       |              |
@@ -917,7 +933,7 @@ Internet-Draft                   HPACK                         July 2013
               | 29    | via                 |              |
               +-------+---------------------+--------------+
 
-                                  Table 1
+                Table 1: Initial Header Table for Requests
 
 B.2.  Responses
 
@@ -930,6 +946,14 @@ B.2.  Responses
           | Index | Header Name                 | Header Value |
           +-------+-----------------------------+--------------+
           | 0     | :status                     | 200          |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 17]
+
+Internet-Draft                   HPACK                         July 2013
+
+
           | 1     | age                         |              |
           | 2     | cache-control               |              |
           | 3     | content-length              |              |
@@ -946,14 +970,6 @@ B.2.  Responses
           | 14    | accept-ranges               |              |
           | 15    | allow                       |              |
           | 16    | connection                  |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 17]
-
-Internet-Draft                   HPACK                         July 2013
-
-
           | 17    | content-disposition         |              |
           | 18    | content-encoding            |              |
           | 19    | content-language            |              |
@@ -969,7 +985,7 @@ Internet-Draft                   HPACK                         July 2013
           | 29    | www-authenticate            |              |
           +-------+-----------------------------+--------------+
 
-                                  Table 2
+                Table 2: Initial Header Table for Responses
 
 Appendix C.  Example
 
@@ -987,6 +1003,13 @@ C.1.  First header set
    x-my-header: first
 
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 18]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    The header table is empty, all headers are represented as literal
    headers with indexing.  The 'x-my-header' header name is not in the
    header name table and is encoded literally.  This gives the following
@@ -1002,14 +1025,6 @@ C.1.  First header set
    0x0B      (header name string length = 11)
    x-my-header
    0x05      (header value string length = 5)
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 18]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    first
 
 
@@ -1044,6 +1059,13 @@ Internet-Draft                   HPACK                         July 2013
    x-my-header, first
 
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 19]
+
+Internet-Draft                   HPACK                         July 2013
+
+
 C.2.  Second header set
 
    The second header set to represent is the following:
@@ -1058,14 +1080,6 @@ C.2.  Second header set
    second header set and must be removed.  In addition, in this new set,
    the first and third headers have to be encoded.  The path header is
    represented as a literal header with substitution indexing.  The x
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 19]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    -my-header will be represented as a literal header with incremental
    indexing.
 
@@ -1100,6 +1114,14 @@ Internet-Draft                   HPACK                         July 2013
    |   39    | user-agent     | my-user-agent             |
    +---------+----------------+---------------------------+
    |   40    | x-my-header    | first                     |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 20]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    +---------+----------------+---------------------------+
    |   41    | x-my-header    | second                    | added header
    +---------+----------------+---------------------------+
@@ -1115,13 +1137,6 @@ Internet-Draft                   HPACK                         July 2013
    x-my-header, second
 
 
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 20]
-
-Internet-Draft                   HPACK                         July 2013
-
-
 Authors' Addresses
 
    Roberto Peon
@@ -1134,21 +1149,6 @@ Authors' Addresses
    Canon CRF
 
    EMail: herve.ruellan@crf.canon.fr
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
