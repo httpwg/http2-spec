@@ -67,23 +67,23 @@ Internet-Draft                   HPACK                         July 2013
        3.1.1.  Encoding Context  . . . . . . . . . . . . . . . . . .   4
        3.1.2.  Header Table  . . . . . . . . . . . . . . . . . . . .   4
        3.1.3.  Reference Set . . . . . . . . . . . . . . . . . . . .   5
-       3.1.4.  Header Emission . . . . . . . . . . . . . . . . . . .   6
-       3.1.5.  Header Representation . . . . . . . . . . . . . . . .   6
+       3.1.4.  Header set  . . . . . . . . . . . . . . . . . . . . .   6
+       3.1.5.  Header Emission . . . . . . . . . . . . . . . . . . .   6
+       3.1.6.  Header Representation . . . . . . . . . . . . . . . .   6
      3.2.  Header Set Processing . . . . . . . . . . . . . . . . . .   6
        3.2.1.  Header Representation Processing  . . . . . . . . . .   6
        3.2.2.  Reference Set Emission  . . . . . . . . . . . . . . .   7
        3.2.3.  Header Table Management . . . . . . . . . . . . . . .   7
    4.  Detailed Format . . . . . . . . . . . . . . . . . . . . . . .   8
-     4.1.  Header Blocks . . . . . . . . . . . . . . . . . . . . . .   8
-     4.2.  Low-level representations . . . . . . . . . . . . . . . .   8
-       4.2.1.  Integer representation  . . . . . . . . . . . . . . .   8
-       4.2.2.  String literal representation . . . . . . . . . . . .  10
-     4.3.  Indexed Header Representation . . . . . . . . . . . . . .  10
-     4.4.  Literal Header Representation . . . . . . . . . . . . . .  11
-       4.4.1.  Literal Header without Indexing . . . . . . . . . . .  11
-       4.4.2.  Literal Header with Incremental Indexing  . . . . . .  11
-       4.4.3.  Literal Header with Substitution Indexing . . . . . .  12
-   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  13
+     4.1.  Low-level representations . . . . . . . . . . . . . . . .   8
+       4.1.1.  Integer representation  . . . . . . . . . . . . . . .   8
+       4.1.2.  String literal representation . . . . . . . . . . . .  10
+     4.2.  Indexed Header Representation . . . . . . . . . . . . . .  10
+     4.3.  Literal Header Representation . . . . . . . . . . . . . .  11
+       4.3.1.  Literal Header without Indexing . . . . . . . . . . .  11
+       4.3.2.  Literal Header with Incremental Indexing  . . . . . .  12
+       4.3.3.  Literal Header with Substitution Indexing . . . . . .  12
+   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  14
    6.  Security Considerations . . . . . . . . . . . . . . . . . . .  14
    7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  14
    8.  Informative References  . . . . . . . . . . . . . . . . . . .  14
@@ -182,17 +182,17 @@ Internet-Draft                   HPACK                         July 2013
       containing a group of headers used as a reference for the
       differential encoding of a new set of headers.
 
-   Header Set:  A header set is a group of headers that is encoded
+   Header Set:  A header set is a group of headers that are encoded
       jointly.  A header set usually consists of all the headers
       contained in an HTTP request or an HTTP response.
 
    Header Emission:  When decoding a set of headers, some operations
-      emit a header (see Section 3.1.4).  An emitted header is added to
+      emit a header (see Section 3.1.5).  An emitted header is added to
       the set of headers.  Once emitted, a header can't be removed from
       the set of headers.
 
    Header Representation:  A header can be represented in encoded form
-      either as a literal or as an index (see Section 3.1.5).  The
+      either as a literal or as an index (see Section 3.1.6).  The
       indexed representation is based on the header table.
 
 3.1.1.  Encoding Context
@@ -253,7 +253,7 @@ Internet-Draft                   HPACK                         July 2013
    bounded (see the SETTINGS_MAX_BUFFER_SIZE in Section 5).
 
    The size of an entry is the sum of its name's length in bytes (as
-   defined in Section 4.2.2), of its value's length in bytes and of 32
+   defined in Section 4.1.2), of its value's length in bytes and of 32
    bytes.  The 32 bytes are an accounting for the entry structure
    overhead.  For example, an entry structure using two 64-bits pointers
    to reference the name and the value and the entry, and two 64-bits
@@ -288,7 +288,16 @@ Internet-Draft                   HPACK                         July 2013
    A header that is to be removed from the reference set is encoded with
    an indexed representation.
 
-3.1.4.  Header Emission
+3.1.4.  Header set
+
+   A header set is a group of header fields that are encoded as a whole.
+   Each header field is a (name, value) pair.
+
+   A header set is encoded using an ordered list of zero or more header
+   representations.  All the header representation describing a header
+   set a grouped into a header block.
+
+3.1.5.  Header Emission
 
    The emission of header is the process of adding a header to the
    current set of headers.  Once an header is emitted, it can't be
@@ -303,7 +312,7 @@ Internet-Draft                   HPACK                         July 2013
    management of memory for handling very large sets of headers can
    therefore be deferred to the application.
 
-3.1.5.  Header Representation
+3.1.6.  Header Representation
 
    Literal Representation:  The literal representation defines a new
       header.  The header name is represented either literally or as a
@@ -321,6 +330,14 @@ Internet-Draft                   HPACK                         July 2013
 
 3.2.1.  Header Representation Processing
 
+
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 6]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    All the representations corresponding to a header set are processed
    in order, as specified below.
 
@@ -330,13 +347,6 @@ Internet-Draft                   HPACK                         July 2013
    o  The header corresponding to the entry is emitted.
 
    o  The entry is added to the reference set.
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 6]
-
-Internet-Draft                   HPACK                         July 2013
-
 
    An _indexed representation_ corresponding to an entry _not present_
    in the reference set entails the following actions:
@@ -374,6 +384,16 @@ Internet-Draft                   HPACK                         July 2013
    Repeatedly, the first entry of the header table is removed, until
    enough space is available for the modification.
 
+
+
+
+
+
+Peon & Ruellan          Expires January 02, 2014                [Page 7]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    A consequence of removing one or more entries at the beginning of the
    header table is that the remaining entries are renumbered.  The first
    entry of the header table is always associated to the index 0.
@@ -385,15 +405,6 @@ Internet-Draft                   HPACK                         July 2013
    adjustment, the replacement entry is inserted at the beginning of the
    header table.
 
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014                [Page 7]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    The addition of a new entry with a size greater than the
    SETTINGS_MAX_BUFFER_SIZE limit cause all the entries from the header
    table to be dropped and the new entry not to be added to the header
@@ -403,15 +414,9 @@ Internet-Draft                   HPACK                         July 2013
 
 4.  Detailed Format
 
-4.1.  Header Blocks
+4.1.  Low-level representations
 
-   A header block consists of a set of header fields, which are name-
-   value pairs.  Each header field is encoded using one of the header
-   representation.
-
-4.2.  Low-level representations
-
-4.2.1.  Integer representation
+4.1.1.  Integer representation
 
    Integers are used to represent name indexes, pair indexes or string
    lengths.  The integer representation keeps byte-alignment as much as
@@ -438,17 +443,16 @@ Internet-Draft                   HPACK                         July 2013
 
    3.
 
-       1.  Set I to (I - (2^N - 1)) and Q to 1
-
-       2.  While Q > 0
-
-
 
 
 Peon & Ruellan          Expires January 02, 2014                [Page 8]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+       1.  Set I to (I - (2^N - 1)) and Q to 1
+
+       2.  While Q > 0
 
        3.
 
@@ -462,7 +466,7 @@ Internet-Draft                   HPACK                         July 2013
 
            4.  I = Q
 
-4.2.1.1.  Example 1: Encoding 10 using a 5-bit prefix
+4.1.1.1.  Example 1: Encoding 10 using a 5-bit prefix
 
    The value 10 is to be encoded with a 5-bit prefix.
 
@@ -475,7 +479,7 @@ Internet-Draft                   HPACK                         July 2013
    +---+---+---+---+---+---+---+---+
 
 
-4.2.1.2.  Example 2: Encoding 1337 using a 5-bit prefix
+4.1.1.2.  Example 2: Encoding 1337 using a 5-bit prefix
 
    The value I=1337 is to be encoded with a 5-bit prefix.
 
@@ -494,10 +498,6 @@ Internet-Draft                   HPACK                         July 2013
 
       *  Q is greater than 1, bit 8 is set to 1.
 
-      *  The remainder R=26 is encoded on next 7 bits.
-
-      *  I is replaced by the quotient Q=10.
-
 
 
 
@@ -505,6 +505,10 @@ Peon & Ruellan          Expires January 02, 2014                [Page 9]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+      *  The remainder R=26 is encoded on next 7 bits.
+
+      *  I is replaced by the quotient Q=10.
 
    o  The value to represent on next bytes is I = 10.
 
@@ -528,7 +532,7 @@ Internet-Draft                   HPACK                         July 2013
    +---+---+---+---+---+---+---+---+
 
 
-4.2.2.  String literal representation
+4.1.2.  String literal representation
 
    Literal strings can represent header names or header values.  They
    are encoded in two parts:
@@ -540,7 +544,7 @@ Internet-Draft                   HPACK                         July 2013
 
    2.  The string value represented as a list of UTF-8 characters.
 
-4.3.  Indexed Header Representation
+4.2.  Indexed Header Representation
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -548,10 +552,6 @@ Internet-Draft                   HPACK                         July 2013
    +---+---------------------------+
 
                               Indexed Header
-
-   This representation starts with the '1' 1-bit pattern, followed by
-   the index of the matching pair, represented as an integer with a
-   7-bit prefix.
 
 
 
@@ -562,9 +562,13 @@ Peon & Ruellan          Expires January 02, 2014               [Page 10]
 Internet-Draft                   HPACK                         July 2013
 
 
-4.4.  Literal Header Representation
+   This representation starts with the '1' 1-bit pattern, followed by
+   the index of the matching pair, represented as an integer with a
+   7-bit prefix.
 
-4.4.1.  Literal Header without Indexing
+4.3.  Literal Header Representation
+
+4.3.1.  Literal Header without Indexing
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -605,11 +609,7 @@ Internet-Draft                   HPACK                         July 2013
    literal string.
 
    Header name representation is followed by the header value
-   represented as a literal string as described in Section 4.2.2.
-
-4.4.2.  Literal Header with Incremental Indexing
-
-
+   represented as a literal string as described in Section 4.1.2.
 
 
 
@@ -617,6 +617,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 11]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+4.3.2.  Literal Header with Incremental Indexing
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -656,16 +658,14 @@ Internet-Draft                   HPACK                         July 2013
    literal string.
 
    Header name representation is followed by the header value
-   represented as a literal string as described in Section 4.2.2.
+   represented as a literal string as described in Section 4.1.2.
 
-4.4.3.  Literal Header with Substitution Indexing
+4.3.3.  Literal Header with Substitution Indexing
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 0 |      Index (6+)       |
    +---+---+-----------------------+
-   |    Substituted Index (8+)     |
-   +-------------------------------+
 
 
 
@@ -674,6 +674,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 12]
 Internet-Draft                   HPACK                         July 2013
 
 
+   |    Substituted Index (8+)     |
+   +-------------------------------+
    |       Value Length (8+)       |
    +-------------------------------+
    | Value String (Length octets)  |
@@ -718,9 +720,7 @@ Internet-Draft                   HPACK                         July 2013
    table MUST be treated as an error.
 
    This index is followed by the header value represented as a literal
-   string as described in Section 4.2.2.
-
-5.  Parameter Negotiation
+   string as described in Section 4.1.2.
 
 
 
@@ -729,6 +729,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 13]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+5.  Parameter Negotiation
 
    A few parameters can be used to accomodate client and server
    processing and memory requirements.  [[These settings are currently
@@ -777,14 +779,14 @@ A.1.  Since draft-ietf-httpbis-header-compression-01
 
    o  Updated reference set management as per issue #214
 
-   o  Added example of 32 bytes entry structure (issue #191).
-
 
 
 Peon & Ruellan          Expires January 02, 2014               [Page 14]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+   o  Added example of 32 bytes entry structure (issue #191).
 
 Appendix B.  Initial header names
 
@@ -832,8 +834,6 @@ B.1.  Requests
               | 25    | from                |              |
               | 26    | if-match            |              |
               | 27    | if-none-match       |              |
-              | 28    | if-range            |              |
-              | 29    | if-unmodified-since |              |
 
 
 
@@ -842,6 +842,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 15]
 Internet-Draft                   HPACK                         July 2013
 
 
+              | 28    | if-range            |              |
+              | 29    | if-unmodified-since |              |
               | 30    | max-forwards        |              |
               | 31    | pragma              |              |
               | 32    | proxy-authorization |              |
@@ -888,8 +890,6 @@ B.2.  Responses
           | 21    | content-md5                 |              |
           | 22    | content-range               |              |
           | 23    | link                        |              |
-          | 24    | location                    |              |
-          | 25    | p3p                         |              |
 
 
 
@@ -898,6 +898,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 16]
 Internet-Draft                   HPACK                         July 2013
 
 
+          | 24    | location                    |              |
+          | 25    | p3p                         |              |
           | 26    | pragma                      |              |
           | 27    | proxy-authenticate          |              |
           | 28    | refresh                     |              |
@@ -944,8 +946,6 @@ C.1.  First header set
    first
 
 
-   The header table is as follows after the processing of these headers:
-
 
 
 
@@ -953,6 +953,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 17]
 
 Internet-Draft                   HPACK                         July 2013
 
+
+   The header table is as follows after the processing of these headers:
 
    Header table
    +---------+----------------+---------------------------+
@@ -1000,8 +1002,6 @@ C.2.  Second header set
    -my-header will be represented as a literal header with incremental
    indexing.
 
-   0xa6       (indexed header, index = 38: removal from reference set)
-   0xa8       (indexed header, index = 40: removal from reference set)
 
 
 
@@ -1010,6 +1010,8 @@ Peon & Ruellan          Expires January 02, 2014               [Page 18]
 Internet-Draft                   HPACK                         July 2013
 
 
+   0xa6       (indexed header, index = 38: removal from reference set)
+   0xa8       (indexed header, index = 40: removal from reference set)
    0x04       (literal header, substitution indexing, name index = 3)
    0x26       (replaced entry index = 38)
    0x1f       (header value string length = 31)
@@ -1055,8 +1057,6 @@ Internet-Draft                   HPACK                         July 2013
 
 
 Authors' Addresses
-
-
 
 
 
