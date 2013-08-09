@@ -762,7 +762,8 @@ HTTP2-Settings    = token68
               </list>
               An endpoint MUST NOT send any other type of frame in this state.  Receiving any frame
               other than <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> MUST be treated as a
-              <xref target="ConnectionErrorHandler">connection error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+              <xref target="ConnectionErrorHandler">connection error</xref> of type
+              <x:ref>PROTOCOL_ERROR</x:ref>.
             </t>
 
             <t hangText="reserved (remote):">
@@ -1222,17 +1223,18 @@ HTTP2-Settings    = token68
                 The END_HEADERS bit indicates that this frame ends the sequence of header block
                 fragments necessary to provide a complete set of headers.
                 <vspace blankLines="1"/>
-                The payload for a complete header block is provided by a sequence of
-                that starts with a <x:ref>HEADERS</x:ref>
-                frame, followed by zero or more <x:ref>CONTINUATION</x:ref> frames.
-                The sequence is terminated by a frame with the END_HEADERS flag set.
-                Once the sequence terminates, the payload of all
-                <x:ref>HEADERS</x:ref>/<x:ref>CONTINUATION</x:ref> frames are concatenated and interpreted as a single block.
+                The payload for a complete header block is provided by a sequence of that starts
+                with a <x:ref>HEADERS</x:ref> frame, followed by zero or more
+                <x:ref>CONTINUATION</x:ref> frames.  The sequence is terminated by a frame with the
+                END_HEADERS flag set.  Once the sequence terminates, the payload of all
+                <x:ref>HEADERS</x:ref> and <x:ref>CONTINUATION</x:ref> frames are concatenated and
+                interpreted as a single block.
                 <vspace blankLines="1"/>
                 A <x:ref>HEADERS</x:ref> frame without the END_HEADERS flag set MUST be followed by
                 a <x:ref>CONTINUATION</x:ref> frame for the same stream.  A receiver MUST treat the
                 receipt of any other type of frame or a frame on a different stream as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+                target="ConnectionErrorHandler">connection error</xref> of type
+                <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
               <t hangText="PRIORITY (0x8):">
                 Bit 4 being set indicates that the first four octets of this frame contain a single
@@ -1770,78 +1772,6 @@ HTTP2-Settings    = token68
             receiver MUST NOT treat this as an error, see <xref target="StreamStates"/>.
           </t>
 
-          <section anchor="CONTINUATION" title="CONTINUATION">
-            <t>
-              The CONTINUATION frame (type=0xA) carries name-value pairs.
-              The CONTINUATION is used to continue a sequence of
-              <xref target="HeaderBlock">header block fragments</xref>.
-              Any number of CONTINUATION frames can be sent on an existing stream,
-              as long as the preceding frame on the same stream is one of HEADERS, PUSH_PROMISE
-              or CONTINUATION.
-            </t>
-            <figure title="CONTINUATION Frame Payload">
-              <artwork type="inline">
-                0                   1                   2                   3
-                0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-                +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-                |                   Header Block Fragment (*)                 ...
-                +---------------------------------------------------------------+
-              </artwork>
-            </figure>
-
-            <t>
-              The CONTINUATION frame defines the following flags:
-              <list style="hanging">
-                <t hangText="END_STREAM (0x1):">
-                  Bit 1 being set indicates that this frame is the last that the endpoint
-                  will send for the identified stream.  Setting this flag causes the stream
-                  to enter a <xref target="StreamStates">"half closed" state</xref>.
-                </t>
-                <t hangText="END_HEADERS (0x2):">
-                  The END_HEADERS bit indicates that this frame ends the sequence of header block fragments
-                  necessary to provide a complete set of headers.
-                  <vspace blankLines="1"/>
-                  The payload for a complete header block is provided by a sequence that starts with
-                  a HEADERS or PUSH_PROMISE frame and zero or more CONTINUATION
-                  frames, terminated by a HEADERS/PUSH_PROMISE/CONTINUATION frame with the END_HEADERS flag set.
-                  Once the sequence terminates, the payload of all frames in the sequence are concatenated and
-                  interpreted as a single block.
-                  <vspace blankLines="1"/>
-                  A HEADERS/PUSH_PROMISE/CONTINUATION frame without the END_HEADERS flag set MUST be followed
-                  by a CONTINUATION frame for the same stream.  A receiver MUST treat the receipt of any other type
-                  of frame or a frame on a different stream as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
-                </t>
-              </list>
-            </t>
-
-            <t>
-              The payload of a CONTINUATION frame contains a <xref target="HeaderBlock">
-                header block fragment</xref>.
-            </t>
-
-            <t>
-              The CONTINUATION frame changes the connection state as defined in <xref target="HeaderBlock" />.
-            </t>
-
-            <t>
-              CONTINUATION frames MUST be associated with a stream. If a CONTINUATION frame is received
-              whose stream identifier field is 0x0, the recipient MUST respond with a
-              <xref target="ConnectionErrorHandler">connection error</xref> of type
-              PROTOCOL_ERROR.
-            </t>
-
-            <t>
-              <xref target="HeaderBlock">header block fragments</xref>.
-              A CONTINUATION frame MUST be preceded by one of HEADERS, PUSH_PROMISE
-              or CONTINUATION frame. A recipient that observes violation of this rule
-              MUST respond with a <xref target="ConnectionErrorHandler">
-                connection error
-              </xref> of type PROTOCOL_ERROR.
-            </t>
-
-          </section>
-
           <section title="The Flow Control Window">
             <t>
               Flow control in HTTP/2.0 is implemented using a window kept by each sender on every
@@ -1973,6 +1903,77 @@ HTTP2-Settings    = token68
               <x:ref>FLOW_CONTROL_ERROR</x:ref> error code.
             </t>
           </section>
+        </section>
+
+        <section anchor="CONTINUATION" title="CONTINUATION">
+          <t>
+            The CONTINUATION frame (type=0xA) is used to continue a sequence of <xref
+            target="HeaderBlock">header block fragments</xref>.  Any number of CONTINUATION frames
+            can be sent on an existing stream, as long as the preceding frame on the same stream is
+            one of <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> or CONTINUATION.
+          </t>
+
+          <figure title="CONTINUATION Frame Payload">
+            <artwork type="inline">
+              0                   1                   2                   3
+              0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+              +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+              |                   Header Block Fragment (*)                 ...
+              +---------------------------------------------------------------+
+            </artwork>
+          </figure>
+
+          <t>
+            The CONTINUATION frame defines the following flags:
+            <list style="hanging">
+              <t hangText="END_STREAM (0x1):">
+                Bit 1 being set indicates that this frame is the last that the endpoint will send
+                for the identified stream.  Setting this flag causes the stream to enter a <xref
+                target="StreamStates">"half closed" or "closed" state</xref>.
+              </t>
+              <t hangText="END_HEADERS (0x2):">
+                The END_HEADERS bit indicates that this frame ends the sequence of header block
+                fragments necessary to provide a complete set of headers.
+                <vspace blankLines="1"/>
+                The payload for a complete header block is provided by a sequence that starts with a
+                <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame and zero or more
+                CONTINUATION frames, terminated by a <x:ref>HEADERS</x:ref>,
+                <x:ref>PUSH_PROMISE</x:ref>, or CONTINUATION frame with the END_HEADERS flag set.
+                Once the sequence terminates, the payload of all frames in the sequence are
+                concatenated and interpreted as a single block.
+                <vspace blankLines="1"/>
+                A <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>, or CONTINUATION frame without
+                the END_HEADERS flag set MUST be followed by a CONTINUATION frame for the same
+                stream.  A receiver MUST treat the receipt of any other type of frame or a frame on
+                a different stream as a <xref target="ConnectionErrorHandler">connection
+                error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+              </t>
+            </list>
+          </t>
+
+          <t>
+            The payload of a CONTINUATION frame contains a <xref target="HeaderBlock"> header block
+            fragment</xref>.
+          </t>
+
+          <t>
+            The CONTINUATION frame changes the connection state as defined in <xref
+            target="HeaderBlock" />.
+          </t>
+
+          <t>
+            CONTINUATION frames MUST be associated with a stream. If a CONTINUATION frame is
+            received whose stream identifier field is 0x0, the recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type PROTOCOL_ERROR.
+          </t>
+
+          <t>
+            <xref target="HeaderBlock">header block fragments</xref>.  A CONTINUATION frame MUST be
+            preceded by one of <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> or CONTINUATION
+            frame. A recipient that observes violation of this rule MUST respond with a <xref
+            target="ConnectionErrorHandler"> connection error </xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
+          </t>
         </section>
     </section>
 
