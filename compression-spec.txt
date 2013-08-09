@@ -84,20 +84,20 @@ Internet-Draft                   HPACK                         July 2013
        4.3.1.  Literal Header without Indexing . . . . . . . . . . .  11
        4.3.2.  Literal Header with Incremental Indexing  . . . . . .  12
        4.3.3.  Literal Header with Substitution Indexing . . . . . .  13
-   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  15
+   5.  Parameter Negotiation . . . . . . . . . . . . . . . . . . . .  14
    6.  Security Considerations . . . . . . . . . . . . . . . . . . .  15
    7.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  15
    8.  Informative References  . . . . . . . . . . . . . . . . . . .  15
    Appendix A.  Change Log (to be removed by RFC Editor before
-                publication  . . . . . . . . . . . . . . . . . . . .  16
-     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  16
-   Appendix B.  Initial Header Tables  . . . . . . . . . . . . . . .  16
-     B.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  16
-     B.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  17
-   Appendix C.  Example  . . . . . . . . . . . . . . . . . . . . . .  18
-     C.1.  First header set  . . . . . . . . . . . . . . . . . . . .  18
+                publication  . . . . . . . . . . . . . . . . . . . .  15
+     A.1.  Since draft-ietf-httpbis-header-compression-01  . . . . .  15
+   Appendix B.  Initial Header Tables  . . . . . . . . . . . . . . .  15
+     B.1.  Requests  . . . . . . . . . . . . . . . . . . . . . . . .  15
+     B.2.  Responses . . . . . . . . . . . . . . . . . . . . . . . .  16
+   Appendix C.  Example  . . . . . . . . . . . . . . . . . . . . . .  17
+     C.1.  First header set  . . . . . . . . . . . . . . . . . . . .  17
      C.2.  Second header set . . . . . . . . . . . . . . . . . . . .  19
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  21
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  20
 
 1.  Introduction
 
@@ -453,9 +453,7 @@ Internet-Draft                   HPACK                         July 2013
 4.1.1.  Integer representation
 
    Integers are used to represent name indexes, pair indexes or string
-   lengths.  The integer representation keeps byte-alignment as much as
-   possible as this allows various processing optimizations as well as
-   efficient use of DEFLATE.  For that purpose, an integer
+   lengths.  To allow for optimized processing, an integer
    representation always finishes at the end of a byte.
 
    An integer is represented in two parts: a prefix that fills the
@@ -493,10 +491,12 @@ Internet-Draft                   HPACK                         July 2013
 
            4.  I = Q
 
+4.1.1.1.  Example 1: Encoding 10 using a 5-bit prefix
 
+   The value 10 is to be encoded with a 5-bit prefix.
 
-
-
+   o  10 is less than 31 (= 2^5 - 1) and is represented using the 5-bit
+      prefix.
 
 
 
@@ -505,13 +505,6 @@ Peon & Ruellan          Expires January 02, 2014                [Page 9]
 
 Internet-Draft                   HPACK                         July 2013
 
-
-4.1.1.1.  Example 1: Encoding 10 using a 5-bit prefix
-
-   The value 10 is to be encoded with a 5-bit prefix.
-
-   o  10 is less than 31 (= 2^5 - 1) and is represented using the 5-bit
-      prefix.
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -554,6 +547,13 @@ Internet-Draft                   HPACK                         July 2013
 
       *  I is replaced by the quotient Q=0.
 
+   o  The process ends.
+
+     0   1   2   3   4   5   6   7
+   +---+---+---+---+---+---+---+---+
+   | X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31
+   | 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   Q>=1, R=26
+   | 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   Q=0 , R=10
 
 
 
@@ -562,13 +562,6 @@ Peon & Ruellan          Expires January 02, 2014               [Page 10]
 Internet-Draft                   HPACK                         July 2013
 
 
-   o  The process ends.
-
-     0   1   2   3   4   5   6   7
-   +---+---+---+---+---+---+---+---+
-   | X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31
-   | 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   Q>=1, R=26
-   | 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   Q=0 , R=10
    +---+---+---+---+---+---+---+---+
 
 
@@ -601,23 +594,6 @@ Internet-Draft                   HPACK                         July 2013
 
 4.3.1.  Literal Header without Indexing
 
-
-
-
-
-
-
-
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 11]
-
-Internet-Draft                   HPACK                         July 2013
-
-
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 1 | 1 |    Index (5+)     |
@@ -634,6 +610,14 @@ Internet-Draft                   HPACK                         July 2013
    | 0 | 1 | 1 |         0         |
    +---+---+---+-------------------+
    |       Name Length (8+)        |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 11]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    +-------------------------------+
    |  Name String (Length octets)  |
    +-------------------------------+
@@ -666,14 +650,6 @@ Internet-Draft                   HPACK                         July 2013
    | 0 | 1 | 0 |    Index (5+)     |
    +---+---+---+-------------------+
    |       Value Length (8+)       |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 12]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    +-------------------------------+
    | Value String (Length octets)  |
    +-------------------------------+
@@ -690,6 +666,14 @@ Internet-Draft                   HPACK                         July 2013
    +-------------------------------+
    |       Value Length (8+)       |
    +-------------------------------+
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 12]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    | Value String (Length octets)  |
    +-------------------------------+
 
@@ -710,25 +694,6 @@ Internet-Draft                   HPACK                         July 2013
    represented as a literal string as described in Section 4.1.2.
 
 4.3.3.  Literal Header with Substitution Indexing
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 13]
-
-Internet-Draft                   HPACK                         July 2013
-
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -758,6 +723,13 @@ Internet-Draft                   HPACK                         July 2013
    | Value String (Length octets)  |
    +-------------------------------+
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 13]
+
+Internet-Draft                   HPACK                         July 2013
+
+
            Literal Header with Substitution Indexing - New Name
 
    This representation starts with the '00' 2-bit pattern.
@@ -778,13 +750,6 @@ Internet-Draft                   HPACK                         July 2013
    the header table containing a non-void entry.  An index for the
    substituted pair that corresponds to empty position in the header
    table MUST be treated as an error.
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 14]
-
-Internet-Draft                   HPACK                         July 2013
-
 
    This index is followed by the header value represented as a literal
    string as described in Section 4.1.2.
@@ -813,6 +778,14 @@ Internet-Draft                   HPACK                         July 2013
       sender has reduced the maximum size of the header table.  The new
       maximum size of the header table is encoded on 32-bit.  The
       decoder MUST reduce its own header table by dropping entries from
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 14]
+
+Internet-Draft                   HPACK                         July 2013
+
+
       it until the size of the header table is lower than or equal to
       the transmitted maximum size.
 
@@ -828,19 +801,6 @@ Internet-Draft                   HPACK                         July 2013
 
    [SPDY]     Belshe, M. and R. Peon, "SPDY Protocol", February 2012,
               <http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy>.
-
-
-
-
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 15]
-
-Internet-Draft                   HPACK                         July 2013
-
 
 Appendix A.  Change Log (to be removed by RFC Editor before publication
 
@@ -874,6 +834,14 @@ B.1.  Requests
    initial header table user to represent requests sent from a client to
    a server.
 
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 15]
+
+Internet-Draft                   HPACK                         July 2013
+
+
               +-------+---------------------+--------------+
               | Index | Header Name         | Header Value |
               +-------+---------------------+--------------+
@@ -890,14 +858,6 @@ B.1.  Requests
               | 10    | if-modified-since   |              |
               | 11    | user-agent          |              |
               | 12    | referer             |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 16]
-
-Internet-Draft                   HPACK                         July 2013
-
-
               | 13    | authorization       |              |
               | 14    | allow               |              |
               | 15    | cache-control       |              |
@@ -930,6 +890,14 @@ B.2.  Responses
           | Index | Header Name                 | Header Value |
           +-------+-----------------------------+--------------+
           | 0     | :status                     | 200          |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 16]
+
+Internet-Draft                   HPACK                         July 2013
+
+
           | 1     | age                         |              |
           | 2     | cache-control               |              |
           | 3     | content-length              |              |
@@ -946,14 +914,6 @@ B.2.  Responses
           | 14    | accept-ranges               |              |
           | 15    | allow                       |              |
           | 16    | connection                  |              |
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 17]
-
-Internet-Draft                   HPACK                         July 2013
-
-
           | 17    | content-disposition         |              |
           | 18    | content-encoding            |              |
           | 19    | content-language            |              |
@@ -987,6 +947,13 @@ C.1.  First header set
    x-my-header: first
 
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 17]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    The header table is empty, all headers are represented as literal
    headers with indexing.  The 'x-my-header' header name is not in the
    header name table and is encoded literally.  This gives the following
@@ -1002,14 +969,6 @@ C.1.  First header set
    0x0B      (header name string length = 11)
    x-my-header
    0x05      (header value string length = 5)
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 18]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    first
 
 
@@ -1044,6 +1003,13 @@ Internet-Draft                   HPACK                         July 2013
    x-my-header, first
 
 
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 18]
+
+Internet-Draft                   HPACK                         July 2013
+
+
 C.2.  Second header set
 
    The second header set to represent is the following:
@@ -1058,14 +1024,6 @@ C.2.  Second header set
    second header set and must be removed.  In addition, in this new set,
    the first and third headers have to be encoded.  The path header is
    represented as a literal header with substitution indexing.  The x
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 19]
-
-Internet-Draft                   HPACK                         July 2013
-
-
    -my-header will be represented as a literal header with incremental
    indexing.
 
@@ -1100,6 +1058,14 @@ Internet-Draft                   HPACK                         July 2013
    |   39    | user-agent     | my-user-agent             |
    +---------+----------------+---------------------------+
    |   40    | x-my-header    | first                     |
+
+
+
+Peon & Ruellan          Expires January 02, 2014               [Page 19]
+
+Internet-Draft                   HPACK                         July 2013
+
+
    +---------+----------------+---------------------------+
    |   41    | x-my-header    | second                    | added header
    +---------+----------------+---------------------------+
@@ -1113,13 +1079,6 @@ Internet-Draft                   HPACK                         July 2013
    :path, /my-example/resources/script.js
    user-agent, my-user-agent
    x-my-header, second
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 20]
-
-Internet-Draft                   HPACK                         July 2013
 
 
 Authors' Addresses
@@ -1157,19 +1116,4 @@ Authors' Addresses
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Peon & Ruellan          Expires January 02, 2014               [Page 21]
+Peon & Ruellan          Expires January 02, 2014               [Page 20]
