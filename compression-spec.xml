@@ -236,10 +236,11 @@
                     <t>
                         The size of an entry is the sum of its name's length
                         in bytes (as defined in <xref
-                            target="string.literal.representation" />), of its
-                        value's length in bytes and of 32 bytes. The 32 bytes
-                        are an accounting for the entry structure overhead.
-                        For example, an entry structure using two 64-bits
+                            target="header.name.representation" />), of its
+                        value's length in bytes (<xref
+                            target="string.literal.representation" />) and of 
+                        32 bytes. The 32 bytes are an accounting for the entry 
+                        structure overhead. For example, an entry structure using two 64-bits
                         pointers to reference the name and the value and the
                         entry, and two 64-bits integer for counting the number
                         of references to these name and value would use these
@@ -626,23 +627,58 @@
                     </section>
                 </section>
 
-                <section title="String Literal Representation" anchor="string.literal.representation">
+                <section title="Header Name Representation" anchor="header.name.representation">
+                  
+                  <t>
+                      Header names are sequences of ASCII characters that
+                      MUST conform to the following header-name ABNF 
+                      construction:
+                  </t>
+                  
+                  <figure><artwork><![CDATA[
+  LOWERALPHA = %x61-7A
+  header-char = "!" / "#" / "$" / "%" / "&" / "'" /
+                "*" / "+" / "-" / "." / "^" / "_" /
+                "`" / "|" / "~" / DIGIT / LOWERALPHA
+  header-name = [":"] 1*header-char
+                  ]]></artwork></figure>
+                  
+                  <t>
+                      They are encoded in two parts:
+                      <list style="numbers">
+                        <t>The string length, defined as the number of 
+                          octets in the header-name sequence, represented
+                          as an integer with a zero bits prefix. If the 
+                          string length is strictly less than 128, it is 
+                          represented using a single octet.</t>
+                        <t>The specific sequence of ASCII octets</t>
+                      </list> 
+                  </t>
+                  
+                </section>
+
+                <section title="Header Value Representation" anchor="string.literal.representation">
                     <t>
-                        Literal strings can represent header names or header
-                        values.  They are encoded in two parts:
+                        Header values are encoded as sequences of UTF-8 encoded 
+                        text. They are encoded in two parts:
                         <list style="numbers">
                             <t>The string length, defined as the number of
-                                bytes needed to store its UTF-8
+                                bytes needed to store the UTF-8
                                 representation, is represented as an integer
                                 with a zero bits prefix.  If the string length
                                 is strictly less than 128, it is represented
-                                as one byte.
+                                using a single octet.
                             </t>
                             <t>
                                 The string value represented as a list of
                                 UTF-8 characters.
                             </t>
                         </list>
+                    </t>
+                    <t>
+                      Invalid UTF-8 octet sequences, "over-long" UTF-8
+                      encodings, and UTF-8 octets that represent
+                      invalid Unicode Codepoints MUST NOT be used.
                     </t>
                 </section>
             </section>
@@ -710,7 +746,8 @@
                     <t>
                         If the header name does not match a header name entry,
                         the value 0 is represented on 5 bits followed by the
-                        header name, represented as a literal string.
+                        header name (<xref
+                            target="header.name.representation" />).
                     </t>
                     <t>
                         Header name representation is followed by the header
@@ -766,7 +803,8 @@
                     <t>
                         If the header name does not match a header name entry,
                         the value 0 is represented on 5 bits followed by the
-                        header name, represented as a literal string.
+                        header name (<xref
+                            target="header.name.representation" />).
                     </t>
                     <t>
                         Header name representation is followed by the header
@@ -824,7 +862,8 @@
                     <t>
                         If the header name does not match a header name entry,
                         the value 0 is represented on 6 bits followed by the
-                        header name, represented as a literal string.
+                        header name (<xref
+                            target="header.name.representation" />).
                     </t>
                     <t>
                         The index of the substituted (name, value) pair is
