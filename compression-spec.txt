@@ -88,16 +88,16 @@ Table of Contents
        4.3.3.  Literal Header with Substitution Indexing  . . . . . . 14
    5.  Parameter Negotiation  . . . . . . . . . . . . . . . . . . . . 15
    6.  Security Considerations  . . . . . . . . . . . . . . . . . . . 16
-   7.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 17
-   8.  Informative References . . . . . . . . . . . . . . . . . . . . 17
+   7.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 16
+   8.  Informative References . . . . . . . . . . . . . . . . . . . . 16
    Appendix A.  Change Log (to be removed by RFC Editor before
-                publication . . . . . . . . . . . . . . . . . . . . . 17
+                publication . . . . . . . . . . . . . . . . . . . . . 16
      A.1.  Since draft-ietf-httpbis-header-compression-01 . . . . . . 17
    Appendix B.  Initial Header Tables . . . . . . . . . . . . . . . . 17
-     B.1.  Requests . . . . . . . . . . . . . . . . . . . . . . . . . 18
+     B.1.  Requests . . . . . . . . . . . . . . . . . . . . . . . . . 17
      B.2.  Responses  . . . . . . . . . . . . . . . . . . . . . . . . 18
    Appendix C.  Example . . . . . . . . . . . . . . . . . . . . . . . 19
-     C.1.  First header set . . . . . . . . . . . . . . . . . . . . . 20
+     C.1.  First header set . . . . . . . . . . . . . . . . . . . . . 19
      C.2.  Second header set  . . . . . . . . . . . . . . . . . . . . 21
 
 
@@ -596,10 +596,9 @@ Internet-Draft                    HPACK                        July 2013
 
    They are encoded in two parts:
 
-   1.  The string length, defined as the number of octets in the header-
-       name sequence, represented as an integer with a zero bits prefix.
-       If the string length is strictly less than 128, it is represented
-       using a single octet.
+   1.  The length of the text, defined as the number of octets of
+       storage required to store the text, represented as a variable-
+       length-quantity (Section 4.1.1).
 
    2.  The specific sequence of ASCII octets
 
@@ -608,7 +607,8 @@ Internet-Draft                    HPACK                        July 2013
    Header values are encoded as sequences of UTF-8 encoded text.  They
    are encoded in two parts:
 
-
+   1.  The length of the text, defined as the number of octets of
+       storage required to store the text, represented as a variable-
 
 
 
@@ -617,12 +617,9 @@ Peon & Ruellan           Expires January 2, 2014               [Page 11]
 Internet-Draft                    HPACK                        July 2013
 
 
-   1.  The string length, defined as the number of bytes needed to store
-       the UTF-8 representation, is represented as an integer with a
-       zero bits prefix.  If the string length is strictly less than
-       128, it is represented using a single octet.
+       length-quantity (Section 4.1.1).
 
-   2.  The string value represented as a list of UTF-8 characters.
+   2.  The specific sequence of octets representing the UTF-8 text.
 
    Invalid UTF-8 octet sequences, "over-long" UTF-8 encodings, and UTF-8
    octets that represent invalid Unicode Codepoints MUST NOT be used.
@@ -656,23 +653,6 @@ Internet-Draft                    HPACK                        July 2013
               Literal Header without Indexing - Indexed Name
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-Peon & Ruellan           Expires January 2, 2014               [Page 12]
-
-Internet-Draft                    HPACK                        July 2013
-
-
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 1 | 1 |         0         |
@@ -685,6 +665,13 @@ Internet-Draft                    HPACK                        July 2013
    +-------------------------------+
    | Value String (Length octets)  |
    +-------------------------------+
+
+
+
+Peon & Ruellan           Expires January 2, 2014               [Page 12]
+
+Internet-Draft                    HPACK                        July 2013
+
 
                 Literal Header without Indexing - New Name
 
@@ -717,18 +704,6 @@ Internet-Draft                    HPACK                        July 2013
                                Indexed Name
 
 
-
-
-
-
-
-
-
-Peon & Ruellan           Expires January 2, 2014               [Page 13]
-
-Internet-Draft                    HPACK                        July 2013
-
-
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 1 | 0 |         0         |
@@ -746,6 +721,13 @@ Internet-Draft                    HPACK                        July 2013
                                  New Name
 
    This representation starts with the '010' 3-bit pattern.
+
+
+
+Peon & Ruellan           Expires January 2, 2014               [Page 13]
+
+Internet-Draft                    HPACK                        July 2013
+
 
    If the header name matches the header name of a (name, value) pair
    stored in the Header Table, the index of the pair increased by one
@@ -775,16 +757,6 @@ Internet-Draft                    HPACK                        July 2013
                                Indexed Name
 
 
-
-
-
-
-
-Peon & Ruellan           Expires January 2, 2014               [Page 14]
-
-Internet-Draft                    HPACK                        July 2013
-
-
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 0 |           0           |
@@ -804,6 +776,14 @@ Internet-Draft                    HPACK                        July 2013
                                  New Name
 
    This representation starts with the '00' 2-bit pattern.
+
+
+
+
+Peon & Ruellan           Expires January 2, 2014               [Page 14]
+
+Internet-Draft                    HPACK                        July 2013
+
 
    If the header name matches the header name of a (name, value) pair
    stored in the Header Table, the index of the pair increased by one
@@ -832,15 +812,6 @@ Internet-Draft                    HPACK                        July 2013
    specification.  Therefore, the maximum buffer size for the header
    table is fixed at 4096 bytes.]]
 
-
-
-
-
-Peon & Ruellan           Expires January 2, 2014               [Page 15]
-
-Internet-Draft                    HPACK                        July 2013
-
-
    SETTINGS_MAX_BUFFER_SIZE:  Allows the sender to inform the remote
       endpoint of the maximum size it accepts for the header table.
       The default value is 4096 bytes.
@@ -859,6 +830,16 @@ Internet-Draft                    HPACK                        July 2013
       decoder MUST reduce its own header table by dropping entries from
       it until the size of the header table is lower than or equal to
       the transmitted maximum size.
+
+
+
+
+
+
+Peon & Ruellan           Expires January 2, 2014               [Page 15]
+
+Internet-Draft                    HPACK                        July 2013
+
 
 6.  Security Considerations
 
@@ -889,14 +870,6 @@ Internet-Draft                    HPACK                        July 2013
    this compressor by ensuring that header keys and values are either
    emitted as a stream, or that the compression implementation have a
    limit on the maximum size of a key or value.  Failure to implement
-
-
-
-Peon & Ruellan           Expires January 2, 2014               [Page 16]
-
-Internet-Draft                    HPACK                        July 2013
-
-
    these kinds of safeguards may still result in a scenario where the
    local endpoint exhausts its memory.
 
@@ -912,6 +885,17 @@ Internet-Draft                    HPACK                        July 2013
    [1]  <http://en.wikipedia.org/wiki/Variable-length_quantity>
 
 Appendix A.  Change Log (to be removed by RFC Editor before publication
+
+
+
+
+
+
+
+Peon & Ruellan           Expires January 2, 2014               [Page 16]
+
+Internet-Draft                    HPACK                        July 2013
+
 
 A.1.  Since draft-ietf-httpbis-header-compression-01
 
@@ -945,6 +929,22 @@ Appendix B.  Initial Header Tables
    PUSH_PROMISE frames.  Either the tables can be merged, or the table
    for responses can be updated.]]
 
+B.1.  Requests
+
+   The following table lists the pre-defined headers that make-up the
+   initial header table user to represent requests sent from a client to
+   a server.
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -952,12 +952,6 @@ Peon & Ruellan           Expires January 2, 2014               [Page 17]
 
 Internet-Draft                    HPACK                        July 2013
 
-
-B.1.  Requests
-
-   The following table lists the pre-defined headers that make-up the
-   initial header table user to represent requests sent from a client to
-   a server.
 
               +-------+---------------------+--------------+
               | Index | Header Name         | Header Value |
@@ -1001,6 +995,12 @@ B.2.  Responses
    The following table lists the pre-defined headers that make-up the
    initial header table used to represent responses sent from a server
    to a client.  The same header table is also used to represent request
+   headers sent from a server to a client in a PUSH_PROMISE frame.
+
+
+
+
+
 
 
 
@@ -1008,8 +1008,6 @@ Peon & Ruellan           Expires January 2, 2014               [Page 18]
 
 Internet-Draft                    HPACK                        July 2013
 
-
-   headers sent from a server to a client in a PUSH_PROMISE frame.
 
           +-------+-----------------------------+--------------+
           | Index | Header Name                 | Header Value |
@@ -1055,7 +1053,9 @@ Appendix C.  Example
    better reflect the new processing of header fields, and include more
    examples.]]
 
+C.1.  First header set
 
+   The first header set to represent is the following:
 
 
 
@@ -1064,10 +1064,6 @@ Peon & Ruellan           Expires January 2, 2014               [Page 19]
 
 Internet-Draft                    HPACK                        July 2013
 
-
-C.1.  First header set
-
-   The first header set to represent is the following:
 
    :path: /my-example/index.html
    user-agent: my-user-agent
@@ -1114,6 +1110,10 @@ C.1.  First header set
    As all the headers in the first header set are indexed in the header
    table, all are kept in the reference set of headers, which is:
 
+   Reference Set:
+   :path, /my-example/index.html
+   user-agent, my-user-agent
+
 
 
 Peon & Ruellan           Expires January 2, 2014               [Page 20]
@@ -1121,9 +1121,6 @@ Peon & Ruellan           Expires January 2, 2014               [Page 20]
 Internet-Draft                    HPACK                        July 2013
 
 
-   Reference Set:
-   :path, /my-example/index.html
-   user-agent, my-user-agent
    mynewheader, first
 
 C.2.  Second header set
@@ -1153,6 +1150,9 @@ C.2.  Second header set
    second
 
    The header table is updated as follow:
+
+
+
 
 
 
