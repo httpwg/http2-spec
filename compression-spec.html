@@ -145,8 +145,8 @@
 <tr><td class="header">HTTPbis Working Group</td><td class="header">R. Peon</td></tr>
 <tr><td class="header">Internet-Draft</td><td class="header">Google, Inc</td></tr>
 <tr><td class="header">Intended status: Informational</td><td class="header">H. Ruellan</td></tr>
-<tr><td class="header">Expires: January 2, 2014</td><td class="header">Canon CRF</td></tr>
-<tr><td class="header">&nbsp;</td><td class="header">July 2013</td></tr>
+<tr><td class="header">Expires: February 22, 2014</td><td class="header">Canon CRF</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">August 21, 2013</td></tr>
 </table></td></tr></table>
 <h1><br />HPACK<br />draft-ietf-httpbis-header-compression-01</h1>
 
@@ -172,7 +172,7 @@ and may be updated, replaced, or obsoleted by other documents at any time.
 It is inappropriate to use Internet-Drafts as reference material or to cite
 them other than as &ldquo;work in progress.&rdquo;</p>
 <p>
-This Internet-Draft will expire on January 2, 2014.</p>
+This Internet-Draft will expire on February 22, 2014.</p>
 
 <h3>Copyright Notice</h3>
 <p>
@@ -871,36 +871,16 @@ Integer representation</h3>
 <p>
                         The algorithm to represent an integer I is as follows:
                         </p>
-<ol class="text">
-<li>If I &lt; 2^N - 1, encode I on N bits
-</li>
-<li>Else, encode 2^N - 1 on N bits and do the
-                                following steps:
-</li>
-<li>
-<ol class="text">
-<li>Set I to (I - (2^N - 1)) and Q to 1
-</li>
-<li>While Q &gt; 0
-</li>
-<li>
-<ol class="text">
-<li>Compute Q and R, quotient and remainder
-                                        of I divided by 2^7
-</li>
-<li>If Q is strictly greater than 0, write
-                                        one 1 bit; otherwise, write one 0
-                                        bit
-</li>
-<li>Encode R on the next 7 bits
-</li>
-<li>I = Q
-</li>
-</ol>
-</li>
-</ol>
-</li>
-</ol><p>
+<div style='display: table; width: 0; margin-left: 3em; margin-right: auto'><pre>
+If I &lt; 2^N - 1, encode I on N bits
+Else
+    encode 2^N - 1 on N bits
+    While I &gt;= 128
+         Encode (I % 128 + 128) on 8 bits
+         I = I / 128
+    encode (I) on 8 bits
+</pre></div><p>
+
                     
 </p>
 <a name="integer.representation.example1"></a><br /><hr />
@@ -934,62 +914,65 @@ Example 2: Encoding 1337 using a 5-bit prefix</h3>
                             The value I=1337 is to be encoded with a 5-bit
                             prefix.
                             </p>
-<ul class="text">
-<li>1337 is greater than 31 (= 2^5 - 1).
-</li>
-<li>
-<ul class="text">
-<li>The 5-bit prefix is filled with its max
-                                        value (31).
-</li>
-</ul>
-</li>
-<li>The value to represent on next bytes is I =
-                                    1337 - (2^5 - 1) = 1306.
-</li>
-<li>
-<ul class="text">
-<li>1306 = 128*10 + 26, i.e. Q=10 and
-                                        R=26.
-</li>
-<li>Q is greater than 1, bit 8 is set to
-                                        1.
-</li>
-<li>The remainder R=26 is encoded on next 7
-                                        bits.
-</li>
-<li>I is replaced by the quotient Q=10.
-</li>
-</ul>
-</li>
-<li>The value to represent on next bytes is I =
-                                    10.
-</li>
-<li>
-<ul class="text">
-<li>10 = 128*0 + 10, i.e. Q=0 and R=10.
-</li>
-<li>Q is equal to 0, bit 16 is set to
-                                        0.
-</li>
-<li>The remainder R=10 is encoded on next 7
-                                        bits.
-</li>
-<li>I is replaced by the quotient Q=0.
-</li>
-</ul>
-</li>
-<li>The process ends.
-</li>
-</ul><p>
+<blockquote class="text">
+<p>1337 is greater than 31 (= 2^5 - 1).
+</p>
+<p>
+                                    </p>
+<blockquote class="text">
+<p>The 5-bit prefix is filled with its
+                                            max value (31).
+</p>
+</blockquote>
+                                
+
+<p>I = 1337 - (2^5 - 1) = 1306.
+</p>
+<p>
+                                    </p>
+<blockquote class="text">
+<p>I (1306) is greater than or equal
+                                            to 128, the while loop body
+                                            executes:
+</p>
+<p>
+                                            </p>
+<blockquote class="text">
+<p>I % 128 == 26
+</p>
+<p>26 + 128 == 154
+</p>
+<p>154 is encoded in 8 bits as:
+                                                    10011010
+</p>
+<p>I is set to 10 (1306 / 128 ==
+                                                    10)
+</p>
+<p>I is no longer greater than or
+                                                    equal to 128, the while loop
+                                                    terminates.
+</p>
+</blockquote>
+                                        
+
+<p>
+                                            I, now 10, is encoded on 8 bits as: 00001010
+                                        
+</p>
+</blockquote>
+                                
+
+<p>The process ends.
+</p>
+</blockquote><p>
 
                         
 </p><div style='display: table; width: 0; margin-left: 3em; margin-right: auto'><pre>
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31
-| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   Q&gt;=1, R=26
-| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   Q=0 , R=10
+| X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31, I = 1306
+| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   1306&gt;=128, encode(154), I = 1306/128
+| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   10&lt;128, encode(10), done
 +---+---+---+---+---+---+---+---+
 </pre></div>
 <a name="header.name.representation"></a><br /><hr />

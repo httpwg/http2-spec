@@ -20,7 +20,7 @@
 
 <rfc category="info"
     ipr="trust200902"
-    docName="draft-ietf-httpbis-header-compression-01"
+    docName="draft-ietf-httpbis-header-compression-02"
     >
     <front>
         <title abbrev="HPACK">HPACK</title>
@@ -39,7 +39,7 @@
             </address>
         </author>
 
-        <date month="July" year="2013"/>
+        <date month="August" year="2013"/>
         <area>Applications</area>
         <workgroup>HTTPbis Working Group</workgroup>
         <keyword>HTTP</keyword>
@@ -547,24 +547,15 @@
                     </t>
                     <t>
                         The algorithm to represent an integer I is as follows:
-                        <list style="numbers">
-                            <t>If I &lt; 2^N - 1, encode I on N bits</t>
-                            <t>Else, encode 2^N - 1 on N bits and do the
-                                following steps:</t>
-                            <t><list style="numbers">
-                                <t>Set I to (I - (2^N - 1)) and Q to 1</t>
-                                <t>While Q &gt; 0</t>
-                                <t><list style="numbers">
-                                    <t>Compute Q and R, quotient and remainder
-                                        of I divided by 2^7</t>
-                                    <t>If Q is strictly greater than 0, write
-                                        one 1 bit; otherwise, write one 0
-                                        bit</t>
-                                    <t>Encode R on the next 7 bits</t>
-                                    <t>I = Q</t>
-                                </list></t>
-                            </list></t>
-                        </list>
+                        <figure><artwork type = "inline">
+If I &lt; 2^N - 1, encode I on N bits
+Else
+    encode 2^N - 1 on N bits
+    While I >= 128
+         Encode (I % 128 + 128) on 8 bits
+         I = I / 128
+    encode (I) on 8 bits
+                        </artwork></figure>
                     </t>
 
                     <section title="Example 1: Encoding 10 using a 5-bit prefix"
@@ -593,33 +584,39 @@
                         <t>
                             The value I=1337 is to be encoded with a 5-bit
                             prefix.
-                            <list style="symbols">
+                            <list>
                                 <t>1337 is greater than 31 (= 2^5 - 1).</t>
-                                <t><list style="symbols">
-                                    <t>The 5-bit prefix is filled with its max
-                                        value (31).</t>
-                                </list></t>
-                                <t>The value to represent on next bytes is I =
-                                    1337 - (2^5 - 1) = 1306.</t>
-                                <t><list style="symbols">
-                                    <t>1306 = 128*10 + 26, i.e. Q=10 and
-                                        R=26.</t>
-                                    <t>Q is greater than 1, bit 8 is set to
-                                        1.</t>
-                                    <t>The remainder R=26 is encoded on next 7
-                                        bits.</t>
-                                    <t>I is replaced by the quotient Q=10.</t>
-                                </list></t>
-                                <t>The value to represent on next bytes is I =
-                                    10.</t>
-                                <t><list style="symbols">
-                                    <t>10 = 128*0 + 10, i.e. Q=0 and R=10.</t>
-                                    <t>Q is equal to 0, bit 16 is set to
-                                        0.</t>
-                                    <t>The remainder R=10 is encoded on next 7
-                                        bits.</t>
-                                    <t>I is replaced by the quotient Q=0.</t>
-                                </list></t>
+                                <t>
+                                    <list>
+                                        <t>The 5-bit prefix is filled with its
+                                            max value (31).</t>
+                                    </list>
+                                </t>
+                                <t>I = 1337 - (2^5 - 1) = 1306.</t>
+                                <t>
+                                    <list>
+                                        <t>I (1306) is greater than or equal
+                                            to 128, the while loop body
+                                            executes:</t>
+                                        <t>
+                                            <list>
+                                                <t>I % 128 == 26</t>
+                                                <t>26 + 128 == 154</t>
+                                                <t>154 is encoded in 8 bits as:
+                                                    10011010</t>
+                                                <t>I is set to 10 (1306 / 128 ==
+                                                    10)</t>
+                                                <t>I is no longer greater than or
+                                                    equal to 128, the while loop
+                                                    terminates.</t>
+                                            </list>
+                                        </t>
+                                        <t>
+                                            I, now 10, is encoded on 8 bits as: 00001010
+                                        </t>
+                                    </list>
+                                </t>
+
                                 <t>The process ends.</t>
                             </list>
 
@@ -628,9 +625,9 @@
                             <artwork type="inline">
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31
-| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   Q>=1, R=26
-| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   Q=0 , R=10
+| X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31, I = 1306
+| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   1306>=128, encode(154), I = 1306/128
+| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   10&lt;128, encode(10), done
 +---+---+---+---+---+---+---+---+
 </artwork>
                         </figure>
