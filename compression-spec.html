@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html lang="en"><head><title>HPACK</title>
+<html lang="en"><head><title>HPACK - Header Compression for HTTP/2.0</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<meta name="description" content="HPACK">
+<meta name="description" content="HPACK - Header Compression for HTTP/2.0">
 <meta name="keywords" content="HTTP, Header">
 <meta name="generator" content="xml2rfc v1.36 (http://xml.resource.org/)">
 <style type='text/css'><!--
@@ -145,10 +145,10 @@
 <tr><td class="header">HTTPbis Working Group</td><td class="header">R. Peon</td></tr>
 <tr><td class="header">Internet-Draft</td><td class="header">Google, Inc</td></tr>
 <tr><td class="header">Intended status: Informational</td><td class="header">H. Ruellan</td></tr>
-<tr><td class="header">Expires: February 22, 2014</td><td class="header">Canon CRF</td></tr>
-<tr><td class="header">&nbsp;</td><td class="header">August 21, 2013</td></tr>
+<tr><td class="header">Expires: February 28, 2014</td><td class="header">Canon CRF</td></tr>
+<tr><td class="header">&nbsp;</td><td class="header">August 27, 2013</td></tr>
 </table></td></tr></table>
-<h1><br />HPACK<br />draft-ietf-httpbis-header-compression-01</h1>
+<h1><br />HPACK - Header Compression for HTTP/2.0<br />draft-ietf-httpbis-header-compression-02</h1>
 
 <h3>Abstract</h3>
 
@@ -172,7 +172,7 @@ and may be updated, replaced, or obsoleted by other documents at any time.
 It is inappropriate to use Internet-Drafts as reference material or to cite
 them other than as &ldquo;work in progress.&rdquo;</p>
 <p>
-This Internet-Draft will expire on February 22, 2014.</p>
+This Internet-Draft will expire on February 28, 2014.</p>
 
 <h3>Copyright Notice</h3>
 <p>
@@ -223,8 +223,6 @@ Reference Set Emission<br />
 Header Set Completion<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#header.table.management">3.2.4.</a>&nbsp;
 Header Table Management<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href="#specific.use.cases">3.2.5.</a>&nbsp;
-Specific Use Cases<br />
 <a href="#detailed.format">4.</a>&nbsp;
 Detailed Format<br />
 &nbsp;&nbsp;&nbsp;&nbsp;<a href="#string.encoding">4.1.</a>&nbsp;
@@ -252,22 +250,28 @@ Security Considerations<br />
 <a href="#IANA">7.</a>&nbsp;
 IANA Considerations<br />
 <a href="#rfc.references1">8.</a>&nbsp;
+References<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#rfc.references1">8.1.</a>&nbsp;
+Normative References<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#rfc.references2">8.2.</a>&nbsp;
 Informative References<br />
-<a href="#anchor7">Appendix&nbsp;A.</a>&nbsp;
+<a href="#anchor8">Appendix&nbsp;A.</a>&nbsp;
 Change Log (to be removed by RFC Editor before publication<br />
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor8">A.1.</a>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor9">A.1.</a>&nbsp;
+Since draft-ietf-httpbis-header-compression-01<br />
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor10">A.2.</a>&nbsp;
 Since draft-ietf-httpbis-header-compression-01<br />
 <a href="#initial.headers">Appendix&nbsp;B.</a>&nbsp;
 Initial Header Tables<br />
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor11">B.1.</a>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor13">B.1.</a>&nbsp;
 Requests<br />
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor12">B.2.</a>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor14">B.2.</a>&nbsp;
 Responses<br />
 <a href="#example">Appendix&nbsp;C.</a>&nbsp;
 Example<br />
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor14">C.1.</a>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor16">C.1.</a>&nbsp;
 First header set<br />
-&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor15">C.2.</a>&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#anchor17">C.2.</a>&nbsp;
 Second header set<br />
 </p>
 <br clear="all" />
@@ -288,34 +292,26 @@ Introduction</h3>
 Overview</h3>
 
 <p>
-                In HTTP/1.X, HTTP headers, which are necessary for the
-                functioning of the protocol, are transmitted with no
-                transformations. Unfortunately, the amount of redundancy in
-                both the keys and the values of these headers is high, and is
-                the cause of increased latency on lower bandwidth links. This
-                indicates that an alternate more compact encoding for headers
-                would be beneficial to latency, and that is what is proposed
-                here.
+                In HTTP/1.X, headers are sent without any form of compression.
+                As web pages have grown to include dozens to hundreds of
+                requests, the redundant headers in these requests now pose
+                a problem of measurable latency and unnecessary bandwidth.
+                <a class='info' href='#PERF1'>1<span> (</span><span class='info'>Belshe, M., &ldquo;IETF83: SPDY and What to Consider for HTTP/2.0,&rdquo; March&nbsp;2012.</span><span>)</span></a> [PERF1] <a class='info' href='#PERF2'>2<span> (</span><span class='info'>McManus, P., &ldquo;SPDY What I Like About You,&rdquo; September&nbsp;2011.</span><span>)</span></a> [PERF2]
             
 </p>
 <p>
-                As shown by <a class='info' href='#SPDY'>SPDY<span> (</span><span class='info'>Belshe, M. and R. Peon, &ldquo;SPDY Protocol,&rdquo; February&nbsp;2012.</span><span>)</span></a> [SPDY], Deflate
-                compresses HTTP very effectively. However, the use of a
-                compression scheme which allows for arbitrary matches against
-                the previously encoded data (such as Deflate) exposes users to
-                security issues.
-
-                In particular, the compression of sensitive data, together
-                with other data controlled by an attacker, may lead to leakage
-                of that sensitive data, even when the resultant bytes are
-                transmitted over an encrypted channel.
+                <a class='info' href='#SPDY'>SPDY<span> (</span><span class='info'>Belshe, M. and R. Peon, &ldquo;SPDY Protocol,&rdquo; February&nbsp;2012.</span><span>)</span></a> [SPDY] initially addressed this
+                redundancy by compressing headers with Deflate, which proved
+                very effective at eliminating the redundant headers.  However,
+                that aproach exposed a security risk as demonstrated by the
+                <a class='info' href='#CRIME'>CRIME<span> (</span><span class='info'>Rizzo, J. and T. Duong, &ldquo;The Crime Attack,&rdquo; September&nbsp;2012.</span><span>)</span></a> [CRIME].
             
 </p>
 <p>
-                Another consideration is that processing and memory costs of a
-                compressor such as Deflate may also be too high for some
-                classes of devices, for example when doing forward or reverse
-                proxying.
+                In this document, we propose a new header compressor which
+                eliminates the redundant headers, is not vulnerable to the 
+                CRIME style attack, and which also has a bounded memory
+                cost for use in small constrained environments.
             
 </p>
 <a name="anchor2"></a><br /><hr />
@@ -324,11 +320,10 @@ Overview</h3>
 Outline</h3>
 
 <p>
-                    The HTTP header encoding described in this document
-                    is based on a header table that map (name, value) pairs to index values.
-                    This scheme is believed to be safe for all known attacks
-                    against the compression context today.  Header tables are
-                    incrementally updated during the HTTP/2.0 session.
+                    The HTTP header encoding described in this document is based
+                    on a header table that map (name, value) pairs to index
+                    values.  Header tables are incrementally updated during the
+                    HTTP/2.0 session.
                 
 </p>
 <p>
@@ -402,8 +397,9 @@ Encoding Concepts</h3>
 <dd>
                             When decoding a set of headers, some operations
                             emit a header (see <a class='info' href='#header.emission'>Section&nbsp;3.1.6<span> (</span><span class='info'>Header Emission</span><span>)</span></a>). An emitted header
-                            is added to the set of headers. Once emitted, a
-                            header can't be removed from the set of headers.
+                            is added to the set of headers that form the HTTP
+                            request or response. Once emitted, a header can't
+                            be removed from the set of headers.
                         
 </dd>
 </dl></blockquote><p>
@@ -448,22 +444,24 @@ Header Table</h3>
                     
 </p>
 <p>
-                        A header can be represented by an entry of the header
-                        table if they match. A header and an entry match if
-                        both their name and their value match. A header name
-                        and an entry name match if they are equal using a
-                        character-based, <em>case insensitive</em>
-                        comparison (the case insensitive comparison is used
-                        because HTTP header names are defined in a case
-                        insensitive way). A header value and an entry value
-                        match if they are equal using a character-based,
-                        <em>case sensitive</em> comparison.
+                        A header can be represented by an entry from the header
+                        table. Rather than encoding a literal value for the
+                        header field name and value, the encoder can select an
+                        entry from the header table.
                     
 </p>
 <p>
-                        Generally, the header table will not contain duplicate
-                        entries. However, implementations MUST be prepared to
-                        accept duplicates without signalling an error.
+                        Literal header names MUST be translated to lowercase
+                        before encoding and transmission.  This enables an
+                        encoder to perform direct bitwise comparisons on names
+                        and values when determining if an entry already exists
+                        in the header table.
+                    
+</p>
+<p>
+                        There is no need for the header table to contain
+                        duplicate entries. However, duplicate entries MUST NOT
+                        be treated as an error by a decoder.
                     
 </p>
 <p>
@@ -485,7 +483,7 @@ Header Table</h3>
                         as such can control how much memory is used by the
                         header table. To limit the memory requirements on the
                         decoder side, the header table size is bounded (see
-                        the SETTINGS_MAX_BUFFER_SIZE in <a class='info' href='#parameter.negotiation'>Section&nbsp;5<span> (</span><span class='info'>Parameter Negotiation</span><span>)</span></a>).
+                        the SETTINGS_HEADER_TABLE_SIZE in <a class='info' href='#parameter.negotiation'>Section&nbsp;5<span> (</span><span class='info'>Parameter Negotiation</span><span>)</span></a>).
                     
 </p>
 <p>
@@ -756,7 +754,7 @@ Header Table Management</h3>
                         new entry to it or by replacing an existing one.
                         Before doing such a modification, it has to be ensured
                         that the header table size will stay lower than or
-                        equal to the SETTINGS_MAX_BUFFER_SIZE limit (see <a class='info' href='#parameter.negotiation'>Section&nbsp;5<span> (</span><span class='info'>Parameter Negotiation</span><span>)</span></a>).  To achieve
+                        equal to the SETTINGS_HEADER_TABLE_SIZE limit (see <a class='info' href='#parameter.negotiation'>Section&nbsp;5<span> (</span><span class='info'>Parameter Negotiation</span><span>)</span></a>).  To achieve
                         this, repeatedly, the first entry of the header table
                         is removed, until enough space is available for the
                         modification.
@@ -782,51 +780,12 @@ Header Table Management</h3>
 </p>
 <p>
                         The addition of a new entry with a size greater than
-                        the SETTINGS_MAX_BUFFER_SIZE limit causes all the
+                        the SETTINGS_HEADER_TABLE_SIZE limit causes all the
                         entries from the header table to be dropped and the
                         new entry not to be added to the header table. The
                         replacement of an existing entry with a new entry with
-                        a size greater than the SETTINGS_MAX_BUFFER_SIZE has
+                        a size greater than the SETTINGS_HEADER_TABLE_SIZE has
                         the same consequences.
-                    
-</p>
-<a name="specific.use.cases"></a><br /><hr />
-<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
-<a name="rfc.section.3.2.5"></a><h3>3.2.5.&nbsp;
-Specific Use Cases</h3>
-
-<p>
-                        Three occurrences of the same indexed representation,
-                        corresponding to an entry not present in the reference
-                        set, emit the associated header twice:
-                        </p>
-<ul class="text">
-<li>
-                                The first occurrence emits the header a first
-                                time and adds the corresponding entry to the
-                                reference set.
-                            
-</li>
-<li>
-                                The second occurrence removes the header's
-                                entry from the reference set.
-                            
-</li>
-<li>
-                                The third occurrence emits the header a second
-                                time and adds again its entry to the reference
-                                set.
-                            
-</li>
-</ul><p>
-                        This allows for headers sets which include duplicate
-                        header entries to be encoded efficiently and faithfully.
-                    
-</p>
-<p>
-                        The first occurrence of the indexed representation can
-                        be replaced by a literal representation creating an
-                        entry for the header.
                     
 </p>
 <a name="detailed.format"></a><br /><hr />
@@ -875,6 +834,7 @@ Integer representation</h3>
 If I &lt; 2^N - 1, encode I on N bits
 Else
     encode 2^N - 1 on N bits
+    I = I - (2^N - 1)
     While I &gt;= 128
          Encode (I % 128 + 128) on 8 bits
          I = I / 128
@@ -1039,7 +999,15 @@ Header Value Representation</h3>
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.4.2"></a><h3>4.2.&nbsp;
 Indexed Header Representation</h3>
-<br /><hr class="insert" />
+
+<p>
+                    An indexed header representation identifies an entry in the
+                    header table.  The entry is emitted and added to the
+                    reference set if it is not currently in the reference set.
+                    The entry is removed from the reference set if it is present
+                    in the reference set.
+                
+</p><br /><hr class="insert" />
 <div style='display: table; width: 0; margin-left: 3em; margin-right: auto'><pre>
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -1058,11 +1026,27 @@ Indexed Header Representation</h3>
 <a name="rfc.section.4.3"></a><h3>4.3.&nbsp;
 Literal Header Representation</h3>
 
+<p>
+                    Literal header representations contain a literal header
+                    field value.  Header field names are either provided as a
+                    literal or by reference to an existing header table entry.
+                
+</p>
+<p>
+                    Literal representations all result in the emission of a
+                    header when decoded.
+                
+</p>
 <a name="literal.header.without.indexing"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.4.3.1"></a><h3>4.3.1.&nbsp;
 Literal Header without Indexing</h3>
-<br /><hr class="insert" />
+
+<p>
+                        An literal header without indexing causes the emission
+                        of a header without altering the header table.
+                    
+</p><br /><hr class="insert" />
 <div style='display: table; width: 0; margin-left: 3em; margin-right: auto'><pre>
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -1090,8 +1074,7 @@ Literal Header without Indexing</h3>
 </pre></div><table border="0" cellpadding="0" cellspacing="2" align="center"><tr><td align="center"><font face="monaco, MS Sans Serif" size="1"><b>&nbsp;Literal Header without Indexing - New Name&nbsp;</b></font><br /></td></tr></table><hr class="insert" />
 
 <p>
-                        This representation, which does not involve updating
-                        the header table, starts with the '011' 3-bit pattern.
+                        This representation starts with the '011' 3-bit pattern.
                     
 </p>
 <p>
@@ -1118,7 +1101,12 @@ Literal Header without Indexing</h3>
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.4.3.2"></a><h3>4.3.2.&nbsp;
 Literal Header with Incremental Indexing</h3>
-<br /><hr class="insert" />
+
+<p>
+                        A literal header with incremental indexing adds a new
+                        entry to the header table.
+                    
+</p><br /><hr class="insert" />
 <div style='display: table; width: 0; margin-left: 3em; margin-right: auto'><pre>
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -1176,7 +1164,12 @@ Literal Header with Incremental Indexing</h3>
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.4.3.3"></a><h3>4.3.3.&nbsp;
 Literal Header with Substitution Indexing</h3>
-<br /><hr class="insert" />
+
+<p>
+                        A literal header with substitution indexing replaces an
+                        existing header table entry.
+                    
+</p><br /><hr class="insert" />
 <div style='display: table; width: 0; margin-left: 3em; margin-right: auto'><pre>
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -1219,7 +1212,7 @@ Literal Header with Substitution Indexing</h3>
                         value) pair stored in the Header Table, the index of
                         the pair increased by one (index + 1) is represented
                         as an integer with a 6-bit prefix.  Note that if the
-                        index is strictly below 62, one byte is used.
+                        index is strictly below 63, one byte is used.
                     
 </p>
 <p>
@@ -1259,7 +1252,7 @@ Parameter Negotiation</h3>
                 <a class='info' href='#comment.anchor3'>[anchor3]<span> (</span><span class='info'>These settings are currently not supported as they have not been integrated in the main specification. Therefore, the maximum buffer size for the header table is fixed at 4096 bytes.</span><span>)</span></a><a name='anchor3'></a>
                 </p>
 <blockquote class="text"><dl>
-<dt>SETTINGS_MAX_BUFFER_SIZE:</dt>
+<dt>SETTINGS_HEADER_TABLE_SIZE (TBD):</dt>
 <dd>
                         Allows the sender to inform the remote endpoint of the
                         maximum size it accepts for the header table.
@@ -1271,7 +1264,7 @@ Parameter Negotiation</h3>
                         <br />
 
                         When the remote endpoint receives a SETTINGS frame
-                        containing a SETTINGS_MAX_BUFFER_SIZE setting with a
+                        containing a SETTINGS_HEADER_TABLE_SIZE setting with a
                         value smaller than the one currently in use, it MUST
                         send as soon as possible a HEADER frame with a stream
                         identifier of 0x0 containing a value smaller than or
@@ -1343,22 +1336,44 @@ Security Considerations</h3>
 <a name="rfc.section.7"></a><h3>7.&nbsp;
 IANA Considerations</h3>
 
-<p>This memo includes no request to IANA.
+<p>
+                This document registers the SETTINGS_HEADER_TABLE_SIZE setting
+                in the "HTTP/2.0 Settings" registry established by <a class='info' href='#HTTP2'>[HTTP2]<span> (</span><span class='info'>Belshe, M., Peon, R., Thomson, M., and A. Melnikov, &ldquo;Hypertext Transfer Protocol version 2.0,&rdquo; February&nbsp;2013.</span><span>)</span></a>.  The assigned code for this setting is TBD.
+            
 </p>
+<a name="rfc.references"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.8"></a><h3>8.&nbsp;
+References</h3>
+
 <a name="rfc.references1"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
-<h3>8.&nbsp;Informative References</h3>
+<h3>8.1.&nbsp;Normative References</h3>
 <table width="99%" border="0">
+<tr><td class="author-text" valign="top"><a name="HTTP2">[HTTP2]</a></td>
+<td class="author-text">Belshe, M., Peon, R., Thomson, M., and A. Melnikov, &ldquo;<a href="http://tools.ietf.org/html/draft-ietf-httpbis-http2-06">Hypertext Transfer Protocol version 2.0</a>,&rdquo; draft-ietf-httpbis-http2-06 (work in progress), February&nbsp;2013.</td></tr>
+</table>
+
+<a name="rfc.references2"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<h3>8.2.&nbsp;Informative References</h3>
+<table width="99%" border="0">
+<tr><td class="author-text" valign="top"><a name="CRIME">[CRIME]</a></td>
+<td class="author-text">Rizzo, J. and T. Duong, &ldquo;<a href="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit#slide=id.g1eb6c1b5_3_6">The Crime Attack</a>,&rdquo; September&nbsp;2012.</td></tr>
+<tr><td class="author-text" valign="top"><a name="PERF1">[PERF1]</a></td>
+<td class="author-text">Belshe, M., &ldquo;<a href="http://www.ietf.org/proceedings/83/slides/slides-83-httpbis-3">IETF83: SPDY and What to Consider for HTTP/2.0</a>,&rdquo; March&nbsp;2012.</td></tr>
+<tr><td class="author-text" valign="top"><a name="PERF2">[PERF2]</a></td>
+<td class="author-text">McManus, P., &ldquo;<a href="http://bitsup.blogspot.com/2011/09/spdy-what-i-like-about-you.html">SPDY What I Like About You</a>,&rdquo; September&nbsp;2011.</td></tr>
 <tr><td class="author-text" valign="top"><a name="SPDY">[SPDY]</a></td>
 <td class="author-text">Belshe, M. and R. Peon, &ldquo;<a href="http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy">SPDY Protocol</a>,&rdquo; February&nbsp;2012.</td></tr>
 </table>
 
-<a name="anchor7"></a><br /><hr />
+<a name="anchor8"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.A"></a><h3>Appendix A.&nbsp;
 Change Log (to be removed by RFC Editor before publication</h3>
 
-<a name="anchor8"></a><br /><hr />
+<a name="anchor9"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.A.1"></a><h3>A.1.&nbsp;
 Since draft-ietf-httpbis-header-compression-01</h3>
@@ -1405,19 +1420,51 @@ Since draft-ietf-httpbis-header-compression-01</h3>
 </ul><p>
                 
 </p>
+<a name="anchor10"></a><br /><hr />
+<table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
+<a name="rfc.section.A.2"></a><h3>A.2.&nbsp;
+Since draft-ietf-httpbis-header-compression-01</h3>
+
+<p>
+                    </p>
+<blockquote class="text">
+<p>Fixed bug/omission in integer representation algorithm.
+</p>
+<p>Changed the document title.
+</p>
+<p>Header matching text rewritten.
+</p>
+<p>Changed the definition of header emission.
+</p>
+<p>Changed the name of the setting which dictates how
+                            much memory the compression context should
+                            use.
+</p>
+<p>Removed "specific use cases" section
+</p>
+<p>Corrected erroneous statement about what index can
+                            be contained in one byte
+</p>
+<p>Added descriptions of opcodes
+</p>
+<p>Removed security claims from introduction.
+</p>
+</blockquote><p>
+                
+</p>
 <a name="initial.headers"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.B"></a><h3>Appendix B.&nbsp;
 Initial Header Tables</h3>
 
 <p>
-                <a class='info' href='#comment.anchor9'>[anchor9]<span> (</span><span class='info'>The tables in this section should be updated based on statistical analysis of header names frequency and specific HTTP 2.0 header rules (like removal of some headers).</span><span>)</span></a><a name='anchor9'></a>
+                <a class='info' href='#comment.anchor11'>[anchor11]<span> (</span><span class='info'>The tables in this section should be updated based on statistical analysis of header names frequency and specific HTTP 2.0 header rules (like removal of some headers).</span><span>)</span></a><a name='anchor11'></a>
                 <br />
 
-                <a class='info' href='#comment.anchor10'>[anchor10]<span> (</span><span class='info'>These tables are not adapted for headers contained in PUSH_PROMISE frames. Either the tables can be merged, or the table for responses can be updated.</span><span>)</span></a><a name='anchor10'></a>
+                <a class='info' href='#comment.anchor12'>[anchor12]<span> (</span><span class='info'>These tables are not adapted for headers contained in PUSH_PROMISE frames. Either the tables can be merged, or the table for responses can be updated.</span><span>)</span></a><a name='anchor12'></a>
             
 </p>
-<a name="anchor11"></a><br /><hr />
+<a name="anchor13"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.B.1"></a><h3>B.1.&nbsp;
 Requests</h3>
@@ -1586,7 +1633,7 @@ Requests</h3>
 <br clear="all" />
 <table border="0" cellpadding="0" cellspacing="2" align="center"><tr><td align="center"><font face="monaco, MS Sans Serif" size="1"><b>&nbsp;Table 1: Initial Header Table for Requests&nbsp;</b></font><br /></td></tr></table><hr class="insert" />
 
-<a name="anchor12"></a><br /><hr />
+<a name="anchor14"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.B.2"></a><h3>B.2.&nbsp;
 Responses</h3>
@@ -1765,10 +1812,10 @@ Example</h3>
 <p>
                 Here is an example that illustrates different representations
                 and how tables are updated.
-                <a class='info' href='#comment.anchor13'>[anchor13]<span> (</span><span class='info'>This section needs to be updated to better reflect the new processing of header fields, and include more examples.</span><span>)</span></a><a name='anchor13'></a>
+                <a class='info' href='#comment.anchor15'>[anchor15]<span> (</span><span class='info'>This section needs to be updated to better reflect the new processing of header fields, and include more examples.</span><span>)</span></a><a name='anchor15'></a>
             
 </p>
-<a name="anchor14"></a><br /><hr />
+<a name="anchor16"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.C.1"></a><h3>C.1.&nbsp;
 First header set</h3>
@@ -1838,7 +1885,7 @@ mynewheader, first
 
                 
 </p>
-<a name="anchor15"></a><br /><hr />
+<a name="anchor17"></a><br /><hr />
 <table summary="layout" cellpadding="0" cellspacing="2" class="TOCbug" align="right"><tr><td class="TOCbug"><a href="#toc">&nbsp;TOC&nbsp;</a></td></tr></table>
 <a name="rfc.section.C.2"></a><h3>C.2.&nbsp;
 Second header set</h3>
