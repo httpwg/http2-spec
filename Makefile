@@ -1,6 +1,6 @@
-xml2rfc = "/usr/local/bin/xml2rfc"
-saxpath = "$(HOME)/java/saxon-8-9-j/saxon8.jar"
-saxon = java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
+xml2rfc ?= "/usr/local/bin/xml2rfc"
+saxpath ?= "$(HOME)/java/saxon-8-9-j/saxon8.jar"
+saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 
 draft_title = draft-ietf-httpbis-http2
 current_rev = $(shell git tag | tail -1 | awk -F- '{print $$NF}')
@@ -26,7 +26,7 @@ else
     sed_i := sed -i
 endif
 
-$(next_rev_name).xml:
+$(next_rev_name).xml: $(draft_title).xml
 	cp $(draft_title).xml $(next_rev_name).xml
 	$(sed_i) -e"s/$(draft_title)-latest/$(next_rev_name)/" $(next_rev_name).xml
 
