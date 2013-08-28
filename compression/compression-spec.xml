@@ -1,0 +1,1331 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type='text/xsl' href='lib/rfc2629.xslt' ?>
+
+<!--<?rfc header="Documentation"?>-->
+<!--?rfc private="RFC2629 through XSLT"?-->
+<?rfc toc="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc compact="yes"?>
+<?rfc subcompact="no"?>
+<?rfc linkmailto="no"?>
+<?rfc editing="no"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+<?rfc rfcedstyle="yes"?>
+<?rfc-ext allow-markup-in-artwork="yes" ?>
+<?rfc-ext include-index="no" ?>
+<!-- <?rfc topblock="no"?> -->
+<!--<?rfc strict="no"?>-->
+
+<rfc category="info"
+    ipr="trust200902"
+    docName="draft-ietf-httpbis-header-compression-03"
+    >
+    <front>
+        <title abbrev="HPACK">HPACK - Header Compression for HTTP/2.0 </title>
+
+        <author initials="R." surname="Peon" fullname="Roberto Peon">
+            <organization>Google, Inc</organization>
+            <address>
+                <email>fenix@google.com</email>
+            </address>
+        </author>
+
+        <author initials="H." surname="Ruellan" fullname="Hervé Ruellan">
+            <organization>Canon CRF</organization>
+            <address>
+                <email>herve.ruellan@crf.canon.fr</email>
+            </address>
+        </author>
+
+        <date month="August" year="2013"/>
+        <area>Applications</area>
+        <workgroup>HTTPbis Working Group</workgroup>
+        <keyword>HTTP</keyword>
+        <keyword>Header</keyword>
+        <abstract>
+            <t>
+                This document describes HPACK, a format adapted to efficiently
+                represent HTTP headers in the context of HTTP/2.0.
+            </t>
+        </abstract>
+    </front>
+
+    <middle>
+        <section title="Introduction">
+
+            <t>
+                This document describes HPACK, a format adapted to efficiently
+                represent HTTP headers in the context of HTTP/2.0.
+            </t>
+        </section>
+
+        <section title="Overview" anchor="overview">
+            <t>
+                In HTTP/1.X, headers are sent without any form of compression.
+                As web pages have grown to include dozens to hundreds of
+                requests, the redundant headers in these requests now pose
+                a problem of measurable latency and unnecessary bandwidth.
+                <xref target="PERF1">1</xref> <xref target="PERF2">2</xref>
+            </t>
+
+            <t>
+                <xref target="SPDY">SPDY</xref> initially addressed this
+                redundancy by compressing headers with Deflate, which proved
+                very effective at eliminating the redundant headers.  However,
+                that aproach exposed a security risk as demonstrated by the
+                <xref target="CRIME">CRIME</xref>.
+            </t>
+
+            <t>
+                In this document, we propose a new header compressor which
+                eliminates the redundant headers, is not vulnerable to the 
+                CRIME style attack, and which also has a bounded memory
+                cost for use in small constrained environments.
+            </t>
+
+            <section title="Outline">
+                <t>
+                    The HTTP header encoding described in this document is based
+                    on a header table that map (name, value) pairs to index
+                    values.  Header tables are incrementally updated during the
+                    HTTP/2.0 session.
+                </t>
+                <t>
+                    The encoder is responsible for deciding which headers to
+                    insert as new entries in the header table.  The
+                    decoder then does exactly what the encoder prescribes,
+                    ending in a state that exactly matches the encoder's
+                    state.  This enables decoders to remain simple and
+                    understand a wide variety of encoders.
+                </t>
+                <t>
+                    As two consecutive sets of headers often have headers in
+                    common, each set of headers is coded as a difference from
+                    the previous set of headers. The goal is to only encode
+                    the changes (headers present in one of the set and not in
+                    the other) between the two sets of headers.
+                </t>
+                <t>
+                    An example illustrating the use of these different
+                    mechanisms to represent headers is available in <xref
+                        target="example"/>.
+                </t>
+            </section>
+        </section>
+
+        <section title="Header Encoding" anchor="header.encoding">
+            <section title="Encoding Concepts" anchor="encoding.concepts">
+                <t>
+                    The encoding and decoding of headers relies on some
+                    components and concepts. The set of components used form
+                    an encoding context.
+                    <list style="hanging">
+                        <t hangText="Header Table:">
+                            The header table (see <xref
+                                target="header.table"/>) is a component used
+                            to associate headers to index values.
+                        </t>
+                        <t hangText="Reference Set:">
+                            The reference set (see <xref
+                                target="reference.set"/>) is a component
+                            containing a group of headers used as a reference
+                            for the differential encoding of a new set of
+                            headers.
+                        </t>
+                        <t hangText="Header Set:">
+                            A header set (see <xref target="header.set"/>) is
+                            a group of headers that are encoded jointly. A
+                            complete set of key-value pairs as encoded in
+                            an HTTP request or response is a header set.
+                        </t>
+                        <t hangText="Header Representation:">
+                            A header can be represented in encoded form either
+                            as a literal or as an index (see <xref
+                                target="header.representation"/>). The indexed
+                            representation is based on the header table.
+                        </t>
+                        <t hangText="Header Emission:">
+                            When decoding a set of headers, some operations
+                            emit a header (see <xref
+                                target="header.emission"/>). An emitted header
+                            is added to the set of headers that form the HTTP
+                            request or response. Once emitted, a header can't
+                            be removed from the set of headers.
+                        </t>
+                    </list>
+                </t>
+
+                <section title="Encoding Context" anchor="encoding.context">
+                    <t>
+                        The set of components used to encode or decode a
+                        header set form an encoding context: an encoding
+                        context contains a header table and a reference set.
+                    </t>
+                    <t>
+                        Using HTTP, messages are exchanged between a client
+                        and a server in both direction. To keep the encoding
+                        of headers in each direction independent from the
+                        other direction, there is one encoding context for
+                        each direction.
+                    </t>
+                    <t>
+                        The headers contained in a PUSH_PROMISE frame sent by
+                        a server to a client are encoded within the same
+                        context as the headers contained in the HEADERS frame
+                        corresponding to a response sent from the server to
+                        the client.
+                    </t>
+                </section>
+
+                <section title="Header Table" anchor="header.table">
+                    <t>
+                        A header table consists of an ordered list of (name,
+                        value) pairs. The first entry of a header table is
+                        assigned the index 0.
+                    </t>
+                    <t>
+                        A header can be represented by an entry from the header
+                        table. Rather than encoding a literal value for the
+                        header field name and value, the encoder can select an
+                        entry from the header table.
+                    </t>
+                    <t>
+                        Literal header names MUST be translated to lowercase
+                        before encoding and transmission.  This enables an
+                        encoder to perform direct bitwise comparisons on names
+                        and values when determining if an entry already exists
+                        in the header table.
+                    </t>
+                    <t>
+                        There is no need for the header table to contain
+                        duplicate entries. However, duplicate entries MUST NOT
+                        be treated as an error by a decoder.
+                    </t>
+                    <t>
+                        Initially, a header table contains a list of common
+                        headers. Two initial lists of header are provided in
+                        <xref target="initial.headers"/>. One list is for
+                        headers transmitted from a client to a server, the
+                        other for the reverse direction.
+                    </t>
+                    <t>
+                        A header table is modified by either adding a new
+                        entry at the end of the table, or by replacing an
+                        existing entry.
+                    </t>
+                    <t>
+                        The encoder decides how to update the header table and
+                        as such can control how much memory is used by the
+                        header table. To limit the memory requirements on the
+                        decoder side, the header table size is bounded (see
+                        the SETTINGS_HEADER_TABLE_SIZE in <xref
+                            target="parameter.negotiation"/>).
+                    </t>
+                    <t>
+                        The size of an entry is the sum of its name's length
+                        in bytes (as defined in <xref
+                            target="header.name.representation" />), of its
+                        value's length in bytes (<xref
+                            target="string.literal.representation" />) and of
+                        32 bytes. The 32 bytes are an accounting for the entry
+                        structure overhead. For example, an entry structure
+                        using two 64-bits pointers to reference the name and
+                        the value and the entry, and two 64-bits integer for
+                        counting the number of references to these name and
+                        value would use 32 bytes.
+                    </t>
+                    <t>
+                        The size of a header table is the sum of the size of
+                        its entries.
+                    </t>
+                </section>
+
+                <section title="Reference Set" anchor="reference.set">
+                    <t>
+                        A reference set is defined as an unordered set of
+                        references to entries of the header table.
+                    </t>
+                    <t>
+                        The initial reference set is the empty set.
+                    </t>
+                    <t>
+                        The reference set is updated during the processing of
+                        a set of headers.
+                    </t>
+                    <t>
+                        Using the differential encoding, a header that is not
+                        present in the reference set can be encoded either
+                        with an indexed representation (if the header is
+                        present in the header table), or with a literal
+                        representation (if the header is not present in the
+                        header table).
+                    </t>
+                    <t>
+                        A header that is to be removed from the reference set
+                        is encoded with an indexed representation.
+                    </t>
+                </section>
+
+                <section title="Header set" anchor="header.set">
+                    <t>
+                        A header set is a group of header fields that are
+                        encoded as a whole. Each header field is a (name,
+                        value) pair.
+                    </t>
+                    <t>
+                        A header set is encoded using an ordered list of zero
+                        or more header representations. All the header
+                        representations describing a header set a grouped into
+                        a header block.
+                    </t>
+                </section>
+
+                <section title="Header Representation"
+                    anchor="header.representation">
+                    <t>
+                        A header can be represented either as a literal or as
+                        an index.
+                    </t>
+                    <t>
+                        <list style="hanging">
+                            <t hangText="Literal Representation:">
+                                A literal representation defines a new
+                                header. The header name is represented either
+                                literally or as a reference to an entry of the
+                                header table. The header value is represented
+                                literally.
+                            </t>
+                            <t>
+                                Three different literal representations are provided:
+                                <list style="symbols">
+                                    <t>
+                                        A literal representation that does not
+                                        add the header to the header table
+                                        (see <xref
+                                            target="literal.header.without.indexing"/>).
+                                    </t>
+                                    <t>
+                                        A literal representation that
+                                        adds the header at the end of the
+                                        header table
+                                        (see <xref
+                                            target="literal.header.with.incremental.indexing"/>).
+                                    </t>
+                                    <t>
+                                        A literal representation that
+                                        uses the header to replace an existing
+                                        entry of the header table
+                                        (see <xref
+                                            target="literal.header.with.substitution.indexing"/>).
+                                    </t>
+                                </list>
+                            </t>
+                            <t hangText="Indexed Representation:">
+                                The indexed representation defines a header as
+                                a reference in the header table (see <xref
+                                    target="indexed.header.representation"/>).
+                            </t>
+                        </list>
+                    </t>
+                </section>
+
+                <section title="Header Emission" anchor="header.emission">
+                    <t>
+                        The emission of header is the process of adding a
+                        header to the current set of headers. Once an header
+                        is emitted, it can't be removed from the current set
+                        of headers.
+                    </t>
+                    <t>
+                        The concept of header emission allows a decoder to
+                        know when it can pass a header safely to a higher
+                        level on the receiver side. This allows a decoder to
+                        be implemented in a streaming way, and as such to only
+                        keep in memory the header table and the reference set.
+                        With such an implementation, the amount of memory used
+                        by the decoder is bounded, even in presence of a very
+                        large set of headers. The management of memory for
+                        handling very large sets of headers can therefore be
+                        deferred to the application, which may be able to emit
+                        the header to the wire and thus free up memory
+                        quickly.
+                    </t>
+                </section>
+
+            </section>
+
+            <section title="Header Set Processing"
+                anchor="header.set.processing">
+
+                <t>
+                    The processing of an encoded header set to obtain a list
+                    of headers is defined in this section.  To ensure a
+                    correct decoding of a header set, a decoder MUST obey the
+                    following rules.
+                </t>
+
+                <section title="Header Representation Processing"
+                    anchor="header.representation.processing">
+                    <t>
+                        All the header representations contained in a header
+                        block are processed in the order in which they are
+                        presented, as specified below.
+                    </t>
+                    <t>
+                        An <spanx>indexed representation</spanx> corresponding
+                        to an entry <spanx>not present</spanx> in the
+                        reference set entails the following actions:
+                        <list style="symbols">
+                            <t>The header corresponding to the entry is
+                                emitted.</t>
+                            <t>The entry is added to the reference set.</t>
+                        </list>
+                    </t>
+                    <t>
+                        An <spanx>indexed representation</spanx> corresponding
+                        to an entry <spanx>present</spanx> in the
+                        reference set entails the following actions:
+                        <list style="symbols">
+                            <t>The entry is removed from the reference set.</t>
+                        </list>
+                    </t>
+                    <t>
+                        A <spanx>literal representation</spanx> that is
+                        <spanx>not added</spanx> to the header table entails
+                        the following action:
+                        <list style="symbols">
+                            <t>The header is emitted.</t>
+                        </list>
+                    </t>
+                    <t>
+                        A <spanx>literal representation</spanx> that is
+                        <spanx>added</spanx> to the header table entails
+                        the following actions:
+                        <list style="symbols">
+                            <t>The header is emitted.</t>
+                            <t>The header is added to the header table, at the
+                                location defined by the representation.</t>
+                            <t>The new entry is added to the reference set.</t>
+                        </list>
+                    </t>
+                </section>
+
+                <section title="Reference Set Emission"
+                    anchor="reference.set.emission">
+                    <t>
+                        Once all the representations contained in a header
+                        block have been processed, the headers that are in
+                        common with the previous header set are emitted,
+                        during the reference set emission.
+                    </t>
+                    <t>
+                        For the reference set emission, each header contained
+                        in the reference set that has not been emitted during
+                        the processing of the header block is emitted.
+                    </t>
+                </section>
+
+                <section title="Header Set Completion"
+                    anchor="header.set.completion">
+                    <t>
+                        Once all of the header representations have been
+                        processed, and the remaining items in the reference
+                        set have been emitted, the header set is complete.
+                    </t>
+                </section>
+
+                <section title="Header Table Management"
+                    anchor="header.table.management">
+                    <t>
+                        The header table can be modified by either adding a
+                        new entry to it or by replacing an existing one.
+                        Before doing such a modification, it has to be ensured
+                        that the header table size will stay lower than or
+                        equal to the SETTINGS_HEADER_TABLE_SIZE limit (see <xref
+                            target="parameter.negotiation"/>).  To achieve
+                        this, repeatedly, the first entry of the header table
+                        is removed, until enough space is available for the
+                        modification.
+                    </t>
+                    <t>
+                        A consequence of removing one or more entries at the
+                        beginning of the header table is that the remaining
+                        entries are renumbered. The first entry of the header
+                        table is always associated to the index 0.
+                    </t>
+                    <t>
+                        When the modification of the header table is the
+                        replacement of an existing entry, the replaced entry
+                        is the one indicated in the literal representation
+                        before any entry is removed from the header table. If
+                        the entry to be replaced is removed from the header
+                        table when performing the size adjustment, the
+                        replacement entry is inserted at the beginning of the
+                        header table.
+                    </t>
+                    <t>
+                        The addition of a new entry with a size greater than
+                        the SETTINGS_HEADER_TABLE_SIZE limit causes all the
+                        entries from the header table to be dropped and the
+                        new entry not to be added to the header table. The
+                        replacement of an existing entry with a new entry with
+                        a size greater than the SETTINGS_HEADER_TABLE_SIZE has
+                        the same consequences.
+                    </t>
+                </section>
+
+            </section>
+
+        </section>
+
+        <section title="Detailed Format" anchor="detailed.format">
+            <section title="Low-level representations" anchor="string.encoding">
+                <section title="Integer representation" anchor="integer.representation">
+                    <t>
+                        Integers are used to represent name indexes, pair
+                        indexes or string lengths. To allow for optimized
+                        processing, an integer representation always finishes
+                        at the end of a byte.
+                    </t>
+                    <t>
+                        An integer is represented in two parts: a prefix that
+                        fills the current byte and an optional list of bytes
+                        that are used if the integer value does not fit in the
+                        prefix.  The number of bits of the prefix (called N)
+                        is a parameter of the integer representation.
+                    </t>
+                    <t>
+                        The N-bit prefix allows filling the current byte.  If
+                        the value is small enough (strictly less than 2^N-1),
+                        it is encoded within the N-bit prefix.  Otherwise all
+                        the bits of the prefix are set to 1 and the value is
+                        encoded using an <eref
+                            target="http://en.wikipedia.org/wiki/Variable-length_quantity">
+                            unsigned variable length integer</eref>
+                        representation.
+                    </t>
+                    <t>
+                        The algorithm to represent an integer I is as follows:
+                        <figure><artwork type = "inline">
+If I &lt; 2^N - 1, encode I on N bits
+Else
+    encode 2^N - 1 on N bits
+    I = I - (2^N - 1)
+    While I >= 128
+         Encode (I % 128 + 128) on 8 bits
+         I = I / 128
+    encode (I) on 8 bits
+                        </artwork></figure>
+                    </t>
+
+                    <section title="Example 1: Encoding 10 using a 5-bit prefix"
+                        anchor="integer.representation.example1">
+                        <t>
+                            The value 10 is to be encoded with a 5-bit prefix.
+                            <list style="symbols">
+                                <t>
+                                    10 is less than 31 (= 2^5 - 1) and is
+                                    represented using the 5-bit prefix.
+                                </t>
+                            </list>
+                        </t>
+                        <figure>
+                            <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 0 | 1 | 0 | 1 | 0 |   10 stored on 5 bits
++---+---+---+---+---+---+---+---+
+</artwork>
+                        </figure>
+                    </section>
+
+                    <section title="Example 2: Encoding 1337 using a 5-bit prefix"
+                        anchor="integer.representation.example2">
+                        <t>
+                            The value I=1337 is to be encoded with a 5-bit
+                            prefix.
+                            <list>
+                                <t>1337 is greater than 31 (= 2^5 - 1).</t>
+                                <t>
+                                    <list>
+                                        <t>The 5-bit prefix is filled with its
+                                            max value (31).</t>
+                                    </list>
+                                </t>
+                                <t>I = 1337 - (2^5 - 1) = 1306.</t>
+                                <t>
+                                    <list>
+                                        <t>I (1306) is greater than or equal
+                                            to 128, the while loop body
+                                            executes:</t>
+                                        <t>
+                                            <list>
+                                                <t>I % 128 == 26</t>
+                                                <t>26 + 128 == 154</t>
+                                                <t>154 is encoded in 8 bits as:
+                                                    10011010</t>
+                                                <t>I is set to 10 (1306 / 128 ==
+                                                    10)</t>
+                                                <t>I is no longer greater than or
+                                                    equal to 128, the while loop
+                                                    terminates.</t>
+                                            </list>
+                                        </t>
+                                        <t>
+                                            I, now 10, is encoded on 8 bits as: 00001010
+                                        </t>
+                                    </list>
+                                </t>
+
+                                <t>The process ends.</t>
+                            </list>
+
+                        </t>
+                        <figure>
+                            <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 1 | 1 | 1 | 1 | 1 |   Prefix = 31, I = 1306
+| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |   1306>=128, encode(154), I = 1306/128
+| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |   10&lt;128, encode(10), done
++---+---+---+---+---+---+---+---+
+</artwork>
+                        </figure>
+                    </section>
+                </section>
+
+                <section title="Header Name Representation" anchor="header.name.representation">
+
+                  <t>
+                      Header names are sequences of ASCII characters that
+                      MUST conform to the following header-name ABNF
+                      construction:
+                  </t>
+
+                  <figure><artwork><![CDATA[
+  LOWERALPHA = %x61-7A
+  header-char = "!" / "#" / "$" / "%" / "&" / "'" /
+                "*" / "+" / "-" / "." / "^" / "_" /
+                "`" / "|" / "~" / DIGIT / LOWERALPHA
+  header-name = [":"] 1*header-char
+                  ]]></artwork></figure>
+
+                  <t>
+                      They are encoded in two parts:
+                      <list style="numbers">
+                          <t>The length of the text, defined as the number of
+                              octets of storage required to store the text,
+                              represented as a <xref
+                                  target="integer.representation">
+                              variable-length-quantity </xref>.
+                          </t>
+                        <t>The specific sequence of ASCII octets</t>
+                      </list>
+                  </t>
+
+                </section>
+
+                <section title="Header Value Representation" anchor="string.literal.representation">
+                    <t>
+                        Header values are encoded as sequences of UTF-8 encoded
+                        text. They are encoded in two parts:
+                        <list style="numbers">
+                          <t>The length of the text, defined as the number of
+                              octets of storage required to store the text,
+                              represented as a <xref
+                                  target="integer.representation">
+                              variable-length-quantity </xref>.
+                          </t>
+                          <t>
+                              The specific sequence of octets representing the
+                              UTF-8 text.
+                          </t>
+                        </list>
+                    </t>
+                    <t>
+                      Invalid UTF-8 octet sequences, "over-long" UTF-8
+                      encodings, and UTF-8 octets that represent
+                      invalid Unicode Codepoints MUST NOT be used.
+                    </t>
+                </section>
+            </section>
+
+            <section title="Indexed Header Representation"
+                anchor="indexed.header.representation">
+                <t>
+                    An indexed header representation identifies an entry in the
+                    header table.  The entry is emitted and added to the
+                    reference set if it is not currently in the reference set.
+                    The entry is removed from the reference set if it is present
+                    in the reference set.
+                </t>
+                <figure title="Indexed Header">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 1 |        Index (7+)         |
++---+---------------------------+
+</artwork>
+                </figure>
+                <t>
+                    This representation starts with the '1' 1-bit pattern,
+                    followed by the index of the matching pair, represented as
+                    an integer with a 7-bit prefix.
+                </t>
+            </section>
+
+            <section title="Literal Header Representation"
+                anchor="literal.header.representation">
+                <t>
+                    Literal header representations contain a literal header
+                    field value.  Header field names are either provided as a
+                    literal or by reference to an existing header table entry.
+                </t>
+                <t>
+                    Literal representations all result in the emission of a
+                    header when decoded.
+                </t>
+                <section title="Literal Header without Indexing"
+                    anchor="literal.header.without.indexing">
+                    <t>
+                        An literal header without indexing causes the emission
+                        of a header without altering the header table.
+                    </t>
+                    <figure title="Literal Header without Indexing - Indexed Name">
+                        <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 | 1 |    Index (5+)     |
++---+---+---+-------------------+
+|       Value Length (8+)       |
++-------------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</artwork>
+                    </figure>
+                    <figure title="Literal Header without Indexing - New Name">
+                        <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 | 1 |         0         |
++---+---+---+-------------------+
+|       Name Length (8+)        |
++-------------------------------+
+|  Name String (Length octets)  |
++-------------------------------+
+|       Value Length (8+)       |
++-------------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</artwork>
+                    </figure>
+                    <t>
+                        This representation starts with the '011' 3-bit pattern.
+                    </t>
+                    <t>
+                        If the header name matches the header name of a (name,
+                        value) pair stored in the Header Table, the index of
+                        the pair increased by one (index + 1) is represented
+                        as an integer with a 5-bit prefix.  Note that if the
+                        index is strictly below 31, one byte is used.
+                    </t>
+                    <t>
+                        If the header name does not match a header name entry,
+                        the value 0 is represented on 5 bits followed by the
+                        header name (<xref
+                            target="header.name.representation" />).
+                    </t>
+                    <t>
+                        Header name representation is followed by the header
+                        value represented as a literal string as described in
+                        <xref target="string.literal.representation" />.
+                    </t>
+
+                </section>
+
+                <section title="Literal Header with Incremental Indexing"
+                    anchor="literal.header.with.incremental.indexing">
+                    <t>
+                        A literal header with incremental indexing adds a new
+                        entry to the header table.
+                    </t>
+                    <figure title="Literal Header with Incremental Indexing -
+                        Indexed Name">
+                        <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 | 0 |    Index (5+)     |
++---+---+---+-------------------+
+|       Value Length (8+)       |
++-------------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</artwork>
+                    </figure>
+                    <figure title="Literal Header with Incremental Indexing -
+                        New Name">
+                        <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 | 0 |         0         |
++---+---+---+-------------------+
+|       Name Length (8+)        |
++-------------------------------+
+|  Name String (Length octets)  |
++-------------------------------+
+|       Value Length (8+)       |
++-------------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</artwork>
+                    </figure>
+                    <t>
+                        This representation starts with the '010' 3-bit
+                        pattern.
+                    </t>
+                    <t>
+                        If the header name matches the header name of a (name,
+                        value) pair stored in the Header Table, the index of
+                        the pair increased by one (index + 1) is represented
+                        as an integer with a 5-bit prefix.  Note that if the
+                        index is strictly below 31, one byte is used.
+                    </t>
+                    <t>
+                        If the header name does not match a header name entry,
+                        the value 0 is represented on 5 bits followed by the
+                        header name (<xref
+                            target="header.name.representation" />).
+                    </t>
+                    <t>
+                        Header name representation is followed by the header
+                        value represented as a literal string as described in
+                        <xref target="string.literal.representation" />.
+                    </t>
+                </section>
+                <section title="Literal Header with Substitution Indexing"
+                    anchor="literal.header.with.substitution.indexing">
+                    <t>
+                        A literal header with substitution indexing replaces an
+                        existing header table entry.
+                    </t>
+                    <figure title="Literal Header with Substitution Indexing -
+                        Indexed Name">
+                        <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 |      Index (6+)       |
++---+---+-----------------------+
+|    Substituted Index (8+)     |
++-------------------------------+
+|       Value Length (8+)       |
++-------------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</artwork>
+                    </figure>
+                    <figure title="Literal Header with Substitution Indexing -
+                        New Name">
+                        <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 |           0           |
++---+---+-----------------------+
+|       Name Length (8+)        |
++-------------------------------+
+|  Name String (Length octets)  |
++-------------------------------+
+|    Substituted Index (8+)     |
++-------------------------------+
+|       Value Length (8+)       |
++-------------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</artwork>
+                    </figure>
+                    <t>
+                        This representation starts with the '00' 2-bit
+                        pattern.
+                    </t>
+                    <t>
+                        If the header name matches the header name of a (name,
+                        value) pair stored in the Header Table, the index of
+                        the pair increased by one (index + 1) is represented
+                        as an integer with a 6-bit prefix.  Note that if the
+                        index is strictly below 63, one byte is used.
+                    </t>
+                    <t>
+                        If the header name does not match a header name entry,
+                        the value 0 is represented on 6 bits followed by the
+                        header name (<xref
+                            target="header.name.representation" />).
+                    </t>
+                    <t>
+                        The index of the substituted (name, value) pair is
+                        inserted after the header name representation as a
+                        0-bit prefix integer.
+                    </t>
+                    <t>
+                        The index of the substituted pair MUST correspond to a
+                        position in the header table containing a non-void
+                        entry. An index for the substituted pair that
+                        corresponds to empty position in the header table MUST
+                        be treated as an error.
+                    </t>
+                    <t>
+                        This index is followed by the header
+                        value represented as a literal string as described in
+                        <xref target="string.literal.representation" />.
+                    </t>
+                </section>
+            </section>
+        </section>
+
+        <section anchor="parameter.negotiation" title="Parameter Negotiation">
+            <t>
+                A few parameters can be used to accommodate client and server
+                processing and memory requirements.
+                <cref>
+                    These settings are currently not supported as they have
+                    not been integrated in the main specification. Therefore,
+                    the maximum buffer size for the header table is fixed at
+                    4096 bytes.
+                </cref>
+                <list style="hanging">
+                    <t hangText="SETTINGS_HEADER_TABLE_SIZE (TBD):">
+                        Allows the sender to inform the remote endpoint of the
+                        maximum size it accepts for the header table.
+                        <vspace blankLines="0"/>
+                        The default value is 4096 bytes.
+                        <vspace blankLines="0"/>
+                        <cref>Is this default value OK? Do we need a maximum size? Do we want to allow infinite buffer?</cref>
+                        <vspace blankLines="0"/>
+                        When the remote endpoint receives a SETTINGS frame
+                        containing a SETTINGS_HEADER_TABLE_SIZE setting with a
+                        value smaller than the one currently in use, it MUST
+                        send as soon as possible a HEADER frame with a stream
+                        identifier of 0x0 containing a value smaller than or
+                        equal to the received setting value.
+                        <vspace blankLines="0"/>
+                        <cref>This changes slightly the behaviour of the
+                            HEADERS frame, which should be updated as follows:
+                        </cref>
+                        <vspace blankLines="0"/>
+                        A HEADER frame with a stream identifier of 0x0
+                        indicates that the sender has reduced the maximum size
+                        of the header table. The new maximum size of the
+                        header table is encoded on 32-bit. The decoder MUST
+                        reduce its own header table by dropping entries from
+                        it until the size of the header table is lower than or
+                        equal to the transmitted maximum size.
+                    </t>
+                </list>
+            </t>
+        </section>
+        <section anchor="Security" title="Security Considerations">
+            <t>
+                This compressor exists to solve security issues present in
+                stream compressors such as DEFLATE whereby the compression
+                context can be efficiently probed to reveal secrets.
+                A conformant implementation of this specification should be
+                fairly safe against that kind of attack, as the reaping of any
+                information from the compression context requires more work than
+                guessing and verifying the plaintext data directly with the
+                server.  As with any secret, however, the longer the length
+                of the secret, the more difficult the secret is to guess. It
+                is inadvisable to have short cookies that are relied upon to
+                remain secret for any duration of time.
+            </t>
+            <t>
+                A proper security-conscious implementation will also need to
+                prevent timing attacks by ensuring that the amount of time it
+                takes to do string comparisons is always a function of the
+                total length of the strings, and not a function of the number
+                of matched characters.
+            </t>
+            <t>
+                Another common security problem is when the remote endpoint
+                successfully causes the local endpoint to exhaust its memory.
+                This compressor attempts to deal with the most obvious ways
+                that this could occur by limiting both the peak and the
+                steady-state amount of memory consumed in the compressor
+                state, by providing ways for the application to consume/flush
+                the emitted headers in small chunks, and by considering
+                overhead in the state size calculation.  Implementors must
+                still be careful in the creation of APIs to an implementation
+                of this compressor by ensuring that header keys and values are
+                either emitted as a stream, or that the compression
+                implementation have a limit on the maximum size of a key or
+                value. Failure to implement these kinds of safeguards may
+                still result in a scenario where the local endpoint exhausts
+                its memory.
+            </t>
+        </section>
+        <section anchor="IANA" title="IANA Considerations">
+            <t>
+                This document registers the SETTINGS_HEADER_TABLE_SIZE setting
+                in the "HTTP/2.0 Settings" registry established by <xref
+                target="HTTP2"/>.  The assigned code for this setting is TBD.
+            </t>
+        </section>
+    </middle>
+
+    <back>
+        <references title="Normative References">
+            <reference anchor="HTTP2">
+                <front>
+                    <title>Hypertext Transfer Protocol version 2.0</title>
+                    <author initials="M" surname="Belshe" fullname="Mike Belshe">
+                        <organization>Twist</organization>
+                    </author>
+                    <author initials="R" surname="Peon" fullname="Roberto Peon">
+                        <organization>Google</organization>
+                    </author>
+                    <author initials="M" surname="Thomson" fullname="Martin Thomson">
+                        <organization></organization>
+                    </author>
+                    <author initials="A" surname="Melnikov" fullname="Alexey Melnikov">
+                        <organization></organization>
+                    </author>
+                    <date month="February" year="2013"/>
+                </front>
+                <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-06"/>
+            </reference>
+        </references>
+
+        <references title="Informative References">
+            <reference anchor="SPDY" target="http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy">
+                <front>
+                    <title>SPDY Protocol</title>
+                    <author initials="M." surname="Belshe" fullname="Mike Belshe">
+                        <organization>Twist</organization>
+                    </author>
+                    <author initials="R." surname="Peon" fullname="Roberto Peon">
+                        <organization>Google</organization>
+                    </author>
+                    <date month="February" year="2012"/>
+                </front>
+            </reference>
+            <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit#slide=id.g1eb6c1b5_3_6">
+                <front>
+                    <title>The Crime Attack</title>
+                    <author initials="J." surname="Rizzo" fullname="Juliano Rizzo"></author>
+                    <author initials="T." surname="Duong" fullname="Thai Duong"></author>
+                    <date month="September" year="2012"/>
+                </front>
+            </reference>
+            <reference anchor="PERF1" target="http://www.ietf.org/proceedings/83/slides/slides-83-httpbis-3">
+                <front>
+                    <title>IETF83: SPDY and What to Consider for HTTP/2.0</title>
+                    <author initials="M." surname="Belshe" fullname="Mike Belshe">
+                    </author>
+                    <date month="March" year="2012"/>
+                </front>
+            </reference>
+            <reference anchor="PERF2" target="http://bitsup.blogspot.com/2011/09/spdy-what-i-like-about-you.html">
+                <front>
+                    <title>SPDY What I Like About You</title>
+                    <author initials="P." surname="McManus" fullname="Patrick McManus">
+                    </author>
+                    <date month="September" year="2011"/>
+                </front>
+            </reference>
+        </references>
+
+
+        <section title="Change Log (to be removed by RFC Editor before publication">
+            <section title="Since draft-ietf-httpbis-header-compression-01">
+                <t>
+                    <list style="symbols">
+                        <t>
+                            Refactored of Header Encoding Section: split
+                            definitions and processing rule.
+                        </t>
+                        <t>
+                            Backward incompatible change: Updated
+                            reference set management as per issue #214. This
+                            changes how the interaction between the reference
+                            set and eviction works. This also changes the
+                            working of the reference set in some specific
+                            cases.
+                        </t>
+                        <t>
+                            Backward incompatible change: modified initial
+                            header list, as per issue #188.
+                        </t>
+                        <t>
+                            Added example of 32 bytes entry structure (issue
+                            #191).
+                        </t>
+                        <t>
+                            Added Header Set Completion section.  Reflowed
+                            some text. Clarified some writing which was
+                            akward.  Added text about duplicate header entry
+                            encoding.  Clarified some language w.r.t Header
+                            Set.  Changed x-my-header to mynewheader. Added
+                            text in the HeaderEmission section indicating that
+                            the application may also be able to free up memory
+                            more quickly.  Added information in Security
+                            Considerations section.
+                        </t>
+                    </list>
+                </t>
+            </section>
+            <section title="Since draft-ietf-httpbis-header-compression-01">
+                <t>
+                    <list>
+                        <t>Fixed bug/omission in integer representation algorithm.</t>
+                        <t>Changed the document title.</t>
+                        <t>Header matching text rewritten.</t>
+                        <t>Changed the definition of header emission.</t>
+                        <t>Changed the name of the setting which dictates how
+                            much memory the compression context should
+                            use.</t>
+                        <t>Removed "specific use cases" section</t>
+                        <t>Corrected erroneous statement about what index can
+                            be contained in one byte</t>
+                        <t>Added descriptions of opcodes</t>
+                        <t>Removed security claims from introduction.</t>
+                    </list>
+                </t>
+            </section>
+        </section>
+        <section title="Initial Header Tables" anchor="initial.headers">
+            <t>
+                <cref>
+                    The tables in this section should be updated based on
+                    statistical analysis of header names frequency and specific
+                    HTTP 2.0 header rules (like removal of some headers).
+                </cref>
+                <vspace blankLines="0"/>
+                <cref>
+                    These tables are not adapted for headers contained in
+                    PUSH_PROMISE frames. Either the tables can be merged, or
+                    the table for responses can be updated.
+                </cref>
+            </t>
+            <section title="Requests">
+                <t>
+                    The following table lists the pre-defined headers that
+                    make-up the initial header table user to represent
+                    requests sent from a client to a server.
+                </t>
+                <texttable title="Initial Header Table for Requests"
+                    anchor="initial.headers.request">
+                    <ttcol>Index</ttcol>
+                    <ttcol>Header Name</ttcol>
+                    <ttcol>Header Value</ttcol>
+                    <c>0</c><c>:scheme</c><c>http</c>
+                    <c>1</c><c>:scheme</c><c>https</c>
+                    <c>2</c><c>:host</c><c></c>
+                    <c>3</c><c>:path</c><c>/</c>
+                    <c>4</c><c>:method</c><c>GET</c>
+                    <c>5</c><c>accept</c><c></c>
+                    <c>6</c><c>accept-charset</c><c></c>
+                    <c>7</c><c>accept-encoding</c><c></c>
+                    <c>8</c><c>accept-language</c><c></c>
+                    <c>9</c><c>cookie</c><c></c>
+                    <c>10</c><c>if-modified-since</c><c></c>
+                    <c>11</c><c>user-agent</c><c></c>
+                    <c>12</c><c>referer</c><c></c>
+                    <c>13</c><c>authorization</c><c></c>
+                    <c>14</c><c>allow</c><c></c>
+                    <c>15</c><c>cache-control</c><c></c>
+                    <c>16</c><c>connection</c><c></c>
+                    <c>17</c><c>content-length</c><c></c>
+                    <c>18</c><c>content-type</c><c></c>
+                    <c>19</c><c>date</c><c></c>
+                    <c>20</c><c>expect</c><c></c>
+                    <c>21</c><c>from</c><c></c>
+                    <c>22</c><c>if-match</c><c></c>
+                    <c>23</c><c>if-none-match</c><c></c>
+                    <c>24</c><c>if-range</c><c></c>
+                    <c>25</c><c>if-unmodified-since</c><c></c>
+                    <c>26</c><c>max-forwards</c><c></c>
+                    <c>27</c><c>proxy-authorization</c><c></c>
+                    <c>28</c><c>range</c><c></c>
+                    <c>29</c><c>via</c><c></c>
+                </texttable>
+            </section>
+
+            <section title="Responses">
+                <t>
+                    The following table lists the pre-defined headers that
+                    make-up the initial header table used to represent
+                    responses sent from a server to a client. The same header
+                    table is also used to represent request headers sent from
+                    a server to a client in a PUSH_PROMISE frame.
+                </t>
+                <texttable title="Initial Header Table for Responses"
+                    anchor="initial.headers.response">
+                    <ttcol>Index</ttcol>
+                    <ttcol>Header Name</ttcol>
+                    <ttcol>Header Value</ttcol>
+                    <c>0</c><c>:status</c><c>200</c>
+                    <c>1</c><c>age</c><c></c>
+                    <c>2</c><c>cache-control</c><c></c>
+                    <c>3</c><c>content-length</c><c></c>
+                    <c>4</c><c>content-type</c><c></c>
+                    <c>5</c><c>date</c><c></c>
+                    <c>6</c><c>etag</c><c></c>
+                    <c>7</c><c>expires</c><c></c>
+                    <c>8</c><c>last-modified</c><c></c>
+                    <c>9</c><c>server</c><c></c>
+                    <c>10</c><c>set-cookie</c><c></c>
+                    <c>11</c><c>vary</c><c></c>
+                    <c>12</c><c>via</c><c></c>
+                    <c>13</c><c>access-control-allow-origin</c><c></c>
+                    <c>14</c><c>accept-ranges</c><c></c>
+                    <c>15</c><c>allow</c><c></c>
+                    <c>16</c><c>connection</c><c></c>
+                    <c>17</c><c>content-disposition</c><c></c>
+                    <c>18</c><c>content-encoding</c><c></c>
+                    <c>19</c><c>content-language</c><c></c>
+                    <c>20</c><c>content-location</c><c></c>
+                    <c>21</c><c>content-range</c><c></c>
+                    <c>22</c><c>link</c><c></c>
+                    <c>23</c><c>location</c><c></c>
+                    <c>24</c><c>proxy-authenticate</c><c></c>
+                    <c>25</c><c>refresh</c><c></c>
+                    <c>26</c><c>retry-after</c><c></c>
+                    <c>27</c><c>strict-transport-security</c><c></c>
+                    <c>28</c><c>transfer-encoding</c><c></c>
+                    <c>29</c><c>www-authenticate</c><c></c>
+                </texttable>
+            </section>
+        </section>
+
+        <section title="Example" anchor="example">
+            <t>
+                Here is an example that illustrates different representations
+                and how tables are updated.
+                <cref>This section needs to be updated to better reflect the new processing of header fields, and include more examples.</cref>
+            </t>
+            <section title="First header set">
+                <t>
+                    The first header set to represent is the following:
+                    <figure><artwork type="message/http">
+:path: /my-example/index.html
+user-agent: my-user-agent
+mynewheader: first
+</artwork></figure>
+                    The header table is empty, all headers are represented as
+                    literal headers with indexing.  The 'mynewheader' header
+                    name is not in the header name table and is encoded
+                    literally.  This gives the following representation:
+                    <figure><artwork type="message/http">
+0x44      (literal header with incremental indexing, name index = 3)
+0x16      (header value string length = 22)
+/my-example/index.html
+0x4D      (literal header with incremental indexing, name index = 12)
+0x0D      (header value string length = 13)
+my-user-agent
+0x40      (literal header with incremental indexing, new name)
+0x0B      (header name string length = 11)
+mynewheader
+0x05      (header value string length = 5)
+first
+</artwork></figure>
+                    The header table is as follows after the processing of
+                    these headers:
+                    <figure><artwork type="inline">
+Header table
++---------+----------------+---------------------------+
+|  Index  | Header Name    | Header Value              |
++---------+----------------+---------------------------+
+|    0    | :scheme        | http                      |
++---------+----------------+---------------------------+
+|    1    | :scheme        | https                     |
++---------+----------------+---------------------------+
+|   ...   | ...            | ...                       |
++---------+----------------+---------------------------+
+|   37    | warning        |                           |
++---------+----------------+---------------------------+
+|   38    | :path          | /my-example/index.html    | added header
++---------+----------------+---------------------------+
+|   39    | user-agent     | my-user-agent             | added header
++---------+----------------+---------------------------+
+|   40    | mynewheader    | first                     | added header
++---------+----------------+---------------------------+
+</artwork></figure>
+                    As all the headers in the first header set are indexed in
+                    the header table, all are kept in the reference
+                    set of headers, which is:
+                    <figure><artwork type="inline">
+Reference Set:
+:path, /my-example/index.html
+user-agent, my-user-agent
+mynewheader, first
+</artwork></figure>
+                </t>
+            </section>
+            <section title="Second header set">
+                <t>
+                    The second header set to represent is the following:
+                    <figure><artwork type="message/http">
+:path: /my-example/resources/script.js
+user-agent: my-user-agent
+mynewheader: second
+</artwork></figure>
+                    Comparing this second header set to the reference set, the
+                    first and third headers are from the reference set are not
+                    present in this second header set and must be removed. In
+                    addition, in this new set, the first and third headers
+                    have to be encoded.
+                    The path header is represented as a literal header with
+                    substitution indexing. The mynewheader will be
+                    represented as a literal header with incremental indexing.
+                    <figure><artwork type="message/http">
+0xa6       (indexed header, index = 38: removal from reference set)
+0xa8       (indexed header, index = 40: removal from reference set)
+0x04       (literal header, substitution indexing, name index = 3)
+0x26       (replaced entry index = 38)
+0x1f       (header value string length = 31)
+/my-example/resources/script.js
+0x5f 0x0a  (literal header, incremental indexing, name index = 40)
+0x06       (header value string length = 6)
+second
+</artwork></figure>
+                    The header table is updated as follow:
+                    <figure><artwork type="inline">
+Header table
++---------+----------------+---------------------------+
+|  Index  | Header Name    | Header Value              |
++---------+----------------+---------------------------+
+|    0    | :scheme        | http                      |
++---------+----------------+---------------------------+
+|    1    | :scheme        | https                     |
++---------+----------------+---------------------------+
+|   ...   | ...            | ...                       |
++---------+----------------+---------------------------+
+|   37    | warning        |                           |
++---------+----------------+---------------------------+
+|   38    | :path          | /my-example/resources/    | replaced
+|         |                |     script.js             | header
++---------+----------------+---------------------------+
+|   39    | user-agent     | my-user-agent             |
++---------+----------------+---------------------------+
+|   40    | mynewheader    | first                     |
++---------+----------------+---------------------------+
+|   41    | mynewheader    | second                    | added header
++---------+----------------+---------------------------+
+</artwork></figure>
+                    All the headers in this second header set are indexed in
+                    the header table, therefore, all are kept in the reference
+                    set of headers, which becomes:
+                    <figure><artwork type="inline">
+Reference Set:
+:path, /my-example/resources/script.js
+user-agent, my-user-agent
+mynewheader, second
+</artwork></figure>
+                </t>
+            </section>
+        </section>
+
+    </back>
+</rfc>
+<!--
+  vim:et:tw=78:sw=4:
+ -->
