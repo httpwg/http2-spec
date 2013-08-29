@@ -2,9 +2,7 @@ xml2rfc ?= "/usr/local/bin/xml2rfc"
 saxpath ?= "$(HOME)/java/saxon-8-9-j/saxon8.jar"
 saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 
-http2_name := http2
-compression_name := header-compression
-names := $(http2_name) $(compression_name)
+names := http2 header-compression
 drafts := $(addprefix draft-ietf-httpbis-,$(names))
 current_ver = $(shell git tag | grep "$(draft)" | sort | tail -1 | awk -F- '{print $$NF}')
 next_ver := $(foreach draft, $(drafts), -$(shell printf "%.2d" $$((1$(current_ver)-99)) ) )
@@ -17,7 +15,10 @@ TARGETS := $(addsuffix .txt,$(drafts)) \
 .INTERMEDIATE: $(addsuffix .redxml,$(drafts))
 
 latest: $(TARGETS)
-$(names): $(addsuffix .txt,$(drafts))
+
+# build rules for specific targets
+makerule = $(join $(addsuffix :: ,$(names)),$(addsuffix .$(1),$(drafts)))
+$(foreach rule,$(call makerule,txt) $(call makerule,html),$(eval $(rule)))
 
 submit: $(addsuffix .txt,$(next))
 
