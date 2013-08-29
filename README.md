@@ -61,11 +61,11 @@ If you're an editor, or forking a copy of the draft, a few things to know:
 * Pushing to the master branch will automatically generate the HTML on the 
   gh-pages branch.
 * You'll need xml2rfc, Java and Saxon-HE available. You can override the
-  default locations in the environment.
+  default locations in the environment.  On a Mac with
+  [Homebrew](http://mxcl.github.io/homebrew/), "saxon-b" is the right package.
 * Making the txt and html for the latest drafts is done with "make".
-
-On a Mac with [Homebrew](http://mxcl.github.io/homebrew/), "saxon-b" is the right package.
-
+* Output for a specific draft can be made using "make http2" or
+  "make header-compression".
 
 
 NOTE WELL
