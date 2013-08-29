@@ -69,7 +69,7 @@ If you're an editor, or forking a copy of the draft, a few things to know:
   [Homebrew](http://mxcl.github.io/homebrew/), "saxon-b" is the right package.
 * Making the txt and html for the latest drafts is done with "make".
 * Output for a specific draft can be made using "make http2" or
-  "make header-compression".
+  "make hpack".
 
 
 NOTE WELL

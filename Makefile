@@ -11,7 +11,7 @@ next := $(join $(drafts),$(next_ver))
 TARGETS := $(addsuffix .txt,$(drafts)) \
           $(addsuffix .html,$(drafts))
 
-.PHONY: latest submit idnits clean issues $(names)
+.PHONY: latest submit idnits clean issues $(names) hpack
 .INTERMEDIATE: $(addsuffix .redxml,$(drafts))
 
 latest: $(TARGETS)
@@ -19,6 +19,7 @@ latest: $(TARGETS)
 # build rules for specific targets
 makerule = $(join $(addsuffix :: ,$(names)),$(addsuffix .$(1),$(drafts)))
 $(foreach rule,$(call makerule,txt) $(call makerule,html),$(eval $(rule)))
+hpack: header-compression
 
 submit: $(addsuffix .txt,$(next))
 
