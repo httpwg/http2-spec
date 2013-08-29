@@ -28,10 +28,13 @@ else
     sed_i := sed -i
 endif
 
-# a consequence of this rule is that all next version drafts are rebuilt if any input file changes
-$(addsuffix .xml,$(next)): $(addsuffix .xml,$(drafts))
-	cp $< $@
-	$(sed_i) -e"s/$(basename $<)-latest/$(basename $@)/" $@
+define submit_makerule =
+$(1)
+	cp $$< $$@
+	$$(sed_i) -e"s/$$(basename $$<)-latest/$$(basename $$@)/" $$@
+endef
+submit_deps := $(join $(addsuffix .xml: ,$(next)),$(addsuffix .xml,$(drafts)))
+$(foreach rule,$(submit_deps),$(eval $(call submit_makerule,$(rule))))
 
 idnits: $(addsuffix .txt,$(next))
 	idnits $<
