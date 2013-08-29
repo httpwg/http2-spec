@@ -2,14 +2,15 @@ xml2rfc ?= "/usr/local/bin/xml2rfc"
 saxpath ?= "$(HOME)/java/saxon-8-9-j/saxon8.jar"
 saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 
-http2_name = http2
-compression_name = header-compression
-names = $(http2_name) $(compression_name)
-drafts = $(addprefix draft-ietf-httpbis-,$(names))
-next_ver = $(foreach draft, $(drafts), -$(shell printf "%.2d" $$((1$(shell git tag | grep "$(draft)" | sort | tail -1 | awk -F- '{print $$NF}')-99)) ) )
-next = $(join $(drafts),$(next_ver))
+http2_name := http2
+compression_name := header-compression
+names := $(http2_name) $(compression_name)
+drafts := $(addprefix draft-ietf-httpbis-,$(names))
+current_ver = $(shell git tag | grep "$(draft)" | sort | tail -1 | awk -F- '{print $$NF}')
+next_ver := $(foreach draft, $(drafts), -$(shell printf "%.2d" $$((1$(current_ver)-99)) ) )
+next := $(join $(drafts),$(next_ver))
 
-TARGETS = $(addsuffix .txt,$(drafts)) \
+TARGETS := $(addsuffix .txt,$(drafts)) \
           $(addsuffix .html,$(drafts))
 
 .PHONY: latest submit idnits clean issues $(names)
@@ -26,6 +27,7 @@ else
     sed_i := sed -i
 endif
 
+# a consequence of this rule is that all next version drafts are rebuilt if any input file changes
 $(addsuffix .xml,$(next)): $(addsuffix .xml,$(drafts))
 	cp $< $@
 	$(sed_i) -e"s/$(basename $<)-latest/$(basename $@)/" $@
@@ -38,12 +40,13 @@ clean:
 	-rm -f $(addsuffix *.txt,$(drafts))
 	-rm -f $(addsuffix *.html,$(drafts))
 
-stylesheet = lib/myxml2rfc.xslt
+stylesheet := lib/myxml2rfc.xslt
+extra_css = $(shell cat lib/style.css)
 %.html: %.xml $(stylesheet)
 	$(saxon) $< $(stylesheet) > $@
-	$(sed_i) -e"s*</style>*</style><style tyle='text/css'>$(shell cat lib/style.css)</style>*" $@
+	$(sed_i) -e"s*</style>*</style><style tyle='text/css'>$(extra_css)</style>*" $@
 
-reduction  = lib/clean-for-DTD.xslt
+reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
 	$(saxon) $< $(reduction) > $@
 
