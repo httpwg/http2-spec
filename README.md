@@ -53,8 +53,8 @@ providing a link to the issue in the message body.
   appropriate place to discuss design issues is on the mailing list itself.
 
 
-Working With the Draft
-----------------------
+Working With the Drafts
+-----------------------
 
 The source for our current draft is
 [draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
