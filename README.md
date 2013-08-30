@@ -6,13 +6,13 @@ This is the working area for the [IETF HTTPbis Working
 Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of HTTP/2.0.
 
 HTTP/2.0 links:
-* [Editor's copy](http://http2.github.com/http2-spec/draft-ietf-httpbis-http2.html) (HTML)
-* [Editor's copy](http://http2.github.com/http2-spec/draft-ietf-httpbis-http2.txt) (plain text)
+* [Editor's copy](http://http2.github.com/http2-spec/index.html) (HTML)
+* [Editor's copy](http://http2.github.com/http2-spec/index.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-http2) (less recent, more official)
 
 Header Compression (HPACK) links:
-* [Editor's copy](http://http2.github.com/http2-spec/draft-ietf-httpbis-header-compression.html) (HTML)
-* [Editor's copy](http://http2.github.com/http2-spec/draft-ietf-httpbis-header-compression.txt) (plain text)
+* [Editor's copy](http://http2.github.com/http2-spec/compression.html) (HTML)
+* [Editor's copy](http://http2.github.com/http2-spec/compression.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
 
 Contributing
