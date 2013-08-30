@@ -50,7 +50,7 @@ extra_css := lib/style.css
 css_content = $(shell cat $(extra_css))
 %.html: %.xml $(stylesheet) $(extra_css)
 	$(saxon) $< $(stylesheet) > $@
-	$(sed_i) -e"s*</style>*</style><style tyle='text/css'>$(css_content)</style>*" $@
+	$(sed_i) -e's~</style>~</style><style tyle="text/css">$(css_content)</style>~' $@
 
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
