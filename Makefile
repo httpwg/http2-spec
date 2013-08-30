@@ -46,10 +46,11 @@ clean:
 	-rm -f $(addsuffix *.html,$(drafts))
 
 stylesheet := lib/myxml2rfc.xslt
-extra_css = $(shell cat lib/style.css)
-%.html: %.xml $(stylesheet)
+extra_css := lib/style.css
+css_content = $(shell cat $(extra_css))
+%.html: %.xml $(stylesheet) $(extra_css)
 	$(saxon) $< $(stylesheet) > $@
-	$(sed_i) -e"s*</style>*</style><style tyle='text/css'>$(extra_css)</style>*" $@
+	$(sed_i) -e"s*</style>*</style><style tyle='text/css'>$(css_content)</style>*" $@
 
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
