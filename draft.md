@@ -88,8 +88,14 @@ protocol.
 
 In particular, it defines the concept of an "alternate service" that allows an
 origin to advertise when its resources are available at a separate location,
-using a different protocol. It then defines a profile of HTTP/2.0 over TLS that
-can be used for HTTP URIs in this manner.
+using a different configuration of protocols.
+
+This allows a "http://" URI to be upgraded to use TLS optimistically. 
+
+Because deploying TLS requires acquiring and configuring a valid certificate,
+some deployments may find supporting it difficult. Therefore, this document
+also specifies a "relaxed" profile of HTTP/2.0 over TLS that does not require
+strong server authentication, specifically for use with "http://" URIs.
 
 Note: This is a preliminary draft that attempts to capture the state of
 relevant discussion to this point. It has not be reviewed for security,
@@ -367,6 +373,9 @@ This risk can be mitigated if the client is willing to send a separate request
 containing potentially sensitive information. However, doing so adds a
 round-trip of latency to such requests.
 
+Likewise, if the Alt-Svc is cacheable for a long period (using a large ma
+parameter), it reduces the window for such attacks (but does not eliminate it).
+
 Alternatively, this risk can be mitigated by using an out-of-band discovery
 mechanism (e.g., DNS).
 
@@ -426,13 +435,26 @@ As a result, we decided to revisit the issue of how encryption is used in
 HTTP/2.0 at IETF87.
 
 
-# For Further Discussion
+# Next Steps
 
-* DNS: This model is also amenable to DNS-based discovery. If there is
+There are three separable aspects to this proposal:
+
+* The concept of alternate services
+
+* The Alt-Svc header field 
+
+* The http2-tls-relaxed protocol
+
+In evaluating it, they should be considered separately.
+
+Depending on what aspects we decide to adopt, there are also a number of
+related issues that should be discussed:
+
+* DNS: Alternate services are also amenable to DNS-based discovery. If there is
   sufficient interest, a future revision may include a proposal for that.
 
-* Upgrade: For some flows, it may be advantageous to do an "upgrade dance" a
-  tls-relaxed protocol, a la STARTTLS. If there is sufficient interest, a
+* Upgrade: For some flows, it may be advantageous to do an "upgrade dance" to
+  the tls-relaxed protocol, a la STARTTLS. If there is sufficient interest, a
   future revision may also include a proposal for that.
 
 * http1-tls-relaxed: If there is sufficient interest, it may also be worthwhile
@@ -442,11 +464,11 @@ HTTP/2.0 at IETF87.
   and weight in the Alternate Services model (similar to SRV).
   
 * Indicating Chosen Service: It's likely necessary for the server to know which
-  service protocol the client has chosen, and perhaps even the service hostname
-  (for load balancing). This could be conveyed as part of the "magic", or as a
-  request header. There are also security implications here; for example,
-  without this information, the server doesn't know if the client has checked
-  the certificate, leading to a situation where an intermediary can downgrade a
+  protocol the client has chosen, and perhaps even the hostname (for load
+  balancing). This could be conveyed as part of the "magic", or as a request
+  header. There are also security implications here; for example, without this
+  information, the server doesn't know if the client has checked the
+  certificate, leading to a situation where an intermediary can downgrade a
   HTTPS connection to relaxed HTTP.
   
 * Client Behavior: Currently, this mechanism is completely declarative, and
@@ -455,6 +477,7 @@ HTTP/2.0 at IETF87.
   
 * IPV6: The intersection between Alternate Services and IPV6 / Happy Eyeballs
   {{RFC6555}} should be investigated.
+  
   
 # Frequently Asked Questions
 
@@ -469,10 +492,11 @@ without one of the encryption profiles. That means that servers would need to
 implement one of the encryption-enabling profiles to interoperate using
 HTTP/2.0 for HTTP URIs.
 
+
 ## No certificate checks? Really?
 
-This proposal has the effect of relaxing certificate checks on "http://" - but
-not "https://" - URIs when TLS is in use. Since TLS isn't in use for any
+http2-tls-relaxed has the effect of relaxing certificate checks on "http://" -
+but not "https://" - URIs when TLS is in use. Since TLS isn't in use for any
 "http://" URIs today, there is no net loss of security, and we gain some
 privacy from passive attacks.
 
@@ -480,6 +504,7 @@ In the future, if the certificate trust system can be improved such that it's
 both more reliable and has a lower barrier to entry (e.g., see {{RFC6962}}), it
 may be possible to modify or even drop the http2-tls-relaxed profile (even
 before HTTP/2 ships, depending on progress there). 
+
 
 ## Why do this if a downgrade attack is so easy?
 

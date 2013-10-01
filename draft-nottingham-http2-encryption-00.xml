@@ -40,8 +40,12 @@ use and configuration of underlying encryption, as well as other aspects of the
 protocol.</t>
       <t>In particular, it defines the concept of an “alternate service” that allows an
 origin to advertise when its resources are available at a separate location,
-using a different protocol. It then defines a profile of HTTP/2.0 over TLS that
-can be used for HTTP URIs in this manner.</t>
+using a different configuration of protocols.</t>
+      <t>This allows a “http://” URI to be upgraded to use TLS optimistically. </t>
+      <t>Because deploying TLS requires acquiring and configuring a valid certificate,
+some deployments may find supporting it difficult. Therefore, this document
+also specifies a “relaxed” profile of HTTP/2.0 over TLS that does not require
+strong server authentication, specifically for use with “http://” URIs.</t>
       <t>Note: This is a preliminary draft that attempts to capture the state of
 relevant discussion to this point. It has not be reviewed for security,
 deployability, or effectiveness, and is only intended to serve as the basis of
@@ -273,6 +277,8 @@ doing so, it potentially exposes sensitive information (e.g., cookies
 (e.g., OPTIONS *) to the origin to discover policy before making requests
 containing potentially sensitive information. However, doing so adds a
 round-trip of latency to such requests.</t>
+        <t>Likewise, if the Alt-Svc is cacheable for a long period (using a large ma
+parameter), it reduces the window for such attacks (but does not eliminate it).</t>
         <t>Alternatively, this risk can be mitigated by using an out-of-band discovery
 mechanism (e.g., DNS).</t>
       </section>
@@ -737,24 +743,35 @@ reinforced by <xref target="RFC6973"/>.</t>
       <t>As a result, we decided to revisit the issue of how encryption is used in
 HTTP/2.0 at IETF87.</t>
     </section>
-    <section anchor="for-further-discussion" title="For Further Discussion">
+    <section anchor="next-steps" title="Next Steps">
+      <t>There are three separable aspects to this proposal:</t>
       <t>
         <list style="symbols">
-          <t>DNS: This model is also amenable to DNS-based discovery. If there is
+          <t>The concept of alternate services</t>
+          <t>The Alt-Svc header field </t>
+          <t>The http2-tls-relaxed protocol</t>
+        </list>
+      </t>
+      <t>In evaluating it, they should be considered separately.</t>
+      <t>Depending on what aspects we decide to adopt, there are also a number of
+related issues that should be discussed:</t>
+      <t>
+        <list style="symbols">
+          <t>DNS: Alternate services are also amenable to DNS-based discovery. If there is
 sufficient interest, a future revision may include a proposal for that.</t>
-          <t>Upgrade: For some flows, it may be advantageous to do an “upgrade dance” a
-tls-relaxed protocol, a la STARTTLS. If there is sufficient interest, a
+          <t>Upgrade: For some flows, it may be advantageous to do an “upgrade dance” to
+the tls-relaxed protocol, a la STARTTLS. If there is sufficient interest, a
 future revision may also include a proposal for that.</t>
           <t>http1-tls-relaxed: If there is sufficient interest, it may also be worthwhile
 defining a HTTP/1-based tls-relaxed protocol.</t>
           <t>Priority and Weight: It may be advantageous to include measures of priority
 and weight in the Alternate Services model (similar to SRV).</t>
           <t>Indicating Chosen Service: It’s likely necessary for the server to know which
-service protocol the client has chosen, and perhaps even the service hostname
-(for load balancing). This could be conveyed as part of the “magic”, or as a
-request header. There are also security implications here; for example,
-without this information, the server doesn’t know if the client has checked
-the certificate, leading to a situation where an intermediary can downgrade a
+protocol the client has chosen, and perhaps even the hostname (for load
+balancing). This could be conveyed as part of the “magic”, or as a request
+header. There are also security implications here; for example, without this
+information, the server doesn’t know if the client has checked the
+certificate, leading to a situation where an intermediary can downgrade a
 HTTPS connection to relaxed HTTP.</t>
           <t>Client Behavior: Currently, this mechanism is completely declarative, and
 clients have free reign as to how they use the alternate services. It may be
@@ -775,8 +792,8 @@ implement one of the encryption-enabling profiles to interoperate using
 HTTP/2.0 for HTTP URIs.</t>
       </section>
       <section anchor="no-certificate-checks-really" title="No certificate checks? Really?">
-        <t>This proposal has the effect of relaxing certificate checks on “http://” - but
-not “https://” - URIs when TLS is in use. Since TLS isn’t in use for any
+        <t>http2-tls-relaxed has the effect of relaxing certificate checks on “http://” -
+but not “https://” - URIs when TLS is in use. Since TLS isn’t in use for any
 “http://” URIs today, there is no net loss of security, and we gain some
 privacy from passive attacks.</t>
         <t>In the future, if the certificate trust system can be improved such that it’s
