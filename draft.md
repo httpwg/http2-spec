@@ -156,10 +156,10 @@ specific, identifying not only the major version of the protocol being used,
 but potentially communication options for that protocol.
 
 Practically speaking, clients using an alternate service will change the host,
-port and protocol that they are using to fetch resources, but these changes are
-not propagated to the application that is using HTTP; from that standpoint, the
-URI being accessed and all information derived from it (scheme, host,
-port) are the same as before. 
+port and protocol that they are using to fetch resources, but these changes
+MUST NOT be propagated to the application that is using HTTP; from that
+standpoint, the URI being accessed and all information derived from it (scheme,
+host, port) are the same as before.
 
 Importantly, this includes the security context of the connection; by default,
 the alternate server will need to present a certificate for the origin's host
