@@ -220,7 +220,7 @@
       </t>
       <t>
         An HTTP/2.0 connection is an application level protocol running on top of a TCP connection
-        (<xref target="RFC0793"/>). The client is the TCP connection initiator.
+        (<xref target="TCP"/>). The client is the TCP connection initiator.
       </t>
       <t>
         This document describes the HTTP/2.0 protocol using a logical structure that is formed of
@@ -2029,6 +2029,10 @@ HTTP2-Settings    = token68
           <t hangText="COMPRESSION_ERROR (9):" anchor="COMPRESSION_ERROR">
             The endpoint is unable to maintain the compression context for the connection.
           </t>
+          <t hangText="CONNECT_ERROR (10):" anchor="CONNECT_ERROR">
+            The connection established in response to a <xref target="CONNECT">CONNECT
+            request</xref> was reset or abnormally closed.
+          </t>
         </list>
       </t>
     </section>
@@ -2266,10 +2270,11 @@ HTTP2-Settings    = token68
               </t>
             </list>
             All HTTP/2.0 requests MUST include exactly one valid value for all of these header
-            fields.  An intermediary MUST ensure that requests that it forwards are correct.  A
-            server MUST treat the absence of any of these header fields, presence of multiple
-            values, or an invalid value as a <xref target="StreamErrorHandler">stream error</xref>
-            of type <x:ref>PROTOCOL_ERROR</x:ref>.
+            fields, unless this is a <xref target="CONNECT">CONNECT request</xref>.  An intermediary
+            MUST ensure that requests that it forwards are correct.  A server MUST treat the absence
+            of any of these header fields, presence of multiple values, or an invalid value as a
+            <xref target="StreamErrorHandler">stream error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
           <t>
             HTTP/2.0 does not define a way to carry the version identifier that is included in the
@@ -2460,42 +2465,70 @@ HTTP2-Settings    = token68
 
       </section>
 
-      <section title="The CONNECT Method">
+      <section anchor="CONNECT" title="The CONNECT Method">
         <t>
-          The HTTP pseudo-method <xref target="HTTP-p2">CONNECT</xref> is used to convert an
-          HTTP/1.1 connection into a tunnel to a remote host.  CONNECT is primarily used with HTTP
-          proxies to established a TLS session with a server for the purposes of interacting with
-          <spanx style="verb">https</spanx> resources.
+          The HTTP pseudo-method CONNECT (<xref target="HTTP-p2" x:fmt="," x:rel="#CONNECT"/>) is
+          used to convert an HTTP/1.1 connection into a tunnel to a remote host.  CONNECT is
+          primarily used with HTTP proxies to established a TLS session with a server for the
+          purposes of interacting with <spanx style="verb">https</spanx> resources.
         </t>
         <t>
-          In HTTP/2.0, the CONNECT method is used to establish a tunnel over a
-          single HTTP/2.0 stream to a remote host. The HTTP header mapping works
-          as mostly as defined in <xref target="HttpRequest">Request Header Fields</xref>, with a few
-          differences. Specifically:
+          In HTTP/2.0, the CONNECT method is used to establish a tunnel over a single HTTP/2.0
+          stream to a remote host.  The HTTP header mapping works as mostly as defined in <xref
+          target="HttpRequest">Request Header Fields</xref>, with a few differences. Specifically:
           <list style="symbols">
               <t>
-                The :method header value is CONNECT
+                The <spanx style="verb">:method</spanx> header field is set to <spanx
+                style="verb">CONNECT</spanx>.
               </t>
               <t>
-                The :scheme header field MUST be omitted.
+                The <spanx style="verb">:scheme</spanx> header field MUST be omitted.
               </t>
               <t>
-                The :host header MAY be sent. It exists for backwards compatibility with HTTP/1.1
-                implementations where the Host header may not match the host indicated in the
-                authority specified in the request-target of the CONNECT request.
+                The <spanx style="verb">:host</spanx> header field MAY be sent. It exists for
+                backwards compatibility with HTTP/1.1 implementations where the Host header may not
+                match the host indicated in the authority specified in the request-target of the
+                CONNECT request.  <cref>Unjustified: what value does :host provide?</cref>
               </t>
               <t>
-                The :path header value contains the authority-form of the request-target of CONNECT
-                requests.
+                The <spanx style="verb">:path</spanx> header field contains the authority-form of
+                the request-target of CONNECT requests (see <xref target="HTTP-p1" x:fmt=","
+                x:rel="#request-target"/>).
               </t>
           </list>
         </t>
         <t>
-          After successfully establishing a CONNECT tunnel over a stream, the stream DATA frames
-          comprise the data of the bidirectional tunnel. Each direction of the tunnel is closed via
-          the END_STREAM flag, similar to how TCP closes each direction with its FIN flag.
-          RST_STREAM abnormally terminates the tunnel, similar to how TCP RSTs abnormally terminate
-          the connection.
+          A proxy that supports CONNECT, establishes a <xref target="TCP">TCP connection</xref> to
+          the server identified in the <spanx style="verb">:path</spanx> header field.  Once this
+          connection is successfully established, the proxy sends a <x:ref>HEADERS</x:ref> frame
+          containing a 2xx series status code, as defined in <xref target="HTTP-p2" x:fmt=","
+          x:rel="#CONNECT"/>.
+        </t>
+        <t>
+          After the initial <x:ref>HEADERS</x:ref> frame sent by each peer, all subsequent
+          <x:ref>DATA</x:ref> frames correspond to data sent on the TCP connection.  The payload of
+          any <x:ref>DATA</x:ref> frames sent by the client are transmitted by the proxy to the TCP
+          server; data received from the TCP server is assembled into <x:ref>DATA</x:ref> frames by
+          the proxy.  Frame types other than <x:ref>DATA</x:ref> or <x:ref>RST_STREAM</x:ref> MUST
+          NOT be sent on a connected stream, and MUST be treated as a <xref
+          target="StreamErrorHandler">stream error</xref> if received.
+        </t>
+        <t>
+          The TCP connection can be closed by either peer.  The END_STREAM flag on a
+          <x:ref>DATA</x:ref> frame is treated as being equivalent to the TCP FIN bit.  A client is
+          expected to send a <x:ref>DATA</x:ref> frame with the END_STREAM flag set after receiving
+          a frame bearing the END_STREAM flag.  A proxy that receives a <x:ref>DATA</x:ref> frame
+          with the END_STREAM flag set sends the attached data with the FIN bit set on the last TCP
+          segment.  A proxy that receives a TCP segment with the FIN bit set sends a
+          <x:ref>DATA</x:ref> frame with the END_STREAM flag set.  Note that the final TCP segment
+          or <x:ref>DATA</x:ref> frame could be empty.
+        </t>
+        <t>
+          A TCP connection error is signaled with <x:ref>RST_STREAM</x:ref>.  A proxy treats any
+          error in the TCP connection, which includes receiving a TCP segment with the RST bit set,
+          as a <xref target="StreamErrorHandler">stream error</xref> of type
+          <x:ref>CONNECT_ERROR</x:ref>.  Correspondingly, a proxy MUST send a TCP segment with the
+          RST bit set if it detects an error with the stream or the HTTP/2.0 connection.
         </t>
       </section>
     </section>
@@ -2880,7 +2913,7 @@ HTTP2-Settings    = token68
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-header-compression-03" />
       </reference>
 
-      <reference anchor="RFC0793">
+      <reference anchor="TCP">
         <front>
           <title abbrev="Transmission Control Protocol">
             Transmission Control Protocol
@@ -3182,7 +3215,7 @@ HTTP2-Settings    = token68
 
       <section title="Since draft-ietf-httpbis-http2-06" anchor="changes.since.draft-ietf-httpbis-http2-06">
         <t>
-          None (yet).
+          Adding definition for CONNECT method.
         </t>
       </section>
       <section title="Since draft-ietf-httpbis-http2-05" anchor="changes.since.draft-ietf-httpbis-http2-05">
