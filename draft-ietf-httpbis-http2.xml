@@ -530,8 +530,8 @@ HTTP2-Settings    = token68
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |         Length (16)           |   Type (8)    |   Flags (8)   |
- +-+-------------+---------------+-------------------------------+
+ | R |     Length (16)           |   Type (8)    |   Flags (8)   |
+ +-+-+-----------+---------------+-------------------------------+
  |R|                 Stream Identifier (31)                      |
  +-+-------------------------------------------------------------+
  |                   Frame Payload (0...)                      ...
@@ -541,10 +541,13 @@ HTTP2-Settings    = token68
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
+            <t hangText="R:">
+              A reserved 2-bit field.  The semantics of this bit are undefined and the bit MUST
+              remain unset (0) when sending and MUST be ignored when receiving.
+            </t>
             <t hangText="Length:">
-              The length of the frame payload expressed as an unsigned 16-bit
-              integer. The 8 octets of the frame header are not included
-              in this value.
+              The length of the frame payload expressed as an unsigned 14-bit integer. The 8 octets
+              of the frame header are not included in this value.
             </t>
             <t hangText="Type:">
               The 8-bit type of the frame.  The frame type determines how the remainder of the frame
@@ -559,9 +562,8 @@ HTTP2-Settings    = token68
               MUST be ignored, and MUST be left unset (0) when sending.
             </t>
             <t hangText="R:">
-              A reserved 1-bit field.  The semantics of this bit are undefined
-              and the bit MUST remain unset (0) when sending and MUST be ignored
-              when receiving.
+              A reserved 1-bit field.  The semantics of this bit are undefined and the bit MUST
+              remain unset (0) when sending and MUST be ignored when receiving.
             </t>
             <t hangText="Stream Identifier:">
               A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  A value 0 is
@@ -577,10 +579,9 @@ HTTP2-Settings    = token68
       
       <section anchor="FrameSize" title="Frame Size">
         <t>
-          The maximum size of a frame payload varies by frame type and use.  For instance, the
-          HTTP/2.0 usage limits frame payloads to 2<x:sup>14</x:sup>-1 (16,383) octets (<xref
-          target="HttpSizeLimit"/>).  All implementations SHOULD be capable of receiving and
-          minimally processing frames up to the maximum size.
+          The maximum size of a frame payload varies by frame type and use.  The absolute maximum
+          size of a frame is 2<x:sup>14</x:sup>-1 (16,383) octets.  All implementations SHOULD be
+          capable of receiving and minimally processing frames up to this maximum size.
         </t>
         <t>
           Certain frame types, such as <x:ref>PING</x:ref> (see <xref target="PING"/>), impose
@@ -2587,14 +2588,6 @@ HTTP2-Settings    = token68
         <t>
           Implementations are encouraged not to negotiate TLS cipher suites with known
           vulnerabilities, such as <xref target="RC4"/>.
-        </t>
-      </section>
-      
-      <section anchor="HttpSizeLimit" title="Frame Size Limits for HTTP">
-        <t>
-          Frames used for HTTP messages MUST NOT exceed 2<x:sup>14</x:sup>-1 (16,383) octets in
-          length, not counting the 8 octet frame header. An endpoint MUST treat the receipt of a
-          larger frame as a <x:ref>FRAME_SIZE_ERROR</x:ref> error (see <xref target="FrameSize"/>).
         </t>
       </section>
       
