@@ -805,44 +805,18 @@ Else
 
         <section anchor="parameter.negotiation" title="Parameter Negotiation">
             <t>
-                A few parameters can be used to accommodate client and server
-                processing and memory requirements.
-                <cref>
-                    These settings are currently not supported as they have
-                    not been integrated in the main specification. Therefore,
-                    the maximum buffer size for the header table is fixed at
-                    4096 bytes.
-                </cref>
-                <list style="hanging">
-                    <t hangText="SETTINGS_HEADER_TABLE_SIZE (TBD):">
-                        Allows the sender to inform the remote endpoint of the
-                        maximum size it accepts for the header table.
-                        <vspace blankLines="0"/>
-                        The default value is 4096 bytes.
-                        <vspace blankLines="0"/>
-                        <cref>Is this default value OK? Do we need a maximum size? Do we want to allow infinite buffer?</cref>
-                        <vspace blankLines="0"/>
-                        When the remote endpoint receives a SETTINGS frame
-                        containing a SETTINGS_HEADER_TABLE_SIZE setting with a
-                        value smaller than the one currently in use, it MUST
-                        send as soon as possible a HEADER frame with a stream
-                        identifier of 0x0 containing a value smaller than or
-                        equal to the received setting value.
-                        <vspace blankLines="0"/>
-                        <cref>This changes slightly the behaviour of the
-                            HEADERS frame, which should be updated as follows:
-                        </cref>
-                        <vspace blankLines="0"/>
-                        A HEADER frame with a stream identifier of 0x0
-                        indicates that the sender has reduced the maximum size
-                        of the header table. The new maximum size of the
-                        header table is encoded on 32-bit. The decoder MUST
-                        reduce its own header table by dropping entries from
-                        it until the size of the header table is lower than or
-                        equal to the transmitted maximum size.
-                    </t>
-                </list>
+              When a decompressor wishes to change the size of the header
+              table, it sends a SETTINGS frame with a new value for the 
+              SETTINGS_HEADER_TABLE_SIZE.  Upon receipt of this SETTINGS
+              frame, the compressor must modify the header table accordingly
+              (including any resulting evictions) as soon as possible.
             </t>
+          <t>
+            After modifying the header table and performing any associated
+            evictions, the recipient of the SETTINGS frame MUST respond
+            with a SETTINGS frame in which the ACK flag is set before sending
+            any additional HEADERS, PUSH_PROMISE, or CONTINUATION frames.
+          </t>
         </section>
         <section anchor="Security" title="Security Considerations">
             <t>
