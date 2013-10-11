@@ -1388,7 +1388,18 @@ HTTP2-Settings    = token68
             so does nothing other than waste connection capacity.
           </t>
           <t>
-            The SETTINGS frame does not define any flags.
+            The SETTINGS frame defines the following flag:
+            <list style="hanging">
+              <t hangText="ACK (0x1):">
+                Bit 1 being set indicates that this frame acknowledges receipt and application of
+                the peer's SETTINGS frame.  When this bit is set, the payload of the SETTINGS frame
+                MUST be empty.  Receipt of a SETTINGS frame with the ACK flag set and a length field
+                value other than 0 MUST be treated as a
+                <xref target="ConnectionErrorHandler">connection error</xref> of type
+                <x:ref>FRAME_SIZE_ERROR</x:ref>.  For more info, see <xref target="SettingsSync">Settings
+                Synchronization</xref>.
+              </t>
+            </list>
           </t>
           <t>
             SETTINGS frames always apply to a connection, never a single stream.  The stream
@@ -1427,9 +1438,19 @@ HTTP2-Settings    = token68
             <t>
               The following settings are defined:
               <list style="hanging">
+                <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (1):">
+                  <t>
+                    Allows the sender to inform the remote endpoint of the
+                    maximum size it accepts for the header table in the decoder.
+                  </t>
+                  <t>
+                    The default value is 4096 bytes.
+                    <cref>Do we need a maximum size?</cref>
+                  </t>
+                </x:lt>
                 <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
                   <t>
-                    indicates the maximum number of concurrent streams that the sender will allow.
+                    Indicates the maximum number of concurrent streams that the sender will allow.
                     This limit is directional: it applies to the number of streams that the sender
                     permits the receiver to create. By default there is no limit.  It is recommended
                     that this value be no smaller than 100, so as to not unnecessarily limit
@@ -1438,7 +1459,7 @@ HTTP2-Settings    = token68
                 </x:lt>
                 <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
                   <t>
-                    indicates the sender's initial window size (in bytes) for stream level flow
+                    Indicates the sender's initial window size (in bytes) for stream level flow
                     control.
                   </t>
                   <t>
@@ -1448,7 +1469,7 @@ HTTP2-Settings    = token68
                 </x:lt>
                 <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
                   <t>
-                    indicates flow control options.  The least significant bit (0x1) of the value is
+                    Indicates flow control options.  The least significant bit (0x1) of the value is
                     set to indicate that the sender has disabled all flow control.  This bit cannot
                     be cleared once set, see <xref target="EndFlowControl"/>.
                   </t>
@@ -1459,6 +1480,24 @@ HTTP2-Settings    = token68
               </list>
             </t>
 
+          </section>
+          <section anchor="SettingsSync" title="Settings Synchronization">
+            <t>
+              Most values in SETTINGS benefit from or require an understanding of when the peer has
+              received and applied the changed setting values.  In order to provide such synchronization
+              timepoints, the recipient of a SETTINGS frame in which the ACK flag is not set MUST apply
+              the updated settings as soon as possible upon receipt.
+            </t>
+            <t>
+              The values in the SETTINGS frame MUST be applied in sequence, with no other frame processing
+              between values.  Once all values have been applied, the recipient MUST immediately emit a
+              SETTINGS frame with the ACK flag set.
+            </t>
+            <t>
+              If the sender of a SETTINGS frame does not receive an acknowledgement within a reasonable
+              amount of time, it MAY issue a <xref target="ConnectionErrorHandler"> connection error </xref>
+              of type <x:ref>SETTINGS_TIMEOUT</x:ref>.
+            </t>
           </section>
         </section>
 
@@ -1587,15 +1626,15 @@ HTTP2-Settings    = token68
             payload.  A sender can include any value it chooses and use those bytes in any fashion.
           </t>
           <t>
-            Receivers of a PING frame that does not include a PONG flag MUST send a PING frame with
-            the PONG flag set in response, with an identical payload.  PING responses SHOULD given
+            Receivers of a PING frame that does not include a ACK flag MUST send a PING frame with
+            the ACK flag set in response, with an identical payload.  PING responses SHOULD given
             higher priority than any other frame.
           </t>
 
           <t>
             The PING frame defines the following flags:
             <list style="hanging">
-              <t hangText="PONG (0x1):">
+              <t hangText="ACK (0x1):">
                 Bit 1 being set indicates that this PING frame is a PING response.  An endpoint MUST
                 set this flag in PING responses.  An endpoint MUST NOT respond to PING frames
                 containing this flag.
@@ -2011,6 +2050,10 @@ HTTP2-Settings    = token68
           </t>
           <t hangText="FLOW_CONTROL_ERROR (3):" anchor="FLOW_CONTROL_ERROR">
             The endpoint detected that its peer violated the flow control protocol.
+          </t>
+          <t hangText="SETTINGS_TIMEOUT (4):" anchor="SETTINGS_TIMEOUT">
+            The endpoint sent a SETTINGS frame, but did not receive a response in a
+            timely manner.  See <xref target="SettingsSync">Settings Synchronization</xref>.
           </t>
           <t hangText="STREAM_CLOSED (5):" anchor="STREAM_CLOSED">
             The endpoint received a frame after a stream was half closed.
@@ -2758,13 +2801,13 @@ HTTP2-Settings    = token68
           <c>3</c><c><x:ref>RST_STREAM</x:ref></c><c>-</c> <c><xref target="RST_STREAM"
           fmt="counter"/></c>
 
-          <c>4</c><c><x:ref>SETTINGS</x:ref></c><c>-</c> <c><xref target="SETTINGS"
+          <c>4</c><c><x:ref>SETTINGS</x:ref></c><c>ACK(1)</c> <c><xref target="SETTINGS"
           fmt="counter"/></c>
 
           <c>5</c><c><x:ref>PUSH_PROMISE</x:ref></c><c>END_PUSH_PROMISE(4)</c> <c><xref
           target="PUSH_PROMISE" fmt="counter"/></c>
 
-          <c>6</c><c><x:ref>PING</x:ref></c><c>PONG(1)</c> <c><xref target="PING"
+          <c>6</c><c><x:ref>PING</x:ref></c><c>ACK(1)</c> <c><xref target="PING"
           fmt="counter"/></c>
 
           <c>7</c><c><x:ref>GOAWAY</x:ref></c><c>-</c> <c><xref target="GOAWAY" fmt="counter"/></c>
@@ -3225,6 +3268,12 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Changing from :host to :authority to remove any potential confusion.
+        </t>
+        <t>
+          Adding setting for for header compression table size.
+        </t>
+        <t>
+          Adding settings acknowledgement.
         </t>
       </section>
       <section title="Since draft-ietf-httpbis-http2-05" anchor="changes.since.draft-ietf-httpbis-http2-05">
