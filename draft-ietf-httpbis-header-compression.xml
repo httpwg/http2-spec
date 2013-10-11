@@ -314,7 +314,7 @@
                                 literally.
                             </t>
                             <t>
-                                Three different literal representations are provided:
+                                Two different literal representations are provided:
                                 <list style="symbols">
                                     <t>
                                         A literal representation that does not
@@ -324,17 +324,10 @@
                                     </t>
                                     <t>
                                         A literal representation that
-                                        adds the header at the end of the
+                                        adds the header at the beginning of the
                                         header table
                                         (see <xref
                                             target="literal.header.with.incremental.indexing"/>).
-                                    </t>
-                                    <t>
-                                        A literal representation that
-                                        uses the header to replace an existing
-                                        entry of the header table
-                                        (see <xref
-                                            target="literal.header.with.substitution.indexing"/>).
                                     </t>
                                 </list>
                             </t>
@@ -461,7 +454,7 @@
                         that the header table size will stay lower than or
                         equal to the SETTINGS_HEADER_TABLE_SIZE limit (see <xref
                             target="parameter.negotiation"/>).  To achieve
-                        this, repeatedly, the first entry of the header table
+                        this, repeatedly, the last entry of the header table
                         is removed, until enough space is available for the
                         modification.
                     </t>
@@ -472,23 +465,10 @@
                         table is always associated to the index 0.
                     </t>
                     <t>
-                        When the modification of the header table is the
-                        replacement of an existing entry, the replaced entry
-                        is the one indicated in the literal representation
-                        before any entry is removed from the header table. If
-                        the entry to be replaced is removed from the header
-                        table when performing the size adjustment, the
-                        replacement entry is inserted at the beginning of the
-                        header table.
-                    </t>
-                    <t>
                         The addition of a new entry with a size greater than
                         the SETTINGS_HEADER_TABLE_SIZE limit causes all the
                         entries from the header table to be dropped and the
-                        new entry not to be added to the header table. The
-                        replacement of an existing entry with a new entry with
-                        a size greater than the SETTINGS_HEADER_TABLE_SIZE has
-                        the same consequences.
+                        new entry not to be added to the header table.
                     </t>
                 </section>
 
@@ -713,7 +693,7 @@ Else
                         <artwork type="inline">
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 | 1 | 1 |    Index (5+)     |
+| 0 | 1 |      Index (6+)       |
 +---+---+---+-------------------+
 |       Value Length (8+)       |
 +-------------------------------+
@@ -725,7 +705,7 @@ Else
                         <artwork type="inline">
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 | 1 | 1 |         0         |
+| 0 | 1 |           0           |
 +---+---+---+-------------------+
 |       Name Length (8+)        |
 +-------------------------------+
@@ -738,18 +718,18 @@ Else
 </artwork>
                     </figure>
                     <t>
-                        This representation starts with the '011' 3-bit pattern.
+                        This representation starts with the '01' 2-bit pattern.
                     </t>
                     <t>
                         If the header name matches the header name of a (name,
                         value) pair stored in the Header Table, the index of
                         the pair increased by one (index + 1) is represented
-                        as an integer with a 5-bit prefix.  Note that if the
-                        index is strictly below 31, one byte is used.
+                        as an integer with a 6-bit prefix.  Note that if the
+                        index is strictly below 63, one byte is used.
                     </t>
                     <t>
                         If the header name does not match a header name entry,
-                        the value 0 is represented on 5 bits followed by the
+                        the value 0 is represented on 6 bits followed by the
                         header name (<xref
                             target="header.name.representation" />).
                     </t>
@@ -772,7 +752,7 @@ Else
                         <artwork type="inline">
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 | 1 | 0 |    Index (5+)     |
+| 0 | 0 |      Index (6+)       |
 +---+---+---+-------------------+
 |       Value Length (8+)       |
 +-------------------------------+
@@ -785,74 +765,11 @@ Else
                         <artwork type="inline">
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 | 1 | 0 |         0         |
+| 0 | 0 |           0           |
 +---+---+---+-------------------+
 |       Name Length (8+)        |
 +-------------------------------+
 |  Name String (Length octets)  |
-+-------------------------------+
-|       Value Length (8+)       |
-+-------------------------------+
-| Value String (Length octets)  |
-+-------------------------------+
-</artwork>
-                    </figure>
-                    <t>
-                        This representation starts with the '010' 3-bit
-                        pattern.
-                    </t>
-                    <t>
-                        If the header name matches the header name of a (name,
-                        value) pair stored in the Header Table, the index of
-                        the pair increased by one (index + 1) is represented
-                        as an integer with a 5-bit prefix.  Note that if the
-                        index is strictly below 31, one byte is used.
-                    </t>
-                    <t>
-                        If the header name does not match a header name entry,
-                        the value 0 is represented on 5 bits followed by the
-                        header name (<xref
-                            target="header.name.representation" />).
-                    </t>
-                    <t>
-                        Header name representation is followed by the header
-                        value represented as a literal string as described in
-                        <xref target="string.literal.representation" />.
-                    </t>
-                </section>
-                <section title="Literal Header with Substitution Indexing"
-                    anchor="literal.header.with.substitution.indexing">
-                    <t>
-                        A literal header with substitution indexing replaces an
-                        existing header table entry.
-                    </t>
-                    <figure title="Literal Header with Substitution Indexing -
-                        Indexed Name">
-                        <artwork type="inline">
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 |      Index (6+)       |
-+---+---+-----------------------+
-|    Substituted Index (8+)     |
-+-------------------------------+
-|       Value Length (8+)       |
-+-------------------------------+
-| Value String (Length octets)  |
-+-------------------------------+
-</artwork>
-                    </figure>
-                    <figure title="Literal Header with Substitution Indexing -
-                        New Name">
-                        <artwork type="inline">
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 |           0           |
-+---+---+-----------------------+
-|       Name Length (8+)        |
-+-------------------------------+
-|  Name String (Length octets)  |
-+-------------------------------+
-|    Substituted Index (8+)     |
 +-------------------------------+
 |       Value Length (8+)       |
 +-------------------------------+
@@ -878,24 +795,12 @@ Else
                             target="header.name.representation" />).
                     </t>
                     <t>
-                        The index of the substituted (name, value) pair is
-                        inserted after the header name representation as a
-                        0-bit prefix integer.
-                    </t>
-                    <t>
-                        The index of the substituted pair MUST correspond to a
-                        position in the header table containing a non-void
-                        entry. An index for the substituted pair that
-                        corresponds to empty position in the header table MUST
-                        be treated as an error.
-                    </t>
-                    <t>
-                        This index is followed by the header
+                        Header name representation is followed by the header
                         value represented as a literal string as described in
                         <xref target="string.literal.representation" />.
                     </t>
                 </section>
-            </section>
+           </section>
         </section>
 
         <section anchor="parameter.negotiation" title="Parameter Negotiation">
@@ -1211,22 +1116,22 @@ Else
                 <t>
                     The first header set to represent is the following:
                     <figure><artwork type="message/http">
-:path: /my-example/index.html
-user-agent: my-user-agent
-mynewheader: first
+:path, /my-example/index.html
+user-agent, my-user-agent
+mynewheader, first
 </artwork></figure>
                     The header table is empty, all headers are represented as
                     literal headers with indexing.  The 'mynewheader' header
                     name is not in the header name table and is encoded
                     literally.  This gives the following representation:
                     <figure><artwork type="message/http">
-0x44      (literal header with incremental indexing, name index = 3)
+0x04      (literal header with incremental indexing, name index = 3)
 0x16      (header value string length = 22)
 /my-example/index.html
-0x4C      (literal header with incremental indexing, name index = 11)
+0x0D      (literal header with incremental indexing, name index = 12)
 0x0D      (header value string length = 13)
 my-user-agent
-0x40      (literal header with incremental indexing, new name)
+0x00      (literal header with incremental indexing, new name)
 0x0B      (header name string length = 11)
 mynewheader
 0x05      (header value string length = 5)
@@ -1239,19 +1144,19 @@ Header table
 +---------+----------------+---------------------------+
 |  Index  | Header Name    | Header Value              |
 +---------+----------------+---------------------------+
-|    0    | :scheme        | http                      |
+|    0    | mynewheader    | first                     | added header
 +---------+----------------+---------------------------+
-|    1    | :scheme        | https                     |
+|    1    | user-agent     | my-user-agent             | added header
++---------+----------------+---------------------------+
+|    2    | :path          | /my-example/index.html    | added header
++---------+----------------+---------------------------+
+|    3    | :scheme        | http                      |
++---------+----------------+---------------------------+
+|    4    | :scheme        | https                     |
 +---------+----------------+---------------------------+
 |   ...   | ...            | ...                       |
 +---------+----------------+---------------------------+
-|   29    | via            |                           |
-+---------+----------------+---------------------------+
-|   30    | :path          | /my-example/index.html    | added header
-+---------+----------------+---------------------------+
-|   31    | user-agent     | my-user-agent             | added header
-+---------+----------------+---------------------------+
-|   32    | mynewheader    | first                     | added header
+|   32    | via            |                           |
 +---------+----------------+---------------------------+
 </artwork></figure>
                     As all the headers in the first header set are indexed in
@@ -1269,26 +1174,25 @@ mynewheader, first
                 <t>
                     The second header set to represent is the following:
                     <figure><artwork type="message/http">
-:path: /my-example/resources/script.js
-user-agent: my-user-agent
-mynewheader: second
+:path, /my-example/resources/script.js
+user-agent, my-user-agent
+mynewheader, second
 </artwork></figure>
                     Comparing this second header set to the reference set, the
                     first and third headers are from the reference set are not
                     present in this second header set and must be removed. In
                     addition, in this new set, the first and third headers
                     have to be encoded.
-                    The path header is represented as a literal header with
-                    substitution indexing. The mynewheader will be
+                    The path header is represented as a literal header
+                    without indexing. The mynewheader will be
                     represented as a literal header with incremental indexing.
                     <figure><artwork type="message/http">
-0x9e       (indexed header, index = 30: removal from reference set)
-0xa0       (indexed header, index = 32: removal from reference set)
-0x04       (literal header, substitution indexing, name index = 3)
-0x1e       (replaced entry index = 30)
+0x80       (indexed header, index = 0: removal from reference set)
+0x82       (indexed header, index = 2: removal from reference set)
+0x43       (literal header, without indexing, name index = 2)
 0x1f       (header value string length = 31)
 /my-example/resources/script.js
-0x5f 0x02  (literal header, incremental indexing, name index = 32)
+0x01       (literal header, incremental indexing, name index = 0)
 0x06       (header value string length = 6)
 second
 </artwork></figure>
@@ -1298,22 +1202,21 @@ Header table
 +---------+----------------+---------------------------+
 |  Index  | Header Name    | Header Value              |
 +---------+----------------+---------------------------+
-|    0    | :scheme        | http                      |
+|    0    | mynewheader    | second                    | added header
 +---------+----------------+---------------------------+
-|    1    | :scheme        | https                     |
+|    1    | mynewheader    | first                     |
++---------+----------------+---------------------------+
+|    2    | user-agent     | my-user-agent             |
++---------+----------------+---------------------------+
+|    3    | :path          | /my-example/index.html    |
++---------+----------------+---------------------------+
+|    4    | :scheme        | http                      |
++---------+----------------+---------------------------+
+|    5    | :scheme        | https                     |
 +---------+----------------+---------------------------+
 |   ...   | ...            | ...                       |
 +---------+----------------+---------------------------+
-|   29    | via            |                           |
-+---------+----------------+---------------------------+
-|   30    | :path          | /my-example/resources/    | replaced
-|         |                |     script.js             | header
-+---------+----------------+---------------------------+
-|   31    | user-agent     | my-user-agent             |
-+---------+----------------+---------------------------+
-|   32    | mynewheader    | first                     |
-+---------+----------------+---------------------------+
-|   33    | mynewheader    | second                    | added header
+|   33    | via            |                           |
 +---------+----------------+---------------------------+
 </artwork></figure>
                     All the headers in this second header set are indexed in

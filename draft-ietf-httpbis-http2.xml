@@ -530,8 +530,8 @@ HTTP2-Settings    = token68
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |         Length (16)           |   Type (8)    |   Flags (8)   |
- +-+-------------+---------------+-------------------------------+
+ | R |     Length (16)           |   Type (8)    |   Flags (8)   |
+ +-+-+-----------+---------------+-------------------------------+
  |R|                 Stream Identifier (31)                      |
  +-+-------------------------------------------------------------+
  |                   Frame Payload (0...)                      ...
@@ -541,10 +541,13 @@ HTTP2-Settings    = token68
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
+            <t hangText="R:">
+              A reserved 2-bit field.  The semantics of this bit are undefined and the bit MUST
+              remain unset (0) when sending and MUST be ignored when receiving.
+            </t>
             <t hangText="Length:">
-              The length of the frame payload expressed as an unsigned 16-bit
-              integer. The 8 octets of the frame header are not included
-              in this value.
+              The length of the frame payload expressed as an unsigned 14-bit integer. The 8 octets
+              of the frame header are not included in this value.
             </t>
             <t hangText="Type:">
               The 8-bit type of the frame.  The frame type determines how the remainder of the frame
@@ -559,9 +562,8 @@ HTTP2-Settings    = token68
               MUST be ignored, and MUST be left unset (0) when sending.
             </t>
             <t hangText="R:">
-              A reserved 1-bit field.  The semantics of this bit are undefined
-              and the bit MUST remain unset (0) when sending and MUST be ignored
-              when receiving.
+              A reserved 1-bit field.  The semantics of this bit are undefined and the bit MUST
+              remain unset (0) when sending and MUST be ignored when receiving.
             </t>
             <t hangText="Stream Identifier:">
               A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  A value 0 is
@@ -577,10 +579,9 @@ HTTP2-Settings    = token68
       
       <section anchor="FrameSize" title="Frame Size">
         <t>
-          The maximum size of a frame payload varies by frame type and use.  For instance, the
-          HTTP/2.0 usage limits frame payloads to 2<x:sup>14</x:sup>-1 (16,383) octets (<xref
-          target="HttpSizeLimit"/>).  All implementations SHOULD be capable of receiving and
-          minimally processing frames up to the maximum size.
+          The maximum size of a frame payload varies by frame type and use.  The absolute maximum
+          size of a frame is 2<x:sup>14</x:sup>-1 (16,383) octets.  All implementations SHOULD be
+          capable of receiving and minimally processing frames up to this maximum size.
         </t>
         <t>
           Certain frame types, such as <x:ref>PING</x:ref> (see <xref target="PING"/>), impose
@@ -589,7 +590,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           If a frame size exceeds any defined limit, or is too small to contain mandatory frame
-          data, the endpoint MUST send a <x:ref>FRAME_TOO_LARGE</x:ref> error. Frame size errors in
+          data, the endpoint MUST send a <x:ref>FRAME_SIZE_ERROR</x:ref> error. Frame size errors in
           frames that affect connection-level state MUST be treated as a <xref
           target="ConnectionErrorHandler">connection error</xref>.
         </t>
@@ -1226,7 +1227,7 @@ HTTP2-Settings    = token68
                 Bit 2 is reserved for future use.
               </t>
               <t hangText="END_HEADERS (0x4):">
-                The END_HEADERS bit indicates that this frame ends the sequence of header block
+                Bit 3 being set indicates that this frame ends the sequence of header block
                 fragments necessary to provide a complete set of headers.
                 <vspace blankLines="1"/>
                 The payload for a complete header block is provided by a sequence of that starts
@@ -1387,18 +1388,7 @@ HTTP2-Settings    = token68
             so does nothing other than waste connection capacity.
           </t>
           <t>
-            The SETTINGS frame defines the following flag:
-            <list style="hanging">
-              <t hangText="ACK (0x1):">
-                Bit 1 being set indicates that this frame acknowledges receipt and application of
-                the peer's SETTINGS frame.  When this bit is set, the payload of the SETTINGS frame
-                MUST be empty.  Receipt of a SETTINGS frame with the ACK flag set and a length field
-                value other than 0 MUST be treated as a
-                <xref target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>FRAME_SIZE_ERROR</x:ref>.  For more info, see <xref target="SettingsSync">Settings
-                Synchronization</xref>.
-              </t>
-            </list>
+            The SETTINGS frame does not define any flags.
           </t>
           <t>
             SETTINGS frames always apply to a connection, never a single stream.  The stream
@@ -1437,19 +1427,9 @@ HTTP2-Settings    = token68
             <t>
               The following settings are defined:
               <list style="hanging">
-                <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (1):">
-                  <t>
-                    Allows the sender to inform the remote endpoint of the
-                    maximum size it accepts for the header table in the decoder.
-                  </t>
-                  <t>
-                    The default value is 4096 bytes.
-                    <cref>Do we need a maximum size?</cref>
-                  </t>
-                </x:lt>
                 <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (4):">
                   <t>
-                    Indicates the maximum number of concurrent streams that the sender will allow.
+                    indicates the maximum number of concurrent streams that the sender will allow.
                     This limit is directional: it applies to the number of streams that the sender
                     permits the receiver to create. By default there is no limit.  It is recommended
                     that this value be no smaller than 100, so as to not unnecessarily limit
@@ -1458,7 +1438,7 @@ HTTP2-Settings    = token68
                 </x:lt>
                 <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (7):">
                   <t>
-                    Indicates the sender's initial window size (in bytes) for stream level flow
+                    indicates the sender's initial window size (in bytes) for stream level flow
                     control.
                   </t>
                   <t>
@@ -1468,7 +1448,7 @@ HTTP2-Settings    = token68
                 </x:lt>
                 <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (10):">
                   <t>
-                    Indicates flow control options.  The least significant bit (0x1) of the value is
+                    indicates flow control options.  The least significant bit (0x1) of the value is
                     set to indicate that the sender has disabled all flow control.  This bit cannot
                     be cleared once set, see <xref target="EndFlowControl"/>.
                   </t>
@@ -1479,24 +1459,6 @@ HTTP2-Settings    = token68
               </list>
             </t>
 
-          </section>
-          <section anchor="SettingsSync" title="Settings Synchronization">
-            <t>
-              Most values in SETTINGS benefit from or require an understanding of when the peer has
-              received and applied the changed setting values.  In order to provide such synchronization
-              timepoints, the recipient of a SETTINGS frame in which the ACK flag is not set MUST apply
-              the updated settings as soon as possible upon receipt.
-            </t>
-            <t>
-              The values in the SETTINGS frame MUST be applied in sequence, with no other frame processing
-              between values.  Once all values have been applied, the recipient MUST immediately emit a
-              SETTINGS frame with the ACK flag set.
-            </t>
-            <t>
-              If the sender of a SETTINGS frame does not receive an acknowledgement within a reasonable
-              amount of time, it MAY issue a <xref target="ConnectionErrorHandler"> connection error </xref>
-              of type <x:ref>SETTINGS_TIMEOUT</x:ref>.
-            </t>
           </section>
         </section>
 
@@ -1625,15 +1587,15 @@ HTTP2-Settings    = token68
             payload.  A sender can include any value it chooses and use those bytes in any fashion.
           </t>
           <t>
-            Receivers of a PING frame that does not include a ACK flag MUST send a PING frame with
-            the ACK flag set in response, with an identical payload.  PING responses SHOULD given
+            Receivers of a PING frame that does not include a PONG flag MUST send a PING frame with
+            the PONG flag set in response, with an identical payload.  PING responses SHOULD given
             higher priority than any other frame.
           </t>
 
           <t>
             The PING frame defines the following flags:
             <list style="hanging">
-              <t hangText="ACK (0x1):">
+              <t hangText="PONG (0x1):">
                 Bit 1 being set indicates that this PING frame is a PING response.  An endpoint MUST
                 set this flag in PING responses.  An endpoint MUST NOT respond to PING frames
                 containing this flag.
@@ -1649,7 +1611,7 @@ HTTP2-Settings    = token68
           <t>
             Receipt of a PING frame with a length field value other than 8 MUST be treated as a
             <xref target="ConnectionErrorHandler">connection error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
+            <x:ref>FRAME_SIZE_ERROR</x:ref>.
           </t>
 
         </section>
@@ -2050,14 +2012,10 @@ HTTP2-Settings    = token68
           <t hangText="FLOW_CONTROL_ERROR (3):" anchor="FLOW_CONTROL_ERROR">
             The endpoint detected that its peer violated the flow control protocol.
           </t>
-          <t hangText="SETTINGS_TIMEOUT (4):" anchor="SETTINGS_TIMEOUT">
-            The endpoint sent a SETTINGS frame, but did not receive a response in a
-            timely manner.  See <xref target="SettingsSync">Settings Synchronization</xref>.
-          </t>
           <t hangText="STREAM_CLOSED (5):" anchor="STREAM_CLOSED">
             The endpoint received a frame after a stream was half closed.
           </t>
-          <t hangText="FRAME_TOO_LARGE (6):" anchor="FRAME_TOO_LARGE">
+          <t hangText="FRAME_SIZE_ERROR (6):" anchor="FRAME_SIZE_ERROR">
             The endpoint received a frame that was larger than the maximum size that it
             supports.
           </t>
@@ -2074,6 +2032,10 @@ HTTP2-Settings    = token68
           <t hangText="CONNECT_ERROR (10):" anchor="CONNECT_ERROR">
             The connection established in response to a <xref target="CONNECT">CONNECT
             request</xref> was reset or abnormally closed.
+          </t>
+          <t hangText="ENHANCE_YOUR_CALM (420):" anchor="ENHANCE_YOUR_CALM">
+            The endpoint detected that its peer is exhibiting a behavior over a given amount of time
+            that has caused it to refuse to process further frames.
           </t>
         </list>
       </t>
@@ -2154,7 +2116,7 @@ HTTP2-Settings    = token68
   Accept: image/jpeg               + END_HEADERS
                                      :method = GET
                                      :scheme = https
-                                     :host = example.org
+                                     :authority = example.org
                                      :path = /resource
                                      accept = image/jpeg
 ]]></artwork>
@@ -2194,7 +2156,7 @@ HTTP2-Settings    = token68
   Content-Type: image/jpeg         + END_HEADERS
   Content-Length: 123                :method = POST
                                      :scheme = https
-  {binary data}                      :host = example.org
+  {binary data}                      :authority = example.org
                                      :path = /resource
                                      content-type = image/jpeg
                                      content-length = 123
@@ -2285,7 +2247,7 @@ HTTP2-Settings    = token68
         
         <section anchor="HttpRequest" title="Request Header Fields">
           <t>
-            HTTP/2.0 defines a number of headers starting with a ':' character that carry
+            HTTP/2.0 defines a number of headers starting with a colon ':' character that carry
             information about the request target:
             <list style="symbols">
               <t>
@@ -2297,7 +2259,7 @@ HTTP2-Settings    = token68
                 the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
               </t>
               <t>
-                The <spanx style="verb">:host</spanx> header field includes the authority portion of
+                The <spanx style="verb">:authority</spanx> header field includes the authority portion of
                 the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).
               </t>
               <t>
@@ -2312,11 +2274,18 @@ HTTP2-Settings    = token68
               </t>
             </list>
             All HTTP/2.0 requests MUST include exactly one valid value for all of these header
-            fields, unless this is a <xref target="CONNECT">CONNECT request</xref>.  An intermediary
-            MUST ensure that requests that it forwards are correct.  A server MUST treat the absence
-            of any of these header fields, presence of multiple values, or an invalid value as a
-            <xref target="StreamErrorHandler">stream error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
+            fields, unless this is a <xref target="CONNECT">CONNECT request</xref>.  An HTTP request
+            that omits mandatory headers is malformed.  Intermediaries that do not interpret
+            requests MAY forward a malformed request.  Implementations that detect malformed
+            requests need to ensure that the stream ends, however a server MAY send an HTTP response
+            prior to closing or resetting the stream.
+          </t>
+          <t>
+            Header field names that contain a colon are only valid in the HTTP/2.0 context.  These
+            are not HTTP header fields.  Implementations MUST NOT generate header fields that start
+            with a colon, but they MUST ignore any header field that starts with a colon.  In
+            particular, header fields with names starting with a colon MUST NOT be exposed as HTTP
+            header fields.
           </t>
           <t>
             HTTP/2.0 does not define a way to carry the version identifier that is included in the
@@ -2334,12 +2303,10 @@ HTTP2-Settings    = token68
         <section anchor="HttpResponse" title="Response Header Fields">
           <t>
             A single <spanx style="verb">:status</spanx> header field is defined that carries the
-            HTTP status code field (see <xref target="HTTP-p2" x:fmt="," x:rel="#status.codes"/>).  This header
-            field MUST be included in all responses.  An intermediary MUST ensure that it does not
-            forward responses with absent or invalid values.  A client MUST treat the absence of the
-            <spanx style="verb">:status</spanx> header field, the presence of multiple values, or
-            an invalid value as a <xref target="StreamErrorHandler">stream error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
+            HTTP status code field (see <xref target="HTTP-p2" x:fmt="," x:rel="#status.codes"/>).
+            This header field MUST be included in all responses.  Intermediaries that do not
+            interpret requests MAY forward a response that is malformed in this fashion.  Clients
+            MUST NOT accept a malformed response.
           </t>
           <t>
             HTTP/2.0 does not define a way to carry the version or reason phrase that is included in
@@ -2408,6 +2375,11 @@ HTTP2-Settings    = token68
           resources is up to that intermediary.  Equally, the intermediary might choose to push
           additional resources to the client, without any action taken by the server.
         </t>
+        <t>
+          A server can only push requests that are safe (see <xref target="HTTP-p2" x:fmt=","
+          x:rel="#safe.methods"/>), cacheable (see <xref target="HTTP-p6" x:fmt=","
+          x:rel="#response.cacheability"/>) and do not include a request body.
+        </t>
 
         <section title="Push Requests">
           <t>
@@ -2429,8 +2401,7 @@ HTTP2-Settings    = token68
             The header fields in <x:ref>PUSH_PROMISE</x:ref> and any subsequent
             <x:ref>CONTINUATION</x:ref> frames MUST be a valid and complete set of <xref
             target="HttpRequest">request headers</xref>.  The server MUST include a method in the
-            <spanx style="verb">:method</spanx> header field that is safe (see <xref
-            target="HTTP-p2" x:fmt="," x:rel="#safe.methods"/>).  If a client receives a
+            <spanx style="verb">:method</spanx> header field that is safe and cacheable.  If a client receives a
             <x:ref>PUSH_PROMISE</x:ref> that does not include a complete and valid set of header
             fields, or the <spanx style="verb">:method</spanx> header field identifies a method that
             is not safe, it MUST respond with a <xref target="StreamErrorHandler">stream
@@ -2524,18 +2495,13 @@ HTTP2-Settings    = token68
                 style="verb">CONNECT</spanx>.
               </t>
               <t>
-                The <spanx style="verb">:scheme</spanx> header field MUST be omitted.
+                The <spanx style="verb">:scheme</spanx> and <spanx style="verb">:path</spanx> header
+                fields MUST be omitted.
               </t>
               <t>
-                The <spanx style="verb">:host</spanx> header field MAY be sent. It exists for
-                backwards compatibility with HTTP/1.1 implementations where the Host header may not
-                match the host indicated in the authority specified in the request-target of the
-                CONNECT request.  <cref>Unjustified: what value does :host provide?</cref>
-              </t>
-              <t>
-                The <spanx style="verb">:path</spanx> header field contains the authority-form of
-                the request-target of CONNECT requests (see <xref target="HTTP-p1" x:fmt=","
-                x:rel="#request-target"/>).
+                The <spanx style="verb">:authority</spanx> header field contains the host and port
+                to connect to (equivalent to the authority-form of the request-target of CONNECT
+                requests, see <xref target="HTTP-p1" x:fmt="," x:rel="#request-target"/>).
               </t>
           </list>
         </t>
@@ -2628,14 +2594,6 @@ HTTP2-Settings    = token68
         <t>
           Implementations are encouraged not to negotiate TLS cipher suites with known
           vulnerabilities, such as <xref target="RC4"/>.
-        </t>
-      </section>
-      
-      <section anchor="HttpSizeLimit" title="Frame Size Limits for HTTP">
-        <t>
-          Frames used for HTTP messages MUST NOT exceed 2<x:sup>14</x:sup>-1 (16,383) octets in
-          length, not counting the 8 octet frame header. An endpoint MUST treat the receipt of a
-          larger frame as a <x:ref>FRAME_TOO_LARGE</x:ref> error (see <xref target="FrameSize"/>).
         </t>
       </section>
       
@@ -2800,13 +2758,13 @@ HTTP2-Settings    = token68
           <c>3</c><c><x:ref>RST_STREAM</x:ref></c><c>-</c> <c><xref target="RST_STREAM"
           fmt="counter"/></c>
 
-          <c>4</c><c><x:ref>SETTINGS</x:ref></c><c>ACK(1)</c> <c><xref target="SETTINGS"
+          <c>4</c><c><x:ref>SETTINGS</x:ref></c><c>-</c> <c><xref target="SETTINGS"
           fmt="counter"/></c>
 
           <c>5</c><c><x:ref>PUSH_PROMISE</x:ref></c><c>END_PUSH_PROMISE(4)</c> <c><xref
           target="PUSH_PROMISE" fmt="counter"/></c>
 
-          <c>6</c><c><x:ref>PING</x:ref></c><c>ACK(1)</c> <c><xref target="PING"
+          <c>6</c><c><x:ref>PING</x:ref></c><c>PONG(1)</c> <c><xref target="PING"
           fmt="counter"/></c>
 
           <c>7</c><c><x:ref>GOAWAY</x:ref></c><c>-</c> <c><xref target="GOAWAY" fmt="counter"/></c>
@@ -3094,9 +3052,9 @@ HTTP2-Settings    = token68
           <author initials="A." surname="Popov" fullname="Andrei Popov"></author>
           <author initials="A." surname="Langley" fullname="Adam Langley"></author>
           <author initials="E." surname="Stephan" fullname="Emile Stephan"></author>
-          <date month="April" year="2013" />
+          <date month="September" year="2013" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-tls-applayerprotoneg-01" />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-tls-applayerprotoneg-02" />
       </reference>
 
       <reference anchor="HTTP-p1">
@@ -3164,7 +3122,7 @@ HTTP2-Settings    = token68
             <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
             <address><email>fielding@gbiv.com</email></address>
           </author>
-          <author initials="M." surname="Nottingham" fullname="Mark Nottingham" role="editor">
+          <author fullname="Mark Nottingham" initials="M." role="editor" surname="Nottingham">
             <organization>Akamai</organization>
             <address><email>mnot@mnot.net</email></address>
           </author>
@@ -3172,9 +3130,11 @@ HTTP2-Settings    = token68
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month="July" year="2013" />
+          <date month="September" year="2013" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-24"/>
+        <x:source href="refs/draft-ietf-httpbis-p6-cache-24.xml" 
+                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p6-cache"/>
       </reference>
       <reference anchor="HTTP-p7">
         <front>
@@ -3261,10 +3221,10 @@ HTTP2-Settings    = token68
           Adding definition for CONNECT method.
         </t>
         <t>
-          Adding setting for for header compression table size.
+          Constraining the use of push to safe, cacheable methods with no request body.
         </t>
         <t>
-          Adding settings acknowledgement.
+          Changing from :host to :authority to remove any potential confusion.
         </t>
       </section>
       <section title="Since draft-ietf-httpbis-http2-05" anchor="changes.since.draft-ietf-httpbis-http2-05">
