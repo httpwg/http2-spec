@@ -731,7 +731,8 @@ HTTP2-Settings    = token68
                 <t>
                   Sending or receiving a <x:ref>HEADERS</x:ref> frame causes the stream to become
                   "open".  The stream identifier is selected as described in <xref
-                  target="StreamIdentifiers"/>.
+                  target="StreamIdentifiers"/>.  The same <x:ref>HEADERS</x:ref> frame can also
+                  cause a stream to immediately become "half closed".
                 </t>
                 <t>
                   Sending a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream for later
@@ -759,7 +760,7 @@ HTTP2-Settings    = token68
                 </t>
                 <t>
                   Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream to
-                  become "closed".  This also releases the stream reservation.
+                  become "closed".  This releases the stream reservation.
                 </t>
               </list>
               An endpoint MUST NOT send any other type of frame in this state.  Receiving any frame
@@ -780,7 +781,7 @@ HTTP2-Settings    = token68
                 </t>
                 <t>
                   Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream to
-                  become "closed".  This also releases the stream reservation.
+                  become "closed".  This releases the stream reservation.
                 </t>
               </list>
               Receiving any other type of frame MUST be treated as a <xref
@@ -799,7 +800,8 @@ HTTP2-Settings    = token68
               causes the stream to transition into one of the "half closed" states: an endpoint
               sending a END_STREAM flag causes the stream state to become "half closed (local)"; an
               endpoint receiving a END_STREAM flag causes the stream state to become "half closed
-              (remote)".
+              (remote)".  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed
+              by <x:ref>CONTINUATION</x:ref> frames.
               <vspace blankLines="1"/>
               Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame from this state, causing it
               to transition immediately to "closed".
@@ -811,7 +813,8 @@ HTTP2-Settings    = token68
               <vspace blankLines="1"/>
               A stream transitions from this state to "closed" when a frame that contains a
               END_STREAM flag is received, or when either peer sends a <x:ref>RST_STREAM</x:ref>
-              frame.
+              frame.  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed by
+              <x:ref>CONTINUATION</x:ref> frames.
               <vspace blankLines="1"/>
               A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames
               in this state.  These frame types might arrive for a short period after a frame
@@ -824,9 +827,9 @@ HTTP2-Settings    = token68
               frames.  In this state, an endpoint is no longer obligated to maintain a receiver flow
               control window if it performs flow control.
               <vspace blankLines="1"/>
-              If an endpoint receives additional frames for a stream that is in this state it MUST
-              respond with a <xref target="StreamErrorHandler">stream error</xref> of type
-              <x:ref>STREAM_CLOSED</x:ref>.
+              If an endpoint receives additional frames for a stream that is in this state, other
+              than <x:ref>CONTINUATION</x:ref> frames, it MUST respond with a <xref
+              target="StreamErrorHandler">stream error</xref> of type <x:ref>STREAM_CLOSED</x:ref>.
               <vspace blankLines="1"/>
               A stream can transition from this state to "closed" by sending a frame that contains a
               END_STREAM flag, or when either peer sends a <x:ref>RST_STREAM</x:ref> frame.
@@ -836,20 +839,24 @@ HTTP2-Settings    = token68
               <vspace blankLines="0"/>
               The "closed" state is the terminal state.
               <vspace blankLines="1"/>
-              An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives a
-              frame after receiving a <x:ref>RST_STREAM</x:ref> or a frame containing a END_STREAM
-              flag on that stream MUST treat that as a <xref target="StreamErrorHandler">stream
-              error</xref> of type <x:ref>STREAM_CLOSED</x:ref>.
+              An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives any
+              frame after receiving a <x:ref>RST_STREAM</x:ref> MUST treat that as a <xref
+              target="StreamErrorHandler">stream error</xref> of type <x:ref>STREAM_CLOSED</x:ref>.
+              Similarly, an endpoint that receives any frame after receiving a <x:ref>DATA</x:ref>
+              frame with the END_STREAM flag set, or any frame except a <x:ref>CONTINUATION</x:ref>
+              frame after receiving a <x:ref>HEADERS</x:ref> frame with a END_STREAM flag set MUST
+              treat that as a <xref target="StreamErrorHandler">stream error</xref> of type
+              <x:ref>STREAM_CLOSED</x:ref>.
               <vspace blankLines="1"/>
               <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref>
-              frames can be received in this state for a short period after a frame containing an
-              END_STREAM flag is sent.  Until the remote peer receives and processes the frame
-              bearing the END_STREAM flag, it might send frame of any of these types.  Endpoints
-              MUST ignore <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or
-              <x:ref>RST_STREAM</x:ref> frames received in this state, though endpoints MAY choose
-              to treat frames that arrive a significant time after sending END_STREAM as a <xref
-              target="ConnectionErrorHandler">connection error</xref> of type
-              <x:ref>PROTOCOL_ERROR</x:ref>.
+              frames can be received in this state for a short period after a <x:ref>DATA</x:ref> or
+              <x:ref>HEADERS</x:ref> frame containing an END_STREAM flag is sent.  Until the remote
+              peer receives and processes the frame bearing the END_STREAM flag, it might send frame
+              of any of these types.  Endpoints MUST ignore <x:ref>WINDOW_UPDATE</x:ref>,
+              <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref> frames received in this state,
+              though endpoints MAY choose to treat frames that arrive a significant time after
+              sending END_STREAM as a <xref target="ConnectionErrorHandler">connection error</xref>
+              of type <x:ref>PROTOCOL_ERROR</x:ref>.
               <vspace blankLines="1"/>
               If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame, the
               peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or enqueued
@@ -1222,6 +1229,10 @@ HTTP2-Settings    = token68
                 Bit 1 being set indicates that this frame is the last that the endpoint will send
                 for the identified stream.  Setting this flag causes the stream to enter a <xref
                 target="StreamStates">"half closed" state</xref>.
+                <vspace blankLines="1"/>
+                A HEADERS frame that is followed by <x:ref>CONTINUATION</x:ref> frames carries the
+                flag that signals the end of a stream.  A <x:ref>CONTINUATION</x:ref> frame cannot
+                be used to terminate a stream.
               </t>
               <t hangText="RESERVED (0x2):">
                 Bit 2 is reserved for future use.
@@ -1975,17 +1986,6 @@ HTTP2-Settings    = token68
           <t>
             The CONTINUATION frame defines the following flags:
             <list style="hanging">
-              <t hangText="END_STREAM (0x1):">
-                Bit 1 being set indicates that this frame is the last that the endpoint will send
-                for the identified stream.  Setting this flag causes the stream to enter a <xref
-                target="StreamStates">"half closed" or "closed" state</xref>.  <cref>We have not
-                decided yet if it is a good idea to keep this flag here since it could be used to
-                end a stream by being attached to a PUSH_PROMISE continuation.  See
-                https://github.com/http2/http2-spec/issues/228 for details.</cref>
-              </t>
-              <t hangText="Unused (0x2):">
-                This flag is not currently used.
-              </t>
               <t hangText="END_HEADERS (0x4):">
                 The END_HEADERS bit indicates that this frame ends the sequence of header block
                 fragments necessary to provide a complete set of headers.
@@ -2024,7 +2024,7 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            A CONTINUATION frame MUST be preceded by one of <x:ref>HEADERS</x:ref>,
+            A CONTINUATION frame MUST be preceded by a <x:ref>HEADERS</x:ref>,
             <x:ref>PUSH_PROMISE</x:ref> or CONTINUATION frame. A recipient that observes violation
             of this rule MUST respond with a <xref target="ConnectionErrorHandler"> connection error
             </xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
@@ -2129,7 +2129,9 @@ HTTP2-Settings    = token68
               followed by zero or more <x:ref>CONTINUATION</x:ref> frames.
             </t>
           </list>
-          The last frame in the sequence bears an END_STREAM flag.
+          The last frame in the sequence bears an END_STREAM flag, though a <x:ref>HEADERS</x:ref>
+          frame bearing the END_STREAM flag can be followed by <x:ref>CONTINUATION</x:ref> frames
+          that carry any remaining portions of the header block.
         </t>
         <t>
           Other frames MAY be interspersed with these frames, but those frames do not carry HTTP
@@ -2141,9 +2143,9 @@ HTTP2-Settings    = token68
         <t>
           Trailing header fields are carried in a header block that also terminates the stream.
           That is, a sequence starting with a <x:ref>HEADERS</x:ref> frame, followed by zero or more
-          <x:ref>CONTINUATION</x:ref> frames, that carries an END_STREAM flag on the last frame.
-          Header blocks after the first that do not terminate the stream are not part of an HTTP
-          request or response.
+          <x:ref>CONTINUATION</x:ref> frames, where the <x:ref>HEADERS</x:ref> frame bears an
+          END_STREAM flag.  Header blocks after the first that do not terminate the stream are not
+          part of an HTTP request or response.
         </t>
 
         <t>
@@ -2318,7 +2320,7 @@ HTTP2-Settings    = token68
               <t>
                 The <spanx style="verb">:authority</spanx> header field includes the authority
                 portion of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).
-                <vspance blankLines="1"/>
+                <vspace blankLines="1"/>
                 To ensure that the HTTP/1.1 request line can be reproduced accurately, this header
                 field MUST be omitted when translating from an HTTP/1.1 request that has a request
                 target in origin or asterisk form (see <xref target="HTTP-p1" x:fmt=","
@@ -2839,7 +2841,7 @@ HTTP2-Settings    = token68
           <c>9</c><c><x:ref>WINDOW_UPDATE</x:ref></c><c>-</c> <c><xref target="WINDOW_UPDATE"
           fmt="counter"/></c>
 
-          <c>10</c><c><x:ref>CONTINUATION</x:ref></c><c>END_STREAM(1), END_HEADERS(4)</c>
+          <c>10</c><c><x:ref>CONTINUATION</x:ref></c><c>END_HEADERS(4)</c>
           <c><xref target="CONTINUATION" fmt="counter"/></c>
         </texttable>
       </section>
@@ -3298,6 +3300,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Adding settings acknowledgement.
+        </t>
+        <t>
+          Removing unnecessary and potentially problematic flags from CONTINUATION.
         </t>
       </section>
       <section title="Since draft-ietf-httpbis-http2-05" anchor="changes.since.draft-ietf-httpbis-http2-05">
