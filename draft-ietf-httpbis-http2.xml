@@ -541,35 +541,48 @@ HTTP2-Settings    = token68
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
-            <t hangText="R:">
-              A reserved 2-bit field.  The semantics of this bit are undefined and the bit MUST
-              remain unset (0) when sending and MUST be ignored when receiving.
-            </t>
-            <t hangText="Length:">
-              The length of the frame payload expressed as an unsigned 14-bit integer. The 8 octets
-              of the frame header are not included in this value.
-            </t>
-            <t hangText="Type:">
-              The 8-bit type of the frame.  The frame type determines how the remainder of the frame
-              header and payload are interpreted.  Implementations MUST ignore frames of unsupported
-              or unrecognized types.
-            </t>
-            <t hangText="Flags:">
-              An 8-bit field reserved for frame-type specific boolean flags.
-              <vspace blankLines="1"/>
-              Flags are assigned semantics specific to the indicated frame type.
-              Flags that have no defined semantics for a particular frame type
-              MUST be ignored, and MUST be left unset (0) when sending.
-            </t>
-            <t hangText="R:">
-              A reserved 1-bit field.  The semantics of this bit are undefined and the bit MUST
-              remain unset (0) when sending and MUST be ignored when receiving.
-            </t>
-            <t hangText="Stream Identifier:">
-              A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  A value 0 is
-              reserved for frames that are associated with the connection as a whole as opposed to
-              an individual stream.
-            </t>
+            <x:lt hangText="R:">
+              <t>
+                A reserved 2-bit field.  The semantics of this bit are undefined and the bit MUST
+                remain unset (0) when sending and MUST be ignored when receiving.
+              </t>
+            </x:lt>
+            <x:lt hangText="Length:">
+              <t>
+                The length of the frame payload expressed as an unsigned 14-bit integer. The 8 octets
+                of the frame header are not included in this value.
+              </t>
+            </x:lt>
+            <x:lt hangText="Type:">
+              <t>
+                The 8-bit type of the frame.  The frame type determines how the remainder of the frame
+                header and payload are interpreted.  Implementations MUST ignore frames of unsupported
+                or unrecognized types.
+              </t>
+            </x:lt>
+            <x:lt hangText="Flags:">
+              <t>
+                An 8-bit field reserved for frame-type specific boolean flags.
+              </t>
+              <t>
+                Flags are assigned semantics specific to the indicated frame type.
+                Flags that have no defined semantics for a particular frame type
+                MUST be ignored, and MUST be left unset (0) when sending.
+              </t>
+            </x:lt>
+            <x:lt hangText="R:">
+              <t>
+                A reserved 1-bit field.  The semantics of this bit are undefined and the bit MUST
+                remain unset (0) when sending and MUST be ignored when receiving.
+              </t>
+            </x:lt>
+            <x:lt hangText="Stream Identifier:">
+              <t>
+                A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  A value 0 is
+                reserved for frames that are associated with the connection as a whole as opposed to
+                an individual stream.
+              </t>
+            </x:lt>
           </list>
         </t>
         <t>
@@ -722,162 +735,196 @@ HTTP2-Settings    = token68
           Streams have the following states:
           <list style="hanging">
 
-            <t hangText="idle:">
-              <vspace blankLines="0"/>
-              All streams start in the "idle" state.  In this state, no frames have been exchanged.
-              <vspace blankLines="1"/>
-              The following transitions are valid from this state:
-              <list style="symbols">
-                <t>
-                  Sending or receiving a <x:ref>HEADERS</x:ref> frame causes the stream to become
-                  "open".  The stream identifier is selected as described in <xref
-                  target="StreamIdentifiers"/>.  The same <x:ref>HEADERS</x:ref> frame can also
-                  cause a stream to immediately become "half closed".
-                </t>
-                <t>
-                  Sending a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream for later
-                  use.  The stream state for the reserved stream transitions to "reserved (local)".
-                </t>
-                <t>
-                  Receiving a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream as
-                  reserved by the remote peer.  The state of the stream becomes "reserved (remote)".
-                </t>
-              </list>
-            </t>
+            <x:lt hangText="idle:">
+              <t>
+                <vspace blankLines="0"/>
+                All streams start in the "idle" state.  In this state, no frames have been
+                exchanged.
+              </t>
+              <t>
+                The following transitions are valid from this state:
+                <list style="symbols">
+                  <t>
+                    Sending or receiving a <x:ref>HEADERS</x:ref> frame causes the stream to become
+                    "open".  The stream identifier is selected as described in <xref
+                    target="StreamIdentifiers"/>.  The same <x:ref>HEADERS</x:ref> frame can also
+                    cause a stream to immediately become "half closed".
+                  </t>
+                  <t>
+                    Sending a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream for
+                    later use.  The stream state for the reserved stream transitions to "reserved
+                    (local)".
+                  </t>
+                  <t>
+                    Receiving a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream as
+                    reserved by the remote peer.  The state of the stream becomes "reserved
+                    (remote)".
+                  </t>
+                </list>
+              </t>
+            </x:lt>
 
-            <t hangText="reserved (local):">
-              <vspace blankLines="0"/>
-              A stream in the "reserved (local)" state is one that has been promised by sending a
-              <x:ref>PUSH_PROMISE</x:ref> frame.  A <x:ref>PUSH_PROMISE</x:ref> frame reserves an
-              idle stream by associating the stream with an open stream that was initiated by the
-              remote peer (see <xref target="PushResources"/>).
-              <vspace blankLines="1"/>
-              In this state, only the following transitions are possible:
-              <list style="symbols">
-                <t>
-                  The endpoint can send a <x:ref>HEADERS</x:ref> frame.  This causes the stream to
-                  open in a "half closed (remote)" state.
-                </t>
-                <t>
-                  Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream to
-                  become "closed".  This releases the stream reservation.
-                </t>
-              </list>
-              An endpoint MUST NOT send any other type of frame in this state.  Receiving any frame
-              other than <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> MUST be treated as a
-              <xref target="ConnectionErrorHandler">connection error</xref> of type
-              <x:ref>PROTOCOL_ERROR</x:ref>.
-            </t>
+            <x:lt hangText="reserved (local):">
+              <t>
+                <vspace blankLines="0"/>
+                A stream in the "reserved (local)" state is one that has been promised by sending a
+                <x:ref>PUSH_PROMISE</x:ref> frame.  A <x:ref>PUSH_PROMISE</x:ref> frame reserves an
+                idle stream by associating the stream with an open stream that was initiated by the
+                remote peer (see <xref target="PushResources"/>).
+              </t>
+              <t>
+                In this state, only the following transitions are possible:
+                <list style="symbols">
+                  <t>
+                    The endpoint can send a <x:ref>HEADERS</x:ref> frame.  This causes the stream to
+                    open in a "half closed (remote)" state.
+                  </t>
+                  <t>
+                    Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream
+                    to become "closed".  This releases the stream reservation.
+                  </t>
+                </list>
+                An endpoint MUST NOT send any other type of frame in this state.  Receiving any
+                frame other than <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> MUST be
+                treated as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+                <x:ref>PROTOCOL_ERROR</x:ref>.
+              </t>
+            </x:lt>
 
-            <t hangText="reserved (remote):">
-              <vspace blankLines="0"/>
-              A stream in the "reserved (remote)" state has been reserved by a remote peer.
-              <vspace blankLines="1"/>
-              In this state, only the following transitions are possible:
-              <list style="symbols">
-                <t>
-                  Receiving a <x:ref>HEADERS</x:ref> frame causes the stream to transition to "half
-                  closed (local)".
-                </t>
-                <t>
-                  Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream to
-                  become "closed".  This releases the stream reservation.
-                </t>
-              </list>
-              Receiving any other type of frame MUST be treated as a <xref
-              target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
-              An endpoint MAY send <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> frames in
-              this state to cancel or reprioritize the reserved stream.
-            </t>
+            <x:lt hangText="reserved (remote):">
+              <t>
+                <vspace blankLines="0"/>
+                A stream in the "reserved (remote)" state has been reserved by a remote peer.
+              </t>
+              <t>
+                In this state, only the following transitions are possible:
+                <list style="symbols">
+                  <t>
+                    Receiving a <x:ref>HEADERS</x:ref> frame causes the stream to transition to
+                    "half closed (local)".
+                  </t>
+                  <t>
+                    Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream
+                    to become "closed".  This releases the stream reservation.
+                  </t>
+                </list>
+                Receiving any other type of frame MUST be treated as a <xref
+                target="StreamErrorHandler">stream error</xref> of type
+                <x:ref>PROTOCOL_ERROR</x:ref>.  An endpoint MAY send <x:ref>RST_STREAM</x:ref> or
+                <x:ref>PRIORITY</x:ref> frames in this state to cancel or reprioritize the reserved
+                stream.
+              </t>
+            </x:lt>
 
-            <t hangText="open:">
-              <vspace blankLines="0"/>
-              The "open" state is where both peers can send frames of any type.  In this state,
-              sending peers observe advertised <xref target="FlowControl">stream level flow control
-              limits</xref>.
-              <vspace blankLines="1"/>
-              From this state either endpoint can send a frame with a END_STREAM flag set, which
-              causes the stream to transition into one of the "half closed" states: an endpoint
-              sending a END_STREAM flag causes the stream state to become "half closed (local)"; an
-              endpoint receiving a END_STREAM flag causes the stream state to become "half closed
-              (remote)".  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed
-              by <x:ref>CONTINUATION</x:ref> frames.
-              <vspace blankLines="1"/>
-              Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame from this state, causing it
-              to transition immediately to "closed".
-            </t>
+            <x:lt hangText="open:">
+              <t>
+                <vspace blankLines="0"/>
+                The "open" state is where both peers can send frames of any type.  In this state,
+                sending peers observe advertised <xref target="FlowControl">stream level flow control
+                limits</xref>.
+              </t>
+              <t>
+                From this state either endpoint can send a frame with a END_STREAM flag set, which
+                causes the stream to transition into one of the "half closed" states: an endpoint
+                sending a END_STREAM flag causes the stream state to become "half closed (local)"; an
+                endpoint receiving a END_STREAM flag causes the stream state to become "half closed
+                (remote)".  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed
+                by <x:ref>CONTINUATION</x:ref> frames.
+                <vspace blankLines="1"/>
+                Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame from this state, causing it
+                to transition immediately to "closed".
+              </t>
+            </x:lt>
 
-            <t hangText="half closed (local):">
-              <vspace blankLines="0"/>
-              A stream that is "half closed (local)" cannot be used for sending frames.
-              <vspace blankLines="1"/>
-              A stream transitions from this state to "closed" when a frame that contains a
-              END_STREAM flag is received, or when either peer sends a <x:ref>RST_STREAM</x:ref>
-              frame.  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed by
-              <x:ref>CONTINUATION</x:ref> frames.
-              <vspace blankLines="1"/>
-              A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames
-              in this state.  These frame types might arrive for a short period after a frame
-              bearing the END_STREAM flag is sent.
-            </t>
+            <x:lt hangText="half closed (local):">
+              <t>
+                <vspace blankLines="0"/>
+                A stream that is "half closed (local)" cannot be used for sending frames.
+              </t>
+              <t>
+                A stream transitions from this state to "closed" when a frame that contains a
+                END_STREAM flag is received, or when either peer sends a <x:ref>RST_STREAM</x:ref>
+                frame.  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed by
+                <x:ref>CONTINUATION</x:ref> frames.
+              </t>
+              <t>
+                A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames
+                in this state.  These frame types might arrive for a short period after a frame
+                bearing the END_STREAM flag is sent.
+              </t>
+            </x:lt>
 
-            <t hangText="half closed (remote):">
-              <vspace blankLines="0"/>
-              A stream that is "half closed (remote)" is no longer being used by the peer to send
-              frames.  In this state, an endpoint is no longer obligated to maintain a receiver flow
-              control window if it performs flow control.
-              <vspace blankLines="1"/>
-              If an endpoint receives additional frames for a stream that is in this state, other
-              than <x:ref>CONTINUATION</x:ref> frames, it MUST respond with a <xref
-              target="StreamErrorHandler">stream error</xref> of type <x:ref>STREAM_CLOSED</x:ref>.
-              <vspace blankLines="1"/>
-              A stream can transition from this state to "closed" by sending a frame that contains a
-              END_STREAM flag, or when either peer sends a <x:ref>RST_STREAM</x:ref> frame.
-            </t>
+            <x:lt hangText="half closed (remote):">
+              <t>
+                <vspace blankLines="0"/>
+                A stream that is "half closed (remote)" is no longer being used by the peer to send
+                frames.  In this state, an endpoint is no longer obligated to maintain a receiver
+                flow control window if it performs flow control.
+              </t>
+              <t>
+                If an endpoint receives additional frames for a stream that is in this state, other
+                than <x:ref>CONTINUATION</x:ref> frames, it MUST respond with a <xref
+                target="StreamErrorHandler">stream error</xref> of type
+                <x:ref>STREAM_CLOSED</x:ref>.
+              </t>
+              <t>
+                A stream can transition from this state to "closed" by sending a frame that contains
+                a END_STREAM flag, or when either peer sends a <x:ref>RST_STREAM</x:ref> frame.
+              </t>
+            </x:lt>
 
-            <t hangText="closed:">
-              <vspace blankLines="0"/>
-              The "closed" state is the terminal state.
-              <vspace blankLines="1"/>
-              An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives any
-              frame after receiving a <x:ref>RST_STREAM</x:ref> MUST treat that as a <xref
-              target="StreamErrorHandler">stream error</xref> of type <x:ref>STREAM_CLOSED</x:ref>.
-              Similarly, an endpoint that receives any frame after receiving a <x:ref>DATA</x:ref>
-              frame with the END_STREAM flag set, or any frame except a <x:ref>CONTINUATION</x:ref>
-              frame after receiving a <x:ref>HEADERS</x:ref> frame with a END_STREAM flag set MUST
-              treat that as a <xref target="StreamErrorHandler">stream error</xref> of type
-              <x:ref>STREAM_CLOSED</x:ref>.
-              <vspace blankLines="1"/>
-              <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref>
-              frames can be received in this state for a short period after a <x:ref>DATA</x:ref> or
-              <x:ref>HEADERS</x:ref> frame containing an END_STREAM flag is sent.  Until the remote
-              peer receives and processes the frame bearing the END_STREAM flag, it might send frame
-              of any of these types.  Endpoints MUST ignore <x:ref>WINDOW_UPDATE</x:ref>,
-              <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref> frames received in this state,
-              though endpoints MAY choose to treat frames that arrive a significant time after
-              sending END_STREAM as a <xref target="ConnectionErrorHandler">connection error</xref>
-              of type <x:ref>PROTOCOL_ERROR</x:ref>.
-              <vspace blankLines="1"/>
-              If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame, the
-              peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or enqueued
-              for sending - frames on the stream that cannot be withdrawn.  An endpoint MUST ignore
-              frames that it receives on closed streams after it has sent a
-              <x:ref>RST_STREAM</x:ref> frame.  An endpoint MAY choose to limit the period over
-              which it ignores frames and treat frames that arrive after this time as being in
-              error.
-              <vspace blankLines="1"/>
-              Flow controlled frames (i.e., <x:ref>DATA</x:ref>) received after sending
-              <x:ref>RST_STREAM</x:ref> are counted toward the connection flow control window.  Even
-              though these frames might be ignored, because they are sent before the sender receives
-              the <x:ref>RST_STREAM</x:ref>, the sender will consider the frames to count against
-              the flow control window.
-              <vspace blankLines="1"/>
-              An endpoint might receive a <x:ref>PUSH_PROMISE</x:ref> frame after it sends
-              <x:ref>RST_STREAM</x:ref>.  <x:ref>PUSH_PROMISE</x:ref> causes a stream to become
-              "reserved".  The <x:ref>RST_STREAM</x:ref> does not cancel any promised stream.
-              Therefore, if promised streams are not desired, a <x:ref>RST_STREAM</x:ref> can be
-              used to close any of those streams.
-            </t>
+            <x:lt hangText="closed:">
+              <t>
+                <vspace blankLines="0"/>
+                The "closed" state is the terminal state.
+              </t>
+              <t>
+                An endpoint MUST NOT send frames on a closed stream.  An endpoint that receives any
+                frame after receiving a <x:ref>RST_STREAM</x:ref> MUST treat that as a <xref
+                target="StreamErrorHandler">stream error</xref> of type
+                <x:ref>STREAM_CLOSED</x:ref>.  Similarly, an endpoint that receives any frame after
+                receiving a <x:ref>DATA</x:ref> frame with the END_STREAM flag set, or any frame
+                except a <x:ref>CONTINUATION</x:ref> frame after receiving a <x:ref>HEADERS</x:ref>
+                frame with a END_STREAM flag set MUST treat that as a <xref
+                target="StreamErrorHandler">stream error</xref> of type
+                <x:ref>STREAM_CLOSED</x:ref>.
+              </t>
+              <t>
+                <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref>
+                frames can be received in this state for a short period after a <x:ref>DATA</x:ref>
+                or <x:ref>HEADERS</x:ref> frame containing an END_STREAM flag is sent.  Until the
+                remote peer receives and processes the frame bearing the END_STREAM flag, it might
+                send frame of any of these types.  Endpoints MUST ignore
+                <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref>
+                frames received in this state, though endpoints MAY choose to treat frames that
+                arrive a significant time after sending END_STREAM as a <xref
+                target="ConnectionErrorHandler">connection error</xref> of type
+                <x:ref>PROTOCOL_ERROR</x:ref>.
+              </t>
+              <t>
+                If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame,
+                the peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or
+                enqueued for sending - frames on the stream that cannot be withdrawn.  An endpoint
+                MUST ignore frames that it receives on closed streams after it has sent a
+                <x:ref>RST_STREAM</x:ref> frame.  An endpoint MAY choose to limit the period over
+                which it ignores frames and treat frames that arrive after this time as being in
+                error.
+              </t>
+              <t>
+                Flow controlled frames (i.e., <x:ref>DATA</x:ref>) received after sending
+                <x:ref>RST_STREAM</x:ref> are counted toward the connection flow control window.
+                Even though these frames might be ignored, because they are sent before the sender
+                receives the <x:ref>RST_STREAM</x:ref>, the sender will consider the frames to count
+                against the flow control window.
+              </t>
+              <t>
+                An endpoint might receive a <x:ref>PUSH_PROMISE</x:ref> frame after it sends
+                <x:ref>RST_STREAM</x:ref>.  <x:ref>PUSH_PROMISE</x:ref> causes a stream to become
+                "reserved".  The <x:ref>RST_STREAM</x:ref> does not cancel any promised stream.
+                Therefore, if promised streams are not desired, a <x:ref>RST_STREAM</x:ref> can be
+                used to close any of those streams.
+              </t>
+            </x:lt>
           </list>
         </t>
         <t>
@@ -1225,40 +1272,51 @@ HTTP2-Settings    = token68
           <t>
             The HEADERS frame defines the following flags:
             <list style="hanging">
-              <t hangText="END_STREAM (0x1):">
-                Bit 1 being set indicates that this frame is the last that the endpoint will send
-                for the identified stream.  Setting this flag causes the stream to enter a <xref
-                target="StreamStates">"half closed" state</xref>.
-                <vspace blankLines="1"/>
-                A HEADERS frame that is followed by <x:ref>CONTINUATION</x:ref> frames carries the
-                flag that signals the end of a stream.  A <x:ref>CONTINUATION</x:ref> frame cannot
-                be used to terminate a stream.
-              </t>
-              <t hangText="RESERVED (0x2):">
-                Bit 2 is reserved for future use.
-              </t>
-              <t hangText="END_HEADERS (0x4):">
-                Bit 3 being set indicates that this frame ends the sequence of header block
-                fragments necessary to provide a complete set of headers.
-                <vspace blankLines="1"/>
-                The payload for a complete header block is provided by a sequence of that starts
-                with a HEADERS frame, followed by zero or more <x:ref>CONTINUATION</x:ref> frames.
-                The sequence is terminated by a frame with the END_HEADERS flag set.  Once the
-                sequence terminates, the payload of all HEADERS and <x:ref>CONTINUATION</x:ref>
-                frames are concatenated and interpreted as a single block.
-                <vspace blankLines="1"/>
-                A HEADERS frame without the END_HEADERS flag set MUST be followed by a
-                <x:ref>CONTINUATION</x:ref> frame for the same stream.  A receiver MUST treat the
-                receipt of any other type of frame or a frame on a different stream as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
-              </t>
-              <t hangText="PRIORITY (0x8):">
-                Bit 4 being set indicates that the first four octets of this frame contain a single
-                reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.  If this
-                bit is not set, the four bytes do not appear and the frame only contains a header
-                block fragment.
-              </t>
+              <x:lt hangText="END_STREAM (0x1):">
+                <t>
+                  Bit 1 being set indicates that this frame is the last that the endpoint will send
+                  for the identified stream.  Setting this flag causes the stream to enter a <xref
+                  target="StreamStates">"half closed" state</xref>.
+                </t>
+                <t>
+                  A HEADERS frame that is followed by <x:ref>CONTINUATION</x:ref> frames carries the
+                  flag that signals the end of a stream.  A <x:ref>CONTINUATION</x:ref> frame cannot
+                  be used to terminate a stream.
+                </t>
+              </x:lt>
+              <x:lt hangText="RESERVED (0x2):">
+                <t>
+                  Bit 2 is reserved for future use.
+                </t>
+              </x:lt>
+              <x:lt hangText="END_HEADERS (0x4):">
+                <t>
+                  Bit 3 being set indicates that this frame ends the sequence of header block
+                  fragments necessary to provide a complete set of headers.
+                </t>
+                <t>
+                  The payload for a complete header block is provided by a sequence of that starts
+                  with a HEADERS frame, followed by zero or more <x:ref>CONTINUATION</x:ref> frames.
+                  The sequence is terminated by a frame with the END_HEADERS flag set.  Once the
+                  sequence terminates, the payload of all HEADERS and <x:ref>CONTINUATION</x:ref>
+                  frames are concatenated and interpreted as a single block.
+                </t>
+                <t>
+                  A HEADERS frame without the END_HEADERS flag set MUST be followed by a
+                  <x:ref>CONTINUATION</x:ref> frame for the same stream.  A receiver MUST treat the
+                  receipt of any other type of frame or a frame on a different stream as a <xref
+                  target="ConnectionErrorHandler">connection error</xref> of type
+                  <x:ref>PROTOCOL_ERROR</x:ref>.
+                </t>
+              </x:lt>
+              <x:lt hangText="PRIORITY (0x8):">
+                <t>
+                  Bit 4 being set indicates that the first four octets of this frame contain a
+                  single reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.
+                  If this bit is not set, the four bytes do not appear and the frame only contains a
+                  header block fragment.
+                </t>
+              </x:lt>
             </list>
           </t>
 
@@ -1565,23 +1623,27 @@ HTTP2-Settings    = token68
           <t>
             The PUSH_PROMISE frame defines the following flags:
             <list style="hanging">
-              <t hangText="END_PUSH_PROMISE (0x4):">
-                The END_PUSH_PROMISE bit indicates that this frame ends the sequence of header block
-                fragments necessary to provide a complete set of headers.
-                <vspace blankLines="1"/>
-                The payload for a complete header block is provided by a sequence of frames that
-                starts with a PUSH_PROMISE frame, followed by zero or more CONTINUATION frames.
-                The sequence terminates by a PUSH_PROMISE frame with the END_PUSH_PROMISE flag set
-                or a CONTINUATION frame with the END_HEADERS flag set.
-                Once the sequence terminates, the payload of all frames in the sequence are
-                concatenated and interpreted as a single block.
-                <vspace blankLines="1"/>
-                A PUSH_PROMISE frame without the END_PUSH_PROMISE flag set MUST be followed by a
-                CONTINUATION frame for the same stream.  A receiver MUST treat the receipt of any
-                other type of frame or a frame on a different stream as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
-              </t>
+              <x:lt hangText="END_PUSH_PROMISE (0x4):">
+                <t>
+                  The END_PUSH_PROMISE bit indicates that this frame ends the sequence of header block
+                  fragments necessary to provide a complete set of headers.
+                </t>
+                <t>
+                  The payload for a complete header block is provided by a sequence of frames that
+                  starts with a PUSH_PROMISE frame, followed by zero or more CONTINUATION frames.
+                  The sequence terminates by a PUSH_PROMISE frame with the END_PUSH_PROMISE flag set
+                  or a CONTINUATION frame with the END_HEADERS flag set.
+                  Once the sequence terminates, the payload of all frames in the sequence are
+                  concatenated and interpreted as a single block.
+                </t>
+                <t>
+                  A PUSH_PROMISE frame without the END_PUSH_PROMISE flag set MUST be followed by a
+                  CONTINUATION frame for the same stream.  A receiver MUST treat the receipt of any
+                  other type of frame or a frame on a different stream as a <xref
+                  target="ConnectionErrorHandler">connection error</xref> of type
+                  <x:ref>PROTOCOL_ERROR</x:ref>.
+                </t>
+              </x:lt>
             </list>
           </t>
 
@@ -1986,24 +2048,27 @@ HTTP2-Settings    = token68
           <t>
             The CONTINUATION frame defines the following flags:
             <list style="hanging">
-              <t hangText="END_HEADERS (0x4):">
-                The END_HEADERS bit indicates that this frame ends the sequence of header block
-                fragments necessary to provide a complete set of headers.
-                <vspace blankLines="1"/>
-                The payload for a complete header block is provided by a sequence that starts with a
-                <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame and zero or more
-                CONTINUATION frames, terminated by a <x:ref>HEADERS</x:ref> or CONTINUATION frame
-                with the END_HEADERS flag set, or <x:ref>PUSH_PROMISE</x:ref> frame with the END_PUSH_PROMISE
-                flag set.
-                Once the sequence terminates, the payload of all frames in the sequence are
-                concatenated and interpreted as a single block.
-                <vspace blankLines="1"/>
-                A <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>, or CONTINUATION frame without
-                the END_HEADERS flag set MUST be followed by a CONTINUATION frame for the same
-                stream.  A receiver MUST treat the receipt of any other type of frame or a frame on
-                a different stream as a <xref target="ConnectionErrorHandler">connection
-                error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
-              </t>
+              <x:lt hangText="END_HEADERS (0x4):">
+                <t>
+                  The END_HEADERS bit indicates that this frame ends the sequence of header block
+                  fragments necessary to provide a complete set of headers.
+                </t>
+                <t>
+                  The payload for a complete header block is provided by a sequence that starts with
+                  a <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame and zero or more
+                  CONTINUATION frames, terminated by a <x:ref>HEADERS</x:ref> or CONTINUATION frame
+                  with the END_HEADERS flag set, or <x:ref>PUSH_PROMISE</x:ref> frame with the
+                  END_PUSH_PROMISE flag set.  Once the sequence terminates, the payload of all
+                  frames in the sequence are concatenated and interpreted as a single block.
+                </t>
+                <t>
+                  A <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>, or CONTINUATION frame
+                  without the END_HEADERS flag set MUST be followed by a CONTINUATION frame for the
+                  same stream.  A receiver MUST treat the receipt of any other type of frame or a
+                  frame on a different stream as a <xref target="ConnectionErrorHandler">connection
+                  error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+                </t>
+              </x:lt>
             </list>
           </t>
 
@@ -2309,37 +2374,46 @@ HTTP2-Settings    = token68
             HTTP/2.0 defines a number of headers starting with a colon ':' character that carry
             information about the request target:
             <list style="symbols">
-              <t>
-                The <spanx style="verb">:method</spanx> header field includes the HTTP method (<xref
-                target="HTTP-p2" x:fmt="," x:rel="#methods"/>).
-              </t>
-              <t>
-                The <spanx style="verb">:scheme</spanx> header field includes the scheme portion of
-                the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
-              </t>
-              <t>
-                The <spanx style="verb">:authority</spanx> header field includes the authority
-                portion of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).
-                <vspace blankLines="1"/>
-                To ensure that the HTTP/1.1 request line can be reproduced accurately, this header
-                field MUST be omitted when translating from an HTTP/1.1 request that has a request
-                target in origin or asterisk form (see <xref target="HTTP-p1" x:fmt=","
-                x:rel="#request-target"/>).  Clients that generate HTTP/2.0 requests directly SHOULD
-                instead omit the <spanx style="verb">Host</spanx> header.  An intermediary that
-                converts a request to HTTP/1.1 MUST create a <spanx style="verb">Host</spanx> header
-                field if one is not present in a request by copying the value of the <spanx
-                style="verb">:authority</spanx> header field.
-              </t>
-              <t>
-                The <spanx style="verb">:path</spanx> header field includes the path and query parts
-                of the target URI (the <spanx style="verb">path-absolute</spanx> production from
-                <xref target="RFC3986"/> and optionally a '?' character followed by the <spanx
-                style="verb">query</spanx> production, see <xref target="RFC3986" x:fmt=","
-                x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  This field MUST
-                NOT be empty; URIs that do not contain a path component MUST include a value of '/',
-                unless the request is an OPTIONS in asterisk form, in which case the <spanx
-                style="verb">:path</spanx> header field MUST include '*'.
-              </t>
+              <x:lt>
+                <t>
+                  The <spanx style="verb">:method</spanx> header field includes the HTTP method
+                  (<xref target="HTTP-p2" x:fmt="," x:rel="#methods"/>).
+                </t>
+              </x:lt>
+              <x:lt>
+                <t>
+                  The <spanx style="verb">:scheme</spanx> header field includes the scheme portion
+                  of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
+                </t>
+              </x:lt>
+              <x:lt>
+                <t>
+                  The <spanx style="verb">:authority</spanx> header field includes the authority
+                  portion of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).
+                </t>
+                <t>
+                  To ensure that the HTTP/1.1 request line can be reproduced accurately, this header
+                  field MUST be omitted when translating from an HTTP/1.1 request that has a request
+                  target in origin or asterisk form (see <xref target="HTTP-p1" x:fmt=","
+                  x:rel="#request-target"/>).  Clients that generate HTTP/2.0 requests directly
+                  SHOULD instead omit the <spanx style="verb">Host</spanx> header.  An intermediary
+                  that converts a request to HTTP/1.1 MUST create a <spanx style="verb">Host</spanx>
+                  header field if one is not present in a request by copying the value of the <spanx
+                  style="verb">:authority</spanx> header field.
+                </t>
+              </x:lt>
+              <x:lt>
+                <t>
+                  The <spanx style="verb">:path</spanx> header field includes the path and query
+                  parts of the target URI (the <spanx style="verb">path-absolute</spanx> production
+                  from <xref target="RFC3986"/> and optionally a '?' character followed by the
+                  <spanx style="verb">query</spanx> production, see <xref target="RFC3986" x:fmt=","
+                  x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  This field
+                  MUST NOT be empty; URIs that do not contain a path component MUST include a value
+                  of '/', unless the request is an OPTIONS in asterisk form, in which case the
+                  <spanx style="verb">:path</spanx> header field MUST include '*'.
+                </t>
+              </x:lt>
             </list>
             All HTTP/2.0 requests MUST include exactly one valid value for all of these header
             fields, unless this is a <xref target="CONNECT">CONNECT request</xref>.  An HTTP request
