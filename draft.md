@@ -321,3 +321,13 @@ Furthermore, active attacks can be more easily detected. Future infrastructure
 (again, along similar lines to {{RFC6962}}) might be able to detect them and
 mitigate the risk.
 
+
+# Implementation Status
+
+No current implementations.
+
+It is expected that if this proposal is adopted, first interop will be achieved by:
+
+1. Specifying a set of ALPN protocol identifiers with TLS variants (possibly including -relaxed), with an appropriate level of detail for each.
+2. Nominating a set of negotiation mechanisms targeted for interop (e.g., Alt-Svc)
+
