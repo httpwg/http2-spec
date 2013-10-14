@@ -1,7 +1,7 @@
 ---
 title: Opportunistic Encryption for HTTP URIs
 abbrev: Opportunistic HTTP Encryption
-docname: draft-nottingham-http2-encryption-00
+docname: draft-nottingham-http2-encryption-01
 date: 2013
 category: std
 
@@ -26,9 +26,9 @@ normative:
   RFC2818:
   RFC5246:
   I-D.ietf-httpbis-http2:
-  I-D.ietf-httpbis-p1-messaging:
 
 informative:
+  I-D.ietf-httpbis-p1-messaging:
   firesheep:
     target: http://codebutler.com/firesheep/
     title: Firesheep
@@ -77,16 +77,15 @@ in determining whether encryption is used.
 Furthermore, HTTP's current use of TLS {{RFC5246}} for "https://" URIs is
 inflexible; it is difficult to introduce new trust roots, for example.
 
-This document proposes changes to HTTP that decouple the URI scheme from the
-use and configuration of underlying encryption, as well as other aspects of the
-protocol.
+This document uses the new "alternate services" layer described in
+{{I-D.nottingham-httpbis-alt-svc}} to decouple the URI scheme from the use and
+configuration of underlying encryption, allowing a "http://" URI to be upgraded
+to use TLS optimistically.
 
-This allows a "http://" URI to be upgraded to use TLS optimistically. 
-
-Because deploying TLS requires acquiring and configuring a valid certificate,
-some deployments may find supporting it difficult. Therefore, this document
-also specifies a "relaxed" profile of HTTP/2.0 over TLS that does not require
-strong server authentication, specifically for use with "http://" URIs.
+Additionally, because using TLS requires acquiring and configuring a valid
+certificate, some deployments may find supporting it difficult. Therefore, this
+document also specifies a "relaxed" profile of HTTP/2.0 over TLS that does not
+require strong server authentication, specifically for use with "http://" URIs.
 
 
 ## Goals and Non-Goals
@@ -112,36 +111,40 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 document are to be interpreted as described in {{RFC2119}}.
 
 
+# Protocol Identifiers for HTTP Security
 
-## HTTP-related Protocol Identifiers
+In past dicussions, there has been general agreement to reusing the ALPN
+protocol identifier {{}} for all negotiation mechanisms in HTTP/2.0, not just
+TLS.
 
-To accommodate this approach, HTTP/2.0 will need to nominate several protocol
-negotiation strings (a.k.a. "profiles") to allow negotiation for the desired
-properties in alternate services.
+This document proposes putting additional information into them to identify the
+use of encryption as well as configuration of that encryption, independent of
+the URI scheme in use.
 
-This might include:
+Thus, we won't have just one protocol identifier for HTTP/2.0, but two; one
+with and one without the use of TLS. For example, the following identifiers
+might be registered if this approach is adopted:
 
 * http1 - http/1.x over TCP
 * http1-tls - http/1.x over TLS over TCP (as per {{RFC2818}})
 * http2 - http/2.x over TCP
 * http2-tls - http/2.x over TLS over TCP (as per {{RFC2818}})
-* http2-tls-relaxed - http/2.x over TLS over TCP (see below)
+* http2-tls-relaxed - http/2.x over TLS over TCP (see {{relaxed}})
 
-Most of these are already latently defined by HTTP/2.0, with the exception being http2-tls-relaxed, defined below.
+Most of these are already latently defined by HTTP/2.0, with the exception
+being http2-tls-relaxed, defined below. By indicating the use of TLS in the
+protocol identifier allows a client and server to negotiate the use of TLS for
+"http://" URIs; if the server offers http2-tls, the client can select that
+protocol, start TLS and use it.
 
-These profiles are expected to be used not only in the Alt-Svc header field,
-but also in other HTTP/2.0 negotiation mechanisms; e.g., ALPN, the "Upgrade
-dance" and so forth.
-
-Note that, as discussed in Security Considerations, there may be situations
-(e.g,. ALPN) where advertising some of these profiles are inapplicable or
-inadvisable.
+Note that, as discussed in {{downgrade}}, there may be situations (e.g,. ALPN)
+where advertising some of these profiles are inapplicable or inadvisable.
 
 For example, in an ALPN negotiation for a "https://" URI, it is only sensible
-to offer http1-tls and http2-tls.
+to offer http1-tls and http2-tls. 
 
 
-### The "http2-tls-relaxed" Protocol
+## The "http2-tls-relaxed" Protocol {#relaxed}
 
 Servers that support the "http2-tls-relaxed" protocol indicate that they
 support TLS for access to URIs with the "http" URI scheme using HTTP/2.0 or
@@ -189,53 +192,21 @@ device").
 
 # Security Considerations
 
-## Alt-Svc Header Field Downgrade Attacks
+## Downgrade Attacks {#downgrade}
 
-Because the Alt-Svc header field appears in the clear (for "http://" URIs), it
-is subject to downgrade by attackers that are able to Man-in-the-Middle the
-network connection; in its simplest form, an attacker that wants the connection
-to remain in the clear need only strip the Alt-Svc header from responses.
+A downgrade attack against the negotation for TLS is possible, depending upon
+the properties of the negotiation mechanism.
+
+For example, because the Alt-Svc header field {{}} appears in the clear for
+"http://" URIs, it is subject to downgrade by attackers that are able to
+Man-in-the-Middle the network connection; in its simplest form, an attacker
+that wants the connection to remain in the clear need only strip the Alt-Svc
+header from responses.
 
 This proposal does not offer a remedy for this risk. However, it's important to
 note that it is no worse than current use of unencrypted HTTP in the face of
 such active attacks.
 
-
-## Poor Client Profile Choices
-
-Furthermore, because different protocols can have different security
-properties, clients ought not blindly use alternate services, but instead they
-option(s) presented for conformance to implementation policy, user preferences,
-and general security. 
-
-For example, in theory the header field could be used to advertise a downgrade
-to plain TCP from a TLS-protected connection, or to relax certificate checks
-for a HTTPS URI; opting to use such an alternate would seldom be desirable.
-
-
-## Alt-Svc Header Field Hijacking
-
-An attacker local to the Web server who can inject response header fields can
-redirect HTTP traffic to a different port on the same host using the
-"http2-tls-relaxed" protocol; if it is under their control, the can masquerade
-as the HTTP server.
-
-An attacker local to the Web server who can inject response header fields can
-redirect HTTP traffic to an arbitrary host and port using the "http2-tls"
-protocol; if they can present a certificate which validates for the host under
-attack, they can masquerade as that server.
-
-Both of these risks can be mitigated by appropriate controls to setting
-response header fields, as well as control over who can open a port for
-listening (in the former case) and good certificate hygiene (in the latter
-case).
-
-An attacker who can Man-in-the-Middle the network connection and inject
-response header fields directly can redirect HTTP traffic to a different port
-and (presumably) masquerade as that server.
-
-As with HTTP today, it is not possible to mitigate this latter risk without
-cryptographic solutions.
 
 ## Alt-Svc Header Field "Gap"
 
