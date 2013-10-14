@@ -1,6 +1,6 @@
 ---
-title: Encryption for HTTP URIs Using Alternate Services
-abbrev: HTTP/2 Encryption
+title: Opportunistic Encryption for HTTP URIs
+abbrev: Opportunistic HTTP Encryption
 docname: draft-nottingham-http2-encryption-00
 date: 2013
 category: std
@@ -24,13 +24,9 @@ author:
 normative:
   RFC2119:
   RFC2818:
-  RFC3986:
   RFC5246:
-  RFC6454:
-  I-D.ietf-tls-applayerprotoneg:
   I-D.ietf-httpbis-http2:
   I-D.ietf-httpbis-p1-messaging:
-  I-D.ietf-httpbis-p6-cache:
 
 informative:
   firesheep:
@@ -60,7 +56,6 @@ informative:
   RFC2804:
   RFC3365:
   RFC6265:
-  RFC6555:
   RFC6962:
   RFC6973:
 
@@ -130,110 +125,6 @@ well.
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
 document are to be interpreted as described in {{RFC2119}}.
-
-
-# Alternate Services
-
-On the Web, a resource is accessed through a scheme (e.g., "https" or "http")
-on a nominated host / port combination.
-
-These three pieces of information collectively can be used to establish the
-authority for ownership of the resource (its "origin"; see {{RFC6454}}), as
-well as providing enough information to bootstrap access to it.
-
-This document introduces the notion of an "Alternate Service"; when an origin's
-resources are accessible through a different protocol / host / port
-combination, it is said to have an alternate service.
-
-For example, an origin:
-
-    ("http", "www.example.com", "80")
-	
-Might declare that its resources are also accessible at the alternate service:
-
-    ("http2-tls", "new.example.com", "443")
-
-Alternate services do not replace or change the origin for any given resource;
-in general, they are not visible to the software above the access mechanism.
-
-Furthermore, it is important to note that the first member of an alternate
-service tuple is different from the "scheme" component of an origin; it is more
-specific, identifying not only the major version of the protocol being used,
-but potentially communication options for that protocol.
-
-Practically speaking, clients using an alternate service will change the host,
-port and protocol that they are using to fetch resources, but these changes
-MUST NOT be propagated to the application that is using HTTP; from that
-standpoint, the URI being accessed and all information derived from it (scheme,
-host, port) are the same as before.
-
-Importantly, this includes the security context of the connection; by default,
-the alternate server will need to present a certificate for the origin's host
-name, not that of the alternate. Likewise, the Host header is still derived from
-the origin, not the alternate service.
-
-The changes SHOULD, however, be made visible in debugging tools, consoles, etc.
-
-Clients MUST NOT use alternate services on a host other than the origin's
-without strong server authentication; one way to achieve this is for the
-alternate to use TLS with a certificate that is valid for that origin.
-
-For example, if the origin's host is "www.example.com" and an alternate is
-offered on "other.example.com" with the "http2-tls" protocol, and the
-certificate offered is valid for "www.example.com", the client can use the
-alternate. However, if "other.example.com" is offered with the "http2"
-protocol, the client cannot use it, because there is no mechanism in that
-protocol to establish strong server authentication.
-
-Formally, an alternate service is identified by the combination of:
-
-* An ALPN protocol, as per {{I-D.ietf-tls-applayerprotoneg}}
-* A host, as per {{RFC3986}}
-* A port, as per {{RFC3986}}
-
-Potentially, there are many ways that a client could discover the alternate
-service(s) associated with an origin; this document currently defines one, the
-Alt-Svc HTTP Header Field.
-
-
-## The Alt-Svc HTTP Header Field
-
-A HTTP server can advertise the availability of alternate services to HTTP/1.1
-and HTTP/2.0 clients by adding an Alt-Svc header field to responses. For
-example:
-
-    Alt-Svc: http2-tls-relaxed=:443
-
-This indicates that the "http2tls-relaxed" protocol on the same host using the
-indicated port (in this case, 443).
-
-Alt-Svc can also contain a host:
-
-    Alt-Svc: http2-tls=other.example.com:443
-
-This indicates that all resources on the origin are available using the
-"http2-tls" profile on other.example.com port 443.
-
-It can also have multiple values:
-
-    Alt-Svc: http2-tls=:443, http2-tls=other.example.com:443
-
-The value(s) advertised by Alt-Svc can be used by clients to open a new
-connection to one or more alternate services immediately, or simultaneously
-with subsequent requests on the same connection.
-
-When an alternate service is advertised using Alt-Svc, it is considered to be
-valid for all resources associated with the origin, and by default is valid for
-24 hours from generation of the message. This can be modified with the 'ma'
-(max-age') parameter;
-
-    Alt-Svc: http2-tls=:443;ma=3600
-    
-which indicates the number of seconds since the response was generated the
-policy is considered fresh for. See {{I-D.ietf-httpbis-p6-cache}} Section 4.2.3
-for details of determining response age.
-
-[[TODO: ABNF]]
 
 
 
@@ -437,22 +328,6 @@ HTTP/2.0 at IETF87.
 
 # Next Steps
 
-There are three separable aspects to this proposal:
-
-* The concept of alternate services
-
-* The Alt-Svc header field 
-
-* The http2-tls-relaxed protocol
-
-In evaluating it, they should be considered separately.
-
-Depending on what aspects we decide to adopt, there are also a number of
-related issues that should be discussed:
-
-* DNS: Alternate services are also amenable to DNS-based discovery. If there is
-  sufficient interest, a future revision may include a proposal for that.
-
 * Upgrade: For some flows, it may be advantageous to do an "upgrade dance" to
   the tls-relaxed protocol, a la STARTTLS. If there is sufficient interest, a
   future revision may also include a proposal for that.
@@ -460,23 +335,6 @@ related issues that should be discussed:
 * http1-tls-relaxed: If there is sufficient interest, it may also be worthwhile
   defining a HTTP/1-based tls-relaxed protocol.
 
-* Priority and Weight: It may be advantageous to include measures of priority
-  and weight in the Alternate Services model (similar to SRV).
-  
-* Indicating Chosen Service: It's likely necessary for the server to know which
-  protocol the client has chosen, and perhaps even the hostname (for load
-  balancing). This could be conveyed as part of the "magic", or as a request
-  header. There are also security implications here; for example, without this
-  information, the server doesn't know if the client has checked the
-  certificate, leading to a situation where an intermediary can downgrade a
-  HTTPS connection to relaxed HTTP.
-  
-* Client Behavior: Currently, this mechanism is completely declarative, and
-  clients have free reign as to how they use the alternate services. It may be
-  desirable to specify this more closely.
-  
-* IPV6: The intersection between Alternate Services and IPV6 / Happy Eyeballs
-  {{RFC6555}} should be investigated.
   
   
 # Frequently Asked Questions
