@@ -75,14 +75,14 @@
     <abstract>
       <t>
         This specification describes an optimized expression of the syntax of the Hypertext Transfer
-        Protocol (HTTP). The HTTP/2.0 encapsulation enables more efficient use of network resources
-        and reduced perception of latency by allowing header field compression and multiple
+        Protocol (HTTP). HTTP/2.0 enables a more efficient use of network resources and
+        a reduced perception of latency by introducing header compression and allowing multiple
         concurrent messages on the same connection. It also introduces unsolicited push of
         representations from servers to clients.
       </t>
       <t>
-        This document is an alternative to, but does not obsolete the HTTP/1.1 message format or
-        protocol. HTTP's existing semantics remain unchanged.
+        This document is an alternative to, but does not obsolete, the HTTP/1.1 message syntax.
+        HTTP's existing semantics remain unchanged.
       </t>
     </abstract>
 
@@ -116,10 +116,10 @@
         performance.
       </t>
       <t>
-        In particular, HTTP/1.0 only allows one request to be delivered at a time on a given
-        connection.  HTTP/1.1 pipelining only partially addressed request concurrency, and is not
-        widely deployed.  Therefore, clients that need to make many requests (as is common on the
-        Web) typically use multiple connections to a server in order to reduce perceived latency.
+        In particular, HTTP/1.0 only allows one request to be outstanding at a time on a given
+        connection.  HTTP/1.1 pipelining only partially addressed request concurrency and
+        suffers from head-of-line blocking.  Therefore, clients that need to make many requests
+        typically use multiple connections to a server in order to reduce latency.
       </t>
       <t>
         Furthermore, HTTP/1.1 header fields are often repetitive and verbose, which, in addition to
@@ -132,7 +132,7 @@
         an underlying connection.  Specifically, it allows interleaving of request and response
         messages on the same connection and uses an efficient coding for HTTP header fields.  It
         also allows prioritization of requests, letting more important requests complete more
-        quickly, further improving perceived performance.
+        quickly, further improving performance.
       </t>
       <t>
         The resulting protocol is designed to be more friendly to the network, because fewer TCP
@@ -178,6 +178,9 @@
             <t hangText="connection:">
               A transport-level connection between two endpoints.
             </t>
+            <t hangText="connection error:">
+              An error on the HTTP/2.0 connection.
+            </t>
             <t hangText="endpoint:">
               Either the client or server of the connection.
             </t>
@@ -198,9 +201,6 @@
             </t>
             <t hangText="server:">
               The endpoint which did not initiate the HTTP connection.
-            </t>
-            <t hangText="connection error:">
-              An error on the HTTP/2.0 connection.
             </t>
             <t hangText="stream:">
               A bi-directional flow of frames across a virtual channel within 
@@ -242,7 +242,7 @@
 
       <section title="HTTP Multiplexing">
         <t>
-           HTTP/2.0 provides the ability to multiplex multiple HTTP requests and responses onto a
+           HTTP/2.0 provides the ability to multiplex HTTP requests and responses over a
            single connection.  Multiple requests or responses can be sent concurrently on a
            connection using <xref target="StreamsLayer">streams</xref>.  In order to maintain
            independent streams, flow control and prioritization are necessary.
@@ -323,7 +323,7 @@
           HTTP/2.0 uses the HTTP Upgrade mechanism (<xref target="HTTP-p1" x:fmt="of"
           x:rel="#header.upgrade"/>).  The client makes an HTTP/1.1 request that includes an Upgrade
           header field identifying HTTP/2.0.  The HTTP/1.1 request MUST include exactly one <xref
-          target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
+          target="Http2SettingsHeader">HTTP2-Settings</xref> header.
         </t>
         <figure>
           <preamble>For example:</preamble>
@@ -336,16 +336,15 @@ HTTP2-Settings: &lt;base64url encoding of HTTP/2.0 SETTINGS payload>
 </artwork>
         </figure>
         <t>
-          Requests that contain a request entity body MUST be sent in their entirety before the
+          Requests that contain an entity body MUST be sent in their entirety before the
           client can send HTTP/2.0 frames.  This means that a large request entity can block the use
           of the connection until it is completely sent.
-          <list>
-            <t>
-              If concurrency of an initial request with subsequent requests is important, a small
-              request can be used to perform the upgrade to HTTP/2.0, at the cost of an additional
-              round trip.
-            </t>
-          </list>
+        </t>
+        <t>
+          If concurrency of an initial request with subsequent requests is important, a small
+          request can be used to perform the upgrade to HTTP/2.0, at the cost of an additional
+          round trip.
+        </t>
         </t>
         <t>
           A server that does not support HTTP/2.0 can respond to the request as though the Upgrade
@@ -354,15 +353,15 @@ HTTP2-Settings: &lt;base64url encoding of HTTP/2.0 SETTINGS payload>
         <figure>
           <artwork type="message/http; msgtype=&#34;response&#34;" x:indent-with="  ">
 HTTP/1.1 200 OK
-Content-length: 243
-Content-type: text/html
+Content-Length: 243
+Content-Type: text/html
 
 ...
 </artwork>
         </figure>
         <t>
-          A server that supports HTTP/2.0 accepts the upgrade with a 101 (Switching Protocols)
-          status code.  After the empty line that terminates the 101 response, the server can begin
+          A server that supports HTTP/2.0 can accept the upgrade with a 101 (Switching Protocols)
+          response.  After the empty line that terminates the 101 response, the server can begin
           sending HTTP/2.0 frames.  These frames MUST include a response to the request that
           initiated the Upgrade.
         </t>
@@ -383,13 +382,13 @@ Upgrade: HTTP/2.0
           <x:ref>SETTINGS</x:ref> frame.
         </t>
         <t>
-          The HTTP/1.1 request that is sent prior to upgrade is associated with stream 1 and is
+          The HTTP/1.1 request that is sent prior to upgrade is assigned stream identifier 1 and is
           assigned the highest possible priority.  Stream 1 is implicitly half closed from the
           client toward the server, since the request is completed as an HTTP/1.1 request.  After
           commencing the HTTP/2.0 connection, stream 1 is used for the response.
         </t>
 
-        <section anchor="Http2SettingsHeader" title="HTTP2-Settings Header Field">
+        <section anchor="Http2SettingsHeader" title="HTTP2-Settings Header">
           <t>
             A request that upgrades from HTTP/1.1 to HTTP/2.0 MUST include exactly one <spanx
             style="verb">HTTP2-Settings</spanx> header field.  The <spanx
@@ -463,7 +462,7 @@ HTTP2-Settings    = token68
         </t>
       </section>
       
-      <section anchor="ConnectionHeader" title="Connection Header">
+      <section anchor="ConnectionHeader" title="HTTP/2.0 Connection Header">
         <t>
           Upon establishment of a TCP connection and determination that HTTP/2.0 will be used by
           both peers, each endpoint MUST send a connection header as a final confirmation and to
@@ -578,7 +577,7 @@ HTTP2-Settings    = token68
             </x:lt>
             <x:lt hangText="Stream Identifier:">
               <t>
-                A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  A value 0 is
+                A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  The value 0 is
                 reserved for frames that are associated with the connection as a whole as opposed to
                 an individual stream.
               </t>
@@ -592,7 +591,7 @@ HTTP2-Settings    = token68
       
       <section anchor="FrameSize" title="Frame Size">
         <t>
-          The maximum size of a frame payload varies by frame type and use.  The absolute maximum
+          The maximum size of a frame payload varies by frame type.  The absolute maximum
           size of a frame is 2<x:sup>14</x:sup>-1 (16,383) octets.  All implementations SHOULD be
           capable of receiving and minimally processing frames up to this maximum size.
         </t>
@@ -651,9 +650,8 @@ HTTP2-Settings    = token68
           carry data that can modify the compression context maintained by a receiver.  An endpoint
           receiving <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> or
           <x:ref>CONTINUATION</x:ref> frames MUST reassemble header blocks and perform decompression
-          even if the frames are to be discarded, which is likely to occur after a stream is reset.
-          A receiver MUST terminate the connection with a <xref
-          target="ConnectionErrorHandler">connection error</xref> of type
+          even if the frames are to be discarded.  A receiver MUST terminate the connection with a
+          <xref target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>COMPRESSION_ERROR</x:ref>, if it does not decompress a header block.
         </t>
       </section>
@@ -666,7 +664,7 @@ HTTP2-Settings    = token68
           connection.  Streams have several important characteristics:
           <list style="symbols">
             <t>
-              A single HTTP/2.0 connection can contain multiple concurrently active streams, with
+              A single HTTP/2.0 connection can contain multiple concurrently open streams, with
               either endpoint interleaving frames from multiple streams.
             </t>
             <t>
@@ -682,7 +680,7 @@ HTTP2-Settings    = token68
             </t>
             <t>
               Streams are identified by an integer.  Stream identifiers are assigned to streams by
-              the endpoint that initiates a stream.
+              the initiating endpoint.
             </t>
           </list>
         </t>
@@ -819,15 +817,15 @@ HTTP2-Settings    = token68
             <x:lt hangText="open:">
               <t>
                 <vspace blankLines="0"/>
-                The "open" state is where both peers can send frames of any type.  In this state,
-                sending peers observe advertised <xref target="FlowControl">stream level flow control
-                limits</xref>.
+                A stream in the "open" state may be used by both peers to send frames of any type.
+                In this state, sending peers observe advertised <xref target="FlowControl">stream
+                level flow control limits</xref>.
               </t>
               <t>
-                From this state either endpoint can send a frame with a END_STREAM flag set, which
+                From this state either endpoint can send a frame with an END_STREAM flag set, which
                 causes the stream to transition into one of the "half closed" states: an endpoint
-                sending a END_STREAM flag causes the stream state to become "half closed (local)"; an
-                endpoint receiving a END_STREAM flag causes the stream state to become "half closed
+                sending an END_STREAM flag causes the stream state to become "half closed (local)"; an
+                endpoint receiving an END_STREAM flag causes the stream state to become "half closed
                 (remote)".  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed
                 by <x:ref>CONTINUATION</x:ref> frames.
                 <vspace blankLines="1"/>
@@ -839,10 +837,10 @@ HTTP2-Settings    = token68
             <x:lt hangText="half closed (local):">
               <t>
                 <vspace blankLines="0"/>
-                A stream that is "half closed (local)" cannot be used for sending frames.
+                A stream that is in the "half closed (local)" state cannot be used for sending frames.
               </t>
               <t>
-                A stream transitions from this state to "closed" when a frame that contains a
+                A stream transitions from this state to "closed" when a frame that contains an
                 END_STREAM flag is received, or when either peer sends a <x:ref>RST_STREAM</x:ref>
                 frame.  A <x:ref>HEADERS</x:ref> frame bearing an END_STREAM flag can be followed by
                 <x:ref>CONTINUATION</x:ref> frames.
