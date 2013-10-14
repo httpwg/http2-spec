@@ -81,10 +81,6 @@ This document proposes changes to HTTP that decouple the URI scheme from the
 use and configuration of underlying encryption, as well as other aspects of the
 protocol.
 
-In particular, it defines the concept of an "alternate service" that allows an
-origin to advertise when its resources are available at a separate location,
-using a different configuration of protocols.
-
 This allows a "http://" URI to be upgraded to use TLS optimistically. 
 
 Because deploying TLS requires acquiring and configuring a valid certificate,
@@ -92,15 +88,8 @@ some deployments may find supporting it difficult. Therefore, this document
 also specifies a "relaxed" profile of HTTP/2.0 over TLS that does not require
 strong server authentication, specifically for use with "http://" URIs.
 
-Note: This is a preliminary draft that attempts to capture the state of
-relevant discussion to this point. It has not be reviewed for security,
-deployability, or effectiveness, and is only intended to serve as the basis of
-further discussion in the HTTPbis Working Group.
 
 ## Goals and Non-Goals
-
-This proposal attempts to de-couple a HTTP URI's scheme from the specific wire
-protocol in use, as well as that protocol's layering onto the network.
 
 The immediate goal is to make HTTP URIs more robust in the face of passive
 monitoring.
@@ -115,10 +104,6 @@ although future solutions may be complementary.
 
 Other goals include ease of implementation and deployment, with minimal impact
 upon performance (in keeping with the goals of HTTP/2.0).
-
-Furthermore, since this proposal is designed as an alternate negotiation
-mechanism for HTTP/2.0, it is expected that it is useful for that use case as
-well.
 
 ## Notational Conventions
 
@@ -326,14 +311,6 @@ As a result, we decided to revisit the issue of how encryption is used in
 HTTP/2.0 at IETF87.
 
 
-# Next Steps
-
-* Upgrade: For some flows, it may be advantageous to do an "upgrade dance" to
-  the tls-relaxed protocol, a la STARTTLS. If there is sufficient interest, a
-  future revision may also include a proposal for that.
-
-* http1-tls-relaxed: If there is sufficient interest, it may also be worthwhile
-  defining a HTTP/1-based tls-relaxed protocol.
 
   
   
@@ -373,60 +350,3 @@ Furthermore, active attacks can be more easily detected. Future infrastructure
 (again, along similar lines to {{RFC6962}}) might be able to detect them and
 mitigate the risk.
 
-
-## What about using DNS?
-
-Using DNS for discovery of alternate services has attractive performance
-characteristics, and also avoids the "gap" vulnerability. However, it is
-significantly more difficult to deploy, compared to a HTTP header.
-
-If there is implementer interest, a future revision might include a DNS
-approach.
-
-## Doesn't Alt-Svc make it easy to hijack a Web server?
-
-In introducing Alt-Svc, we are taking a bounded risk, in that anyone who has
-access to write a response header for an origin can effectively take over the
-Web site.
-
-To mitigate this, we require the alternate server to either a) be a port on the
-same hostname (as the Alternate-Protocol header from SPDY did), or if it's on
-another host b) present a certificate that's valid for the origin server.
-
-## What about using Upgrade?
-
-While it's possible that the HTTP Upgrade header could be used in a
-STARTTLS-like connection upgrade, that's more difficult to deploy with existing
-infrastructure, and is constrained to upgrading the same connection, leading to
-possible latency issues. Alt-Svc offers a more flexible and less intrusive
-approach.
-
-That said, if there is sufficient interest, we'll look at defining an
-Upgrade-based mechanism.
-
-## Why not 305 Use Proxy?
-
-While it's possible to use a HTTP response code to redirect the client to an
-alternate service, this would unavoidably introduce a round trip (at least)
-before the new connection is established, which violates the performance focus
-of HTTP/2.0.
-
-## Will this make negotiation too "chatty"?
-
-Putting more information into the protocol string implies that more protocols
-will be created, to cover the possible space of identifiers. In turn, this
-brings the risk that the negotiation phase could become bloated by a mass of
-identifiers that can impact performance, much as HTTP content negotiation has
-become in some cases.
-
-There are a few factors that should mitigate this. First, as discussed above,
-it's not necessary to advertise every protocol you support; only those that are
-applicable to the current context need to be sent.
-
-Moreover, we expect that the protocol mechanism will be used to negotiate
-coarse-grained, backwards-incompatible changes to the protocol; this is one of
-the reasons the "http2-tls-relaxed" protocol is so loosely defined, so that
-future mechanisms can be easily layered upon it.
-
-Nevertheless, the appropriate role of an ALPN protocol needs to be scrutinized
-to make sure we have agreement upon what's in and out of scope for its function.
