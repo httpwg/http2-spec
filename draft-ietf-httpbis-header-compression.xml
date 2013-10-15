@@ -81,54 +81,56 @@
 
         <section title="Overview" anchor="overview">
             <t>
-                In HTTP/1.X, header fields are sent without any form of compression.
-                As web pages have grown to include dozens to hundreds of
-                requests, the redundant header fields in these requests now pose a
-                problem of measurable latency and unnecessary bandwidth (see
-                <xref target="PERF1"/> and <xref target="PERF2"/>).
+                In HTTP/1.X, header fields are sent without any form of
+                compression.  As web pages have grown to include dozens to
+                hundreds of requests, the redundant header fields in these
+                requests now pose a problem of measurable latency and
+                unnecessary bandwidth (see <xref target="PERF1"/> and <xref
+                    target="PERF2"/>).
             </t>
 
             <t>
                 <xref target="SPDY">SPDY</xref> initially addressed this
-                redundancy by compressing header fields with Deflate, which proved
-                very effective at eliminating the redundant header fields.  However,
-                that aproach exposed a security risk as demonstrated by the
-                <xref target="CRIME">CRIME</xref>.
+                redundancy by compressing header fields with Deflate, which
+                proved very effective at eliminating the redundant header
+                fields.  However, that aproach exposed a security risk as
+                demonstrated by the <xref target="CRIME">CRIME</xref>.
             </t>
 
             <t>
-                In this document, we propose a new header field compressor which
-                eliminates the redundant header fields, is not vulnerable to the 
-                CRIME style attack, and which also has a bounded memory
-                cost for use in small constrained environments.
+                In this document, we propose a new header field compressor
+                which eliminates the redundant header fields, is not
+                vulnerable to the CRIME style attack, and which also has a
+                bounded memory cost for use in small constrained environments.
             </t>
 
             <section title="Outline">
                 <t>
-                    The HTTP header field encoding described in this document is based
-                    on a header table that map (name, value) pairs to index
-                    values.  Header tables are incrementally updated during the
-                    HTTP/2.0 session.
+                    The HTTP header field encoding described in this document
+                    is based on a header table that map (name, value) pairs to
+                    index values.  Header tables are incrementally updated
+                    during the HTTP/2.0 session.
                 </t>
                 <t>
-                    The encoder is responsible for deciding which header fields to
-                    insert as new entries in the header table.  The
+                    The encoder is responsible for deciding which header
+                    fields to insert as new entries in the header table.  The
                     decoder then does exactly what the encoder prescribes,
                     ending in a state that exactly matches the encoder's
                     state.  This enables decoders to remain simple and
                     understand a wide variety of encoders.
                 </t>
                 <t>
-                    As two consecutive sets of header fields often have header fields in
-                    common, each set of header fields is coded as a difference from
-                    the previous set of header fields. The goal is to only encode
-                    the changes (header fields present in one of the set and not in
-                    the other) between the two sets of header fields.
+                    As two consecutive sets of header fields often have header
+                    fields in common, each set of header fields is coded as a
+                    difference from the previous set of header fields. The
+                    goal is to only encode the changes (header fields present
+                    in one of the set and not in the other) between the two
+                    sets of header fields.
                 </t>
                 <t>
                     An example illustrating the use of these different
-                    mechanisms to represent header fields is available in <xref
-                        target="example"/>.
+                    mechanisms to represent header fields is available in
+                    <xref target="example"/>.
                 </t>
             </section>
         </section>
@@ -148,9 +150,9 @@
                         <t hangText="Reference Set:">
                             The reference set (see <xref
                                 target="reference.set"/>) is a component
-                            containing a group of header fields used as a reference
-                            for the differential encoding of a new set of
-                            header fields.
+                            containing a group of header fields used as a
+                            reference for the differential encoding of a new
+                            set of header fields.
                         </t>
                         <t hangText="Header Set:">
                             A header set (see <xref target="header.set"/>) is
@@ -159,19 +161,19 @@
                             a HTTP request or response is a header set.
                         </t>
                         <t hangText="Header Field Representation:">
-                            A header field can be represented in encoded form either
-                            as a literal or as an index (see <xref
+                            A header field can be represented in encoded form
+                            either as a literal or as an index (see <xref
                                 target="header.representation"/>). The indexed
                             representation is based on the header table.
                         </t>
                         <t hangText="Header Field Emission:">
-                            When decoding a set of header fields, some operations
-                            emit a header field (see <xref
+                            When decoding a set of header fields, some
+                            operations emit a header field (see <xref
                                 target="header.emission"/>). An emitted header
-                            field
-                            is added to the set of header fields that form the HTTP
-                            request or response. Once emitted, a header field can't
-                            be removed from the set of header fields.
+                            field is added to the set of header fields that
+                            form the HTTP request or response. Once emitted, a
+                            header field can't be removed from the set of
+                            header fields.
                         </t>
                     </list>
                 </t>
@@ -190,11 +192,11 @@
                         each direction.
                     </t>
                     <t>
-                        The header fields contained in a PUSH_PROMISE frame sent by
-                        a server to a client are encoded within the same
-                        context as the header fields contained in the HEADERS frame
-                        corresponding to a response sent from the server to
-                        the client.
+                        The header fields contained in a PUSH_PROMISE frame
+                        sent by a server to a client are encoded within the
+                        same context as the header fields contained in the
+                        HEADERS frame corresponding to a response sent from
+                        the server to the client.
                     </t>
                 </section>
 
@@ -205,10 +207,11 @@
                         assigned the index 0.
                     </t>
                     <t>
-                        A header field can be represented by an entry from the header
-                        table. Rather than encoding a literal value for the
-                        header field name and value, the encoder can select an
-                        entry from the header table.
+                        A header field can be represented by an entry from the
+                        header table. Rather than encoding a literal value for
+                        the header field name and value, the encoder can
+                        select an entry from the header table, and represent
+                        the header field using the entry's index.
                     </t>
                     <t>
                         There is no need for the header table to contain
@@ -229,8 +232,8 @@
                         empty.
                     </t>
                     <t>
-                        A header table is modified by adding a new
-                        entry at the beginning of the table.
+                        A header table is modified by adding a new entry at
+                        the beginning of the table, in the dynamic part.
                     </t>
                     <t>
                         The encoder decides how to update the header table and
@@ -260,16 +263,17 @@
                         a set of header fields.
                     </t>
                     <t>
-                        Using the differential encoding, a header field that is not
-                        present in the reference set can be encoded either
-                        with an indexed representation (if the header field is
-                        present in the header table), or with a literal
-                        representation (if the header field is not present in the
-                        header table).
+                        Using the differential encoding, a header field that
+                        is not present in the reference set can be encoded
+                        either with an indexed representation (if the header
+                        field is present in the header table), or with a
+                        literal representation (if the header field is not
+                        present in the header table).
                     </t>
                     <t>
-                        A header field that is to be removed from the reference set
-                        is encoded with an indexed representation.
+                        A header field that is to be removed from the
+                        reference set is encoded with an indexed
+                        representation.
                     </t>
                 </section>
 
@@ -282,34 +286,34 @@
                     <t>
                         A header set is encoded using an ordered list of zero
                         or more header field representations. All the header
-                        field
-                        representations describing a header set a grouped into
-                        a header block.
+                        field representations describing a header set a
+                        grouped into a header block.
                     </t>
                 </section>
 
                 <section title="Header Field Representation"
                     anchor="header.representation">
                     <t>
-                        A header field can be represented either as a literal or as
-                        an index.
+                        A header field can be represented either as a literal
+                        or as an index.
                     </t>
                     <t>
                         <list style="hanging">
                             <t hangText="Literal Representation:">
-                                A literal representation defines a new
-                                header field. The header field name is represented either
-                                literally or as a reference to an entry of the
-                                header table. The header field value is represented
-                                literally.
+                                A literal representation defines a new header
+                                field. The header field name is represented
+                                either literally or as a reference to an entry
+                                of the header table. The header field value is
+                                represented literally.
                             </t>
                             <t>
-                                Two different literal representations are provided:
+                                Two different literal representations are
+                                provided:
                                 <list style="symbols">
                                     <t>
                                         A literal representation that does not
-                                        add the header field to the header table
-                                        (see <xref
+                                        add the header field to the header
+                                        table (see <xref
                                             target="literal.header.without.indexing"/>).
                                     </t>
                                     <t>
@@ -323,8 +327,8 @@
                             </t>
                             <t hangText="Indexed Representation:">
                                 The indexed representation defines a header
-                                field as
-                                a reference in the header table (see <xref
+                                field as a reference in the header table (see
+                                <xref
                                     target="indexed.header.representation"/>).
                             </t>
                         </list>
@@ -333,10 +337,10 @@
 
                 <section title="Header Field Emission" anchor="header.emission">
                     <t>
-                        The emission of header field is the process of adding a
-                        header field to the current set of header fields. Once an header field
-                        is emitted, it can't be removed from the current set
-                        of header fields.
+                        The emission of header field is the process of adding
+                        a header field to the current set of header fields.
+                        Once an header field is emitted, it can't be removed
+                        from the current set of header fields.
                     </t>
                     <t>
                         The concept of header field emission allows a decoder to
@@ -346,11 +350,11 @@
                         keep in memory the header table and the reference set.
                         With such an implementation, the amount of memory used
                         by the decoder is bounded, even in presence of a very
-                        large set of header fields. The management of memory for
-                        handling very large sets of header fields can therefore be
-                        deferred to the application, which may be able to
-                        process these header fields upon receiving them and
-                        thus free up memory quickly.
+                        large set of header fields. The management of memory
+                        for handling very large sets of header fields can
+                        therefore be deferred to the application, which may be
+                        able to process these header fields upon receiving
+                        them and thus free up memory quickly.
                     </t>
                 </section>
 
@@ -369,9 +373,9 @@
                 <section title="Header Field Representation Processing"
                     anchor="header.representation.processing">
                     <t>
-                        All the header field representations contained in a header
-                        block are processed in the order in which they are
-                        presented, as specified below.
+                        All the header field representations contained in a
+                        header block are processed in the order in which they
+                        are presented, as specified below.
                     </t>
                     <t>
                         An <spanx>indexed representation</spanx> corresponding
@@ -405,7 +409,8 @@
                         the following actions:
                         <list style="symbols">
                             <t>The header field is emitted.</t>
-                            <t>The header field is inserted at the beginning of  the header table.</t>
+                            <t>The header field is inserted at the beginning
+                                of  the header table.</t>
                             <t>The new entry is added to the reference set.</t>
                         </list>
                     </t>
@@ -420,9 +425,10 @@
                         during the reference set emission.
                     </t>
                     <t>
-                        For the reference set emission, each header field contained
-                        in the reference set that has not been emitted during
-                        the processing of the header block is emitted.
+                        For the reference set emission, each header field
+                        contained in the reference set that has not been
+                        emitted during the processing of the header block is
+                        emitted.
                     </t>
                 </section>
 
@@ -490,9 +496,10 @@
                         limit (see <xref target="parameter.negotiation"/>). If
                         not enought space is available for this new entry,
                         the eviction mechanism (see <xref
-                            target="entry.eviction"/>) is applied until the size of
-                        the header table added to the size of the new entry is
-                        lower than or equal to the SETTINGS_HEADER_TABLE_SIZE.
+                            target="entry.eviction"/>) is applied until the
+                        size of the header table added to the size of the new
+                        entry is lower than or equal to the
+                        SETTINGS_HEADER_TABLE_SIZE.
                     </t>
                     <t>
                         The addition of a new entry with a size greater than
@@ -544,10 +551,10 @@
                     </t>
                     <t>
                         The N-bit prefix allows filling the current byte.  If
-                        the value is small enough (strictly less than 2<x:sup>N</x:sup>-1),
-                        it is encoded within the N-bit prefix.  Otherwise all
-                        the bits of the prefix are set to 1 and the value is
-                        encoded using an <eref
+                        the value is small enough (strictly less than
+                        2<x:sup>N</x:sup>-1), it is encoded within the N-bit
+                        prefix.  Otherwise all the bits of the prefix are set
+                        to 1 and the value is encoded using an <eref
                             target="http://en.wikipedia.org/wiki/Variable-length_quantity">
                             unsigned variable length integer</eref>
                         representation.
@@ -572,8 +579,9 @@ Else
                             The value 10 is to be encoded with a 5-bit prefix.
                             <list style="symbols">
                                 <t>
-                                    10 is less than 31 (= 2<x:sup>5</x:sup> - 1) and is
-                                    represented using the 5-bit prefix.
+                                    10 is less than 31 (= 2<x:sup>5</x:sup> -
+                                    1) and is represented using the 5-bit
+                                    prefix.
                                 </t>
                             </list>
                         </t>
@@ -593,14 +601,18 @@ Else
                             The value I=1337 is to be encoded with a 5-bit
                             prefix.
                             <list>
-                                <t>1337 is greater than 31 (= 2<x:sup>5</x:sup> - 1).</t>
+                                <t>
+                                    1337 is greater than 31 (=
+                                    2<x:sup>5</x:sup> - 1).
+                                </t>
                                 <t>
                                     <list>
                                         <t>The 5-bit prefix is filled with its
                                             max value (31).</t>
                                     </list>
                                 </t>
-                                <t>I = 1337 - (2<x:sup>5</x:sup> - 1) = 1306.</t>
+                                <t>I = 1337 - (2<x:sup>5</x:sup> - 1) =
+                                    1306.</t>
                                 <t>
                                     <list>
                                         <t>I (1306) is greater than or equal
@@ -614,13 +626,14 @@ Else
                                                     10011010</t>
                                                 <t>I is set to 10 (1306 / 128 ==
                                                     10)</t>
-                                                <t>I is no longer greater than or
-                                                    equal to 128, the while loop
-                                                    terminates.</t>
+                                                <t>I is no longer greater than
+                                                    or equal to 128, the while
+                                                    loop terminates.</t>
                                             </list>
                                         </t>
                                         <t>
-                                            I, now 10, is encoded on 8 bits as: 00001010
+                                            I, now 10, is encoded on 8 bits
+                                            as: 00001010
                                         </t>
                                     </list>
                                 </t>
@@ -665,11 +678,11 @@ Else
             <section title="Indexed Header Field Representation"
                 anchor="indexed.header.representation">
                 <t>
-                    An indexed header field representation identifies an entry in the
-                    header table.  The entry is emitted and added to the
-                    reference set if it is not currently in the reference set.
-                    The entry is removed from the reference set if it is present
-                    in the reference set.
+                    An indexed header field representation identifies an entry
+                    in the header table.  The entry is emitted and added to
+                    the reference set if it is not currently in the reference
+                    set.  The entry is removed from the reference set if it is
+                    present in the reference set.
                 </t>
                 <figure title="Indexed Header Field">
                     <artwork type="inline">
@@ -689,9 +702,10 @@ Else
             <section title="Literal Header Field Representation"
                 anchor="literal.header.representation">
                 <t>
-                    Literal header field representations contain a literal header
-                    field value.  Header field names are either provided as a
-                    literal or by reference to an existing header table entry.
+                    Literal header field representations contain a literal
+                    header field value.  Header field names are either
+                    provided as a literal or by reference to an existing
+                    header table entry.
                 </t>
                 <t>
                     Literal representations all result in the emission of a
@@ -700,8 +714,9 @@ Else
                 <section title="Literal Header Field without Indexing"
                     anchor="literal.header.without.indexing">
                     <t>
-                        A literal header field without indexing causes the emission
-                        of a header field without altering the header table.
+                        A literal header field without indexing causes the
+                        emission of a header field without altering the header
+                        table.
                     </t>
                     <figure title="Literal Header Field without Indexing - Indexed Name">
                         <artwork type="inline">
@@ -735,16 +750,17 @@ Else
                         This representation starts with the '01' 2-bit pattern.
                     </t>
                     <t>
-                        If the header field name matches the header field name of a (name,
-                        value) pair stored in the Header Table, the index of
-                        the pair increased by one (index + 1) is represented
-                        as an integer with a 6-bit prefix.  Note that if the
-                        index is strictly below 63, one byte is used.
+                        If the header field name matches the header field name
+                        of a (name, value) pair stored in the Header Table,
+                        the index of the pair increased by one (index + 1) is
+                        represented as an integer with a 6-bit prefix.  Note
+                        that if the index is strictly below 63, one byte is
+                        used.
                     </t>
                     <t>
-                        If the header field name does not match a header field name entry,
-                        the value 0 is represented on 6 bits followed by the
-                        header field name (<xref
+                        If the header field name does not match a header field
+                        name entry, the value 0 is represented on 6 bits
+                        followed by the header field name (<xref
                             target="string.literal.representation" />).
                     </t>
                     <t>
@@ -759,8 +775,8 @@ Else
                 <section title="Literal Header Field with Incremental Indexing"
                     anchor="literal.header.with.incremental.indexing">
                     <t>
-                        A literal header field with incremental indexing adds a new
-                        entry to the header table.
+                        A literal header field with incremental indexing adds
+                        a new entry to the header table.
                     </t>
                     <figure title="Literal Header Field with Incremental Indexing -
                         Indexed Name">
@@ -797,22 +813,24 @@ Else
                         pattern.
                     </t>
                     <t>
-                        If the header field name matches the header field name of a (name,
-                        value) pair stored in the Header Table, the index of
-                        the pair increased by one (index + 1) is represented
-                        as an integer with a 6-bit prefix.  Note that if the
-                        index is strictly below 63, one byte is used.
+                        If the header field name matches the header field name
+                        of a (name, value) pair stored in the Header Table,
+                        the index of the pair increased by one (index + 1) is
+                        represented as an integer with a 6-bit prefix.  Note
+                        that if the index is strictly below 63, one byte is
+                        used.
                     </t>
                     <t>
-                        If the header field name does not match a header field name entry,
-                        the value 0 is represented on 6 bits followed by the
-                        header field name (<xref
+                        If the header field name does not match a header field
+                        name entry, the value 0 is represented on 6 bits
+                        followed by the header field name (<xref
                             target="string.literal.representation" />).
                     </t>
                     <t>
-                        The header field name representation is followed by the header field
-                        value represented as a literal string as described in
-                        <xref target="string.literal.representation" />.
+                        The header field name representation is followed by
+                        the header field value represented as a literal string
+                        as described in <xref
+                            target="string.literal.representation" />.
                     </t>
                 </section>
            </section>
@@ -864,8 +882,8 @@ Else
                 the emitted header fields in small chunks, and by considering
                 overhead in the state size calculation.  Implementors must
                 still be careful in the creation of APIs to an implementation
-                of this compressor by ensuring that header field keys and values are
-                either emitted as a stream, or that the compression
+                of this compressor by ensuring that header field keys and
+                values are either emitted as a stream, or that the compression
                 implementation have a limit on the maximum size of a key or
                 value. Failure to implement these kinds of safeguards may
                 still result in a scenario where the local endpoint exhausts
@@ -1026,8 +1044,9 @@ Else
             <t>
                 <cref>
                     The table in this section should be updated based on
-                    statistical analysis of header field names frequency and specific
-                    HTTP 2.0 header field rules (like removal of some header fields).
+                    statistical analysis of header field names frequency and
+                    specific HTTP 2.0 header field rules (like removal of some
+                    header fields).
                 </cref>
             </t>
             <t>
@@ -1108,7 +1127,9 @@ Else
             <t>
                 Here is an example that illustrates different representations
                 and how tables are updated.
-                <cref>This section needs to be updated to better reflect the new processing of header fields, and include more examples.</cref>
+                <cref>This section needs to be updated to better reflect the
+                    new processing of header fields, and include more
+                    examples.</cref>
             </t>
             <section title="First header set">
                 <t>
@@ -1118,18 +1139,19 @@ Else
 user-agent, my-user-agent
 mynewheader, first
 </artwork></figure>
-                    The header table is empty, all header fields are represented as
-                    literal header fields with indexing.  The 'mynewheader' header field
-                    name is not in the header table and is encoded
-                    literally.  This gives the following representation:
+                    The header table is empty, all header fields are
+                    represented as literal header fields with indexing.  The
+                    'mynewheader' header field name is not in the header table
+                    and is encoded literally.  This gives the following
+                    representation:
                     <figure><artwork type="message/http">
-0x04      (literal header field with incremental indexing, name index = 3)
+0x04      (literal header with incremental indexing, name index = 3)
 0x16      (header field value string length = 22)
 /my-example/index.html
-0x0D      (literal header field with incremental indexing, name index = 12)
+0x0D      (literal header with incremental indexing, name index = 12)
 0x0D      (header field value string length = 13)
 my-user-agent
-0x00      (literal header field with incremental indexing, new name)
+0x00      (literal header with incremental indexing, new name)
 0x0B      (header field name string length = 11)
 mynewheader
 0x05      (header field value string length = 5)
@@ -1142,11 +1164,11 @@ Header table
 +---------+----------------+---------------------------+
 |  Index  | Header Name    | Header Value              |
 +---------+----------------+---------------------------+
-|    0    | mynewheader    | first                     | added header field
+|    0    | mynewheader    | first                     | added header
 +---------+----------------+---------------------------+
-|    1    | user-agent     | my-user-agent             | added header field
+|    1    | user-agent     | my-user-agent             | added header
 +---------+----------------+---------------------------+
-|    2    | :path          | /my-example/index.html    | added header field
+|    2    | :path          | /my-example/index.html    | added header
 +---------+----------------+---------------------------+
 |    3    | :scheme        | http                      |
 +---------+----------------+---------------------------+
@@ -1157,8 +1179,8 @@ Header table
 |   32    | via            |                           |
 +---------+----------------+---------------------------+
 </artwork></figure>
-                    As all the header fields in the first header set are indexed in
-                    the header table, all are kept in the reference
+                    As all the header fields in the first header set are
+                    indexed in the header table, all are kept in the reference
                     set of header fields, which is:
                     <figure><artwork type="inline">
 Reference Set:
@@ -1177,22 +1199,20 @@ user-agent, my-user-agent
 mynewheader, second
 </artwork></figure>
                     Comparing this second header set to the reference set, the
-                    first and third header fields are from the reference set are not
-                    present in this second header set and must be removed. In
-                    addition, in this new set, the first and third header
-                    fields
-                    have to be encoded.
-                    The path header field is represented as a literal header
-                    field
-                    without indexing. The mynewheader will be
-                    represented as a literal header field with incremental indexing.
+                    first and third header fields are from the reference set
+                    are not present in this second header set and must be
+                    removed. In addition, in this new set, the first and third
+                    header fields have to be encoded.  The path header field
+                    is represented as a literal header field without indexing.
+                    The mynewheader will be represented as a literal header
+                    field with incremental indexing.
                     <figure><artwork type="message/http">
-0x80       (indexed header field, index = 0: removal from reference set)
-0x82       (indexed header field, index = 2: removal from reference set)
-0x43       (literal header field, without indexing, name index = 2)
+0x80       (indexed header, index = 0: removal from reference set)
+0x82       (indexed header, index = 2: removal from reference set)
+0x43       (literal header, without indexing, name index = 2)
 0x1f       (header field value string length = 31)
 /my-example/resources/script.js
-0x01       (literal header field, incremental indexing, name index = 0)
+0x01       (literal header, incremental indexing, name index = 0)
 0x06       (header field value string length = 6)
 second
 </artwork></figure>
@@ -1202,7 +1222,7 @@ Header table
 +---------+----------------+---------------------------+
 |  Index  | Header Name    | Header Value              |
 +---------+----------------+---------------------------+
-|    0    | mynewheader    | second                    | added header field
+|    0    | mynewheader    | second                    | added header
 +---------+----------------+---------------------------+
 |    1    | mynewheader    | first                     |
 +---------+----------------+---------------------------+
@@ -1219,9 +1239,9 @@ Header table
 |   33    | via            |                           |
 +---------+----------------+---------------------------+
 </artwork></figure>
-                    All the header fields in this second header set are indexed in
-                    the header table, therefore, all are kept in the reference
-                    set of header fields, which becomes:
+                    All the header fields in this second header set are
+                    indexed in the header table, therefore, all are kept in
+                    the reference set of header fields, which becomes:
                     <figure><artwork type="inline">
 Reference Set:
 :path, /my-example/resources/script.js
