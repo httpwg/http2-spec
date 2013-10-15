@@ -171,12 +171,7 @@ additional checks are out of scope for this specification.
 Upon initial adoption of this proposal, it is expected that no such additional
 checks will be performed. Therefore, the client MUST NOT use the
 "http2-tls-relaxed" profile to connect to alternate services whose host does
-not match that of the origin, unless additional checks are performed.
-
-This requirement bounds the risk of a service being hijacked and redirected to
-another host; see Security Considerations for details.
-
-[TODO: define "match"]
+not match that of the origin (as per {{I-D.nottingham-httpbis-alt-svc}}), unless additional checks are performed.
 
 Servers SHOULD use the same certificate consistently over time, to aid future
 extensions for building trust and adding other services.
@@ -203,26 +198,9 @@ need only strip the Alt-Svc header from responses.
 
 This proposal does not offer a remedy for this risk. However, it's important to
 note that it is no worse than current use of unencrypted HTTP in the face of
-such active attacks.
+such active attacks. 
 
-
-## Alt-Svc Header Field "Gap"
-
-When the Alt-Svc header field is used in "http://" URIs, the client needs to
-send an unencrypted HTTP request to the server to discover the alternates. In
-doing so, it potentially exposes sensitive information (e.g., cookies
-{{RFC6265}}) to surveillance.
-
-This risk can be mitigated if the client is willing to send a separate request
-(e.g., OPTIONS *) to the origin to discover policy before making requests
-containing potentially sensitive information. However, doing so adds a
-round-trip of latency to such requests.
-
-Likewise, if the Alt-Svc is cacheable for a long period (using a large ma
-parameter), it reduces the window for such attacks (but does not eliminate it).
-
-Alternatively, this risk can be mitigated by using an out-of-band discovery
-mechanism (e.g., DNS).
+Future proposals might attempt to address this risk.
 
 
 --- back
@@ -318,6 +296,13 @@ active attacks are not feasible, or much more difficult.
 
 Additionally, active attacks can often be detected, because they change
 protocol interactions; as such, they bring a risk of discovery.
+
+
+## Why Have separate relaxed protocol identifiers?
+
+If all implementations agree that using TLS for "http://" URIs always means that
+the certificate checks are "relaxed", it could be that there is no need for a 
+separate protocol identifier. However, this needs to be discussed.
 
 
 # Implementation Status
