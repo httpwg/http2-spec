@@ -57,7 +57,7 @@ informative:
   I-D.mbelshe-httpbis-spdy:
   RFC2804:
   RFC3365:
-  RFC6265:
+  RFC6246:
   RFC6973:
 
 

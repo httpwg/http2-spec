@@ -32,16 +32,14 @@ HTTP URIs.</t>
       <t>In discussion at IETF87, it was proposed that the current means of
 bootstrapping encryption in HTTP <xref target="I-D.ietf-httpbis-p1-messaging"/> – using the
 “HTTPS” URI scheme – unintentionally gives the server disproportionate power
-in determining whether encryption is used.</t>
-      <t>Furthermore, HTTP’s current use of TLS <xref target="RFC5246"/> for “https://” URIs is
-inflexible; it is difficult to introduce new trust roots, for example.</t>
+in determining whether encryption (through use of TLS <xref target="RFC6246"/>) is used.</t>
       <t>This document uses the new “alternate services” layer described in
 <xref target="I-D.nottingham-httpbis-alt-svc"/> to decouple the URI scheme from the use and
 configuration of underlying encryption, allowing a “http://” URI to be upgraded
 to use TLS optimistically.</t>
       <t>Additionally, because using TLS requires acquiring and configuring a valid
 certificate, some deployments may find supporting it difficult. Therefore, this
-document also specifies a “relaxed” profile of HTTP/2.0 over TLS that does not
+document also proposes a “relaxed” profile of HTTP/2.0 over TLS that does not
 require strong server authentication, specifically for use with “http://” URIs.</t>
       <section anchor="goals-and-non-goals" title="Goals and Non-Goals">
         <t>The immediate goal is to make HTTP URIs more robust in the face of passive
@@ -61,7 +59,7 @@ upon performance (in keeping with the goals of HTTP/2.0).</t>
 document are to be interpreted as described in <xref target="RFC2119"/>.</t>
       </section>
     </section>
-    <section anchor="protocol-identifiers-for-http-security" title="Protocol Identifiers for HTTP Security">
+    <section anchor="indicating-security-properties-in-protocol-identifiers" title="Indicating Security Properties in Protocol Identifiers">
       <t>In past dicussions, there has been general agreement to reusing the ALPN
 protocol identifier <xref target="I-D.ietf-tls-applayerprotoneg"/> for all negotiation
 mechanisms in HTTP/2.0, not just TLS.</t>
@@ -81,14 +79,15 @@ might be registered if this approach is adopted:</t>
         </list>
       </t>
       <t>Most of these are already latently defined by HTTP/2.0, with the exception
-being http2-tls-relaxed, defined below. By indicating the use of TLS in the
-protocol identifier allows a client and server to negotiate the use of TLS for
-“http://” URIs; if the server offers http2-tls, the client can select that
-protocol, start TLS and use it.</t>
+being http2-tls-relaxed, defined below. Note that the focus of this proposal is
+on the semantics of the identifiers; an exact syntax for them is not part of it.</t>
+      <t>By indicating the use of TLS in the protocol identifier allows a client and
+server to negotiate the use of TLS for “http://” URIs; if the server offers
+http2-tls, the client can select that protocol, start TLS and use it.</t>
       <t>Note that, as discussed in <xref target="downgrade"/>, there may be situations (e.g,. ALPN)
-where advertising some of these profiles are inapplicable or inadvisable.</t>
-      <t>For example, in an ALPN negotiation for a “https://” URI, it is only sensible
-to offer http1-tls and http2-tls. </t>
+where advertising some of these profiles are inapplicable or inadvisable. For
+example, in an ALPN negotiation for a “https://” URI, it is only sensible to
+offer http1-tls and http2-tls.</t>
       <section anchor="relaxed" title="The “http2-tls-relaxed” Protocol">
         <t>Servers that support the “http2-tls-relaxed” protocol indicate that they
 support TLS for access to URIs with the “http” URI scheme using HTTP/2.0 or
@@ -111,13 +110,10 @@ additional checks are out of scope for this specification.</t>
         <t>Upon initial adoption of this proposal, it is expected that no such additional
 checks will be performed. Therefore, the client MUST NOT use the
 “http2-tls-relaxed” profile to connect to alternate services whose host does
-not match that of the origin, unless additional checks are performed.</t>
-        <t>This requirement bounds the risk of a service being hijacked and redirected to
-another host; see Security Considerations for details.</t>
-        <t>[[TODO: define “match”]]</t>
+not match that of the origin (as per <xref target="I-D.nottingham-httpbis-alt-svc"/>), unless additional checks are performed.</t>
         <t>Servers SHOULD use the same certificate consistently over time, to aid future
 extensions for building trust and adding other services.</t>
-        <t>[[TODO: define “same”; likely not the same actual certificate. ]]</t>
+        <t>[TODO: define “same”; likely not the same actual certificate. ]</t>
         <t>When the http2-tls-relaxed protocol is in use, User Agents MUST NOT indicate
 the connection has the same level of security as https:// (e.g. using a “lock
 device”).</t>
@@ -134,21 +130,8 @@ simplest form, an attacker that wants the connection to remain in the clear
 need only strip the Alt-Svc header from responses.</t>
         <t>This proposal does not offer a remedy for this risk. However, it’s important to
 note that it is no worse than current use of unencrypted HTTP in the face of
-such active attacks.</t>
-      </section>
-      <section anchor="alt-svc-header-field-gap" title="Alt-Svc Header Field “Gap”">
-        <t>When the Alt-Svc header field is used in “http://” URIs, the client needs to
-send an unencrypted HTTP request to the server to discover the alternates. In
-doing so, it potentially exposes sensitive information (e.g., cookies
-<xref target="RFC6265"/>) to surveillance.</t>
-        <t>This risk can be mitigated if the client is willing to send a separate request
-(e.g., OPTIONS *) to the origin to discover policy before making requests
-containing potentially sensitive information. However, doing so adds a
-round-trip of latency to such requests.</t>
-        <t>Likewise, if the Alt-Svc is cacheable for a long period (using a large ma
-parameter), it reduces the window for such attacks (but does not eliminate it).</t>
-        <t>Alternatively, this risk can be mitigated by using an out-of-band discovery
-mechanism (e.g., DNS).</t>
+such active attacks. </t>
+        <t>Future proposals might attempt to address this risk.</t>
       </section>
     </section>
   </middle>
@@ -381,19 +364,28 @@ mechanism (e.g., DNS).</t>
         <seriesInfo name="RFC" value="3365"/>
         <format type="TXT" octets="16411" target="http://www.rfc-editor.org/rfc/rfc3365.txt"/>
       </reference>
-      <reference anchor="RFC6265">
+      <reference anchor="RFC6246">
         <front>
-          <title>HTTP State Management Mechanism</title>
-          <author initials="A." surname="Barth" fullname="A. Barth">
+          <title>Virtual Private LAN Service (VPLS) Interoperability with Customer Edge (CE) Bridges</title>
+          <author initials="A." surname="Sajassi" fullname="A. Sajassi">
             <organization/>
           </author>
-          <date year="2011" month="April"/>
+          <author initials="F." surname="Brockners" fullname="F. Brockners">
+            <organization/>
+          </author>
+          <author initials="D." surname="Mohan" fullname="D. Mohan">
+            <organization/>
+          </author>
+          <author initials="Y." surname="Serbest" fullname="Y. Serbest">
+            <organization/>
+          </author>
+          <date year="2011" month="June"/>
           <abstract>
-            <t>This document defines the HTTP Cookie and Set-Cookie header fields.  These header fields can be used by HTTP servers to store state (called cookies) at HTTP user agents, letting the servers maintain a stateful session over the mostly stateless HTTP protocol.  Although cookies have many historical infelicities that degrade their security and privacy, the Cookie and Set-Cookie header fields are widely used on the Internet.  This document obsoletes RFC 2965. [STANDARDS-TRACK]</t>
+            <t>One of the main motivations behind Virtual Private LAN Service (VPLS) is its ability to provide connectivity not only among customer routers and servers/hosts but also among customer IEEE bridges. VPLS is expected to deliver the same level of service that current enterprise users are accustomed to from their own enterprise bridged networks or their Ethernet Service Providers.&lt;/t&gt;&lt;t&gt; When customer edge (CE) devices are IEEE bridges, then there are certain issues and challenges that need to be accounted for in a VPLS network. The majority of these issues have been addressed in the IEEE 802.1ad standard for provider bridges and they can be leveraged for VPLS networks. This document extends the provider edge (PE) model described in RFC 4664 based on IEEE 802.1ad bridge module, and it illustrates a clear demarcation between the IEEE bridge module and IETF LAN emulation module. By doing so, it shows that the majority of interoperability issues with CE bridges can be delegated to the 802.1ad bridge module, thus removing the burden on the IETF LAN emulation module within a VPLS PE. This document is not an Internet Standards Track specification; it is published for informational purposes.</t>
           </abstract>
         </front>
-        <seriesInfo name="RFC" value="6265"/>
-        <format type="TXT" octets="79724" target="http://www.rfc-editor.org/rfc/rfc6265.txt"/>
+        <seriesInfo name="RFC" value="6246"/>
+        <format type="TXT" octets="51024" target="http://www.rfc-editor.org/rfc/rfc6246.txt"/>
       </reference>
       <reference anchor="RFC6973">
         <front>
@@ -501,6 +493,11 @@ out of the scope of this document).</t>
 active attacks are not feasible, or much more difficult. </t>
         <t>Additionally, active attacks can often be detected, because they change
 protocol interactions; as such, they bring a risk of discovery.</t>
+      </section>
+      <section anchor="why-have-separate-relaxed-protocol-identifiers" title="Why Have separate relaxed protocol identifiers?">
+        <t>If all implementations agree that using TLS for “http://” URIs always means that
+the certificate checks are “relaxed”, it could be that there is no need for a 
+separate protocol identifier. However, this needs to be discussed.</t>
       </section>
     </section>
     <section anchor="implementation-status" title="Implementation Status">
