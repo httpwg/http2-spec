@@ -26,6 +26,7 @@ normative:
   RFC2818:
   RFC5246:
   I-D.ietf-httpbis-http2:
+  I-D.nottingham-httpbis-alt-svc:
 
 informative:
   I-D.ietf-httpbis-p1-messaging:
@@ -114,8 +115,8 @@ document are to be interpreted as described in {{RFC2119}}.
 # Protocol Identifiers for HTTP Security
 
 In past dicussions, there has been general agreement to reusing the ALPN
-protocol identifier {{}} for all negotiation mechanisms in HTTP/2.0, not just
-TLS.
+protocol identifier {{I-D.ietf-tls-applayerprotoneg}} for all negotiation
+mechanisms in HTTP/2.0, not just TLS.
 
 This document proposes putting additional information into them to identify the
 use of encryption as well as configuration of that encryption, independent of
@@ -197,11 +198,11 @@ device").
 A downgrade attack against the negotation for TLS is possible, depending upon
 the properties of the negotiation mechanism.
 
-For example, because the Alt-Svc header field {{}} appears in the clear for
-"http://" URIs, it is subject to downgrade by attackers that are able to
-Man-in-the-Middle the network connection; in its simplest form, an attacker
-that wants the connection to remain in the clear need only strip the Alt-Svc
-header from responses.
+For example, because the Alt-Svc header field {{nottingham-httpbis-alt-svc}}
+appears in the clear for "http://" URIs, it is subject to downgrade by
+attackers that are able to Man-in-the-Middle the network connection; in its
+simplest form, an attacker that wants the connection to remain in the clear
+need only strip the Alt-Svc header from responses.
 
 This proposal does not offer a remedy for this risk. However, it's important to
 note that it is no worse than current use of unencrypted HTTP in the face of
@@ -280,9 +281,6 @@ reinforced by {{RFC6973}}.
 
 As a result, we decided to revisit the issue of how encryption is used in
 HTTP/2.0 at IETF87.
-
-
-
   
   
 # Frequently Asked Questions
@@ -306,10 +304,14 @@ but not "https://" - URIs when TLS is in use. Since TLS isn't in use for any
 "http://" URIs today, there is no net loss of security, and we gain some
 privacy from passive attacks.
 
-In the future, if the certificate trust system can be improved such that it's
-both more reliable and has a lower barrier to entry (e.g., see {{RFC6962}}), it
-may be possible to modify or even drop the http2-tls-relaxed profile (even
-before HTTP/2 ships, depending on progress there). 
+This makes TLS signficantly simpler to deploy for servers; they are able to use
+a self-signed certificate. 
+
+Additionally, it is possible to detect some attacks by remembering what
+certificate is used in the past "pinning" or third-party verification of the
+certificate in use. This may offer a way to gain stronger authentication of the
+origin server's identity, and mitigate downgrade attacks (although doing so is
+out of the scope of this document).
 
 
 ## Why do this if a downgrade attack is so easy?
@@ -317,9 +319,8 @@ before HTTP/2 ships, depending on progress there).
 There are many attack scenarios (e.g., third parties in coffee shops) where
 active attacks are not feasible, or much more difficult. 
 
-Furthermore, active attacks can be more easily detected. Future infrastructure
-(again, along similar lines to {{RFC6962}}) might be able to detect them and
-mitigate the risk.
+Additionally, active attacks can often be detected, because they change
+protocol interactions; as such, they bring a risk of discovery.
 
 
 # Implementation Status
@@ -329,5 +330,5 @@ No current implementations.
 It is expected that if this proposal is adopted, first interop will be achieved by:
 
 1. Specifying a set of ALPN protocol identifiers with TLS variants (possibly including -relaxed), with an appropriate level of detail for each.
-2. Nominating a set of negotiation mechanisms targeted for interop (e.g., Alt-Svc)
+2. Nominating a set of negotiation mechanisms targeted for interop (e.g., Alt-Svc).
 
