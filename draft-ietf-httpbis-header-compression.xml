@@ -231,34 +231,25 @@
                         the static part is appended after the dynamic part.
                     </t>
                     <t>
+                        Initially, the dynamic part of the header table is
+                        empty.
+                    </t>
+                    <t>
                         A header table is modified by adding a new
-                        entry at the end of the table.
+                        entry at the beginning of the table.
                     </t>
                     <t>
                         The encoder decides how to update the header table and
                         as such can control how much memory is used by the
                         header table. To limit the memory requirements on the
                         decoder side, the size of the dynamic part of the
-                        header table is bounded (see the
-                        SETTINGS_HEADER_TABLE_SIZE in <xref
-                            target="parameter.negotiation"/>).
+                        header table is bounded (see <xref
+                            target="maximum.table.size"/>).
                     </t>
                     <t>
-                        The size of an entry is the sum of its name's length
-                        in bytes (as defined in <xref
-                            target="string.literal.representation" />), of its
-                        value's length in bytes (<xref
-                            target="string.literal.representation" />) and of
-                        32 bytes. The 32 bytes are an accounting for the entry
-                        structure overhead. For example, an entry structure
-                        using two 64-bits pointers to reference the name and
-                        the value and the entry, and two 64-bits integer for
-                        counting the number of references to these name and
-                        value would use 32 bytes.
-                    </t>
-                    <t>
-                        The size of the dynamic part of a header table is the
-                        sum of the size of its entries.
+                        When necessary, entries at the end of the dynamic part
+                        of the table are dropped to reduce the size of the
+                        header table and keep it under its limit.
                     </t>
                 </section>
 
@@ -418,8 +409,7 @@
                         the following actions:
                         <list style="symbols">
                             <t>The header is emitted.</t>
-                            <t>The header is added to the header table, at the
-                                location defined by the representation.</t>
+                            <t>The header is inserted at the beginning of  the header table.</t>
                             <t>The new entry is added to the reference set.</t>
                         </list>
                     </t>
@@ -448,34 +438,92 @@
                         set have been emitted, the header set is complete.
                     </t>
                 </section>
+            </section>
 
-                <section title="Header Table Management"
-                    anchor="header.table.management">
+            <section title="Header Table Management"
+                anchor="header.table.management">
+                <section title="Maximum Table Size"
+                    anchor="maximum.table.size">
                     <t>
-                        The header table can be modified by either adding a
-                        new entry to it or by replacing an existing one.
-                        Before doing such a modification, it has to be ensured
-                        that the header table size will stay lower than or
-                        equal to the SETTINGS_HEADER_TABLE_SIZE limit (see <xref
-                            target="parameter.negotiation"/>).  To achieve
-                        this, repeatedly, the last entry of the header table
-                        is removed, until enough space is available for the
-                        modification.
+                        To limit the memory requirements on the decoder side,
+                        the size of the dynamic part of the header table is
+                        bounded. The size of the dynamic part MUST stay lower
+                        than or equal to the value of the HTTP/2.0 setting
+                        SETTINGS_HEADER_TABLE_SIZE (see <xref
+                            target="HTTP2"/>). The size of the dynamic part of
+                        the header table is the sum of the size of its
+                        entries.
                     </t>
                     <t>
-                        A consequence of removing one or more entries at the
-                        beginning of the header table is that the remaining
-                        entries are renumbered. The first entry of the header
-                        table is always associated to the index 0.
+                        The size of an entry is the sum of its name's length
+                        in bytes (as defined in <xref
+                            target="string.literal.representation" />), of its
+                        value's length in bytes (<xref
+                            target="string.literal.representation" />) and of
+                        32 bytes. The 32 bytes are an accounting for the entry
+                        structure overhead. For example, an entry structure
+                        using two 64-bits pointers to reference the name and
+                        the value and the entry, and two 64-bits integer for
+                        counting the number of references to these name and
+                        value would use 32 bytes.
                     </t>
                     <t>
-                        The addition of a new entry with a size greater than
-                        the SETTINGS_HEADER_TABLE_SIZE limit causes all the
-                        entries from the header table to be dropped and the
-                        new entry not to be added to the header table.
+                        To prevent the header table size from exceeding its
+                        limit, an eviction mechanism is used (see <xref
+                            target="entry.eviction"/>). The eviction mechanism
+                        is applied in two cases: before inserting a new entry
+                        in the table, when applying a reduction of the
+                        SETTINGS_HEADER_TABLE_SIZE setting value.
                     </t>
                 </section>
 
+                <section title="Entry Addition" anchor="entry.addition">
+                    <t>
+                        The header table can be modified by adding a new entry
+                        to it. A new entry is always inserted in the dynamic
+                        part of the header table, at the index 0. As a
+                        consequence, all the other entries in the table are
+                        shifted, and their index is increased by one (both for
+                        the entries in the dynamic part and in the static
+                        part).
+                    </t>
+                    <t>
+                        Before inserting a new entry in the header table, it
+                        has to be ensured that the header table size will stay
+                        lower than or equal to the SETTINGS_HEADER_TABLE_SIZE
+                        limit (see <xref target="parameter.negotiation"/>). If
+                        not enought space is available for this new entry,
+                        the eviction mechanism (see <xref
+                            target="entry.eviction"/>) is applied until the size of
+                        the header table added to the size of the new entry is
+                        lower than or equal to the SETTINGS_HEADER_TABLE_SIZE.
+                    </t>
+                    <t>
+                        The addition of a new entry with a size greater than
+                        the SETTINGS_HEADER_TABLE_SIZE limit is allowed. It
+                        causes all the entries from the header table to be
+                        dropped and the new entry not to be added to the
+                        header table.
+                    </t>
+                </section>
+
+                <section title="Entry Eviction" anchor="entry.eviction">
+                    <t>
+                        The size of the header table is reduced through the
+                        eviction mechanism.
+                    </t>
+                    <t>
+                        While the size of dynamic part of the header table is
+                        strictly greater than its limit, the entry with the
+                        highest index in the header table is dropped. 
+                    </t>
+                    <t>
+                        The eviction of one or more entries from the dynamic
+                        part of the header table cause the index of the
+                        entries in the static part of the header table to be
+                        reduced.
+                    </t>
+                </section>
             </section>
 
         </section>
