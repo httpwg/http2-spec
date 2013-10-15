@@ -1,0 +1,517 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="../Tools/rfc2629xslt/rfc2629.xslt" ?>
+<!DOCTYPE rfc SYSTEM "../Tools/rfc2629xslt/rfc2629.dtd">
+<rfc ipr="trust200902" docName="draft-nottingham-http2-encryption-01" category="std">
+  <?rfc toc="yes"?>
+  <?rfc tocindent="yes"?>
+  <?rfc sortrefs="yes"?>
+  <?rfc symrefs="yes"?>
+  <?rfc strict="yes"?>
+  <?rfc compact="yes"?>
+  <?rfc comments="yes"?>
+  <?rfc inline="yes"?>
+  <front>
+    <title abbrev="Opportunistic HTTP Encryption">Opportunistic Encryption for HTTP URIs</title>
+    <author initials="M." surname="Nottingham" fullname="Mark Nottingham">
+      <organization/>
+      <address>
+        <email>mnot@mnot.net</email>
+        <uri>http://www.mnot.net/</uri>
+      </address>
+    </author>
+    <date year="2013"/>
+    <area>General</area>
+    <keyword>Internet-Draft</keyword>
+    <abstract>
+      <t>This document proposes a way to optimistically encrypt HTTP/2.0 using TLS for
+HTTP URIs.</t>
+    </abstract>
+  </front>
+  <middle>
+    <section anchor="introduction" title="Introduction">
+      <t>In discussion at IETF87, it was proposed that the current means of
+bootstrapping encryption in HTTP <xref target="I-D.ietf-httpbis-p1-messaging"/> – using the
+“HTTPS” URI scheme – unintentionally gives the server disproportionate power
+in determining whether encryption is used.</t>
+      <t>Furthermore, HTTP’s current use of TLS <xref target="RFC5246"/> for “https://” URIs is
+inflexible; it is difficult to introduce new trust roots, for example.</t>
+      <t>This document uses the new “alternate services” layer described in
+<xref target="I-D.nottingham-httpbis-alt-svc"/> to decouple the URI scheme from the use and
+configuration of underlying encryption, allowing a “http://” URI to be upgraded
+to use TLS optimistically.</t>
+      <t>Additionally, because using TLS requires acquiring and configuring a valid
+certificate, some deployments may find supporting it difficult. Therefore, this
+document also specifies a “relaxed” profile of HTTP/2.0 over TLS that does not
+require strong server authentication, specifically for use with “http://” URIs.</t>
+      <section anchor="goals-and-non-goals" title="Goals and Non-Goals">
+        <t>The immediate goal is to make HTTP URIs more robust in the face of passive
+monitoring.</t>
+        <t>Such passive attacks are often opportunistic; they rely on sensitive
+information being available in the clear. Furthermore, they are often broad,
+where all available data is collected en masse, being analyzed separately for
+relevant information.</t>
+        <t>It is not a goal of this document to address active or targeted attacks,
+although future solutions may be complementary.</t>
+        <t>Other goals include ease of implementation and deployment, with minimal impact
+upon performance (in keeping with the goals of HTTP/2.0).</t>
+      </section>
+      <section anchor="notational-conventions" title="Notational Conventions">
+        <t>The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”,
+“SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this
+document are to be interpreted as described in <xref target="RFC2119"/>.</t>
+      </section>
+    </section>
+    <section anchor="protocol-identifiers-for-http-security" title="Protocol Identifiers for HTTP Security">
+      <t>In past dicussions, there has been general agreement to reusing the ALPN
+protocol identifier <xref target="I-D.ietf-tls-applayerprotoneg"/> for all negotiation
+mechanisms in HTTP/2.0, not just TLS.</t>
+      <t>This document proposes putting additional information into them to identify the
+use of encryption as well as configuration of that encryption, independent of
+the URI scheme in use.</t>
+      <t>Thus, we won’t have just one protocol identifier for HTTP/2.0, but two; one
+with and one without the use of TLS. For example, the following identifiers
+might be registered if this approach is adopted:</t>
+      <t>
+        <list style="symbols">
+          <t>http1 - http/1.x over TCP</t>
+          <t>http1-tls - http/1.x over TLS over TCP (as per <xref target="RFC2818"/>)</t>
+          <t>http2 - http/2.x over TCP</t>
+          <t>http2-tls - http/2.x over TLS over TCP (as per <xref target="RFC2818"/>)</t>
+          <t>http2-tls-relaxed - http/2.x over TLS over TCP (see <xref target="relaxed"/>)</t>
+        </list>
+      </t>
+      <t>Most of these are already latently defined by HTTP/2.0, with the exception
+being http2-tls-relaxed, defined below. By indicating the use of TLS in the
+protocol identifier allows a client and server to negotiate the use of TLS for
+“http://” URIs; if the server offers http2-tls, the client can select that
+protocol, start TLS and use it.</t>
+      <t>Note that, as discussed in <xref target="downgrade"/>, there may be situations (e.g,. ALPN)
+where advertising some of these profiles are inapplicable or inadvisable.</t>
+      <t>For example, in an ALPN negotiation for a “https://” URI, it is only sensible
+to offer http1-tls and http2-tls. </t>
+      <section anchor="relaxed" title="The “http2-tls-relaxed” Protocol">
+        <t>Servers that support the “http2-tls-relaxed” protocol indicate that they
+support TLS for access to URIs with the “http” URI scheme using HTTP/2.0 or
+greater.</t>
+        <t>Servers MAY advertise the “http2-tls-relaxed” profile for resources with a
+“http” origin scheme; they MUST NOT advertise it for resources with a “https”
+origin.</t>
+        <t>When a client connects to an “http2-tls-relaxed” alternate service, it MUST use
+TLS1.1 or greater, and MUST use HTTP/2.x. HTTP/2.0 SHOULD be used as
+soon as TLS negotiation is completed; i.e., the “Upgrade dance” SHOULD NOT be
+performed.</t>
+        <t>When connecting to an “http2-tls-relaxed” service, the algorithm for
+authenticating the server described in <xref target="RFC2818"/> Section 3.1 changes; the
+client does not necessarily validate its certificate for expiry, hostname match
+or relationship to a known certificate authority (as it would with “normal”
+HTTPS).</t>
+        <t>However, the client MAY perform additional checks on the certificate and make a
+decision as to its validity before using the server. Definition of such
+additional checks are out of scope for this specification.</t>
+        <t>Upon initial adoption of this proposal, it is expected that no such additional
+checks will be performed. Therefore, the client MUST NOT use the
+“http2-tls-relaxed” profile to connect to alternate services whose host does
+not match that of the origin, unless additional checks are performed.</t>
+        <t>This requirement bounds the risk of a service being hijacked and redirected to
+another host; see Security Considerations for details.</t>
+        <t>[[TODO: define “match”]]</t>
+        <t>Servers SHOULD use the same certificate consistently over time, to aid future
+extensions for building trust and adding other services.</t>
+        <t>[[TODO: define “same”; likely not the same actual certificate. ]]</t>
+        <t>When the http2-tls-relaxed protocol is in use, User Agents MUST NOT indicate
+the connection has the same level of security as https:// (e.g. using a “lock
+device”).</t>
+      </section>
+    </section>
+    <section anchor="security-considerations" title="Security Considerations">
+      <section anchor="downgrade" title="Downgrade Attacks">
+        <t>A downgrade attack against the negotation for TLS is possible, depending upon
+the properties of the negotiation mechanism.</t>
+        <t>For example, because the Alt-Svc header field <xref target="I-D.nottingham-httpbis-alt-svc"/>
+appears in the clear for “http://” URIs, it is subject to downgrade by
+attackers that are able to Man-in-the-Middle the network connection; in its
+simplest form, an attacker that wants the connection to remain in the clear
+need only strip the Alt-Svc header from responses.</t>
+        <t>This proposal does not offer a remedy for this risk. However, it’s important to
+note that it is no worse than current use of unencrypted HTTP in the face of
+such active attacks.</t>
+      </section>
+      <section anchor="alt-svc-header-field-gap" title="Alt-Svc Header Field “Gap”">
+        <t>When the Alt-Svc header field is used in “http://” URIs, the client needs to
+send an unencrypted HTTP request to the server to discover the alternates. In
+doing so, it potentially exposes sensitive information (e.g., cookies
+<xref target="RFC6265"/>) to surveillance.</t>
+        <t>This risk can be mitigated if the client is willing to send a separate request
+(e.g., OPTIONS *) to the origin to discover policy before making requests
+containing potentially sensitive information. However, doing so adds a
+round-trip of latency to such requests.</t>
+        <t>Likewise, if the Alt-Svc is cacheable for a long period (using a large ma
+parameter), it reduces the window for such attacks (but does not eliminate it).</t>
+        <t>Alternatively, this risk can be mitigated by using an out-of-band discovery
+mechanism (e.g., DNS).</t>
+      </section>
+    </section>
+  </middle>
+  <back>
+    <references title="Normative References">
+      <reference anchor="RFC2119">
+        <front>
+          <title abbrev="RFC Key Words">Key words for use in RFCs to Indicate Requirement Levels</title>
+          <author initials="S." surname="Bradner" fullname="Scott Bradner">
+            <organization>Harvard University</organization>
+            <address>
+              <postal>
+                <street>1350 Mass. Ave.</street>
+                <street>Cambridge</street>
+                <street>MA 02138</street>
+              </postal>
+              <phone>- +1 617 495 3864</phone>
+              <email>sob@harvard.edu</email>
+            </address>
+          </author>
+          <date year="1997" month="March"/>
+          <area>General</area>
+          <keyword>keyword</keyword>
+          <abstract>
+            <t>
+   In many standards track documents several words are used to signify
+   the requirements in the specification.  These words are often
+   capitalized.  This document defines these words as they should be
+   interpreted in IETF documents.  Authors who follow these guidelines
+   should incorporate this phrase near the beginning of their document:
+
+<list><t>
+      The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
+      NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and
+      "OPTIONAL" in this document are to be interpreted as described in
+      RFC 2119.
+</t></list></t>
+            <t>
+   Note that the force of these words is modified by the requirement
+   level of the document in which they are used.
+</t>
+          </abstract>
+        </front>
+        <seriesInfo name="BCP" value="14"/>
+        <seriesInfo name="RFC" value="2119"/>
+        <format type="TXT" octets="4723" target="http://www.rfc-editor.org/rfc/rfc2119.txt"/>
+        <format type="HTML" octets="17970" target="http://xml.resource.org/public/rfc/html/rfc2119.html"/>
+        <format type="XML" octets="5777" target="http://xml.resource.org/public/rfc/xml/rfc2119.xml"/>
+      </reference>
+      <reference anchor="RFC2818">
+        <front>
+          <title>HTTP Over TLS</title>
+          <author initials="E." surname="Rescorla" fullname="E. Rescorla">
+            <organization/>
+          </author>
+          <date year="2000" month="May"/>
+          <abstract>
+            <t>This memo describes how to use Transport Layer Security (TLS) to secure Hypertext Transfer Protocol (HTTP) connections over the Internet.  This memo provides information for the Internet community.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="2818"/>
+        <format type="TXT" octets="15170" target="http://www.rfc-editor.org/rfc/rfc2818.txt"/>
+      </reference>
+      <reference anchor="RFC5246">
+        <front>
+          <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
+          <author initials="T." surname="Dierks" fullname="T. Dierks">
+            <organization/>
+          </author>
+          <author initials="E." surname="Rescorla" fullname="E. Rescorla">
+            <organization/>
+          </author>
+          <date year="2008" month="August"/>
+          <abstract>
+            <t>This document specifies Version 1.2 of the Transport Layer Security (TLS) protocol.  The TLS protocol provides communications security over the Internet.  The protocol allows client/server applications to communicate in a way that is designed to prevent eavesdropping, tampering, or message forgery. [STANDARDS-TRACK]</t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="5246"/>
+        <format type="TXT" octets="222395" target="http://www.rfc-editor.org/rfc/rfc5246.txt"/>
+      </reference>
+      <reference anchor="I-D.ietf-httpbis-http2">
+        <front>
+          <title>Hypertext Transfer Protocol version 2.0</title>
+          <author initials="M" surname="Belshe" fullname="Mike Belshe">
+            <organization/>
+          </author>
+          <author initials="R" surname="Peon" fullname="Roberto Peon">
+            <organization/>
+          </author>
+          <author initials="M" surname="Thomson" fullname="Martin Thomson">
+            <organization/>
+          </author>
+          <author initials="A" surname="Melnikov" fullname="Alexey Melnikov">
+            <organization/>
+          </author>
+          <date month="August" day="21" year="2013"/>
+          <abstract>
+            <t>This specification describes an optimized expression of the syntax of the Hypertext Transfer Protocol (HTTP).  The HTTP/2.0 encapsulation enables more efficient use of network resources and reduced perception of latency by allowing header field compression and multiple concurrent messages on the same connection.  It also introduces unsolicited push of representations from servers to clients.  This document is an alternative to, but does not obsolete the HTTP/1.1 message format or protocol.  HTTP's existing semantics remain unchanged.  This version of the draft has been marked for implementation. Interoperability testing will occur in the HTTP/2.0 interim in Seatle, US, starting 2013-10-09.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-06"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-http2-06.txt"/>
+      </reference>
+      <reference anchor="I-D.nottingham-httpbis-alt-svc">
+        <front>
+          <title>HTTP Alternate Services</title>
+          <author initials="M" surname="Nottingham" fullname="Mark Nottingham">
+            <organization/>
+          </author>
+          <date month="October" day="15" year="2013"/>
+          <abstract>
+            <t>This document introduces "alternate services" to allow an HTTP origin's resources to be available at a seperate network location, possibly accessed with a different protocol configuration.  It also specifies one means of discovering alternate services, the "Alt-Svc" header field.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-nottingham-httpbis-alt-svc-00"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-nottingham-httpbis-alt-svc-00.txt"/>
+      </reference>
+      <reference anchor="I-D.ietf-tls-applayerprotoneg">
+        <front>
+          <title>Transport Layer Security (TLS) Application Layer Protocol Negotiation Extension</title>
+          <author initials="S" surname="Friedl" fullname="Stephan Friedl">
+            <organization/>
+          </author>
+          <author initials="A" surname="Popov" fullname="Andrey Popov">
+            <organization/>
+          </author>
+          <author initials="A" surname="Langley" fullname="Adam Langley">
+            <organization/>
+          </author>
+          <author initials="S" surname="Emile" fullname="Stephan Emile">
+            <organization/>
+          </author>
+          <date month="October" day="15" year="2013"/>
+          <abstract>
+            <t>This document describes a Transport Layer Security (TLS) extension for application layer protocol negotiation within the TLS handshake. For instances in which the TLS connection is established over a well known TCP/IP port not associated with the desired application layer protocol, this extension allows the application layer to negotiate which protocol will be used within the TLS session.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-tls-applayerprotoneg-03"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-tls-applayerprotoneg-03.txt"/>
+      </reference>
+    </references>
+    <references title="Informative References">
+      <reference anchor="I-D.ietf-httpbis-p1-messaging">
+        <front>
+          <title>Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
+          <author initials="R" surname="Fielding" fullname="Roy Fielding">
+            <organization/>
+          </author>
+          <author initials="J" surname="Reschke" fullname="Julian Reschke">
+            <organization/>
+          </author>
+          <date month="September" day="25" year="2013"/>
+          <abstract>
+            <t>The Hypertext Transfer Protocol (HTTP) is an application-level protocol for distributed, collaborative, hypertext information systems.  HTTP has been in use by the World Wide Web global information initiative since 1990.  This document provides an overview of HTTP architecture and its associated terminology, defines the "http" and "https" Uniform Resource Identifier (URI) schemes, defines the HTTP/1.1 message syntax and parsing requirements, and describes general security concerns for implementations.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-24"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p1-messaging-24.txt"/>
+      </reference>
+      <reference anchor="firesheep" target="http://codebutler.com/firesheep/">
+        <front>
+          <title>Firesheep</title>
+          <author initials="E." surname="Butler" fullname="Eric Butler">
+            <organization/>
+          </author>
+          <date year="2010"/>
+        </front>
+      </reference>
+      <reference anchor="streetview" target="http://www.wired.com/threatlevel/2012/05/google-wifi-fcc-investigation/">
+        <front>
+          <title>The Anatomy of Google's Wi-Fi Sniffing Debacle</title>
+          <author initials="D." surname="Kravets" fullname="David Kravets">
+            <organization>Wired</organization>
+          </author>
+          <date year="2012"/>
+        </front>
+      </reference>
+      <reference anchor="xkeyscore" target="http://www.theguardian.com/world/2013/jul/31/nsa-top-secret-program-online-data">
+        <front>
+          <title>NSA tool collects 'nearly everything a user does on the internet'</title>
+          <author initials="G." surname="Greenwald" fullname="Glenn Greenwald">
+            <organization>The Guardian</organization>
+          </author>
+          <date year="2013"/>
+        </front>
+      </reference>
+      <reference anchor="I-D.mbelshe-httpbis-spdy">
+        <front>
+          <title>SPDY Protocol</title>
+          <author initials="M" surname="Belshe" fullname="Mike Belshe">
+            <organization/>
+          </author>
+          <author initials="R" surname="Peon" fullname="Roberto Peon">
+            <organization/>
+          </author>
+          <date month="February" day="23" year="2012"/>
+          <abstract>
+            <t>This document describes SPDY, a protocol designed for low-latency transport of content over the World Wide Web. SPDY introduces two layers of protocol.  The lower layer is a general purpose framing layer which can be used atop a reliable transport (likely TCP) for multiplexed, prioritized, and compressed data communication of many concurrent streams.  The upper layer of the protocol provides HTTP- like RFC2616 [RFC2616] semantics for compatibility with existing HTTP application servers.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-mbelshe-httpbis-spdy-00.txt"/>
+      </reference>
+      <reference anchor="RFC2804">
+        <front>
+          <title>IETF Policy on Wiretapping</title>
+          <author>
+            <organization>IAB</organization>
+          </author>
+          <author>
+            <organization>IESG</organization>
+          </author>
+          <date year="2000" month="May"/>
+          <abstract>
+            <t>This document describes the position that the Internet Engineering Task Force (IETF) has taken regarding the inclusion into IETF standards-track documents of functionality designed to facilitate wiretapping.  This memo explains what the IETF thinks the question means, why its answer is "no", and what that answer means.  This memo provides information for the Internet community.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="2804"/>
+        <format type="TXT" octets="18934" target="http://www.rfc-editor.org/rfc/rfc2804.txt"/>
+      </reference>
+      <reference anchor="RFC3365">
+        <front>
+          <title>Strong Security Requirements for Internet Engineering Task Force Standard Protocols</title>
+          <author initials="J." surname="Schiller" fullname="J. Schiller">
+            <organization/>
+          </author>
+          <date year="2002" month="August"/>
+        </front>
+        <seriesInfo name="BCP" value="61"/>
+        <seriesInfo name="RFC" value="3365"/>
+        <format type="TXT" octets="16411" target="http://www.rfc-editor.org/rfc/rfc3365.txt"/>
+      </reference>
+      <reference anchor="RFC6265">
+        <front>
+          <title>HTTP State Management Mechanism</title>
+          <author initials="A." surname="Barth" fullname="A. Barth">
+            <organization/>
+          </author>
+          <date year="2011" month="April"/>
+          <abstract>
+            <t>This document defines the HTTP Cookie and Set-Cookie header fields.  These header fields can be used by HTTP servers to store state (called cookies) at HTTP user agents, letting the servers maintain a stateful session over the mostly stateless HTTP protocol.  Although cookies have many historical infelicities that degrade their security and privacy, the Cookie and Set-Cookie header fields are widely used on the Internet.  This document obsoletes RFC 2965. [STANDARDS-TRACK]</t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="6265"/>
+        <format type="TXT" octets="79724" target="http://www.rfc-editor.org/rfc/rfc6265.txt"/>
+      </reference>
+      <reference anchor="RFC6973">
+        <front>
+          <title>Privacy Considerations for Internet Protocols</title>
+          <author initials="A." surname="Cooper" fullname="A. Cooper">
+            <organization/>
+          </author>
+          <author initials="H." surname="Tschofenig" fullname="H. Tschofenig">
+            <organization/>
+          </author>
+          <author initials="B." surname="Aboba" fullname="B. Aboba">
+            <organization/>
+          </author>
+          <author initials="J." surname="Peterson" fullname="J. Peterson">
+            <organization/>
+          </author>
+          <author initials="J." surname="Morris" fullname="J. Morris">
+            <organization/>
+          </author>
+          <author initials="M." surname="Hansen" fullname="M. Hansen">
+            <organization/>
+          </author>
+          <author initials="R." surname="Smith" fullname="R. Smith">
+            <organization/>
+          </author>
+          <date year="2013" month="July"/>
+          <abstract>
+            <t>This document offers guidance for developing privacy considerations for inclusion in protocol specifications.  It aims to make designers, implementers, and users of Internet protocols aware of privacy-related design choices.  It suggests that whether any individual RFC warrants a specific privacy considerations section will depend on the document's content.</t>
+          </abstract>
+        </front>
+        <seriesInfo name="RFC" value="6973"/>
+        <format type="TXT" octets="89198" target="http://www.rfc-editor.org/rfc/rfc6973.txt"/>
+      </reference>
+    </references>
+    <section anchor="acknowledgements" title="Acknowledgements">
+      <t>Thanks to Patrick McManus, Eliot Lear, Stephen Farrell, Guy Podjarny, Stephen
+Ludin, Erik Nygren, Paul Hoffman and Adam Langley for their feedback and
+suggestions.</t>
+    </section>
+    <section anchor="recent-history-and-background" title="Recent History and Background">
+      <t>One of the design goals for SPDY <xref target="I-D.mbelshe-httpbis-spdy"/> was increasing
+the use of encryption on the Web, achieved by only supporting the protocol over
+a connection protected by TLS <xref target="RFC5246"/>.</t>
+      <t>This was done, in part, because sensitive information – including not only
+login credentials, but also personally identifying information (PII) and even
+patterns of access – are increasingly prevalent on the Web, being evident in
+potentially every HTTP request made. </t>
+      <t>Attacks such as FireSheep <xref target="firesheep"/> showed how easy it is to gather such
+information when it is sent in the clear, and incidents such as Google’s
+collection of unencrypted data by its StreetView Cars <xref target="streetview"/> further
+illustrated the risks.</t>
+      <t>In adopting SPDY as the basis of HTTP/2 <xref target="I-D.ietf-httpbis-http2"/>, the HTTPbis
+Working Group agreed not to make TLS mandatory to implement (MtI) or mandatory
+to use (MtU) in our charter, despite an IETF policy to prefer the “best
+security available” <xref target="RFC3365"/>.</t>
+      <t>There were a variety of reasons for this, but most significantly, HTTP is used
+for much more than the traditional browsing case, and encryption is not needed
+for all of these uses. Making encryption MtU or MtI was seen as unlikely to
+succeed because of the wide deployment of HTTP URIs.</t>
+      <t>However, since making that decision, there have been developments that
+have caused the Working Group to discuss these issues again:</t>
+      <t>
+        <list style="numbers">
+          <t>Active contributors to some browser implementations have stated that their
+products will not use HTTP/2 over unencrypted connections. If this eventuates,
+it will prevent wide deployment of the new protocol (i.e., it couldn’t be used
+with those products for HTTP URIs; only HTTPS URIs).</t>
+          <t>It has been reported that surveillance of HTTP traffic takes place on a
+broad scale <xref target="xkeyscore"/>. While the IETF does not take a formal, moral
+position on wiretapping, we do have a strongly held belief “that both
+commercial development of the Internet and adequate privacy for its users
+against illegal intrusion requires the wide availability of strong
+cryptographic technology” <xref target="RFC2804"/>. This requirement for privacy is further
+reinforced by <xref target="RFC6973"/>.</t>
+        </list>
+      </t>
+      <t>As a result, we decided to revisit the issue of how encryption is used in
+HTTP/2.0 at IETF87.</t>
+    </section>
+    <section anchor="frequently-asked-questions" title="Frequently Asked Questions">
+      <section anchor="will-this-make-encryption-mandatory-in-http20" title="Will this make encryption mandatory in HTTP/2.0?">
+        <t>Not in the sense that this proposal would have it required (with a MUST) in the
+specification.</t>
+        <t>What might happen, however, is that some browser implementers will take the
+flexibility that this approach grants and decide to not negotiate for HTTP/2.0
+without one of the encryption profiles. That means that servers would need to
+implement one of the encryption-enabling profiles to interoperate using
+HTTP/2.0 for HTTP URIs.</t>
+      </section>
+      <section anchor="no-certificate-checks-really" title="No certificate checks? Really?">
+        <t>http2-tls-relaxed has the effect of relaxing certificate checks on “http://” -
+but not “https://” - URIs when TLS is in use. Since TLS isn’t in use for any
+“http://” URIs today, there is no net loss of security, and we gain some
+privacy from passive attacks.</t>
+        <t>This makes TLS signficantly simpler to deploy for servers; they are able to use
+a self-signed certificate. </t>
+        <t>Additionally, it is possible to detect some attacks by remembering what
+certificate is used in the past “pinning” or third-party verification of the
+certificate in use. This may offer a way to gain stronger authentication of the
+origin server’s identity, and mitigate downgrade attacks (although doing so is
+out of the scope of this document).</t>
+      </section>
+      <section anchor="why-do-this-if-a-downgrade-attack-is-so-easy" title="Why do this if a downgrade attack is so easy?">
+        <t>There are many attack scenarios (e.g., third parties in coffee shops) where
+active attacks are not feasible, or much more difficult. </t>
+        <t>Additionally, active attacks can often be detected, because they change
+protocol interactions; as such, they bring a risk of discovery.</t>
+      </section>
+    </section>
+    <section anchor="implementation-status" title="Implementation Status">
+      <t>No current implementations.</t>
+      <t>It is expected that if this proposal is adopted, first interop will be achieved by:</t>
+      <t>
+        <list style="numbers">
+          <t>Specifying a set of ALPN protocol identifiers with TLS variants (possibly including -relaxed), with an appropriate level of detail for each.</t>
+          <t>Nominating a set of negotiation mechanisms targeted for interop (e.g., Alt-Svc).</t>
+        </list>
+      </t>
+    </section>
+  </back>
+</rfc>

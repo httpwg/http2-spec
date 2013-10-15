@@ -27,6 +27,7 @@ normative:
   RFC5246:
   I-D.ietf-httpbis-http2:
   I-D.nottingham-httpbis-alt-svc:
+  I-D.ietf-tls-applayerprotoneg:
 
 informative:
   I-D.ietf-httpbis-p1-messaging:
@@ -57,7 +58,6 @@ informative:
   RFC2804:
   RFC3365:
   RFC6265:
-  RFC6962:
   RFC6973:
 
 
@@ -198,7 +198,7 @@ device").
 A downgrade attack against the negotation for TLS is possible, depending upon
 the properties of the negotiation mechanism.
 
-For example, because the Alt-Svc header field {{nottingham-httpbis-alt-svc}}
+For example, because the Alt-Svc header field {{I-D.nottingham-httpbis-alt-svc}}
 appears in the clear for "http://" URIs, it is subject to downgrade by
 attackers that are able to Man-in-the-Middle the network connection; in its
 simplest form, an attacker that wants the connection to remain in the clear
