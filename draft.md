@@ -73,10 +73,7 @@ HTTP URIs.
 In discussion at IETF87, it was proposed that the current means of
 bootstrapping encryption in HTTP {{I-D.ietf-httpbis-p1-messaging}} -- using the
 "HTTPS" URI scheme -- unintentionally gives the server disproportionate power
-in determining whether encryption is used.
-
-Furthermore, HTTP's current use of TLS {{RFC5246}} for "https://" URIs is
-inflexible; it is difficult to introduce new trust roots, for example.
+in determining whether encryption (through use of TLS {{RFC6246}}) is used.
 
 This document uses the new "alternate services" layer described in
 {{I-D.nottingham-httpbis-alt-svc}} to decouple the URI scheme from the use and
@@ -85,7 +82,7 @@ to use TLS optimistically.
 
 Additionally, because using TLS requires acquiring and configuring a valid
 certificate, some deployments may find supporting it difficult. Therefore, this
-document also specifies a "relaxed" profile of HTTP/2.0 over TLS that does not
+document also proposes a "relaxed" profile of HTTP/2.0 over TLS that does not
 require strong server authentication, specifically for use with "http://" URIs.
 
 
@@ -112,7 +109,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 document are to be interpreted as described in {{RFC2119}}.
 
 
-# Protocol Identifiers for HTTP Security
+# Indicating Security Properties in Protocol Identifiers
 
 In past dicussions, there has been general agreement to reusing the ALPN
 protocol identifier {{I-D.ietf-tls-applayerprotoneg}} for all negotiation
@@ -133,16 +130,17 @@ might be registered if this approach is adopted:
 * http2-tls-relaxed - http/2.x over TLS over TCP (see {{relaxed}})
 
 Most of these are already latently defined by HTTP/2.0, with the exception
-being http2-tls-relaxed, defined below. By indicating the use of TLS in the
-protocol identifier allows a client and server to negotiate the use of TLS for
-"http://" URIs; if the server offers http2-tls, the client can select that
-protocol, start TLS and use it.
+being http2-tls-relaxed, defined below. Note that the focus of this proposal is
+on the semantics of the identifiers; an exact syntax for them is not part of it.
+
+By indicating the use of TLS in the protocol identifier allows a client and
+server to negotiate the use of TLS for "http://" URIs; if the server offers
+http2-tls, the client can select that protocol, start TLS and use it.
 
 Note that, as discussed in {{downgrade}}, there may be situations (e.g,. ALPN)
-where advertising some of these profiles are inapplicable or inadvisable.
-
-For example, in an ALPN negotiation for a "https://" URI, it is only sensible
-to offer http1-tls and http2-tls. 
+where advertising some of these profiles are inapplicable or inadvisable. For
+example, in an ALPN negotiation for a "https://" URI, it is only sensible to
+offer http1-tls and http2-tls.
 
 
 ## The "http2-tls-relaxed" Protocol {#relaxed}
@@ -178,17 +176,16 @@ not match that of the origin, unless additional checks are performed.
 This requirement bounds the risk of a service being hijacked and redirected to
 another host; see Security Considerations for details.
 
-[[TODO: define "match"]]
+[TODO: define "match"]
 
 Servers SHOULD use the same certificate consistently over time, to aid future
 extensions for building trust and adding other services.
 
-[[TODO: define "same"; likely not the same actual certificate. ]]
+[TODO: define "same"; likely not the same actual certificate. ]
 
 When the http2-tls-relaxed protocol is in use, User Agents MUST NOT indicate
 the connection has the same level of security as https:// (e.g. using a "lock
 device").
-
 
 
 # Security Considerations
