@@ -66,12 +66,10 @@
           target="changes.since.draft-ietf-httpbis-header-compression-03"/>.
         </t>
       </note>
-
     </front>
 
     <middle>
         <section title="Introduction">
-
             <t>
                 This document describes HPACK, a format adapted to efficiently
                 represent HTTP headers in the context of HTTP/2.0.
@@ -97,7 +95,7 @@
 
             <t>
                 In this document, we propose a new header compressor which
-                eliminates the redundant headers, is not vulnerable to the 
+                eliminates the redundant headers, is not vulnerable to the
                 CRIME style attack, and which also has a bounded memory
                 cost for use in small constrained environments.
             </t>
@@ -136,20 +134,28 @@
             <section title="Encoding Concepts" anchor="encoding.concepts">
                 <t>
                     The encoding and decoding of headers relies on some
-                    components and concepts. The set of components used form
-                    an encoding context.
+                    components and concepts:
                     <list style="hanging">
                         <t hangText="Header Table:">
                             The header table (see <xref
                                 target="header.table"/>) is a component used
-                            to associate headers to index values.
+                            to associate stored headers to index values.
+                            The data is this table is kept in FIFO order.
+                        </t>
+                        <t hangText="Static Table:">
+                            The static table (see <xref
+                                target="static.table"/>) is a component used
+                            to associate static headers to index values.
+                            This data is read-only, is always accessible, and
+                            may be shared amongst all encoding contexts.
                         </t>
                         <t hangText="Reference Set:">
                             The reference set (see <xref
                                 target="reference.set"/>) is a component
-                            containing a group of headers used as a reference
-                            for the differential encoding of a new set of
-                            headers.
+                            containing an unordered set of references to
+                            entries in the header table or static table.
+                            This is used for the differential encoding of a new
+                            set of headers.
                         </t>
                         <t hangText="Header Set:">
                             A header set (see <xref target="header.set"/>) is
@@ -160,8 +166,7 @@
                         <t hangText="Header Representation:">
                             A header can be represented in encoded form either
                             as a literal or as an index (see <xref
-                                target="header.representation"/>). The indexed
-                            representation is based on the header table.
+                                target="header.representation"/>).
                         </t>
                         <t hangText="Header Emission:">
                             When decoding a set of headers, some operations
@@ -176,9 +181,9 @@
 
                 <section title="Encoding Context" anchor="encoding.context">
                     <t>
-                        The set of components used to encode or decode a
-                        header set form an encoding context: an encoding
-                        context contains a header table and a reference set.
+                        The set of mutable structures used within an encoding
+                        context include a header table and a reference set.
+                        Everything else is either immutable or conceptual.
                     </t>
                     <t>
                         Using HTTP, messages are exchanged between a client
@@ -198,15 +203,11 @@
 
                 <section title="Header Table" anchor="header.table">
                     <t>
-                        A header table consists of an ordered list of (name,
-                        value) pairs. The first entry of a header table is
-                        assigned the index 0.
-                    </t>
-                    <t>
-                        A header can be represented by an entry from the header
-                        table. Rather than encoding a literal value for the
-                        header field name and value, the encoder can select an
-                        entry from the header table.
+                        A header table consists of a list of (name,
+                        value) pairs inserted in FIFO order. The first and
+                        newest entry of a header table is always at index 0,
+                        and the oldest entry of a header table is at the index
+                        len(header table)-1.
                     </t>
                     <t>
                         Literal header names MUST be translated to lowercase
@@ -216,53 +217,29 @@
                         in the header table.
                     </t>
                     <t>
-                        There is no need for the header table to contain
-                        duplicate entries. However, duplicate entries MUST NOT
-                        be treated as an error by a decoder.
+                        There is typically no need for the header table to
+                        contain duplicate entries. However, duplicate entries
+                        MUST NOT be treated as an error by a decoder.
                     </t>
                     <t>
-                        Initially, a header table contains a list of common
-                        headers. Two initial lists of header are provided in
-                        <xref target="initial.headers"/>. One list is for
-                        headers transmitted from a client to a server, the
-                        other for the reverse direction.
-                    </t>
-                    <t>
-                        A header table is modified by either adding a new
-                        entry at the end of the table, or by replacing an
-                        existing entry.
+                        A header table is modified by adding a new
+                        entry at the beginning of the table, or by dropping
+                        the oldest entries from the table.
                     </t>
                     <t>
                         The encoder decides how to update the header table and
                         as such can control how much memory is used by the
                         header table. To limit the memory requirements on the
-                        decoder side, the header table size is bounded (see
-                        the SETTINGS_HEADER_TABLE_SIZE in <xref
-                            target="parameter.negotiation"/>).
+                        decoder side, the header table size is strictly bounded.
                     </t>
-                    <t>
-                        The size of an entry is the sum of its name's length
-                        in bytes (as defined in <xref
-                            target="string.literal.representation" />), of its
-                        value's length in bytes (<xref
-                            target="string.literal.representation" />) and of
-                        32 bytes. The 32 bytes are an accounting for the entry
-                        structure overhead. For example, an entry structure
-                        using two 64-bits pointers to reference the name and
-                        the value and the entry, and two 64-bits integer for
-                        counting the number of references to these name and
-                        value would use 32 bytes.
-                    </t>
-                    <t>
-                        The size of a header table is the sum of the size of
-                        its entries.
-                    </t>
+
                 </section>
 
                 <section title="Reference Set" anchor="reference.set">
                     <t>
                         A reference set is defined as an unordered set of
-                        references to entries of the header table.
+                        references to entries of either the header table or
+                        the static table.
                     </t>
                     <t>
                         The initial reference set is the empty set.
@@ -279,17 +256,14 @@
                         representation (if the header is not present in the
                         header table).
                     </t>
-                    <t>
-                        A header that is to be removed from the reference set
-                        is encoded with an indexed representation.
-                    </t>
                 </section>
 
                 <section title="Header set" anchor="header.set">
                     <t>
                         A header set is a group of header fields that are
-                        encoded as a whole. Each header field is a (name,
-                        value) pair.
+                        encoded as a whole, e.g. the set of headers for an
+                        HTTP request.  Each header field is a (name, value)
+                        pair.
                     </t>
                     <t>
                         A header set is encoded using an ordered list of zero
@@ -336,6 +310,28 @@
                                 The indexed representation defines a header as
                                 a reference in the header table (see <xref
                                     target="indexed.header.representation"/>).
+                                <list>
+                                    <t>
+                                        Indices between 0 and len(header
+                                        table)-1, inclusive, refer to elements
+                                        in the header table, with index 0
+                                        referring to the beginning of the
+                                        table.
+                                    </t>
+                                    <t>
+                                        Indices between len(header table) and
+                                        len(header table)+len(static table),
+                                        inclusive, refer to elements in the
+                                        static table, where the index
+                                        len(header table) refers to the first
+                                        entry in the static table.
+                                    </t>
+                                    <t>
+                                        Any other indices MUST be treated as
+                                        erroneous, and the compression context
+                                        considered corrupt and unusable.
+                                    </t>
+                                </list>
                             </t>
                         </list>
                     </t>
@@ -368,7 +364,6 @@
 
             <section title="Header Set Processing"
                 anchor="header.set.processing">
-
                 <t>
                     The processing of an encoded header set to obtain a list
                     of headers is defined in this section.  To ensure a
@@ -390,7 +385,8 @@
                         <list style="symbols">
                             <t>The header corresponding to the entry is
                                 emitted.</t>
-                            <t>The entry is added to the reference set.</t>
+                            <t>A reference to the entry is added to the
+                                reference set.</t>
                         </list>
                     </t>
                     <t>
@@ -398,7 +394,8 @@
                         to an entry <spanx>present</spanx> in the
                         reference set entails the following actions:
                         <list style="symbols">
-                            <t>The entry is removed from the reference set.</t>
+                            <t>The reference to the entry is removed from the
+                                reference set.</t>
                         </list>
                     </t>
                     <t>
@@ -415,9 +412,9 @@
                         the following actions:
                         <list style="symbols">
                             <t>The header is emitted.</t>
-                            <t>The header is added to the header table, at the
-                                location defined by the representation.</t>
-                            <t>The new entry is added to the reference set.</t>
+                            <t>The header is added to the header table.</t>
+                            <t>A reference to the new entry is added to the
+                                reference set.</t>
                         </list>
                     </t>
                 </section>
@@ -426,14 +423,9 @@
                     anchor="reference.set.emission">
                     <t>
                         Once all the representations contained in a header
-                        block have been processed, the headers that are in
-                        common with the previous header set are emitted,
-                        during the reference set emission.
-                    </t>
-                    <t>
-                        For the reference set emission, each header contained
-                        in the reference set that has not been emitted during
-                        the processing of the header block is emitted.
+                        block have been processed, the headers referenced in
+                        the reference set which have not previously been
+                        emitted during this processing are emitted.
                     </t>
                 </section>
 
@@ -449,32 +441,46 @@
                 <section title="Header Table Management"
                     anchor="header.table.management">
                     <t>
-                        The header table can be modified by either adding a
-                        new entry to it or by replacing an existing one.
-                        Before doing such a modification, it has to be ensured
-                        that the header table size will stay lower than or
-                        equal to the SETTINGS_HEADER_TABLE_SIZE limit (see <xref
-                            target="parameter.negotiation"/>).  To achieve
-                        this, repeatedly, the last entry of the header table
-                        is removed, until enough space is available for the
-                        modification.
+                        The header table size is the sum of the size of its
+                        entries, and is always less than or equal
+                        to that specified by SETTINGS_HEADER_TABLE_SIZE.
                     </t>
                     <t>
-                        A consequence of removing one or more entries at the
-                        beginning of the header table is that the remaining
-                        entries are renumbered. The first entry of the header
-                        table is always associated to the index 0.
+                        The size of an entry is the sum of its name's length
+                        in bytes (as defined in <xref
+                            target="string.literal.representation" />), of its
+                        value's length in bytes (<xref
+                            target="string.literal.representation" />) and of
+                        32 bytes. The 32 bytes are an accounting for the entry
+                        structure overhead. For example, an entry structure
+                        using two 64-bits pointers to reference the name and
+                        the value and the entry, and two 64-bits integer for
+                        counting the number of references to these name and
+                        value would use 32 bytes.
                     </t>
                     <t>
-                        The addition of a new entry with a size greater than
-                        the SETTINGS_HEADER_TABLE_SIZE limit causes all the
-                        entries from the header table to be dropped and the
-                        new entry not to be added to the header table.
+                        Whenever an entry is dropped from the header table,
+                        any reference to that entry contained by the reference
+                        set is removed.
+                    </t>
+                    <t>
+                        Whenever SETTINGS_HEADER_TABLE_SIZE is made smaller,
+                        entries are dropped from the end of the header table
+                        until the size of the header table is less than or
+                        equal to SETTINGS_HEADER_TABLE_SIZE.
+                    </t>
+                    <t>
+                        Whenever a new entry is to be added to the table,
+                        entries are first dropped from the end of the header
+                        table until the size of the header table is less than
+                        or equal to SETTINGS_HEADER_SIZE - new entry size, or
+                        until the table is empty. The new entry is then
+                        added to the beginning of the header table so long
+                        as the size of the new entry is less than or equal to
+                        SETTINGS_HEADER_TABLE_SIZE.
                     </t>
                 </section>
-
             </section>
-
         </section>
 
         <section title="Detailed Format" anchor="detailed.format">
@@ -615,15 +621,18 @@ Else
                 </section>
             </section>
 
+
             <section title="Indexed Header Representation"
                 anchor="indexed.header.representation">
                 <t>
-                    An indexed header representation identifies an entry in the
-                    header table.  The entry is emitted and added to the
-                    reference set if it is not currently in the reference set.
-                    The entry is removed from the reference set if it is present
-                    in the reference set.
+                    An indexed header representation either identifies an
+                    entry in the header table or static table.  The specified
+                    entry is emitted and a reference to that entry is added to
+                    the reference set if it is not currently in the reference
+                    set. If it is present in the reference set then the
+                    reference is removed and the entry is not emitted.
                 </t>
+
                 <figure title="Indexed Header">
                     <artwork type="inline">
   0   1   2   3   4   5   6   7
@@ -689,10 +698,11 @@ Else
                     </t>
                     <t>
                         If the header name matches the header name of a (name,
-                        value) pair stored in the Header Table, the index of
-                        the pair increased by one (index + 1) is represented
-                        as an integer with a 6-bit prefix.  Note that if the
-                        index is strictly below 63, one byte is used.
+                        value) pair stored in the Header Table or Static
+                        Table, the index of that entry, increased by one
+                        (index + 1), is represented as an integer with a 6-bit
+                        prefix.  Note that if the index is strictly below 63,
+                        only one byte is used for this representation.
                     </t>
                     <t>
                         If the header name does not match a header name entry,
@@ -750,10 +760,9 @@ Else
                     </t>
                     <t>
                         If the header name matches the header name of a (name,
-                        value) pair stored in the Header Table, the index of
-                        the pair increased by one (index + 1) is represented
-                        as an integer with a 6-bit prefix.  Note that if the
-                        index is strictly below 63, one byte is used.
+                        value) pair stored in the header table or static
+                        table, the index of the pair increased by one (index +
+                        1) is represented as an integer with a 6-bit prefix.
                     </t>
                     <t>
                         If the header name does not match a header name entry,
@@ -770,21 +779,6 @@ Else
            </section>
         </section>
 
-        <section anchor="parameter.negotiation" title="Parameter Negotiation">
-            <t>
-              When a decompressor wishes to change the size of the header
-              table, it sends a SETTINGS frame with a new value for the 
-              SETTINGS_HEADER_TABLE_SIZE.  Upon receipt of this SETTINGS
-              frame, the compressor must modify the header table accordingly
-              (including any resulting evictions) as soon as possible.
-            </t>
-          <t>
-            After modifying the header table and performing any associated
-            evictions, the recipient of the SETTINGS frame MUST respond
-            with a SETTINGS frame in which the ACK flag is set before sending
-            any additional HEADERS, PUSH_PROMISE, or CONTINUATION frames.
-          </t>
-        </section>
         <section anchor="Security" title="Security Considerations">
             <t>
                 This compressor exists to solve security issues present in
@@ -900,7 +894,24 @@ Else
             <section title="Since draft-ietf-httpbis-header-compression-03" anchor="changes.since.draft-ietf-httpbis-header-compression-03">
                 <t><list style="symbols">
                     <t>
-                        None (yet).
+                        A large number of editorial changes; changed the
+                        description of dropping/adding new entries.
+                    </t>
+                    <t>
+                        Removed substitution indexing
+                    </t>
+                    <t>
+                        Changed 'initial headers' to 'static headers', as per
+                        issue #258
+                    </t>
+                    <t>
+                        Merged 'request' and 'response' static headers, as per
+                        issue #259
+                    </t>
+                    <t>
+                        Changed text to indicate that new headers are added at
+                        index 0 and expire from the largest index, as per
+                        issue #233
                     </t>
                 </list></t>
             </section>
@@ -968,109 +979,102 @@ Else
                 </t>
             </section>
         </section>
-        <section title="Initial Header Tables" anchor="initial.headers">
+        <section title="Static Table" anchor="static.table">
+            <t>
+                The static table consists of an unchangable ordered list of
+                (name, value) pairs. The first entry in the table is always
+                represented by the index len(header table), and the last entry
+                in the table is represented by the index len(header
+                table)+len(static table)-1.
+            </t>
             <t>
                 <cref>
-                    The tables in this section should be updated based on
-                    statistical analysis of header names frequency and specific
-                    HTTP 2.0 header rules (like removal of some headers).
+                    The ordering of these tables is currently arbitrary.
+                    The tables in this section should be updated and ordered
+                    such that the table entries with the smallest indices are
+                    those which, based on a statistical analysis of the
+                    frequency of use weighted by size, achieve the largest
+                    decrease in bytes transmitted subject to HTTP 2.0 header
+                    rules (like removal of some headers). This set of headers
+                    is currently very likely incomplete, and should be made
+                    complete.
                 </cref>
                 <vspace blankLines="0"/>
-                <cref>
-                    These tables are not adapted for headers contained in
-                    PUSH_PROMISE frames. Either the tables can be merged, or
-                    the table for responses can be updated.
-                </cref>
             </t>
-            <section title="Requests">
-                <t>
-                    The following table lists the pre-defined headers that
-                    make-up the initial header table user to represent
-                    requests sent from a client to a server.
-                </t>
-                <texttable title="Initial Header Table for Requests"
-                    anchor="initial.headers.request">
-                    <ttcol>Index</ttcol>
-                    <ttcol>Header Name</ttcol>
-                    <ttcol>Header Value</ttcol>
-                    <c>0</c><c>:scheme</c><c>http</c>
-                    <c>1</c><c>:scheme</c><c>https</c>
-                    <c>2</c><c>:host</c><c></c>
-                    <c>3</c><c>:path</c><c>/</c>
-                    <c>4</c><c>:method</c><c>GET</c>
-                    <c>5</c><c>accept</c><c></c>
-                    <c>6</c><c>accept-charset</c><c></c>
-                    <c>7</c><c>accept-encoding</c><c></c>
-                    <c>8</c><c>accept-language</c><c></c>
-                    <c>9</c><c>cookie</c><c></c>
-                    <c>10</c><c>if-modified-since</c><c></c>
-                    <c>11</c><c>user-agent</c><c></c>
-                    <c>12</c><c>referer</c><c></c>
-                    <c>13</c><c>authorization</c><c></c>
-                    <c>14</c><c>allow</c><c></c>
-                    <c>15</c><c>cache-control</c><c></c>
-                    <c>16</c><c>connection</c><c></c>
-                    <c>17</c><c>content-length</c><c></c>
-                    <c>18</c><c>content-type</c><c></c>
-                    <c>19</c><c>date</c><c></c>
-                    <c>20</c><c>expect</c><c></c>
-                    <c>21</c><c>from</c><c></c>
-                    <c>22</c><c>if-match</c><c></c>
-                    <c>23</c><c>if-none-match</c><c></c>
-                    <c>24</c><c>if-range</c><c></c>
-                    <c>25</c><c>if-unmodified-since</c><c></c>
-                    <c>26</c><c>max-forwards</c><c></c>
-                    <c>27</c><c>proxy-authorization</c><c></c>
-                    <c>28</c><c>range</c><c></c>
-                    <c>29</c><c>via</c><c></c>
-                </texttable>
-            </section>
 
-            <section title="Responses">
-                <t>
-                    The following table lists the pre-defined headers that
-                    make-up the initial header table used to represent
-                    responses sent from a server to a client. The same header
-                    table is also used to represent request headers sent from
-                    a server to a client in a PUSH_PROMISE frame.
-                </t>
-                <texttable title="Initial Header Table for Responses"
-                    anchor="initial.headers.response">
+            <t>
+                The following table lists the pre-defined headers that
+                make-up the static header table.
+            </t>
+            <texttable title="Static Table Entries"
+                anchor="static.table.entries">
+                <!-- An easy way to renumber these in vim:
+                      :let @a=0 | 'a,'bs/>[0-9 ][0-9 ]*</\='>'.(@a+setreg('a',@a+1)).'<'/
+                    -->
                     <ttcol>Index</ttcol>
                     <ttcol>Header Name</ttcol>
                     <ttcol>Header Value</ttcol>
-                    <c>0</c><c>:status</c><c>200</c>
-                    <c>1</c><c>age</c><c></c>
-                    <c>2</c><c>cache-control</c><c></c>
-                    <c>3</c><c>content-length</c><c></c>
-                    <c>4</c><c>content-type</c><c></c>
-                    <c>5</c><c>date</c><c></c>
-                    <c>6</c><c>etag</c><c></c>
-                    <c>7</c><c>expires</c><c></c>
-                    <c>8</c><c>last-modified</c><c></c>
-                    <c>9</c><c>server</c><c></c>
-                    <c>10</c><c>set-cookie</c><c></c>
-                    <c>11</c><c>vary</c><c></c>
-                    <c>12</c><c>via</c><c></c>
-                    <c>13</c><c>access-control-allow-origin</c><c></c>
-                    <c>14</c><c>accept-ranges</c><c></c>
-                    <c>15</c><c>allow</c><c></c>
-                    <c>16</c><c>connection</c><c></c>
-                    <c>17</c><c>content-disposition</c><c></c>
-                    <c>18</c><c>content-encoding</c><c></c>
-                    <c>19</c><c>content-language</c><c></c>
-                    <c>20</c><c>content-location</c><c></c>
-                    <c>21</c><c>content-range</c><c></c>
-                    <c>22</c><c>link</c><c></c>
-                    <c>23</c><c>location</c><c></c>
-                    <c>24</c><c>proxy-authenticate</c><c></c>
-                    <c>25</c><c>refresh</c><c></c>
-                    <c>26</c><c>retry-after</c><c></c>
-                    <c>27</c><c>strict-transport-security</c><c></c>
-                    <c>28</c><c>transfer-encoding</c><c></c>
-                    <c>29</c><c>www-authenticate</c><c></c>
+
+                    <c>0</c><c>:host</c><c></c>
+                    <c>1</c><c>:method</c><c>GET</c>
+                    <c>2</c><c>:method</c><c>POST</c>
+                    <c>3</c><c>:path</c><c>/</c>
+                    <c>4</c><c>:path</c><c>/index.html</c>
+                    <c>5</c><c>:scheme</c><c>http</c>
+                    <c>6</c><c>:scheme</c><c>https</c>
+                    <c>7</c><c>:status</c><c>200</c>
+                    <c>8</c><c>:status</c><c>500</c>
+                    <c>9</c><c>:status</c><c>404</c>
+                    <c>10</c><c>:status</c><c>403</c>
+                    <c>11</c><c>:status</c><c>400</c>
+                    <c>12</c><c>:status</c><c>401</c>
+                    <c>13</c><c>accept-charset</c><c></c>
+                    <c>14</c><c>accept-encoding</c><c></c>
+                    <c>15</c><c>accept-language</c><c></c>
+                    <c>16</c><c>accept-ranges</c><c></c>
+                    <c>17</c><c>accept</c><c></c>
+                    <c>18</c><c>access-control-allow-origin</c><c></c>
+                    <c>19</c><c>age</c><c></c>
+                    <c>20</c><c>allow</c><c></c>
+                    <c>21</c><c>authorization</c><c></c>
+                    <c>22</c><c>cache-control</c><c></c>
+                    <c>23</c><c>content-disposition</c><c></c>
+                    <c>24</c><c>content-encoding</c><c></c>
+                    <c>25</c><c>content-language</c><c></c>
+                    <c>26</c><c>content-length</c><c></c>
+                    <c>27</c><c>content-location</c><c></c>
+                    <c>28</c><c>content-range</c><c></c>
+                    <c>29</c><c>content-type</c><c></c>
+                    <c>30</c><c>cookie</c><c></c>
+                    <c>31</c><c>date</c><c></c>
+                    <c>32</c><c>etag</c><c></c>
+                    <c>33</c><c>expect</c><c></c>
+                    <c>34</c><c>expires</c><c></c>
+                    <c>35</c><c>from</c><c></c>
+                    <c>36</c><c>if-match</c><c></c>
+                    <c>37</c><c>if-modified-since</c><c></c>
+                    <c>38</c><c>if-none-match</c><c></c>
+                    <c>39</c><c>if-range</c><c></c>
+                    <c>40</c><c>if-unmodified-since</c><c></c>
+                    <c>41</c><c>last-modified</c><c></c>
+                    <c>42</c><c>link</c><c></c>
+                    <c>43</c><c>location</c><c></c>
+                    <c>44</c><c>max-forwards</c><c></c>
+                    <c>45</c><c>proxy-authenticate</c><c></c>
+                    <c>46</c><c>proxy-authorization</c><c></c>
+                    <c>47</c><c>range</c><c></c>
+                    <c>48</c><c>referer</c><c></c>
+                    <c>49</c><c>refresh</c><c></c>
+                    <c>50</c><c>retry-after</c><c></c>
+                    <c>51</c><c>server</c><c></c>
+                    <c>52</c><c>set-cookie</c><c></c>
+                    <c>53</c><c>strict-transport-security</c><c></c>
+                    <c>54</c><c>transfer-encoding</c><c></c>
+                    <c>55</c><c>user-agent</c><c></c>
+                    <c>56</c><c>vary</c><c></c>
+                    <c>57</c><c>via</c><c></c>
+                    <c>58</c><c>www-authenticate</c><c></c>
                 </texttable>
-            </section>
         </section>
 
         <section title="Example" anchor="example">
