@@ -541,7 +541,7 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <x:lt hangText="R:">
               <t>
-                A reserved 2-bit field.  The semantics of this bit are undefined and the bit MUST
+                A reserved 2-bit field.  The semantics of these bits are undefined and the bit MUST
                 remain unset (0) when sending and MUST be ignored when receiving.
               </t>
             </x:lt>
@@ -2348,16 +2348,17 @@ HTTP2-Settings    = token68
         </t>
         <t>
           HTTP header field names are strings of ASCII characters that are compared in a
-          case-insensitive fashion.  Note that header compression could cause case information to be
-          lost.
+          case-insensitive fashion.  Header field names MUST be converted to lowercase prior to
+          their encoding in HTTP/2.0.  A request or response containing uppercase header field names
+          MUST be treated as <xref target="malformed">malformed</xref>.
         </t>
         <t>
           The semantics of HTTP header fields are not altered by this specification, though header
           fields relating to connection management or request framing are no longer necessary.  An
           HTTP/2.0 request or response MUST NOT include any of the following header fields:
-          Connection, Keep-Alive, Proxy-Connection, TE, Transfer-Encoding, and Upgrade.  A server
-          MUST treat the presence of any of these header fields as a <xref
-          target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+          Connection, Keep-Alive, Proxy-Connection, TE, Transfer-Encoding, and Upgrade.  A request
+          or response containing these header fields MUST be treated as <xref
+          target="malformed">malformed</xref>.
           <list style="hanging">
             <t hangText="Note:">
               HTTP/2.0 purposefully does not support upgrade from HTTP/2.0 to another protocol.  The
@@ -2415,10 +2416,7 @@ HTTP2-Settings    = token68
             </list>
             All HTTP/2.0 requests MUST include exactly one valid value for all of these header
             fields, unless this is a <xref target="CONNECT">CONNECT request</xref>.  An HTTP request
-            that omits mandatory header fields is malformed.  Intermediaries that do not interpret
-            requests MAY forward a malformed request.  Implementations that detect malformed
-            requests need to ensure that the stream ends, however a server MAY send an HTTP response
-            prior to closing or resetting the stream.
+            that omits mandatory header fields is <xref target="malformed">malformed</xref>.
           </t>
           <t>
             Header field names that contain a colon are only valid in the HTTP/2.0 context.  These
@@ -2431,26 +2429,41 @@ HTTP2-Settings    = token68
             HTTP/2.0 does not define a way to carry the version identifier that is included in the
             HTTP/1.1 request line.
           </t>
-          <t>
-            All HTTP Requests that include a body can include a <spanx
-            style="verb">content-length</spanx> header field. If a server receives a request where
-            the sum of the <x:ref>DATA</x:ref> frame payload lengths does not equal the value of the
-            <spanx style="verb">content-length</spanx> header field, the server MUST return a 400
-            (Bad Request) error.
-          </t>
         </section>
 
         <section anchor="HttpResponse" title="Response Header Fields">
           <t>
             A single <spanx style="verb">:status</spanx> header field is defined that carries the
             HTTP status code field (see <xref target="HTTP-p2" x:fmt="," x:rel="#status.codes"/>).
-            This header field MUST be included in all responses.  Intermediaries that do not
-            interpret requests MAY forward a response that is malformed in this fashion.  Clients
-            MUST NOT accept a malformed response.
+            This header field MUST be included in all responses, otherwise the response is <xref
+            target="malformed">malformed</xref>.
           </t>
           <t>
             HTTP/2.0 does not define a way to carry the version or reason phrase that is included in
             an HTTP/1.1 status line.
+          </t>
+        </section>
+
+        <section anchor="malformed" title="Malformed Requests and Responses">
+          <t>
+            A malformed request or response is one that uses a valid sequence of HTTP/2.0 frames,
+            but is otherwise invalid due to the presence of prohibited header fields, the absence of
+            mandatory header fields, or the inclusion of uppercase header field names.
+          </t>
+          <t>
+            A request or response that includes an entity body can include a <spanx
+            style="verb">content-length</spanx> header field.  A request or response is also
+            malformed if the value of a <spanx style="verb">content-length</spanx> header field does
+            not equal the sum of the <x:ref>DATA</x:ref> frame payload lengths that form the body.
+          </t>
+          <t>
+            Intermediaries MAY forward a malformed request or response, but only if the frames are
+            forwarded without inspection of header fields.
+          </t>
+          <t>
+            Implementations that detect malformed requests or responses need to ensure that the
+            stream ends.  For malformed requests, a server MAY send an HTTP response to prior to
+            closing or resetting the stream.  Clients MUST NOT accept a malformed response.
           </t>
         </section>
       </section>
