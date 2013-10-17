@@ -72,19 +72,19 @@
         <section title="Introduction">
             <t>
                 This document describes HPACK, a format adapted to efficiently
-                represent HTTP header fields in the context of HTTP/2.0 (see <xref
-                    target="HTTP2"/>).
+                represent HTTP header fields in the context of HTTP/2.0 (see
+                <xref target="HTTP2"/>).
             </t>
         </section>
 
         <section title="Overview" anchor="overview">
             <t>
-                In HTTP/1.X, header fields are sent without any form of
-                compression.  As web pages have grown to include dozens to
-                hundreds of requests, the redundant header fields in these
-                requests now pose a problem of measurable latency and
-                unnecessary bandwidth (see <xref target="PERF1"/> and <xref
-                    target="PERF2"/>).
+                In HTTP/1.X (see <xref target="HTTP-p1"/>), header fields are
+                sent without any form of compression.  As web pages have grown
+                to include dozens to hundreds of requests, the redundant
+                header fields in these requests now pose a problem of
+                measurable latency and unnecessary bandwidth (see <xref
+                    target="PERF1"/> and <xref target="PERF2"/>).
             </t>
 
             <t>
@@ -96,10 +96,10 @@
             </t>
 
             <t>
-                In this document, we propose a new compressor for headers
-                which eliminates redundant headers, is not vulnerable to CRIME
-                style attacks, and which also has a bounded memory cost for
-                use in constrained environments.
+                In this document, we propose a new compressor for header
+                fields which eliminates redundant header fields, is not
+                vulnerable to CRIME style attacks, and which also has a
+                bounded memory cost for use in constrained environments.
             </t>
 
             <section title="Outline">
@@ -136,12 +136,14 @@
         <section title="Header Field Encoding" anchor="header.encoding">
             <section title="Encoding Concepts" anchor="encoding.concepts">
                 <t>
-                    The encoding and decoding of headers relies on some
+                    The encoding and decoding of header fields relies on some
                     components and concepts:
                     <list style="hanging">
-                        <t hangText="Header Field">
-                            A key, value-list pair where the value-list is a NULL
-                            separated ordered list of values.
+                        <t hangText="Header Field:">
+                            A key, value pair. HPACK allows a header field
+                            value to be either a value as specified by
+                            HTTP/1.X (see <xref target="HTTP-p1"/>), or a
+                            NULL-separated ordered list of HTTP/1.X values.
                         </t>
                         <t hangText="Header Table:">
                             The header table (see <xref
@@ -169,25 +171,26 @@
                         <t hangText="Header Set:">
                             A header set is a potentially ordered group of
                             header fields that are encoded jointly. A complete
-                            set of key-value pairs as encoded in a HTTP
+                            set of key-value pairs contained in a HTTP
                             request or response is a header set.
                         </t>
-                        <t hangText="Header Representation:">
-                            A header can be represented in encoded form either
-                            as a literal or as an index (see <xref
+                        <t hangText="Header Field Representation:">
+                            A header field can be represented in encoded form
+                            either as a literal or as an index (see <xref
                                 target="header.representation"/>).
                         </t>
                         <t hangText="Header Block:">
-                            The entire set of encoded header representations
-                            which, when decoded, yield a complete header set.
+                            The entire set of encoded header field
+                            representations which, when decoded, yield a
+                            complete header set.
                         </t>
                         <t hangText="Header Field Emission:">
-                            When decoding a set of header representations, some
-                            operations emit a header field (see <xref
-                                target="header.emission"/>). All emitted
-                            header fields which are considered to be part of
-                            the same header set comprise an HTTP request or
-                            response.
+                            When decoding a set of header field
+                            representations, some operations emit a header
+                            field (see <xref target="header.emission"/>). Once
+                            emitted, a header field can't be removed from the
+                            current header set, and can be passed safely to
+                            upper processing layers.
                         </t>
                     </list>
                 </t>
@@ -239,8 +242,9 @@
                     </t>
                     <t>
                         The header table is updated during the processing of
-                        a set of header representations (see <xref
+                        a set of header field representations (see <xref
                             target="header.representation.processing"> header
+                            field
                             representation processing</xref>.
                     </t>
                 </section>
@@ -256,14 +260,19 @@
                     </t>
                     <t>
                         The reference set is updated during the processing of
-                        a set of header representations (see <xref
+                        a set of header field representations (see <xref
                             target="header.representation.processing"> header
-                            representation processing</xref>.
+                            field representation processing</xref>.
                     </t>
                     <t>
                         The reference set enables differential encoding,
                         whereby only differences between the previous header
                         set and the current header set need to be encoded.
+                    </t>
+                    <t>
+                        When an entry is evicted from the header table, if it
+                        was referenced from the reference set, its reference
+                        is removed from the reference set.
                     </t>
                 </section>
 
@@ -349,25 +358,26 @@ Insertion Point       Drop Point
 
                 <section title="Header Field Emission" anchor="header.emission">
                     <t>
-                        The emission of header field is the process of passing
-                        that header field to the application, so that the
-                        application can process and react to header field data.
+                        The emission of a header field is the process of
+                        passing that header field to the application, so that
+                        the application can process and react to header field
+                        data.
                     </t>
                     <t>
-                        By emitting headers instead of emitting header sets,
-                        the decoder may be implemented in a streaming way, and
-                        as such must only keep in memory the header table and
-                        the reference set. This bounds the amount of memory
-                        used by the decoder, even in presence of a very large
-                        set of header fields. The management of memory for
-                        handling very large sets of header fields can
+                        By emitting header fields instead of emitting header
+                        sets, the decoder can be implemented in a streaming
+                        way, and as such must only keep in memory the header
+                        table and the reference set. This bounds the amount of
+                        memory used by the decoder, even in presence of a very
+                        large set of header fields. The management of memory
+                        for handling very large sets of header fields can
                         therefore be deferred to the application.
                     </t>
                     <t>
-                        When a header field includes a value-list which
-                        has a NULL, each value within the value-list
-                        may be emitted with the name separately in the
-                        order in which it appears in the value-list.
+                        When a header field is a NULL-separated list of values,
+                        each value within the list MAY be emitted separately,
+                        with the same header field name, and the order of
+                        emission MUST be the order of appearance in the list.
                     </t>
                 </section>
             </section>
@@ -425,7 +435,7 @@ Insertion Point       Drop Point
                                 of  the header table.</t>
                             <t>A reference to the new entry is added to the
                                 reference set.</t>
-                            <t>The header is emitted.</t>
+                            <t>The header field is emitted.</t>
                         </list>
                     </t>
                 </section>
@@ -434,9 +444,10 @@ Insertion Point       Drop Point
                     anchor="reference.set.emission">
                     <t>
                         Once all the representations contained in a header
-                        block have been processed, the header fields referenced in
-                        the reference set which have not previously been
-                        emitted during this processing are emitted.
+                        block have been processed, the header fields
+                        referenced in the reference set which have not
+                        previously been emitted during this processing are
+                        emitted.
                     </t>
                 </section>
 
@@ -503,8 +514,8 @@ Insertion Point       Drop Point
                         Whenever a new entry is to be added to the table,
                         entries are first evicted from the end of the header
                         table until the size of the header table is less than
-                        or equal to SETTINGS_HEADER_TABLE_SIZE - new entry size, or
-                        until the table is empty.
+                        or equal to SETTINGS_HEADER_TABLE_SIZE - new entry
+                        size, or until the table is empty.
                     </t>
                     <t>
                         If the size of the new entry is less than or equal to
@@ -643,7 +654,7 @@ Else
                 <section title="String Literal Representation"
                     anchor="string.literal.representation">
                     <t>
-                        Header field names and header field value-lists are
+                        Header field names and header field values are
                         encoded as sequences of bytes. A header field name or
                         a header field value is encoded in two parts:
                         <list style="numbers">
@@ -692,7 +703,7 @@ Else
                     <t>
                         The EOS symbol is represented with value 256, and is
                         used solely to signal the end of the huffman-encoded
-                        key data or the end of the huffman-encoded value-list
+                        key data or the end of the huffman-encoded value
                         data.
                     </t>
                 </section>
@@ -701,7 +712,7 @@ Else
             <section title="Indexed Header Field Representation"
                 anchor="indexed.header.representation">
                 <t>
-                    An indexed header representation either identifies an
+                    An indexed header field representation either identifies an
                     entry in the header table or static table.  The specified
                     entry is emitted and a reference to that entry is added to
                     the reference set if it is not currently in the reference
@@ -709,7 +720,7 @@ Else
                     reference is removed and the entry is not emitted.
                 </t>
 
-                <figure title="Indexed Header">
+                <figure title="Indexed Header Field">
                     <artwork type="inline">
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -775,12 +786,13 @@ Else
                         This representation starts with the '01' 2-bit pattern.
                     </t>
                     <t>
-                        If the header name matches the header name of a (name,
-                        value) pair stored in the Header Table or Static
-                        Table, the index of that entry, increased by one
-                        (index + 1), is represented as an integer with a 6-bit
-                        prefix.  Note that if the index is strictly below 63,
-                        only one byte is used for this representation.
+                        If the header field name matches the header field name
+                        of a (name, value) pair stored in the Header Table or
+                        Static Table, the index of that entry, increased by
+                        one (index + 1), is represented as an integer with a
+                        6-bit prefix.  Note that if the index is strictly
+                        below 63, only one byte is used for this
+                        representation.
                     </t>
                     <t>
                         If the header field name does not match a header field
@@ -838,10 +850,11 @@ Else
                         pattern.
                     </t>
                     <t>
-                        If the header name matches the header name of a (name,
-                        value) pair stored in the header table or static
-                        table, the index of the pair increased by one (index +
-                        1) is represented as an integer with a 6-bit prefix.
+                        If the header field name matches the header field name
+                        of a (name, value) pair stored in the header table or
+                        static table, the index of the pair increased by one
+                        (index + 1) is represented as an integer with a 6-bit
+                        prefix.
                     </t>
                     <t>
                         If the header field name does not match a header field
@@ -921,10 +934,119 @@ Else
                 </front>
                 <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-06"/>
             </reference>
+
+            <reference anchor="HTTP-p1">
+              <front>
+                <title>
+                Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
+                <author fullname="Roy T. Fielding" initials="R." role="editor" surname="Fielding">
+                  <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
+                  <address><email>fielding@gbiv.com</email></address>
+                </author>
+                <author fullname="Julian F. Reschke" initials="J. F." role="editor" surname="Reschke">
+                  <organization abbrev="greenbytes">greenbytes GmbH</organization>
+                  <address><email>julian.reschke@greenbytes.de</email></address>
+                </author>
+                <date month="September" year="2013" />
+              </front>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-24" />
+              <x:source href="refs/draft-ietf-httpbis-p1-messaging-24.xml"
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p1-messaging"/>
+            </reference>
+            <reference anchor="HTTP-p2">
+              <front>
+                <title>
+                Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</title>
+                <author fullname="Roy T. Fielding" initials="R." role="editor" surname="Fielding">
+                  <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
+                  <address><email>fielding@gbiv.com</email></address>
+                </author>
+                <author fullname="Julian F. Reschke" initials="J. F." role="editor" surname="Reschke">
+                  <organization abbrev="greenbytes">greenbytes GmbH</organization>
+                  <address><email>julian.reschke@greenbytes.de</email></address>
+                </author>
+                <date month="September" year="2013" />
+              </front>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-24" />
+              <x:source href="refs/draft-ietf-httpbis-p2-semantics-24.xml"
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p2-semantics"/>
+            </reference>
+            <reference anchor="HTTP-p4">
+              <front>
+                <title>Hypertext Transfer Protocol (HTTP/1.1): Conditional Requests</title>
+                <author fullname="Roy T. Fielding" initials="R." role="editor" surname="Fielding">
+                  <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
+                  <address><email>fielding@gbiv.com</email></address>
+                </author>
+                <author fullname="Julian F. Reschke" initials="J. F." role="editor" surname="Reschke">
+                  <organization abbrev="greenbytes">greenbytes GmbH</organization>
+                  <address><email>julian.reschke@greenbytes.de</email></address>
+                </author>
+                <date month="September" year="2013" />
+              </front>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p4-conditional-24" />
+            </reference>
+            <reference anchor="HTTP-p5">
+              <front>
+                <title>Hypertext Transfer Protocol (HTTP/1.1): Range Requests</title>
+                <author initials="R." surname="Fielding" fullname="Roy T. Fielding" role="editor">
+                  <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
+                  <address><email>fielding@gbiv.com</email></address>
+                </author>
+                <author initials="Y." surname="Lafon" fullname="Yves Lafon" role="editor">
+                  <organization abbrev="W3C">World Wide Web Consortium</organization>
+                  <address><email>ylafon@w3.org</email></address>
+                </author>
+                <author initials="J. F." surname="Reschke" fullname="Julian F. Reschke" role="editor">
+                  <organization abbrev="greenbytes">greenbytes GmbH</organization>
+                  <address><email>julian.reschke@greenbytes.de</email></address>
+                </author>
+                <date month="September" year="2013" />
+              </front>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p5-range-24"/>
+            </reference>
+            <reference anchor="HTTP-p6">
+              <front>
+                <title>Hypertext Transfer Protocol (HTTP/1.1): Caching</title>
+                <author initials="R." surname="Fielding" fullname="Roy T. Fielding" role="editor">
+                  <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
+                  <address><email>fielding@gbiv.com</email></address>
+                </author>
+                <author fullname="Mark Nottingham" initials="M." role="editor" surname="Nottingham">
+                  <organization>Akamai</organization>
+                  <address><email>mnot@mnot.net</email></address>
+                </author>
+                <author initials="J. F." surname="Reschke" fullname="Julian F. Reschke" role="editor">
+                  <organization abbrev="greenbytes">greenbytes GmbH</organization>
+                  <address><email>julian.reschke@greenbytes.de</email></address>
+                </author>
+                <date month="September" year="2013" />
+              </front>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-24"/>
+              <x:source href="refs/draft-ietf-httpbis-p6-cache-24.xml" 
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p6-cache"/>
+            </reference>
+            <reference anchor="HTTP-p7">
+              <front>
+                <title>Hypertext Transfer Protocol (HTTP/1.1): Authentication</title>
+                <author initials="R." surname="Fielding" fullname="Roy T. Fielding" role="editor">
+                  <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
+                  <address><email>fielding@gbiv.com</email></address>
+                </author>
+                <author initials="J. F." surname="Reschke" fullname="Julian F. Reschke" role="editor">
+                  <organization abbrev="greenbytes">greenbytes GmbH</organization>
+                  <address><email>julian.reschke@greenbytes.de</email></address>
+                </author>
+                <date month="September" year="2013" />
+              </front>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p7-auth-24"/>
+              <x:source href="refs/draft-ietf-httpbis-p7-auth-24.xml" 
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p7-auth"/>
+            </reference>
         </references>
 
         <references title="Informative References">
-            <reference anchor="SPDY" target="http://tools.ietf.org/html/draft-mbelshe-httpbis-spdy">
+            <reference anchor="SPDY">
                 <front>
                     <title>SPDY Protocol</title>
                     <author initials="M." surname="Belshe" fullname="Mike Belshe">
@@ -935,6 +1057,7 @@ Else
                     </author>
                     <date month="February" year="2012"/>
                 </front>
+                <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
             </reference>
             <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit#slide=id.g1eb6c1b5_3_6">
                 <front>
@@ -960,22 +1083,24 @@ Else
                     <date month="September" year="2011"/>
                 </front>
             </reference>
-            <reference anchor="HUFF" target="">
+
+            <reference anchor="HUFF" target="http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">
                 <front>
                     <title>A Method for the Construction of Minimim Redundancy Codes</title>
-                    <author surname="Huffman, D. A." fullname="David A. Huffman">
-                    </author>
-                    <date month="Proceedings of the Institute of Radio Engineers, September 1952, Volume 40, Number 9, pp. 1098-1101"/>
+                    <author surname="Huffman" initials="D. A." fullname="David A. Huffman"/>
+                    <date month="September" year="1952"/>
                 </front>
+                <seriesInfo name="Proceedings of the Institute of Radio Engineers" value="Volume 40, Number 9, pp. 1098-1101"/>
             </reference>
 
-            <reference anchor="CANON" target="">
+            <reference anchor="CANON" target="http://dl.acm.org/citation.cfm?id=363991">
                 <front>
                     <title>Generating a canonical prefix encoding</title>
-                    <author surname="Schwartz, E. S."> </author>
-                    <author surname="Kallick, B."> </author>
-                    <date month="Comm. ACM, 7,3 (March 1964), pp 166-169"/>
+                    <author surname="Schwartz" initials="E. S." fullname="Eugene. S. Schwartz"/>
+                    <author surname="Kallick" initials="B." fullname="Bruce Kallick"/>
+                    <date month="March" year="1964"/>
                 </front>
+                <seriesInfo name="Communications of the ACM" value="Volume 7 Issue 3, pp. 166-169"/>
             </reference>
         </references>
 
@@ -1085,7 +1210,8 @@ Else
                     those which, based on a statistical analysis of the
                     frequency of use weighted by size, achieve the largest
                     decrease in bytes transmitted subject to HTTP 2.0 header
-                    rules (like removal of some headers). This set of headers
+                    field
+                    rules (like removal of some header fields). This set of header fields
                     is currently very likely incomplete, and should be made
                     complete.
                 </cref>
