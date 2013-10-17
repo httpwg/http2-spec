@@ -658,10 +658,21 @@ Else
                                     target="CANON">canonical</xref><xref
                                     target="HUFF">huffman code</xref>
                                 corresponding to each character of the data,
-                                the huffman code representing EOF, and padding
-                                with zeroes to the nearest byte boundary.
+                                followed by between 0-7 bits of padding.
                             </t>
                         </list>
+                        <t>
+                            Padding is necessary to ensure that the
+                            remaining bits between the actual end of the
+                            data and the next byte boundary are not
+                            misinterpreted as part of the input data.
+                        </t>
+                        <t>
+                            When padding, use the bits from the EOS
+                            (end-of-string) entry in the Huffman table,
+                            starting with the MSB. This entry is guaranteed to
+                            be at least 7 bits long.
+                        </t>
                     </t>
                     <t>
                         String literals sent in the client to server direction
@@ -679,7 +690,7 @@ Else
                             Response Huffman Encoding Example</xref>).
                     </t>
                     <t>
-                        The EOF symbol is represented with value 256, and is
+                        The EOS symbol is represented with value 256, and is
                         used solely to signal the end of the huffman-encoded
                         key data or the end of the huffman-encoded value-list
                         data.
@@ -1169,9 +1180,9 @@ Else
                 <figure>
                     <artwork><![CDATA[
              aligned                                  aligned
-              to                                       to
-              MSB                                      LSB
-       sym    as bits                       len       as hex  len
+              to                            len        to     len
+              MSB                            in        LSB     in
+       sym    as bits                       bits      as hex  bits
       (  0) |11111111|11111111|11110111|100 [27]      7ffffbc [27]
       (  1) |11111111|11111111|11110111|101 [27]      7ffffbd [27]
       (  2) |11111111|11111111|11110111|110 [27]      7ffffbe [27]
@@ -1428,7 +1439,7 @@ Else
       (253) |11111111|11111111|11110110|11 [26]       3ffffdb [26]
       (254) |11111111|11111111|11110111|00 [26]       3ffffdc [26]
       (255) |11111111|11111111|11110111|01 [26]       3ffffdd [26]
-      (256) |10010 [5]                                     12 [5]
+  EOS (256) |10010 [5]                                     12 [5]
             ]]>
                     </artwork>
                 </figure>
@@ -1436,14 +1447,14 @@ Else
         </section>
         <section title="Huffman Codes for Responses" anchor="response.huffman.codes">
             <t>The following Huffman codes are used when encoding string
-                literals in the server to client direction..</t>
+                literals in the server to client direction.</t>
             <t>
                 <figure>
                     <artwork><![CDATA[
              aligned                                  aligned
-              to                                       to
-              MSB                                      LSB
-       sym    as bits                      len        as hex  len
+              to                           len         to     len
+              MSB                           in         LSB     in
+       sym    as bits                      bits       as hex  bits
       (  0) |11111111|11111111|11101111|10 [26]       3ffffbe [26]
       (  1) |11111111|11111111|11101111|11 [26]       3ffffbf [26]
       (  2) |11111111|11111111|11110000|00 [26]       3ffffc0 [26]
@@ -1700,7 +1711,7 @@ Else
       (253) |11111111|11111111|11101110|0 [25]        1ffffdc [25]
       (254) |11111111|11111111|11101110|1 [25]        1ffffdd [25]
       (255) |11111111|11111111|11101111|0 [25]        1ffffde [25]
-      (256) |10010 [5]                                     12 [5]
+  EOS (256) |10010 [5]                                     12 [5]
             ]]>
 
                     </artwork>
