@@ -658,45 +658,61 @@ Else
                     <t>
                         Header field names and header field values are
                         encoded as sequences of bytes. A header field name or
-                        a header field value is encoded in two parts:
+                        a header field value is encoded in three parts:
                         <list style="numbers">
+                            <t>
+                                One bit, H, indicating whether or not
+                                the bytes are huffman encoded.
+                            </t>
                             <t>
                                 The number of bytes required to hold the
                                 result of the next step, represented as a
                                 <xref target="integer.representation">
-                                    variable-length-quantity </xref>.
+                                    variable-length-quantity </xref>, starting
+                                with a 7-bit prefix immediately following
+                                the first bit.
                             </t>
-                            <t>
-                                The bitwise concatenation of the <xref
-                                    target="CANON">canonical</xref><xref
-                                    target="HUFF">huffman code</xref>
-                                corresponding to each character of the data,
-                                followed by between 0-7 bits of padding.
+                            <t> The string data:
+                                <list>
+                                    <t> If H is true, then the bitwise
+                                        concatenation of the <xref
+                                            target="CANON">canonical</xref><xref
+                                            target="HUFF">huffman code</xref>
+                                        corresponding to each character of the
+                                        data, followed by between 0-7 bits of
+                                        padding.
+                                    </t>
+                                    <t> If H is false, then the bytes of the
+                                        field value without modification
+                                    </t>
+                                </list>
                             </t>
                         </list>
                         <t>
-                            Padding is necessary to ensure that the
-                            remaining bits between the actual end of the
-                            data and the next byte boundary are not
-                            misinterpreted as part of the input data.
+                            Padding is necessary when doing huffman encoding
+                            to ensure that the remaining bits between the
+                            actual end of the data and the next byte boundary
+                            are not misinterpreted as part of the input data.
                         </t>
                         <t>
-                            When padding, use the bits from the EOS
-                            (end-of-string) entry in the Huffman table,
-                            starting with the MSB. This entry is guaranteed to
-                            be at least 7 bits long.
+                            When padding for huffman encoding, use the bits
+                            from the EOS (end-of-string) entry in the Huffman
+                            table, starting with the MSB. This entry is
+                            guaranteed to be at least 7 bits long.
                         </t>
                     </t>
                     <t>
                         String literals sent in the client to server direction
-                        are encoded with the codes within the <xref
-                            target="request.huffman.codes"> request huffman
-                            code table</xref> (see <xref
+                        are which use huffman encoding are encoded with the
+                        codes within the <xref target="request.huffman.codes">
+                            request huffman code table</xref> (see <xref
                             target="response.huffman.encoding.example">Request
-                            Huffman Encoding Example</xref>).  </t>
+                            Huffman Encoding Example</xref>).
+                    </t>
                     <t>
                         String literals sent in the server to client direction
-                        are encoded with the codes within the <xref
+                        which are using huffman encoding are encoded with the
+                        codes within the <xref
                             target="response.huffman.codes"> response huffman
                             code table</xref> (see <xref
                             target="response.huffman.encoding.example">
@@ -709,6 +725,34 @@ Else
                         data.
                     </t>
                 </section>
+                <figure title="String Literal With Huffman Encoding">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 1 |  Value Length Prefix (7)  |
++---+---+---+---+---+---+---+---+
+|   Value Length (0-N bytes)    |
++---+---+---+---+---+---+---+---+
+...
++---+---+---+---+---+---+---+---+
+| Huffman Encoded Data  |Padding|
++---+---+---+---+---+---+---+---+
+</artwork>
+                </figure>
+                <figure title="String Literal Without Huffman Encoding">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 |  Value Length Prefix (7)  |
++---+---+---+---+---+---+---+---+
+|   Value Length (0-N bytes)    |
++---+---+---+---+---+---+---+---+
+...
++---+---+---+---+---+---+---+---+
+|  Field Bytes Without Encoding |
++---+---+---+---+---+---+---+---+
+</artwork>
+                </figure>
             </section>
 
             <section title="Indexed Header Field Representation"
