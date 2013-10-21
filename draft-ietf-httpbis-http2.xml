@@ -2860,6 +2860,43 @@ HTTP2-Settings    = token68
           Pushed resources for which an origin server is not authoritative are never cached or used.
         </t>
       </section>
+
+      <section title="Denial of Service Considerations">
+        <t>
+          An HTTP/2.0 connection can demand a greater commitment of resources to operate than a
+          HTTP/1.1 connection.  The use of header compression and flow control require that an
+          implementation commit resources for storing a greater amount of state.  Settings for these
+          features ensure that memory commitments for these features are strictly bounded.
+          Processing capacity cannot be guarded in the same fashion.
+        </t>
+        <t>
+          The <x:ref>SETTINGS</x:ref> frame can be abused to cause a peer to expend additional
+          processing time.  This might be done by pointlessly changing settings, setting multiple
+          undefined settings, or changing the same setting multiple times in the same frame.
+          Similarly, trivial <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames
+          unnecessarily waste resources.
+        </t>
+        <t>
+          Large numbers of small or empty frames can be abused to cause a peer to expend time
+          processing frame headers.  Note however that some uses are entirely legitimate, such as
+          the sending of an empty <x:ref>DATA</x:ref> frame to end a stream.
+        </t>
+        <t>
+          Header compression also offers some opportunities to waste processing resources, see <xref
+          target="COMPRESSION"/> for more details on potential abuses.
+        </t>
+        <t>
+          In all these cases, there are legitimate reasons to use these protocol mechanisms.  These
+          features become a burden only when they are used unnecessarily or to excess.
+        </t>
+        <t>
+          An endpoint that doesn't monitor this behavior exposes itself to a risk of denial of
+          service attack.  Implementations SHOULD track the use of these types of frames and set
+          limits on their use.  An endpoint MAY treat activity that is suspicious as a <xref
+          target="ConnectionErrorHandler">connection error</xref> of type
+          <x:ref>ENHANCE_YOUR_CALM</x:ref>.
+        </t>
+      </section>
     </section>
 
     <section title="Privacy Considerations">
@@ -3418,6 +3455,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Removing unnecessary and potentially problematic flags from CONTINUATION.
+        </t>
+        <t>
+          Added denial of service considerations.
         </t>
       </section>
       <section title="Since draft-ietf-httpbis-http2-05" anchor="changes.since.draft-ietf-httpbis-http2-05">
