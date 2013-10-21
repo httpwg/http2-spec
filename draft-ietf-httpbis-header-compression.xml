@@ -483,7 +483,15 @@ Insertion Point       Drop Point
                             target="string.literal.representation" />), of its
                         value's length in bytes (<xref
                             target="string.literal.representation" />) and of
-                        32 bytes. The 32 bytes are an accounting for the entry
+                        32 bytes.
+                    </t>
+                    <t>
+                        The lengths are measured on the non-encoded entry
+                        name and entry value (for the case when a Huffman
+                        encoding is used to transmit string values).
+                    </t>
+                    <t>
+                        The 32 bytes are an accounting for the entry
                         structure overhead. For example, an entry structure
                         using two 64-bits pointers to reference the name and
                         the value and the entry, and two 64-bits integer for
@@ -541,9 +549,9 @@ Insertion Point       Drop Point
                     <t>
                         An integer is represented in two parts: a prefix that
                         fills the current byte and an optional list of bytes
-                        that are used if the integer value does not fit in the
-                        prefix.  The number of bits of the prefix (called N)
-                        is a parameter of the integer representation.
+                        that are used if the integer value does not fit within
+                        the prefix.  The number of bits of the prefix (called
+                        N) is a parameter of the integer representation.
                     </t>
                     <t>
                         The N-bit prefix allows filling the current byte.  If
@@ -553,7 +561,9 @@ Insertion Point       Drop Point
                         to 1 and the value is encoded using an <eref
                             target="http://en.wikipedia.org/wiki/Variable-length_quantity">
                             unsigned variable length integer</eref>
-                        representation.
+                        representation. N is always between 1 and 8 bits. An
+                        integer starting at a byte-boundary will have an 8-bit
+                        prefix.
                     </t>
                     <t>
                         The algorithm to represent an integer I is as follows:
@@ -656,46 +666,100 @@ Else
                     <t>
                         Header field names and header field values are
                         encoded as sequences of bytes. A header field name or
-                        a header field value is encoded in two parts:
+                        a header field value is encoded in three parts:
                         <list style="numbers">
+                            <t>
+                                One bit, H, indicating whether or not
+                                the bytes are huffman encoded.
+                            </t>
                             <t>
                                 The number of bytes required to hold the
                                 result of the next step, represented as a
                                 <xref target="integer.representation">
-                                    variable-length-quantity </xref>.
+                                    variable-length-quantity </xref>, starting
+                                with a 7-bit prefix immediately following
+                                the first bit.
                             </t>
-                            <t>
-                                The bitwise concatenation of the <xref
-                                    target="CANON">canonical</xref><xref
-                                    target="HUFF">huffman code</xref>
-                                corresponding to each character of the data,
-                                the huffman code representing EOF, and padding
-                                with zeroes to the nearest byte boundary.
+                            <t> The string data:
+                                <list>
+                                    <t> If H is true, then the bitwise
+                                        concatenation of the <xref
+                                            target="CANON">canonical</xref><xref
+                                            target="HUFF">huffman code</xref>
+                                        corresponding to each character of the
+                                        data, followed by between 0-7 bits of
+                                        padding.
+                                    </t>
+                                    <t> If H is false, then the bytes of the
+                                        field value without modification
+                                    </t>
+                                </list>
                             </t>
                         </list>
+                        <t>
+                            Padding is necessary when doing huffman encoding
+                            to ensure that the remaining bits between the
+                            actual end of the data and the next byte boundary
+                            are not misinterpreted as part of the input data.
+                        </t>
+                        <t>
+                            When padding for huffman encoding, use the bits
+                            from the EOS (end-of-string) entry in the Huffman
+                            table, starting with the MSB. This entry is
+                            guaranteed to be at least 7 bits long.
+                        </t>
                     </t>
                     <t>
                         String literals sent in the client to server direction
-                        are encoded with the codes within the <xref
-                            target="request.huffman.codes"> request huffman
-                            code table</xref> (see <xref
+                        which use huffman encoding are encoded with the codes
+                        within the <xref target="request.huffman.codes">
+                            request huffman code table</xref> (see <xref
                             target="response.huffman.encoding.example">Request
-                            Huffman Encoding Example</xref>).  </t>
+                            Huffman Encoding Example</xref>).
+                    </t>
                     <t>
                         String literals sent in the server to client direction
-                        are encoded with the codes within the <xref
-                            target="response.huffman.codes"> response huffman
-                            code table</xref> (see <xref
+                        which use huffman encoding are encoded with the codes
+                        within the <xref target="response.huffman.codes">
+                            response huffman code table</xref> (see <xref
                             target="response.huffman.encoding.example">
                             Response Huffman Encoding Example</xref>).
                     </t>
                     <t>
-                        The EOF symbol is represented with value 256, and is
+                        The EOS symbol is represented with value 256, and is
                         used solely to signal the end of the huffman-encoded
                         key data or the end of the huffman-encoded value
                         data.
                     </t>
                 </section>
+                <figure title="String Literal With Huffman Encoding">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 1 |  Value Length Prefix (7)  |
++---+---+---+---+---+---+---+---+
+|   Value Length (0-N bytes)    |
++---+---+---+---+---+---+---+---+
+...
++---+---+---+---+---+---+---+---+
+| Huffman Encoded Data  |Padding|
++---+---+---+---+---+---+---+---+
+</artwork>
+                </figure>
+                <figure title="String Literal Without Huffman Encoding">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 |  Value Length Prefix (7)  |
++---+---+---+---+---+---+---+---+
+|   Value Length (0-N bytes)    |
++---+---+---+---+---+---+---+---+
+...
++---+---+---+---+---+---+---+---+
+|  Field Bytes Without Encoding |
++---+---+---+---+---+---+---+---+
+</artwork>
+                </figure>
             </section>
 
             <section title="Indexed Header Field Representation"
@@ -1220,7 +1284,7 @@ Else
                     <ttcol>Header Name</ttcol>
                     <ttcol>Header Value</ttcol>
 
-                    <c>0</c><c>:host</c><c></c>
+                    <c>0</c><c>:authority</c><c></c>
                     <c>1</c><c>:method</c><c>GET</c>
                     <c>2</c><c>:method</c><c>POST</c>
                     <c>3</c><c>:path</c><c>/</c>
@@ -1289,15 +1353,22 @@ Else
         </section>
 
         <section title="Huffman Codes For Requests" anchor="request.huffman.codes">
-            <t>The following Huffman codes are used when encoding string
-                literals in the client to server direction.</t>
             <t>
+                The following Huffman codes are used when encoding string
+                literals in the client to server direction.
+            </t>
+            <t>
+                <cref>
+                    This table is out of date and needs updating.
+                    In particular, EOS needs to be at least 7-bits long
+                    and currently is not.
+                </cref>
                 <figure>
                     <artwork><![CDATA[
              aligned                                  aligned
-              to                                       to
-              MSB                                      LSB
-       sym    as bits                       len       as hex  len
+              to                            len        to     len
+              MSB                            in        LSB     in
+       sym    as bits                       bits      as hex  bits
       (  0) |11111111|11111111|11110111|100 [27]      7ffffbc [27]
       (  1) |11111111|11111111|11110111|101 [27]      7ffffbd [27]
       (  2) |11111111|11111111|11110111|110 [27]      7ffffbe [27]
@@ -1554,22 +1625,31 @@ Else
       (253) |11111111|11111111|11110110|11 [26]       3ffffdb [26]
       (254) |11111111|11111111|11110111|00 [26]       3ffffdc [26]
       (255) |11111111|11111111|11110111|01 [26]       3ffffdd [26]
-      (256) |10010 [5]                                     12 [5]
+  EOS (256) |10010 [5]                                     12 [5]
             ]]>
                     </artwork>
                 </figure>
             </t>
         </section>
         <section title="Huffman Codes for Responses" anchor="response.huffman.codes">
-            <t>The following Huffman codes are used when encoding string
-                literals in the server to client direction..</t>
+            <t>
+                The following Huffman codes are used when encoding string
+                literals in the server to client direction.
+            </t>
+            <t>
+                <cref>
+                    This table is out of date and needs updating.
+                    In particular, EOS needs to be at least 7-bits long
+                    and currently is not.
+                </cref>
+            </t>
             <t>
                 <figure>
                     <artwork><![CDATA[
              aligned                                  aligned
-              to                                       to
-              MSB                                      LSB
-       sym    as bits                      len        as hex  len
+              to                           len         to     len
+              MSB                           in         LSB     in
+       sym    as bits                      bits       as hex  bits
       (  0) |11111111|11111111|11101111|10 [26]       3ffffbe [26]
       (  1) |11111111|11111111|11101111|11 [26]       3ffffbf [26]
       (  2) |11111111|11111111|11110000|00 [26]       3ffffc0 [26]
@@ -1826,7 +1906,7 @@ Else
       (253) |11111111|11111111|11101110|0 [25]        1ffffdc [25]
       (254) |11111111|11111111|11101110|1 [25]        1ffffdd [25]
       (255) |11111111|11111111|11101111|0 [25]        1ffffde [25]
-      (256) |10010 [5]                                     12 [5]
+  EOS (256) |10010 [5]                                     12 [5]
             ]]>
 
                     </artwork>
@@ -1854,125 +1934,9 @@ Else
                     new processing of header fields, and include more
                     examples.</cref>
             </t>
-            <section title="First header set">
-                <t>
-                    The first header set to represent is the following:
-                    <figure><artwork type="message/http">
-:path, /my-example/index.html
-user-agent, my-user-agent
-mynewheader, first
-</artwork></figure>
-                    The header table is empty, all header fields are
-                    represented as literal header fields with indexing.  The
-                    'mynewheader' header field name is not in the header table
-                    and is encoded literally.  This gives the following
-                    representation:
-                    <figure><artwork type="message/http">
-0x04      (literal header with incremental indexing, name index = 3)
-0x16      (header field value string length = 22)
-/my-example/index.html
-0x0D      (literal header with incremental indexing, name index = 12)
-0x0D      (header field value string length = 13)
-my-user-agent
-0x00      (literal header with incremental indexing, new name)
-0x0B      (header field name string length = 11)
-mynewheader
-0x05      (header field value string length = 5)
-first
-</artwork></figure>
-                    The header table is as follows after the processing of
-                    these header fields:
-                    <figure><artwork type="inline">
-Header table
-+---------+----------------+---------------------------+
-|  Index  | Header Name    | Header Value              |
-+---------+----------------+---------------------------+
-|    0    | mynewheader    | first                     | added header
-+---------+----------------+---------------------------+
-|    1    | user-agent     | my-user-agent             | added header
-+---------+----------------+---------------------------+
-|    2    | :path          | /my-example/index.html    | added header
-+---------+----------------+---------------------------+
-|    3    | :scheme        | http                      |
-+---------+----------------+---------------------------+
-|    4    | :scheme        | https                     |
-+---------+----------------+---------------------------+
-|   ...   | ...            | ...                       |
-+---------+----------------+---------------------------+
-|   32    | via            |                           |
-+---------+----------------+---------------------------+
-</artwork></figure>
-                    As all the header fields in the first header set are
-                    indexed in the header table, all are kept in the reference
-                    set of header fields, which is:
-                    <figure><artwork type="inline">
-Reference Set:
-:path, /my-example/index.html
-user-agent, my-user-agent
-mynewheader, first
-</artwork></figure>
-                </t>
-            </section>
-            <section title="Second header set">
-                <t>
-                    The second header set to represent is the following:
-                    <figure><artwork type="message/http">
-:path, /my-example/resources/script.js
-user-agent, my-user-agent
-mynewheader, second
-</artwork></figure>
-                    Comparing this second header set to the reference set, the
-                    first and third header fields are from the reference set
-                    are not present in this second header set and must be
-                    removed. In addition, in this new set, the first and third
-                    header fields have to be encoded.  The path header field
-                    is represented as a literal header field without indexing.
-                    The mynewheader will be represented as a literal header
-                    field with incremental indexing.
-                    <figure><artwork type="message/http">
-0x80       (indexed header, index = 0: removal from reference set)
-0x82       (indexed header, index = 2: removal from reference set)
-0x43       (literal header, without indexing, name index = 2)
-0x1f       (header field value string length = 31)
-/my-example/resources/script.js
-0x01       (literal header, incremental indexing, name index = 0)
-0x06       (header field value string length = 6)
-second
-</artwork></figure>
-                    The header table is updated as follow:
-                    <figure><artwork type="inline">
-Header table
-+---------+----------------+---------------------------+
-|  Index  | Header Name    | Header Value              |
-+---------+----------------+---------------------------+
-|    0    | mynewheader    | second                    | added header
-+---------+----------------+---------------------------+
-|    1    | mynewheader    | first                     |
-+---------+----------------+---------------------------+
-|    2    | user-agent     | my-user-agent             |
-+---------+----------------+---------------------------+
-|    3    | :path          | /my-example/index.html    |
-+---------+----------------+---------------------------+
-|    4    | :scheme        | http                      |
-+---------+----------------+---------------------------+
-|    5    | :scheme        | https                     |
-+---------+----------------+---------------------------+
-|   ...   | ...            | ...                       |
-+---------+----------------+---------------------------+
-|   33    | via            |                           |
-+---------+----------------+---------------------------+
-</artwork></figure>
-                    All the header fields in this second header set are
-                    indexed in the header table, therefore, all are kept in
-                    the reference set of header fields, which becomes:
-                    <figure><artwork type="inline">
-Reference Set:
-:path, /my-example/resources/script.js
-user-agent, my-user-agent
-mynewheader, second
-</artwork></figure>
-                </t>
-            </section>
+            <t>
+                Example data TBD.
+            </t>
         </section>
 
     </back>
