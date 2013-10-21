@@ -126,9 +126,9 @@
                     sets of header fields.
                 </t>
                 <t>
-                    An example illustrating the use of these different
-                    mechanisms to represent header fields is available in
-                    <xref target="example"/>.
+                    Examples illustrating the use of these different
+                    mechanisms to represent header fields are available in
+                    <xref target="examples"/>.
                 </t>
             </section>
         </section>
@@ -709,9 +709,10 @@ Else
                                 with a 7-bit prefix immediately following
                                 the first bit.
                             </t>
-                            <t> The string data:
+                            <t> The encoded data of the string:
                                 <list>
-                                    <t> If H is true, then the bitwise
+                                    <t> If H is true, then the the encoded
+                                        string data is the bitwise
                                         concatenation of the <xref
                                             target="CANON">canonical</xref><xref
                                             target="HUFF">huffman code</xref>
@@ -719,8 +720,9 @@ Else
                                         data, followed by between 0-7 bits of
                                         padding.
                                     </t>
-                                    <t> If H is false, then the bytes of the
-                                        field value without modification
+                                    <t> If H is false, then the encoded string
+                                        is the bytes of the field value
+                                        without modification.
                                     </t>
                                 </list>
                             </t>
@@ -735,7 +737,7 @@ Else
                             When padding for huffman encoding, use the bits
                             from the EOS (end-of-string) entry in the Huffman
                             table, starting with the MSB. This entry is
-                            guaranteed to be at least 7 bits long.
+                            guaranteed to be at least 8 bits long.
                         </t>
                     </t>
                     <t>
@@ -743,22 +745,25 @@ Else
                         which use huffman encoding are encoded with the codes
                         within the <xref target="request.huffman.codes">
                             request huffman code table</xref> (see <xref
-                            target="response.huffman.encoding.example">Request
-                            Huffman Encoding Example</xref>).
+                            target="response.huffman.decoding.example">Request
+                            Decoding With Huffman Example</xref>).
                     </t>
                     <t>
                         String literals sent in the server to client direction
                         which use huffman encoding are encoded with the codes
                         within the <xref target="response.huffman.codes">
                             response huffman code table</xref> (see <xref
-                            target="response.huffman.encoding.example">
-                            Response Huffman Encoding Example</xref>).
+                            target="response.huffman.decoding.example">
+                            Response Decoding With Huffman Example</xref>).
                     </t>
                     <t>
                         The EOS symbol is represented with value 256, and is
                         used solely to signal the end of the huffman-encoded
-                        key data or the end of the huffman-encoded value
-                        data.
+                        key data or the end of the huffman-encoded value data.
+                        Given that only between 0-7 bits of the EOS symbol is
+                        included in any huffman-encoded string, and given that
+                        the EOS symbol is at least 8 bits long, it is expected
+                        that it should never be successfully decoded.
                     </t>
                 </section>
                 <figure title="String Literal With Huffman Encoding">
@@ -1948,31 +1953,1229 @@ Else
             </t>
         </section>
 
-        <section title="Request Huffman Encoding Example" anchor="request.huffman.encoding.example">
+        <section title="Examples" anchor="examples">
             <t>
-                TBD: Fill this in.
+                A number of examples are worked through here, for both
+                requests and responses, and with and without huffman coding.
             </t>
-        </section>
+            <section title="Request Decoding Example With Huffman"
+                anchor="request.huffman.decoding.example">
+                <t>
+                    <figure>
+                        <artwork>
+<![CDATA[
+# Header set to be encoded
+:method: GET
+:scheme: http
+:path: /
+:authority: www.foo.com
 
-        <section title="Response Huffman Encoding Example" anchor="response.huffman.encoding.example">
-            <t>
-                TBD: Fill this in.
-            </t>
-        </section>
+# Hexdump of encoded data which will be decoded
+02 84 f7 77 78 ff 07 83 ce 31 77 06 81 0f 04 88 | ...wx....1w.....
+db 6d 89 8b 5a 44 b7 4f                         | .m..ZD.O
 
-        <section title="Example" anchor="example">
-            <t>
-                Here is an example that illustrates different representations
-                and how tables are updated.
-                <cref>This section needs to be updated to better reflect the
-                    new processing of header fields, and include more
-                    examples.</cref>
-            </t>
-            <t>
-                Example data TBD.
-            </t>
-        </section>
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '02'
+    name_index:
+        encoded: "02"
+        decoded: 2
+    value_data_length:
+        encoded: "84"
+        decoded: 4
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "f77778ff"
+        decoded: "GET"
 
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '07'
+    name_index:
+        encoded: "07"
+        decoded: 7
+    value_data_length:
+        encoded: "83"
+        decoded: 3
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "ce3177"
+        decoded: "http"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '06'
+    name_index:
+        encoded: "06"
+        decoded: 6
+    value_data_length:
+        encoded: "81"
+        decoded: 1
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "0f"
+        decoded: "/"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '04'
+    name_index:
+        encoded: "04"
+        decoded: 4
+    value_data_length:
+        encoded: "88"
+        decoded: 8
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "db6d898b5a44b74f"
+        decoded: "www.foo.com"
+
+
+# Decoded header set
+:authority: www.foo.com
+:method: GET
+:path: /
+:scheme: http
+
+#########################
+
+# Header set to be encoded
+:method: GET
+:scheme: https
+:path: /
+:authority: www.bar.com
+cache-control: no-cache
+
+# Hexdump of encoded data which will be decoded
+03 84 ce 31 74 3f 02 88 db 6d 89 7a 1e 44 b7 4f | ...1t?...m.z.D.O
+1d 86 63 65 4a 13 98 ff 83 85                   | ..ceJ.....
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '03'
+    name_index:
+        encoded: "03"
+        decoded: 3
+    value_data_length:
+        encoded: "84"
+        decoded: 4
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "ce31743f"
+        decoded: "https"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '02'
+    name_index:
+        encoded: "02"
+        decoded: 2
+    value_data_length:
+        encoded: "88"
+        decoded: 8
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "db6d897a1e44b74f"
+        decoded: "www.bar.com"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '1d'
+    name_index:
+        encoded: "1d"
+        decoded: 29
+    value_data_length:
+        encoded: "86"
+        decoded: 6
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "63654a1398ff"
+        decoded: "no-cache"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '83'
+    entry_index:
+        encoded: "83"
+        decoded: 3
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '85'
+    entry_index:
+        encoded: "85"
+        decoded: 5
+
+
+# Decoded header set
+:authority: www.bar.com
+:method: GET
+:path: /
+:scheme: https
+cache-control: no-cache
+
+#########################
+
+# Header set to be encoded
+:method: GET
+:scheme: https
+:path: /custom-path.css
+:authority: www.bar.com
+custom-key: custom-value
+
+# Hexdump of encoded data which will be decoded
+05 8b 04 eb 08 b7 49 5c 88 e6 44 c2 1f 00 88 4e | ......I\..D....N
+b0 8b 74 97 90 fa 7f 89 4e b0 8b 74 97 9a 17 a8 | ..t.....N..t....
+ff 82 86                                        | ...
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '05'
+    name_index:
+        encoded: "05"
+        decoded: 5
+    value_data_length:
+        encoded: "8b"
+        decoded: 11
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "04eb08b7495c88e644c21f"
+        decoded: "/custom-path.css"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '00'
+    name_index:
+        encoded: "00"
+        decoded: 0
+    name_data_length:
+        encoded: "88"
+        decoded: 8
+    name_data:
+        is_huffman_encoded: 1
+        encoded: "4eb08b749790fa7f"
+        decoded: "custom-key"
+    value_data_length:
+        encoded: "89"
+        decoded: 9
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "4eb08b74979a17a8ff"
+        decoded: "custom-value"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '82'
+    entry_index:
+        encoded: "82"
+        decoded: 2
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '86'
+    entry_index:
+        encoded: "86"
+        decoded: 6
+
+
+# Decoded header set
+:authority: www.bar.com
+:method: GET
+:path: /custom-path.css
+:scheme: https
+custom-key: custom-value
+
+#########################
+]]>
+                  </artwork>
+                </figure>
+                </t>
+            </section>
+
+            <section title="Request Decoding Example Without Huffman"
+                anchor="request.decoding.example">
+                <t>
+                    <figure>
+                        <artwork>
+<![CDATA[
+# Header set to be encoded
+:method: GET
+:scheme: http
+:path: /
+:authority: www.foo.com
+
+# Hexdump of encoded data which will be decoded
+02 03 47 45 54 07 04 68 74 74 70 06 01 2f 04 0b | ..GET..http../..
+77 77 77 2e 66 6f 6f 2e 63 6f 6d                | www.foo.com
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '02'
+    name_index:
+        encoded: "02"
+        decoded: 2
+    value_data_length:
+        encoded: "03"
+        decoded: 3
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "474554"
+        decoded: "GET"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '07'
+    name_index:
+        encoded: "07"
+        decoded: 7
+    value_data_length:
+        encoded: "04"
+        decoded: 4
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "68747470"
+        decoded: "http"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '06'
+    name_index:
+        encoded: "06"
+        decoded: 6
+    value_data_length:
+        encoded: "01"
+        decoded: 1
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "2f"
+        decoded: "/"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '04'
+    name_index:
+        encoded: "04"
+        decoded: 4
+    value_data_length:
+        encoded: "0b"
+        decoded: 11
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "7777772e666f6f2e636f6d"
+        decoded: "www.foo.com"
+
+
+# Decoded header set
+:authority: www.foo.com
+:method: GET
+:path: /
+:scheme: http
+
+#########################
+
+# Header set to be encoded
+:method: GET
+:scheme: https
+:path: /
+:authority: www.bar.com
+cache-control: no-cache
+
+# Hexdump of encoded data which will be decoded
+03 05 68 74 74 70 73 02 0b 77 77 77 2e 62 61 72 | ..https..www.bar
+2e 63 6f 6d 1d 08 6e 6f 2d 63 61 63 68 65 83 85 | .com..no-cache..
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '03'
+    name_index:
+        encoded: "03"
+        decoded: 3
+    value_data_length:
+        encoded: "05"
+        decoded: 5
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "6874747073"
+        decoded: "https"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '02'
+    name_index:
+        encoded: "02"
+        decoded: 2
+    value_data_length:
+        encoded: "0b"
+        decoded: 11
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "7777772e6261722e636f6d"
+        decoded: "www.bar.com"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '1d'
+    name_index:
+        encoded: "1d"
+        decoded: 29
+    value_data_length:
+        encoded: "08"
+        decoded: 8
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "6e6f2d6361636865"
+        decoded: "no-cache"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '83'
+    entry_index:
+        encoded: "83"
+        decoded: 3
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '85'
+    entry_index:
+        encoded: "85"
+        decoded: 5
+
+
+# Decoded header set
+:authority: www.bar.com
+:method: GET
+:path: /
+:scheme: https
+cache-control: no-cache
+
+#########################
+
+# Header set to be encoded
+:method: GET
+:scheme: https
+:path: /custom-path.css
+:authority: www.bar.com
+custom-key: custom-value
+
+# Hexdump of encoded data which will be decoded
+05 10 2f 63 75 73 74 6f 6d 2d 70 61 74 68 2e 63 | ../custom-path.c
+73 73 00 0a 63 75 73 74 6f 6d 2d 6b 65 79 0c 63 | ss..custom-key.c
+75 73 74 6f 6d 2d 76 61 6c 75 65 82 86          | ustom-value..
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '05'
+    name_index:
+        encoded: "05"
+        decoded: 5
+    value_data_length:
+        encoded: "10"
+        decoded: 16
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "2f637573746f6d2d706174682e637373"
+        decoded: "/custom-path.css"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '00'
+    name_index:
+        encoded: "00"
+        decoded: 0
+    name_data_length:
+        encoded: "0a"
+        decoded: 10
+    name_data:
+        is_huffman_encoded: 0
+        encoded: "637573746f6d2d6b6579"
+        decoded: "custom-key"
+    value_data_length:
+        encoded: "0c"
+        decoded: 12
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "637573746f6d2d76616c7565"
+        decoded: "custom-value"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '82'
+    entry_index:
+        encoded: "82"
+        decoded: 2
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '86'
+    entry_index:
+        encoded: "86"
+        decoded: 6
+
+
+# Decoded header set
+:authority: www.bar.com
+:method: GET
+:path: /custom-path.css
+:scheme: https
+custom-key: custom-value
+
+#########################
+]]>
+                  </artwork>
+                </figure>
+                </t>
+            </section>
+
+            <section title="Response Decoding Example With Huffman"
+                anchor="response.huffman.decoding.example">
+                <t>
+                    <figure>
+                        <artwork>
+<![CDATA[
+# Header set to be encoded
+:status: 302
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:21 GMT
+location: : https://www.bar.com
+
+# Hexdump of encoded data which will be decoded
+08 82 40 9f 18 86 c3 1b 39 bf 38 7f 22 92 a2 fb | ..@.....9.8."...
+a2 03 20 f2 eb cc 0c 49 00 62 d2 43 4c 82 7a 1d | .. ....I.b.CL.z.
+2f 91 68 71 cf 3c 32 6e bd 7e 9e 9e 92 6e 7e 32 | /.hq.<2n.~...n~2
+55 7d bf                                        | U}.
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '08'
+    name_index:
+        encoded: "08"
+        decoded: 8
+    value_data_length:
+        encoded: "82"
+        decoded: 2
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "409f"
+        decoded: "302"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '18'
+    name_index:
+        encoded: "18"
+        decoded: 24
+    value_data_length:
+        encoded: "86"
+        decoded: 6
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "c31b39bf387f"
+        decoded: "private"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '22'
+    name_index:
+        encoded: "22"
+        decoded: 34
+    value_data_length:
+        encoded: "92"
+        decoded: 18
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "a2fba20320f2ebcc0c490062d2434c827a1d"
+        decoded: "Mon, 21 OCt 2013 20:13:21 GMT"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '2f'
+    name_index:
+        encoded: "2f"
+        decoded: 47
+    value_data_length:
+        encoded: "91"
+        decoded: 17
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "6871cf3c326ebd7e9e9e926e7e32557dbf"
+        decoded: ": https://www.bar.com"
+
+
+# Decoded header set
+:status: 302
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:21 GMT
+location: : https://www.bar.com
+
+#########################
+
+# Header set to be encoded
+:status: 200
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+content-encoding: gzip
+set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+AAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZ\
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-a\
+ge=3600; version=1
+
+# Hexdump of encoded data which will be decoded
+04 82 31 1f 03 92 a2 fb a2 03 20 f2 eb cc 0c 49 | ..1....... ....I
+00 62 d2 43 4c c2 7a 1d 03 90 e3 9e 78 64 dd 7a | .b.CL.z.....xd.z
+fd 3d 3d 24 dc fc 64 aa fb 7f 20 84 e1 fb b3 0f | .==$..d... .....
+3d ff ee 02 df 7d fb 36 ed db b7 6e dd bb 76 ed | =....}.6...n..v.
+db b7 6e dd bb 76 ed db b7 6e dd bb 76 ed db b7 | ..n..v...n..v...
+6e dd bb 76 ed db b7 6e dd bb 76 ed db b7 6e dd | n..v...n..v...n.
+bb 76 ed db b7 6e dd bb 76 ed db b7 6e dd bb 76 | .v...n..v...n..v
+ed db b7 6e dd bb 7e 3b 69 ec f0 fe 7e 1f d7 f3 | ...n..~;i...~...
+d5 fe 7f 7e 5f d7 9f 6f 97 cb bf e9 b7 fb fe bc | ...~_..o........
+fb 7c bb fe 9b 7f bf 8f 87 f3 f0 fe bc fc bb 7b | .|.............{
+fe 9b 7e 3f d7 9f 6f 97 7f d3 6f f7 f1 fe bb 7e | ..~?..o...o....~
+9b 7f bf 8f c7 f9 f0 db 4f 67 f5 e7 db e5 f4 ef | ........Og......
+db fd f8 91 a1 3f 1d b4 f6 78 7f 3f 0f eb f9 ea | .....?...x.?....
+ff 3f bf 2f eb cf b7 cb e5 df f4 db fd ff 5e 7d | .?./..........^}
+be 5d ff 4d bf df c7 c3 f9 f8 7f 5e 7e 5d bd ff | .].M.......^~]..
+4d bf 1f eb cf b7 cb bf e9 b7 fb f8 ff 5d bf 4d | M............].M
+bf df c7 e3 fc f8 6d a7 b3 fa f3 ed f2 fa 77 ed | ......m.......w.
+fe fc 48 d0 9f 8e da 7b 3c 3f 9f 87 f5 fc f5 7f | ..H....{<?......
+9f df 97 f5 e7 db e5 f2 ef fa 6d fe ff af 3e df | ..........m...>.
+2e ff a6 df ef e3 e1 fc fc 3f af 3f 2e de ff a6 | .........?.?....
+df 8f f5 e7 db e5 df f4 db fd fc 7f ae df a6 df | ................
+ef e3 f1 fe 7c 36 d3 d9 fd 79 f6 f9 7d 3b f6 ff | ....|6...y..};..
+7e 24 68 4f c7 6d 3d 9e 1f cf c3 fa fe 7a bf cf | ~$hO.m=......z..
+ef cb fa f3 ed f2 f9 77 fd 36 ff 7f d7 9f 6f 97 | .......w.6....o.
+7f d3 6f f7 f1 f0 fe 7e 1f d7 9f 97 6f 7f d3 6f | ..o....~....o..o
+c7 fa f3 ed f2 ef fa 6d fe fe 3f d7 6f d3 6f f7 | .......m..?.o.o.
+f1 f8 ff 3e 1b 69 ec fe bc fb 7c be 9d fb 7f bf | ...>.i....|.....
+12 34 27 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f | .4'..?....?....?
+cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf | ....?....?....?.
+f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 | ...?....?....?..
+fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc | ..?....?....?...
+ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff | .?....?....?....
+3f cf f3 fc ff 3f cf f3 fc ff 3f cf f0 8d 09 0b | ?....?....?.....
+5f d2 37 f0 86 c4 4a 23 ef 0e 70 c7 2b 2f bb 61 | _.7...J#..p.+/.a
+7f 85 86 88                                     | ....
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '04'
+    name_index:
+        encoded: "04"
+        decoded: 4
+    value_data_length:
+        encoded: "82"
+        decoded: 2
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "311f"
+        decoded: "200"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '03'
+    name_index:
+        encoded: "03"
+        decoded: 3
+    value_data_length:
+        encoded: "92"
+        decoded: 18
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "a2fba20320f2ebcc0c490062d2434cc27a1d"
+        decoded: "Mon, 21 OCt 2013 20:13:22 GMT"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '03'
+    name_index:
+        encoded: "03"
+        decoded: 3
+    value_data_length:
+        encoded: "90"
+        decoded: 16
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "e39e7864dd7afd3d3d24dcfc64aafb7f"
+        decoded: "https://www.bar.com"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '20'
+    name_index:
+        encoded: "20"
+        decoded: 32
+    value_data_length:
+        encoded: "84"
+        decoded: 4
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "e1fbb30f"
+        decoded: "gzip"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '3d'
+    name_index:
+        encoded: "3d"
+        decoded: 61
+    value_data_length:
+        encoded: "ffee02"
+        decoded: 493
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "df7dfb36eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddb\
+b76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb7e3b69ec\
+f0fe7e1fd7f3d5fe7f7e5fd79f6f97cbbfe9b7fbfebcfb7cbbfe9b7fbf8f87f3f0febcfcbb7bfe9\
+b7e3fd79f6f977fd36ff7f1febb7e9b7fbf8fc7f9f0db4f67f5e7dbe5f4efdbfdf891a13f1db4f6\
+787f3f0febf9eaff3fbf2febcfb7cbe5dff4dbfdff5e7dbe5dff4dbfdfc7c3f9f87f5e7e5dbdff4\
+dbf1febcfb7cbbfe9b7fbf8ff5dbf4dbfdfc7e3fcf86da7b3faf3edf2fa77edfefc48d09f8eda7b\
+3c3f9f87f5fcf57f9fdf97f5e7dbe5f2effa6dfeffaf3edf2effa6dfefe3e1fcfc3faf3f2edeffa\
+6df8ff5e7dbe5dff4dbfdfc7faedfa6dfefe3f1fe7c36d3d9fd79f6f97d3bf6ff7e24684fc76d3d\
+9e1fcfc3fafe7abfcfefcbfaf3edf2f977fd36ff7fd79f6f977fd36ff7f1f0fe7e1fd79f976f7fd\
+36fc7faf3edf2effa6dfefe3fd76fd36ff7f1f8ff3e1b69ecfebcfb7cbe9dfb7fbf123427fcff3f\
+cff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3\
+fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff\
+3fcff3fcff3fcff08d090b5fd237f086c44a23ef0e70c72b2fbb617f"
+        decoded: "foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+AAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQ\
+WEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEO\
+UIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234\
+ max-age=3600; version=1"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '85'
+    entry_index:
+        encoded: "85"
+        decoded: 5
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '86'
+    entry_index:
+        encoded: "86"
+        decoded: 6
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '88'
+    entry_index:
+        encoded: "88"
+        decoded: 8
+
+
+# Decoded header set
+:status: 200
+cache-control: private
+content-encoding: gzip
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+AAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZ\
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-a\
+ge=3600; version=1
+
+#########################
+
+# Header set to be encoded
+:status: 200
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+content-encoding: gzip
+set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
+ZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAA\
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-a\
+ge=3600; version=1
+
+# Hexdump of encoded data which will be decoded
+01 ff ee 02 df 7d fb 3f cf f3 fc ff 3f cf f3 fc | .....}.?....?...
+ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff | .?....?....?....
+3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f | ?....?....?....?
+cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf | ....?....?....?.
+f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 | ...?....?....?..
+fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc | ..?....?....?...
+ff 3e 3b 69 ec f0 fe 7e 1f d7 f3 d5 fe 7f 7e 5f | .>;i...~......~_
+d7 9f 6f 97 cb bf e9 b7 fb fe bc fb 7c bb fe 9b | ..o.........|...
+7f bf 8f 87 f3 f0 fe bc fc bb 7b fe 9b 7e 3f d7 | ..........{..~?.
+9f 6f 97 7f d3 6f f7 f1 fe bb 7e 9b 7f bf 8f c7 | .o...o....~.....
+f9 f0 db 4f 67 f5 e7 db e5 f4 ef db fd f8 91 a1 | ...Og...........
+3f 1d b4 f6 78 7f 3f 0f eb f9 ea ff 3f bf 2f eb | ?...x.?.....?./.
+cf b7 cb e5 df f4 db fd ff 5e 7d be 5d ff 4d bf | .........^}.].M.
+df c7 c3 f9 f8 7f 5e 7e 5d bd ff 4d bf 1f eb cf | ......^~]..M....
+b7 cb bf e9 b7 fb f8 ff 5d bf 4d bf df c7 e3 fc | ........].M.....
+f8 6d a7 b3 fa f3 ed f2 fa 77 ed fe fc 48 d0 9f | .m.......w...H..
+8e da 7b 3c 3f 9f 87 f5 fc f5 7f 9f df 97 f5 e7 | ..{<?...........
+db e5 f2 ef fa 6d fe ff af 3e df 2e ff a6 df ef | .....m...>......
+e3 e1 fc fc 3f af 3f 2e de ff a6 df 8f f5 e7 db | ....?.?.........
+e5 df f4 db fd fc 7f ae df a6 df ef e3 f1 fe 7c | ...............|
+36 d3 d9 fd 79 f6 f9 7d 3b f6 ff 7e 24 68 4f c7 | 6...y..};..~$hO.
+6d 3d 9e 1f cf c3 fa fe 7a bf cf ef cb fa f3 ed | m=......z.......
+f2 f9 77 fd 36 ff 7f d7 9f 6f 97 7f d3 6f f7 f1 | ..w.6....o...o..
+f0 fe 7e 1f d7 9f 97 6f 7f d3 6f c7 fa f3 ed f2 | ..~....o..o.....
+ef fa 6d fe fe 3f d7 6f d3 6f f7 f1 f8 ff 3e 1b | ..m..?.o.o....>.
+69 ec fe bc fb 7c be 9d fb 7f bf 12 34 27 6e dd | i....|......4'n.
+bb 76 ed db b7 6e dd bb 76 ed db b7 6e dd bb 76 | .v...n..v...n..v
+ed db b7 6e dd bb 76 ed db b7 6e dd bb 76 ed db | ...n..v...n..v..
+b7 6e dd bb 76 ed db b7 6e dd bb 76 ed db b7 6e | .n..v...n..v...n
+dd bb 76 ed db b7 6e dd bb 76 ed db b4 8d 09 0b | ..v...n..v......
+5f d2 37 f0 86 c4 4a 23 ef 0e 70 c7 2b 2f bb 61 | _.7...J#..p.+/.a
+7f 81                                           | ..
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '01'
+    name_index:
+        encoded: "01"
+        decoded: 1
+    value_data_length:
+        encoded: "ffee02"
+        decoded: 493
+    value_data:
+        is_huffman_encoded: 1
+        encoded: "df7dfb3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff\
+3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcf\
+f3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3e3b69ecf0fe7e1fd7f3d5fe7f7e5fd79\
+f6f97cbbfe9b7fbfebcfb7cbbfe9b7fbf8f87f3f0febcfcbb7bfe9b7e3fd79f6f977fd36ff7f1fe\
+bb7e9b7fbf8fc7f9f0db4f67f5e7dbe5f4efdbfdf891a13f1db4f6787f3f0febf9eaff3fbf2febc\
+fb7cbe5dff4dbfdff5e7dbe5dff4dbfdfc7c3f9f87f5e7e5dbdff4dbf1febcfb7cbbfe9b7fbf8ff\
+5dbf4dbfdfc7e3fcf86da7b3faf3edf2fa77edfefc48d09f8eda7b3c3f9f87f5fcf57f9fdf97f5e\
+7dbe5f2effa6dfeffaf3edf2effa6dfefe3e1fcfc3faf3f2edeffa6df8ff5e7dbe5dff4dbfdfc7f\
+aedfa6dfefe3f1fe7c36d3d9fd79f6f97d3bf6ff7e24684fc76d3d9e1fcfc3fafe7abfcfefcbfaf\
+3edf2f977fd36ff7fd79f6f977fd36ff7f1f0fe7e1fd79f976f7fd36fc7faf3edf2effa6dfefe3f\
+d76fd36ff7f1f8ff3e1b69ecfebcfb7cbe9dfb7fbf1234276eddbb76eddbb76eddbb76eddbb76ed\
+dbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddb\
+b76eddbb76eddbb48d090b5fd237f086c44a23ef0e70c72b2fbb617f"
+        decoded: "foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
+ZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQ\
+WEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEO\
+UIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234\
+ max-age=3600; version=1"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '81'
+    entry_index:
+        encoded: "81"
+        decoded: 1
+
+
+# Decoded header set
+:status: 200
+cache-control: private
+content-encoding: gzip
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
+ZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAA\
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-a\
+ge=3600; version=1
+
+#########################
+]]>
+                        </artwork>
+                    </figure>
+                </t>
+            </section>
+
+            <section title="Response Decoding Example Without Huffman"
+              anchor="response.decoding.example">
+              <t>
+                  <figure>
+                      <artwork>
+<![CDATA[
+# Header set to be encoded
+:status: 302
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:21 GMT
+location: : https://www.bar.com
+
+# Hexdump of encoded data which will be decoded
+08 03 33 30 32 18 07 70 72 69 76 61 74 65 22 1d | ..302..private".
+4d 6f 6e 2c 20 32 31 20 4f 43 74 20 32 30 31 33 | Mon, 21 OCt 2013
+20 32 30 3a 31 33 3a 32 31 20 47 4d 54 2f 15 3a |  20:13:21 GMT/.:
+20 68 74 74 70 73 3a 2f 2f 77 77 77 2e 62 61 72 |  https://www.bar
+2e 63 6f 6d                                     | .com
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '08'
+    name_index:
+        encoded: "08"
+        decoded: 8
+    value_data_length:
+        encoded: "03"
+        decoded: 3
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "333032"
+        decoded: "302"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '18'
+    name_index:
+        encoded: "18"
+        decoded: 24
+    value_data_length:
+        encoded: "07"
+        decoded: 7
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "70726976617465"
+        decoded: "private"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '22'
+    name_index:
+        encoded: "22"
+        decoded: 34
+    value_data_length:
+        encoded: "1d"
+        decoded: 29
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "4d6f6e2c203231204f437420323031332032303a31333a323120474d54"
+        decoded: "Mon, 21 OCt 2013 20:13:21 GMT"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '2f'
+    name_index:
+        encoded: "2f"
+        decoded: 47
+    value_data_length:
+        encoded: "15"
+        decoded: 21
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "3a2068747470733a2f2f7777772e6261722e636f6d"
+        decoded: ": https://www.bar.com"
+
+
+# Decoded header set
+:status: 302
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:21 GMT
+location: : https://www.bar.com
+
+#########################
+
+# Header set to be encoded
+:status: 200
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+content-encoding: gzip
+set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+AAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZ\
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-a\
+ge=3600; version=1
+
+# Hexdump of encoded data which will be decoded
+04 03 32 30 30 03 1d 4d 6f 6e 2c 20 32 31 20 4f | ..200..Mon, 21 O
+43 74 20 32 30 31 33 20 32 30 3a 31 33 3a 32 32 | Ct 2013 20:13:22
+20 47 4d 54 03 13 68 74 74 70 73 3a 2f 2f 77 77 |  GMT..https://ww
+77 2e 62 61 72 2e 63 6f 6d 20 04 67 7a 69 70 3d | w.bar.com .gzip=
+7f e1 02 66 6f 6f 3d 41 41 41 41 41 41 41 41 41 | ...foo=AAAAAAAAA
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 4c | AAAAAAAAAAAAAAAL
+41 53 44 4a 4b 48 51 4b 42 5a 58 4f 51 57 45 4f | ASDJKHQKBZXOQWEO
+50 49 55 41 58 51 57 45 4f 49 55 41 58 4c 4a 4b | PIUAXQWEOIUAXLJK
+48 51 57 4f 45 49 55 41 4c 51 57 45 4f 49 55 41 | HQWOEIUALQWEOIUA
+58 4c 51 45 55 41 58 4c 4c 4b 4a 41 53 44 51 57 | XLQEUAXLLKJASDQW
+45 4f 55 49 41 58 4e 31 32 33 34 4c 41 53 44 4a | EOUIAXN1234LASDJ
+4b 48 51 4b 42 5a 58 4f 51 57 45 4f 50 49 55 41 | KHQKBZXOQWEOPIUA
+58 51 57 45 4f 49 55 41 58 4c 4a 4b 48 51 57 4f | XQWEOIUAXLJKHQWO
+45 49 55 41 4c 51 57 45 4f 49 55 41 58 4c 51 45 | EIUALQWEOIUAXLQE
+55 41 58 4c 4c 4b 4a 41 53 44 51 57 45 4f 55 49 | UAXLLKJASDQWEOUI
+41 58 4e 31 32 33 34 4c 41 53 44 4a 4b 48 51 4b | AXN1234LASDJKHQK
+42 5a 58 4f 51 57 45 4f 50 49 55 41 58 51 57 45 | BZXOQWEOPIUAXQWE
+4f 49 55 41 58 4c 4a 4b 48 51 57 4f 45 49 55 41 | OIUAXLJKHQWOEIUA
+4c 51 57 45 4f 49 55 41 58 4c 51 45 55 41 58 4c | LQWEOIUAXLQEUAXL
+4c 4b 4a 41 53 44 51 57 45 4f 55 49 41 58 4e 31 | LKJASDQWEOUIAXN1
+32 33 34 4c 41 53 44 4a 4b 48 51 4b 42 5a 58 4f | 234LASDJKHQKBZXO
+51 57 45 4f 50 49 55 41 58 51 57 45 4f 49 55 41 | QWEOPIUAXQWEOIUA
+58 4c 4a 4b 48 51 57 4f 45 49 55 41 4c 51 57 45 | XLJKHQWOEIUALQWE
+4f 49 55 41 58 4c 51 45 55 41 58 4c 4c 4b 4a 41 | OIUAXLQEUAXLLKJA
+53 44 51 57 45 4f 55 49 41 58 4e 31 32 33 34 5a | SDQWEOUIAXN1234Z
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 31 32 33 34 20 6d 61 78 2d | ZZZZZZZ1234 max-
+61 67 65 3d 33 36 30 30 3b 20 76 65 72 73 69 6f | age=3600; versio
+6e 3d 31 85 86 88                               | n=1...
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '04'
+    name_index:
+        encoded: "04"
+        decoded: 4
+    value_data_length:
+        encoded: "03"
+        decoded: 3
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "323030"
+        decoded: "200"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '03'
+    name_index:
+        encoded: "03"
+        decoded: 3
+    value_data_length:
+        encoded: "1d"
+        decoded: 29
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "4d6f6e2c203231204f437420323031332032303a31333a323220474d54"
+        decoded: "Mon, 21 OCt 2013 20:13:22 GMT"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '03'
+    name_index:
+        encoded: "03"
+        decoded: 3
+    value_data_length:
+        encoded: "13"
+        decoded: 19
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "68747470733a2f2f7777772e6261722e636f6d"
+        decoded: "https://www.bar.com"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '20'
+    name_index:
+        encoded: "20"
+        decoded: 32
+    value_data_length:
+        encoded: "04"
+        decoded: 4
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "677a6970"
+        decoded: "gzip"
+
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '3d'
+    name_index:
+        encoded: "3d"
+        decoded: 61
+    value_data_length:
+        encoded: "7fe102"
+        decoded: 480
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "666f6f3d41414141414141414141414141414141414141414141414141414\
+1414141414141414141414141414141414141414141414141414141414141414141414141414141\
+4141414141414c4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4\
+851574f454955414c5157454f495541584c51455541584c4c4b4a4153445157454f554941584e31\
+3233344c4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851574\
+f454955414c5157454f495541584c51455541584c4c4b4a4153445157454f554941584e31323334\
+4c4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851574f45495\
+5414c5157454f495541584c51455541584c4c4b4a4153445157454f554941584e313233344c4153\
+444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851574f454955414c5\
+157454f495541584c51455541584c4c4b4a4153445157454f554941584e313233345a5a5a5a5a5a\
+5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5\
+a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a31323334206d61782d6167653d\
+333630303b2076657273696f6e3d31"
+        decoded: "foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+AAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQ\
+WEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEO\
+UIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234\
+ max-age=3600; version=1"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '85'
+    entry_index:
+        encoded: "85"
+        decoded: 5
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '86'
+    entry_index:
+        encoded: "86"
+        decoded: 6
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '88'
+    entry_index:
+        encoded: "88"
+        decoded: 8
+
+
+# Decoded header set
+:status: 200
+cache-control: private
+content-encoding: gzip
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
+AAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZ\
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-a\
+ge=3600; version=1
+
+#########################
+
+# Header set to be encoded
+:status: 200
+cache-control: private
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+content-encoding: gzip
+set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
+ZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAA\
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-a\
+ge=3600; version=1
+
+# Hexdump of encoded data which will be decoded
+01 7f e1 02 66 6f 6f 3d 5a 5a 5a 5a 5a 5a 5a 5a | ....foo=ZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
+4c 41 53 44 4a 4b 48 51 4b 42 5a 58 4f 51 57 45 | LASDJKHQKBZXOQWE
+4f 50 49 55 41 58 51 57 45 4f 49 55 41 58 4c 4a | OPIUAXQWEOIUAXLJ
+4b 48 51 57 4f 45 49 55 41 4c 51 57 45 4f 49 55 | KHQWOEIUALQWEOIU
+41 58 4c 51 45 55 41 58 4c 4c 4b 4a 41 53 44 51 | AXLQEUAXLLKJASDQ
+57 45 4f 55 49 41 58 4e 31 32 33 34 4c 41 53 44 | WEOUIAXN1234LASD
+4a 4b 48 51 4b 42 5a 58 4f 51 57 45 4f 50 49 55 | JKHQKBZXOQWEOPIU
+41 58 51 57 45 4f 49 55 41 58 4c 4a 4b 48 51 57 | AXQWEOIUAXLJKHQW
+4f 45 49 55 41 4c 51 57 45 4f 49 55 41 58 4c 51 | OEIUALQWEOIUAXLQ
+45 55 41 58 4c 4c 4b 4a 41 53 44 51 57 45 4f 55 | EUAXLLKJASDQWEOU
+49 41 58 4e 31 32 33 34 4c 41 53 44 4a 4b 48 51 | IAXN1234LASDJKHQ
+4b 42 5a 58 4f 51 57 45 4f 50 49 55 41 58 51 57 | KBZXOQWEOPIUAXQW
+45 4f 49 55 41 58 4c 4a 4b 48 51 57 4f 45 49 55 | EOIUAXLJKHQWOEIU
+41 4c 51 57 45 4f 49 55 41 58 4c 51 45 55 41 58 | ALQWEOIUAXLQEUAX
+4c 4c 4b 4a 41 53 44 51 57 45 4f 55 49 41 58 4e | LLKJASDQWEOUIAXN
+31 32 33 34 4c 41 53 44 4a 4b 48 51 4b 42 5a 58 | 1234LASDJKHQKBZX
+4f 51 57 45 4f 50 49 55 41 58 51 57 45 4f 49 55 | OQWEOPIUAXQWEOIU
+41 58 4c 4a 4b 48 51 57 4f 45 49 55 41 4c 51 57 | AXLJKHQWOEIUALQW
+45 4f 49 55 41 58 4c 51 45 55 41 58 4c 4c 4b 4a | EOIUAXLQEUAXLLKJ
+41 53 44 51 57 45 4f 55 49 41 58 4e 31 32 33 34 | ASDQWEOUIAXN1234
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
+41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
+41 41 41 41 41 41 41 41 31 32 33 34 20 6d 61 78 | AAAAAAAA1234 max
+2d 61 67 65 3d 33 36 30 30 3b 20 76 65 72 73 69 | -age=3600; versi
+6f 6e 3d 31 81                                  | on=1.
+
+# Decoded opcodes
+LITERAL_INCREMENTAL_OPCODE:
+        opcodeLengthInBits: 2
+        discoveredFromPeekingAtByte: '01'
+    name_index:
+        encoded: "01"
+        decoded: 1
+    value_data_length:
+        encoded: "7fe102"
+        decoded: 480
+    value_data:
+        is_huffman_encoded: 0
+        encoded: "666f6f3d5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5\
+a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a\
+5a5a5a5a5a5a4c4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4\
+851574f454955414c5157454f495541584c51455541584c4c4b4a4153445157454f554941584e31\
+3233344c4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851574\
+f454955414c5157454f495541584c51455541584c4c4b4a4153445157454f554941584e31323334\
+4c4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851574f45495\
+5414c5157454f495541584c51455541584c4c4b4a4153445157454f554941584e313233344c4153\
+444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851574f454955414c5\
+157454f495541584c51455541584c4c4b4a4153445157454f554941584e31323334414141414141\
+4141414141414141414141414141414141414141414141414141414141414141414141414141414\
+1414141414141414141414141414141414141414141414141414131323334206d61782d6167653d\
+333630303b2076657273696f6e3d31"
+        decoded: "foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
+ZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQ\
+WEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEO\
+UIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234\
+ max-age=3600; version=1"
+
+INDEX_OPCODE:
+        opcodeLengthInBits: 1
+        discoveredFromPeekingAtByte: '81'
+    entry_index:
+        encoded: "81"
+        decoded: 1
+
+
+# Decoded header set
+:status: 200
+cache-control: private
+content-encoding: gzip
+date: Mon, 21 OCt 2013 20:13:22 GMT
+location: https://www.bar.com
+set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
+ZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIA\
+XN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1\
+234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234\
+LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAA\
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-a\
+ge=3600; version=1
+
+#########################
+]]>
+                      </artwork>
+                  </figure>
+              </t>
+          </section>
+        </section>
     </back>
 </rfc>
 <!--
