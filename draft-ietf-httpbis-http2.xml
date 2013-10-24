@@ -626,31 +626,37 @@ HTTP2-Settings    = token68
           serialized header block is then divided into one or more octet sequences, called header
           block fragments, and transmitted within the payload of <xref
           target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
-          target="CONTINUATION">CONTINUATION</xref> frames.  The receiving endpoint reassembles the
-          header block by concatenating the individual fragments, then decompresses the block to
-          reconstruct the header set.
+          target="CONTINUATION">CONTINUATION</xref> frames.  
+        </t>
+        <t>
+          A receiving endpoint reassembles the header block by concatenating the individual
+          fragments, then decompresses the block to reconstruct the header set.
+        </t>
+        <t>
+          A complete header block consists of either:
+          <list style="symbols">
+            <t>
+              a single <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame each respectively
+              with the END_HEADERS or END_PUSH_PROMISE flag set, or
+            </t>
+            <t>
+              a <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame with the END_HEADERS or
+              END_PUSH_PROMISE flag cleared and one or more <x:ref>CONTINUATION</x:ref> frames,
+              where the last <x:ref>CONTINUATION</x:ref> frame has the END_HEADER flag set.
+            </t>
+          </list>
+        </t>
+        <t>
+          Header blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
+          frames of any other type, or from any other stream.  The last frame in a sequence of
+          <x:ref>HEADERS</x:ref> or <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS
+          flag set.  The last frame in a sequence of <x:ref>PUSH_PROMISE</x:ref>or
+          <x:ref>CONTINUATION</x:ref> frames MUST have the END_PUSH_PROMISE or END_HEADERS flag set
+          (respectively).
         </t>
         <t>
           Header block fragments can only be sent as the payload of <x:ref>HEADERS</x:ref>,
           <x:ref>PUSH_PROMISE</x:ref> or <x:ref>CONTINUATION</x:ref> frames.
-        </t>
-        <t>
-          A compressed and encoded header block is transmitted in a <x:ref>HEADERS</x:ref> or
-          <x:ref>PUSH_PROMISE</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref>
-          frames.  If the number of octets in the block is greater than the space remaining in the
-          frame, the block is divided into multiple fragments, which are then transmitted in
-          multiple frames.
-        </t>
-        <t>
-          Header blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
-          frames of any other type, or from any other stream.
-          The last frame in a sequence of
-          <x:ref>HEADERS</x:ref>/<x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS flag set.
-          The last frame in a
-          sequence of <x:ref>PUSH_PROMISE</x:ref>/<x:ref>CONTINUATION</x:ref> frames MUST have
-          the END_PUSH_PROMISE/END_HEADERS flag set (respectively).
-        </t>
-        <t>
           <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames
           carry data that can modify the compression context maintained by a receiver.  An endpoint
           receiving <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> or
@@ -1296,14 +1302,15 @@ HTTP2-Settings    = token68
             <list style="hanging">
               <x:lt hangText="END_STREAM (0x1):">
                 <t>
-                  Bit 1 being set indicates that this frame is the last that the endpoint will send
-                  for the identified stream.  Setting this flag causes the stream to enter one of
-                  <xref target="StreamStates">"half closed" states</xref>.
+                  Bit 1 being set indicates that the <xref target="HeaderBlock">header block</xref>
+                  is the last that the endpoint will send for the identified stream.  Setting this
+                  flag causes the stream to enter one of <xref target="StreamStates">"half closed"
+                  states</xref>.
                 </t>
                 <t>
                   A HEADERS frame that is followed by <x:ref>CONTINUATION</x:ref> frames carries the
-                  flag that signals the end of a stream.  A <x:ref>CONTINUATION</x:ref> frame cannot
-                  be used to terminate a stream.
+                  END_STREAM flag that signals the end of a stream.  A <x:ref>CONTINUATION</x:ref>
+                  frame cannot be used to terminate a stream.
                 </t>
               </x:lt>
               <x:lt hangText="RESERVED (0x2):">
@@ -1313,15 +1320,9 @@ HTTP2-Settings    = token68
               </x:lt>
               <x:lt hangText="END_HEADERS (0x4):">
                 <t>
-                  Bit 3 being set indicates that this frame ends the sequence of header block
-                  fragments necessary to provide a complete set of header fields.
-                </t>
-                <t>
-                  The payload for a complete header block is provided by a sequence of that starts
-                  with a HEADERS frame, followed by zero or more <x:ref>CONTINUATION</x:ref> frames.
-                  The sequence is terminated by a frame with the END_HEADERS flag set.  Once the
-                  sequence terminates, the payload of all HEADERS and <x:ref>CONTINUATION</x:ref>
-                  frames are concatenated and interpreted as a single block.
+                  Bit 3 being set indicates that this frame contains an entire <xref
+                  target="HeaderBlock">header block</xref> and is not followed by any
+                  <x:ref>CONTINUATION</x:ref> frames.
                 </t>
                 <t>
                   A HEADERS frame without the END_HEADERS flag set MUST be followed by a
@@ -1637,7 +1638,7 @@ HTTP2-Settings    = token68
           <t>
             PUSH_PROMISE frames MUST be associated with an existing, peer-initiated stream. If the
             stream identifier field specifies the value 0x0, a recipient MUST respond with a <xref
-            target="ConnectionErrorHandler"> connection error </xref> of type
+            target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
@@ -1646,16 +1647,9 @@ HTTP2-Settings    = token68
             <list style="hanging">
               <x:lt hangText="END_PUSH_PROMISE (0x4):">
                 <t>
-                  The END_PUSH_PROMISE bit indicates that this frame ends the sequence of header block
-                  fragments necessary to provide a complete set of headers.
-                </t>
-                <t>
-                  The payload for a complete header block is provided by a sequence of frames that
-                  starts with a PUSH_PROMISE frame, followed by zero or more CONTINUATION frames.
-                  The sequence terminates by a PUSH_PROMISE frame with the END_PUSH_PROMISE flag set
-                  or a CONTINUATION frame with the END_HEADERS flag set.
-                  Once the sequence terminates, the payload of all frames in the sequence are
-                  concatenated and interpreted as a single block.
+                  Bit 3 being set indicates that this frame contains an entire <xref
+                  target="HeaderBlock">header block</xref> and is not followed by any
+                  <x:ref>CONTINUATION</x:ref> frames.
                 </t>
                 <t>
                   A PUSH_PROMISE frame without the END_PUSH_PROMISE flag set MUST be followed by a
@@ -2055,7 +2049,7 @@ HTTP2-Settings    = token68
             target="HeaderBlock">header block fragments</xref>.  Any number of CONTINUATION frames
             can be sent on an existing stream, as long as the preceding frame on the same stream is
             one of <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> or CONTINUATION without the
-            END_HEADERS flag set.
+            END_HEADERS or END_PUSH_PROMISE flag set.
           </t>
 
           <figure title="CONTINUATION Frame Payload">
@@ -2073,31 +2067,14 @@ HTTP2-Settings    = token68
             <list style="hanging">
               <x:lt hangText="END_HEADERS (0x4):">
                 <t>
-                  The END_HEADERS bit indicates that this frame ends the sequence of header block
-                  fragments necessary to provide a complete set of header fields.
+                  Bit 3 being set indicates that this frame ends a <xref
+                  target="HeaderBlock">header block</xref>.
                 </t>
                 <t>
-                  The payload for a complete header block is provided by a sequence that starts with
-                  a <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame and zero or more
-                  CONTINUATION frames, terminated by a <x:ref>HEADERS</x:ref> or CONTINUATION frame
-                  with the END_HEADERS flag set, or <x:ref>PUSH_PROMISE</x:ref> frame with the
-                  END_PUSH_PROMISE flag set.  Once the sequence terminates, the payload of all
-                  frames in the sequence are concatenated and interpreted as a single block.
-                </t>
-                <t>
-                  A <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>, or CONTINUATION frame
-                  without the END_HEADERS flag set MUST be followed by a CONTINUATION frame for the
-                  same stream.  A receiver MUST treat the receipt of any other type of frame or a
-                  frame on a different stream as a <xref target="ConnectionErrorHandler">connection
-                  error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
-                </t>
-                <t>
-                  A <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>, or CONTINUATION frame
-                  with the END_HEADERS flag set MUST NOT be followed by a CONTINUATION frame for the
-                  same stream.  A receiver MUST treat the receipt of CONTINUATION frame following a
-                  <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>, or CONTINUATION frame with
-                  the END_HEADERS flag set for the same stream as a
-                  <xref target="ConnectionErrorHandler">connection error</xref> of type
+                  If the END_HEADERS bit is not set, this frame MUST be followed by another
+                  CONTINUATION frame.  A receiver MUST treat the receipt of any other type of frame
+                  or a frame on a different stream as a <xref
+                  target="ConnectionErrorHandler">connection error</xref> of type
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
               </x:lt>
