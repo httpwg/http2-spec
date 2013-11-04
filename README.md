@@ -1,62 +1,75 @@
 
-HTTP/2.0 Draft Specification
-============================
+HTTP/2.0 Draft Specifications
+=============================
 
 This is the working area for the [IETF HTTPbis Working
 Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of HTTP/2.0.
 
-Published drafts can be found on the [IETF tools
-site](http://tools.ietf.org/html/draft-ietf-httpbis-http2), and are marked
-with tags here.
+HTTP/2.0 links:
+* [Editor's copy](http://http2.github.com/http2-spec/index.html) (HTML)
+* [Editor's copy](http://http2.github.com/http2-spec/index.txt) (plain text)
+* [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-http2) (less recent, more official)
+
+Header Compression (HPACK) links:
+* [Editor's copy](http://http2.github.com/http2-spec/compression.html) (HTML)
+* [Editor's copy](http://http2.github.com/http2-spec/compression.txt) (plain text)
+* [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
+
+Contributing
+------------
+
+Before submitting feedback, please familiarize yourself with our current issues
+list and review [our home
+page](http://trac.tools.ietf.org/wg/httpbis/trac/wiki). If you're new to this,
+you may also want to read the [Tao of the IETF](http://www.ietf.org/tao.html).
+
+Be aware that all contributions to the specification fall under the "NOTE WELL"
+terms outlined below.
+
+1. The best way to provide feedback (editorial or design) and ask questions is
+sending an e-mail to [our mailing
+list](http://lists.w3.org/Archives/Public/ietf-http-wg/). This will assure that
+the entire Working Group sees your input in a timely fashion.
+
+2. If you have **editorial** suggestions (i.e., those that do not change the
+meaning of the specification), you can either:
+
+  a) Fork this repository and submit a pull request; this is the lowest
+  friction way to get editorial changes in.
+  
+  b) Submit a new issue to Github, and mention that you believe it is editorial
+  in the issue body. It is not necessary to notify the mailing list for
+  editorial issues.
+  
+  c) Make comments on individual commits in Github. Note that this feedback is
+  processed only with best effort by the editors, so it should only be used for
+  quick editorial suggestions or questions.
+
+3. For non-editorial (i.e., **design**) issues, you can also create an issue on
+Github. However, you **must notify the mailing list** when creating such issues,
+providing a link to the issue in the message body.
+
+  Note that **github issues are not for substantial discussions**; the only
+  appropriate place to discuss design issues is on the mailing list itself.
+
+
+Working With the Drafts
+-----------------------
 
 The source for our current draft is
 [draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
 [RFC2629 format](http://xml.resource.org/public/rfc/html/rfc2629.html).
 
-An HTML copy of the current (unsubmitted) draft can be found
-[here](http://http2.github.com/http2-spec/), and the text version can be found
-[here](http://http2.github.com/http2-spec/index.txt).
-
-
-Providing Feedback
-------------------
-
-Before submitting feedback, please familiarise yourself with our current
-issues list, and see [our home
-page](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) for more information
-about participating.
-
-1. The best way to provide feedback and ask questions is sending an e-mail to
-[our mailing list](http://lists.w3.org/Archives/Public/ietf-http-wg/). This
-will assure that the entire Working Group sees your input in a timely fashion.
-
-2. If you have editorial suggestions, you can fork this repository and submit
-a pull request; this is the lowest friction way to get such changes in. While
-this method can also be used to suggest more substantial changes, they'll need
-to be discussed on the list first.
-
-3. You can also create an issue on github. However, **questions should be
-asked on the mailing list**, not in an issue. Likewise, **issues should
-identify problems, not offer solutions**, which can be submitted by one of the
-mechanisms described above. Issues that violate these guidelines will be
-closed without comment.
-
-4. Finally, you can make comments on individual commits in Github. Note that
-this feedback is processed only with best effort by the editors, so it should
-only be used for quick editorial suggestions or questions, not substantial
-feedback.
-
-
-Working With the Draft
-----------------------
-
 If you're an editor, or forking a copy of the draft, a few things to know:
 
 * Pushing to the master branch will automatically generate the HTML on the 
   gh-pages branch.
-* You'll need xml2rfc, java and saxon available. You can override the default
-  locations in the environment, if you use "make -e".
-* Making the txt and html for the latest draft is done with "make latest".
+* You'll need xml2rfc, Java and Saxon-HE available. You can override the
+  default locations in the environment.  On a Mac with
+  [Homebrew](http://mxcl.github.io/homebrew/), "saxon-b" is the right package.
+* Making the txt and html for the latest drafts is done with "make".
+* Output for a specific draft can be made using "make http2" or
+  "make hpack".
 
 
 NOTE WELL
