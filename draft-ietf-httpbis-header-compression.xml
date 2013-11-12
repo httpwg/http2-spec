@@ -164,9 +164,8 @@
                             The reference set (see <xref
                                 target="reference.set"/>) is a component
                             containing an unordered set of references to
-                            entries in the header table or static table.
-                            This is used for the differential encoding of a new
-                            header set.
+                            entries in the header table.  This is used for the
+                            differential encoding of a new header set.
                         </t>
                         <t hangText="Header Set:">
                             A header set is a potentially ordered group of
@@ -244,16 +243,14 @@
                         The header table is updated during the processing of
                         a set of header field representations (see <xref
                             target="header.representation.processing"> header
-                            field
-                            representation processing</xref>.
+                            field representation processing</xref>).
                     </t>
                 </section>
 
                 <section title="Reference Set" anchor="reference.set">
                     <t>
                         A reference set is an unordered set of references to
-                        entries either within the header table or the static
-                        table.
+                        entries of the header table.
                     </t>
                     <t>
                         The reference set is initially empty.
@@ -262,7 +259,7 @@
                         The reference set is updated during the processing of
                         a set of header field representations (see <xref
                             target="header.representation.processing"> header
-                            field representation processing</xref>.
+                            field representation processing</xref>).
                     </t>
                     <t>
                         The reference set enables differential encoding,
@@ -274,6 +271,16 @@
                         was referenced from the reference set, its reference
                         is removed from the reference set.
                     </t>
+                    <t>
+                        To limit the memory requirements on the decoder side
+                        for handling the reference set, only entries within
+                        the header table can be contained in the reference
+                        set. To still allow entries from the static table to
+                        take advantage of the differential encoding, when a
+                        header field is represented as a reference to an entry
+                        of the static table, this entry is inserted into the
+                        header table ((see <xref
+                            target="header.representation.processing">).
                 </section>
 
                 <section title="Header Field Representation"
@@ -366,7 +373,7 @@ Insertion Point       Drop Point
                     <t>
                         By emitting header fields instead of emitting header
                         sets, the decoder can be implemented in a streaming
-                        way, and as such must only keep in memory the header
+                        way, and as such has only to keep in memory the header
                         table and the reference set. This bounds the amount of
                         memory used by the decoder, even in presence of a very
                         large set of header fields. The management of memory
@@ -386,8 +393,8 @@ Insertion Point       Drop Point
                         emission (see <xref
                             target="reference.set.emission"/>). The header
                         fields emitted during the reference set emission MUST
-                        be emitted after all the other header field emissions,
-                        but MAY be emitted in any order.
+                        be emitted after the emission of all the other header
+                        fields, but MAY be emitted in any order.
                     </t>
                 </section>
             </section>
@@ -426,8 +433,9 @@ Insertion Point       Drop Point
                                 <list style="symbols">
                                     <t>The header field corresponding to the
                                         referenced entry is emitted.</t>
-                                    <t>The referenced static entry is added to
-                                        the header table.</t>
+                                    <t>The referenced static entry is inserted
+                                        at the beginning of the header
+                                        table.</t>
                                     <t>A reference to this new header table
                                         entry is added to the reference set
                                         (except if this new entry didn't fit
@@ -549,11 +557,12 @@ Insertion Point       Drop Point
                     anchor="entry.addition">
                     <t>
                         Whenever a new entry is to be added to the table, any
-                        name referenced by the representation is cached, and
-                        then entries are evicted from the end of the header
-                        table until the size of the header table is less than
-                        or equal to SETTINGS_HEADER_TABLE_SIZE - new entry
-                        size, or until the table is empty.
+                        name referenced by the representation of this new
+                        entry is cached, and then entries are evicted from the
+                        end of the header table until the size of the header
+                        table is less than or equal to
+                        SETTINGS_HEADER_TABLE_SIZE - new entry size, or until
+                        the table is empty.
                     </t>
                     <t>
                         If the size of the new entry is less than or equal to
