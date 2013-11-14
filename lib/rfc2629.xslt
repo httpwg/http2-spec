@@ -4027,7 +4027,7 @@ dd, li, p {
         <xsl:choose>
           <xsl:when test="self::xref">
             <xsl:variable name="target" select="@target"/>
-            <xsl:comment>workaround for Saxon 9.1 bug; force evalutation of: <xsl:value-of select="$target"/></xsl:comment>
+            <xsl:comment>workaround for Saxon 9.1 bug; force evaluation of: <xsl:value-of select="$target"/></xsl:comment>
             <xsl:variable name="no"><xsl:number level="any" count="xref[@target=$target]"/></xsl:variable>
             <xsl:text>#</xsl:text>
             <xsl:value-of select="$anchor-prefix"/>
@@ -4799,7 +4799,7 @@ dd, li, p {
           </xsl:otherwise>
         </xsl:choose>
 
-        <!-- add warning for incpmpatible IPR attribute on RFCs -->
+        <!-- add warning for incompatible IPR attribute on RFCs -->
         <xsl:variable name="stds-rfc-compatible-ipr"
                       select="/rfc/@ipr='pre5378Trust200902' or /rfc/@ipr='trust200902' or /rfc/@ipr='trust200811' or /rfc/@ipr='full3978' or /rfc/@ipr='full3667' or /rfc/@ipr='full2026'"/>
 
