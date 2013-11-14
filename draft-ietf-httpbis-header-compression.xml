@@ -164,9 +164,8 @@
                             The reference set (see <xref
                                 target="reference.set"/>) is a component
                             containing an unordered set of references to
-                            entries in the header table or static table.
-                            This is used for the differential encoding of a new
-                            header set.
+                            entries in the header table.  This is used for the
+                            differential encoding of a new header set.
                         </t>
                         <t hangText="Header Set:">
                             A header set is a potentially ordered group of
@@ -222,8 +221,8 @@
                         A header table consists of a list of header fields
                         maintained in first-in, first-out order.
                         The first and newest entry in a header table is always
-                        at index 0, and the oldest entry of a header table is
-                        at the index len(header table)-1.
+                        at index 1, and the oldest entry of a header table is
+                        at the index len(header table).
                     </t>
                     <t>
                         The header table is initially empty.
@@ -244,16 +243,14 @@
                         The header table is updated during the processing of
                         a set of header field representations (see <xref
                             target="header.representation.processing"> header
-                            field
-                            representation processing</xref>.
+                            field representation processing</xref>).
                     </t>
                 </section>
 
                 <section title="Reference Set" anchor="reference.set">
                     <t>
                         A reference set is an unordered set of references to
-                        entries either within the header table or the static
-                        table.
+                        entries of the header table.
                     </t>
                     <t>
                         The reference set is initially empty.
@@ -262,17 +259,30 @@
                         The reference set is updated during the processing of
                         a set of header field representations (see <xref
                             target="header.representation.processing"> header
-                            field representation processing</xref>.
+                            field representation processing</xref>).
                     </t>
                     <t>
                         The reference set enables differential encoding,
                         whereby only differences between the previous header
-                        set and the current header set need to be encoded.
+                        set and the current header set need to be encoded. The
+                        use of differential encoding is optional for any
+                        header set.
                     </t>
                     <t>
                         When an entry is evicted from the header table, if it
                         was referenced from the reference set, its reference
                         is removed from the reference set.
+                    </t>
+                    <t>
+                        To limit the memory requirements on the decoder side
+                        for handling the reference set, only entries within
+                        the header table can be contained in the reference
+                        set. To still allow entries from the static table to
+                        take advantage of the differential encoding, when a
+                        header field is represented as a reference to an entry
+                        of the static table, this entry is inserted into the
+                        header table ((see <xref
+                            target="header.representation.processing"/>).
                     </t>
                 </section>
 
@@ -321,7 +331,7 @@
        <----------  Index Address Space ---------->
        <-- Header  Table -->  <-- Static  Table -->
        +---+-----------+---+  +---+-----------+---+
-       | 0 |    ...    | k |  |k+1|    ...    | n |
+       | 1 |    ...    | k |  |k+1|    ...    | n |
        +---+-----------+---+  +---+-----------+---+
        ^                   |
        |                   V
@@ -331,19 +341,23 @@ Insertion Point       Drop Point
                                 </figure>
                                 <list>
                                     <t>
-                                        Indices between 0 and len(header
-                                        table)-1, inclusive, refer to elements
-                                        in the header table, with index 0
+                                        Indices between 1 and len(header
+                                        table), inclusive, refer to elements
+                                        in the header table, with index 1
                                         referring to the beginning of the
                                         table.
                                     </t>
                                     <t>
-                                        Indices between len(header table) and
-                                        len(header table)+len(static table)-1,
+                                        Indices between len(header table)+1 and
+                                        len(header table)+len(static table),
                                         inclusive, refer to elements in the
                                         static table, where the index
-                                        len(header table) refers to the first
+                                        len(header table)+1 refers to the first
                                         entry in the static table.
+                                    </t>
+                                    <t>
+                                        Index 0 signals that the reference set
+                                        MUST be emptied.
                                     </t>
                                     <t>
                                         Any other indices MUST be treated as
@@ -366,7 +380,7 @@ Insertion Point       Drop Point
                     <t>
                         By emitting header fields instead of emitting header
                         sets, the decoder can be implemented in a streaming
-                        way, and as such must only keep in memory the header
+                        way, and as such has only to keep in memory the header
                         table and the reference set. This bounds the amount of
                         memory used by the decoder, even in presence of a very
                         large set of header fields. The management of memory
@@ -378,6 +392,16 @@ Insertion Point       Drop Point
                         each value within the list MAY be emitted separately,
                         with the same header field name, and the order of
                         emission MUST be the order of appearance in the list.
+                    </t>
+                    <t>
+                        The decoder MUST pass the header fields to the
+                        application in their emission order, except for the
+                        header fields emitted during the reference set
+                        emission (see <xref
+                            target="reference.set.emission"/>). The header
+                        fields emitted during the reference set emission MUST
+                        be emitted after the emission of all the other header
+                        fields, but MAY be emitted in any order.
                     </t>
                 </section>
             </section>
@@ -399,6 +423,13 @@ Insertion Point       Drop Point
                         are presented, as specified below.
                     </t>
                     <t>
+                        An <spanx>indexed representation</spanx> with an index
+                        value of 0 entails the following actions:
+                        <list style="symbols">
+                            <t>The reference set is emptied.</t>
+                        </list>
+                    </t>
+                    <t>
                         An <spanx>indexed representation</spanx> corresponding
                         to an entry <spanx>present</spanx> in the
                         reference set entails the following actions:
@@ -416,8 +447,9 @@ Insertion Point       Drop Point
                                 <list style="symbols">
                                     <t>The header field corresponding to the
                                         referenced entry is emitted.</t>
-                                    <t>The referenced static entry is added to
-                                        the header table.</t>
+                                    <t>The referenced static entry is inserted
+                                        at the beginning of the header
+                                        table.</t>
                                     <t>A reference to this new header table
                                         entry is added to the reference set
                                         (except if this new entry didn't fit
@@ -539,11 +571,12 @@ Insertion Point       Drop Point
                     anchor="entry.addition">
                     <t>
                         Whenever a new entry is to be added to the table, any
-                        name referenced by the representation is cached, and
-                        then entries are evicted from the end of the header
-                        table until the size of the header table is less than
-                        or equal to SETTINGS_HEADER_TABLE_SIZE - new entry
-                        size, or until the table is empty.
+                        name referenced by the representation of this new
+                        entry is cached, and then entries are evicted from the
+                        end of the header table until the size of the header
+                        table is less than or equal to
+                        SETTINGS_HEADER_TABLE_SIZE - new entry size, or until
+                        the table is empty.
                     </t>
                     <t>
                         If the size of the new entry is less than or equal to
@@ -826,11 +859,9 @@ Else
                 anchor="indexed.header.representation">
                 <t>
                     An indexed header field representation either identifies an
-                    entry in the header table or static table.  The specified
-                    entry is emitted and a reference to that entry is added to
-                    the reference set if it is not currently in the reference
-                    set. If it is present in the reference set then the
-                    reference is removed and the entry is not emitted.
+                    entry in the header table or static table.  The processing
+                    of an indexed header field representation is described in
+                    <xref target="header.representation.processing"/>.
                 </t>
 
                 <figure title="Indexed Header Field">
@@ -845,6 +876,10 @@ Else
                     This representation starts with the '1' 1-bit pattern,
                     followed by the index of the matching pair, represented as
                     an integer with a 7-bit prefix.
+                </t>
+                <t>
+                    The index value of 0 is reserved for signalling that the
+                    reference set is emptied.
                 </t>
             </section>
 
@@ -901,16 +936,16 @@ Else
                     <t>
                         If the header field name matches the header field name
                         of a (name, value) pair stored in the Header Table or
-                        Static Table, the index of that entry, increased by
-                        one (index + 1), is represented as an integer with a
-                        6-bit prefix.  Note that if the index is strictly
-                        below 63, only one byte is used for this
-                        representation.
+                        Static Table, the header field name can be represented
+                        using the index of that entry. In this case, the index
+                        of the entry, index (which is strictly greater than 0),
+                        is represented as an integer with a 6-bit prefix (see
+                        <xref target="integer.representation"/>).
                     </t>
                     <t>
-                        If the header field name does not match a header field
-                        name entry, the value 0 is represented on 6 bits
-                        followed by the header field name (<xref
+                        Otherwise, the header field name is represented as a
+                        literal. The value 0 is represented on 6 bits followed
+                        by the header field name (see <xref
                             target="string.literal.representation" />).
                     </t>
                     <t>
@@ -964,15 +999,17 @@ Else
                     </t>
                     <t>
                         If the header field name matches the header field name
-                        of a (name, value) pair stored in the header table or
-                        static table, the index of the pair increased by one
-                        (index + 1) is represented as an integer with a 6-bit
-                        prefix.
+                        of a (name, value) pair stored in the Header Table or
+                        Static Table, the header field name can be represented
+                        using the index of that entry. In this case, the index
+                        of the entry, index (which is strictly greater than 0),
+                        is represented as an integer with a 6-bit prefix (see
+                        <xref target="integer.representation"/>).
                     </t>
                     <t>
-                        If the header field name does not match a header field
-                        name entry, the value 0 is represented on 6 bits
-                        followed by the header field name (<xref
+                        Otherwise, the header field name is represented as a
+                        literal. The value 0 is represented on 6 bits followed
+                        by the header field name (see <xref
                             target="string.literal.representation" />).
                     </t>
                     <t>
@@ -1227,6 +1264,23 @@ Else
 
 
         <section title="Change Log (to be removed by RFC Editor before publication">
+            <section title="Since draft-ietf-httpbis-header-compression-04">
+                <t><list style="symbols">
+                    <t>
+                        Added reference set emptying.
+                    </t>
+                    <t>
+                        Editorial changes and clarifications.
+                    </t>
+                    <t>
+                        Added "host" header to the static table.
+                    </t>
+                    <t>
+                        Specify emission order constraints.
+                    </t>
+                </list></t>
+            </section>
+
             <section title="Since draft-ietf-httpbis-header-compression-03" anchor="changes.since.draft-ietf-httpbis-header-compression-03">
                 <t><list style="symbols">
                     <t>
@@ -1319,9 +1373,9 @@ Else
             <t>
                 The static table consists of an unchangable ordered list of
                 (name, value) pairs. The first entry in the table is always
-                represented by the index len(header table), and the last entry
+                represented by the index len(header table)+1, and the last entry
                 in the table is represented by the index len(header
-                table)+len(static table)-1.
+                table)+len(static table).
             </t>
             <t>
                 <cref>
@@ -1352,65 +1406,66 @@ Else
                     <ttcol>Header Name</ttcol>
                     <ttcol>Header Value</ttcol>
 
-                    <c>0</c><c>:authority</c><c></c>
-                    <c>1</c><c>:method</c><c>GET</c>
-                    <c>2</c><c>:method</c><c>POST</c>
-                    <c>3</c><c>:path</c><c>/</c>
-                    <c>4</c><c>:path</c><c>/index.html</c>
-                    <c>5</c><c>:scheme</c><c>http</c>
-                    <c>6</c><c>:scheme</c><c>https</c>
-                    <c>7</c><c>:status</c><c>200</c>
-                    <c>8</c><c>:status</c><c>500</c>
-                    <c>9</c><c>:status</c><c>404</c>
-                    <c>10</c><c>:status</c><c>403</c>
-                    <c>11</c><c>:status</c><c>400</c>
-                    <c>12</c><c>:status</c><c>401</c>
-                    <c>13</c><c>accept-charset</c><c></c>
-                    <c>14</c><c>accept-encoding</c><c></c>
-                    <c>15</c><c>accept-language</c><c></c>
-                    <c>16</c><c>accept-ranges</c><c></c>
-                    <c>17</c><c>accept</c><c></c>
-                    <c>18</c><c>access-control-allow-origin</c><c></c>
-                    <c>19</c><c>age</c><c></c>
-                    <c>20</c><c>allow</c><c></c>
-                    <c>21</c><c>authorization</c><c></c>
-                    <c>22</c><c>cache-control</c><c></c>
-                    <c>23</c><c>content-disposition</c><c></c>
-                    <c>24</c><c>content-encoding</c><c></c>
-                    <c>25</c><c>content-language</c><c></c>
-                    <c>26</c><c>content-length</c><c></c>
-                    <c>27</c><c>content-location</c><c></c>
-                    <c>28</c><c>content-range</c><c></c>
-                    <c>29</c><c>content-type</c><c></c>
-                    <c>30</c><c>cookie</c><c></c>
-                    <c>31</c><c>date</c><c></c>
-                    <c>32</c><c>etag</c><c></c>
-                    <c>33</c><c>expect</c><c></c>
-                    <c>34</c><c>expires</c><c></c>
-                    <c>35</c><c>from</c><c></c>
-                    <c>36</c><c>if-match</c><c></c>
-                    <c>37</c><c>if-modified-since</c><c></c>
-                    <c>38</c><c>if-none-match</c><c></c>
-                    <c>39</c><c>if-range</c><c></c>
-                    <c>40</c><c>if-unmodified-since</c><c></c>
-                    <c>41</c><c>last-modified</c><c></c>
-                    <c>42</c><c>link</c><c></c>
-                    <c>43</c><c>location</c><c></c>
-                    <c>44</c><c>max-forwards</c><c></c>
-                    <c>45</c><c>proxy-authenticate</c><c></c>
-                    <c>46</c><c>proxy-authorization</c><c></c>
-                    <c>47</c><c>range</c><c></c>
-                    <c>48</c><c>referer</c><c></c>
-                    <c>49</c><c>refresh</c><c></c>
-                    <c>50</c><c>retry-after</c><c></c>
-                    <c>51</c><c>server</c><c></c>
-                    <c>52</c><c>set-cookie</c><c></c>
-                    <c>53</c><c>strict-transport-security</c><c></c>
-                    <c>54</c><c>transfer-encoding</c><c></c>
-                    <c>55</c><c>user-agent</c><c></c>
-                    <c>56</c><c>vary</c><c></c>
-                    <c>57</c><c>via</c><c></c>
-                    <c>58</c><c>www-authenticate</c><c></c>
+                    <c>1</c><c>:authority</c><c></c>
+                    <c>2</c><c>:method</c><c>GET</c>
+                    <c>3</c><c>:method</c><c>POST</c>
+                    <c>4</c><c>:path</c><c>/</c>
+                    <c>5</c><c>:path</c><c>/index.html</c>
+                    <c>6</c><c>:scheme</c><c>http</c>
+                    <c>7</c><c>:scheme</c><c>https</c>
+                    <c>8</c><c>:status</c><c>200</c>
+                    <c>9</c><c>:status</c><c>500</c>
+                    <c>10</c><c>:status</c><c>404</c>
+                    <c>11</c><c>:status</c><c>403</c>
+                    <c>12</c><c>:status</c><c>400</c>
+                    <c>13</c><c>:status</c><c>401</c>
+                    <c>14</c><c>accept-charset</c><c></c>
+                    <c>15</c><c>accept-encoding</c><c></c>
+                    <c>16</c><c>accept-language</c><c></c>
+                    <c>17</c><c>accept-ranges</c><c></c>
+                    <c>18</c><c>accept</c><c></c>
+                    <c>19</c><c>access-control-allow-origin</c><c></c>
+                    <c>20</c><c>age</c><c></c>
+                    <c>21</c><c>allow</c><c></c>
+                    <c>22</c><c>authorization</c><c></c>
+                    <c>23</c><c>cache-control</c><c></c>
+                    <c>24</c><c>content-disposition</c><c></c>
+                    <c>25</c><c>content-encoding</c><c></c>
+                    <c>26</c><c>content-language</c><c></c>
+                    <c>27</c><c>content-length</c><c></c>
+                    <c>28</c><c>content-location</c><c></c>
+                    <c>29</c><c>content-range</c><c></c>
+                    <c>30</c><c>content-type</c><c></c>
+                    <c>31</c><c>cookie</c><c></c>
+                    <c>32</c><c>date</c><c></c>
+                    <c>33</c><c>etag</c><c></c>
+                    <c>34</c><c>expect</c><c></c>
+                    <c>35</c><c>expires</c><c></c>
+                    <c>36</c><c>from</c><c></c>
+                    <c>37</c><c>from</c><c></c>
+                    <c>38</c><c>if-match</c><c></c>
+                    <c>39</c><c>if-modified-since</c><c></c>
+                    <c>40</c><c>if-none-match</c><c></c>
+                    <c>41</c><c>if-range</c><c></c>
+                    <c>42</c><c>if-unmodified-since</c><c></c>
+                    <c>43</c><c>last-modified</c><c></c>
+                    <c>44</c><c>link</c><c></c>
+                    <c>45</c><c>location</c><c></c>
+                    <c>46</c><c>max-forwards</c><c></c>
+                    <c>47</c><c>proxy-authenticate</c><c></c>
+                    <c>48</c><c>proxy-authorization</c><c></c>
+                    <c>49</c><c>range</c><c></c>
+                    <c>50</c><c>referer</c><c></c>
+                    <c>51</c><c>refresh</c><c></c>
+                    <c>52</c><c>retry-after</c><c></c>
+                    <c>53</c><c>server</c><c></c>
+                    <c>54</c><c>set-cookie</c><c></c>
+                    <c>55</c><c>strict-transport-security</c><c></c>
+                    <c>56</c><c>transfer-encoding</c><c></c>
+                    <c>57</c><c>user-agent</c><c></c>
+                    <c>58</c><c>vary</c><c></c>
+                    <c>59</c><c>via</c><c></c>
+                    <c>60</c><c>www-authenticate</c><c></c>
                 </texttable>
             <t>
                 The table give the index of each entry in the static table.
@@ -1981,6 +2036,8 @@ Else
             <t>
                 A number of examples are worked through here, for both
                 requests and responses, and with and without huffman coding.
+                <cref>These examples don't take into account the use of index
+                0 for signalling the emptying of the reference set.</cref>
             </t>
             <section title="Request Decoding Example With Huffman"
                 anchor="request.huffman.decoding.example">
@@ -2466,7 +2523,7 @@ custom-key: custom-value
 :status: 302
 cache-control: private
 date: Mon, 21 OCt 2013 20:13:21 GMT
-location: : https://www.bar.com
+location: https://www.bar.com
 
 # Hexdump of encoded data which will be decoded
 08 82 40 9f 18 86 c3 1b 39 bf 38 7f 22 92 a2 fb | ..@.....9.8."...
@@ -2536,7 +2593,7 @@ LITERAL_INCREMENTAL_OPCODE:
 :status: 302
 cache-control: private
 date: Mon, 21 OCt 2013 20:13:21 GMT
-location: : https://www.bar.com
+location: https://www.bar.com
 
 #########################
 
@@ -2681,8 +2738,8 @@ QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
 QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
 IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
 IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234ma\
-x-age=3600; version=1"
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 m\
+ax-age=3600; version=1"
 
 INDEX_OPCODE:
         opcodeLengthInBits: 1
@@ -2805,8 +2862,8 @@ QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
 QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
 IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
 IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234ma\
-x-age=3600; version=1"
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 m\
+ax-age=3600; version=1"
 
 INDEX_OPCODE:
         opcodeLengthInBits: 1
@@ -3066,8 +3123,8 @@ QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
 QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
 IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
 IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234ma\
-x-age=3600; version=1"
+ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 m\
+ax-age=3600; version=1"
 
 INDEX_OPCODE:
         opcodeLengthInBits: 1
@@ -3189,8 +3246,8 @@ QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
 QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
 IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
 IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234ma\
-x-age=3600; version=1"
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 m\
+ax-age=3600; version=1"
 
 INDEX_OPCODE:
         opcodeLengthInBits: 1
