@@ -221,8 +221,8 @@
                         A header table consists of a list of header fields
                         maintained in first-in, first-out order.
                         The first and newest entry in a header table is always
-                        at index 0, and the oldest entry of a header table is
-                        at the index len(header table)-1.
+                        at index 1, and the oldest entry of a header table is
+                        at the index len(header table).
                     </t>
                     <t>
                         The header table is initially empty.
@@ -264,7 +264,9 @@
                     <t>
                         The reference set enables differential encoding,
                         whereby only differences between the previous header
-                        set and the current header set need to be encoded.
+                        set and the current header set need to be encoded. The
+                        use of differential encoding is optional for any
+                        header set.
                     </t>
                     <t>
                         When an entry is evicted from the header table, if it
@@ -329,7 +331,7 @@
        <----------  Index Address Space ---------->
        <-- Header  Table -->  <-- Static  Table -->
        +---+-----------+---+  +---+-----------+---+
-       | 0 |    ...    | k |  |k+1|    ...    | n |
+       | 1 |    ...    | k |  |k+1|    ...    | n |
        +---+-----------+---+  +---+-----------+---+
        ^                   |
        |                   V
@@ -339,19 +341,23 @@ Insertion Point       Drop Point
                                 </figure>
                                 <list>
                                     <t>
-                                        Indices between 0 and len(header
-                                        table)-1, inclusive, refer to elements
-                                        in the header table, with index 0
+                                        Indices between 1 and len(header
+                                        table), inclusive, refer to elements
+                                        in the header table, with index 1
                                         referring to the beginning of the
                                         table.
                                     </t>
                                     <t>
-                                        Indices between len(header table) and
-                                        len(header table)+len(static table)-1,
+                                        Indices between len(header table)+1 and
+                                        len(header table)+len(static table),
                                         inclusive, refer to elements in the
                                         static table, where the index
-                                        len(header table) refers to the first
+                                        len(header table)+1 refers to the first
                                         entry in the static table.
+                                    </t>
+                                    <t>
+                                        Index 0 signals that the reference set
+                                        MUST be emptied.
                                     </t>
                                     <t>
                                         Any other indices MUST be treated as
@@ -415,6 +421,13 @@ Insertion Point       Drop Point
                         All the header field representations contained in a
                         header block are processed in the order in which they
                         are presented, as specified below.
+                    </t>
+                    <t>
+                        An <spanx>indexed representation</spanx> with an index
+                        value of 0 entails the following actions:
+                        <list style="symbols">
+                            <t>The reference set is emptied.</t>
+                        </list>
                     </t>
                     <t>
                         An <spanx>indexed representation</spanx> corresponding
@@ -864,6 +877,10 @@ Else
                     followed by the index of the matching pair, represented as
                     an integer with a 7-bit prefix.
                 </t>
+                <t>
+                    The index value of 0 is reserved for signalling that the
+                    reference set is emptied.
+                </t>
             </section>
 
             <section title="Literal Header Field Representation"
@@ -921,8 +938,8 @@ Else
                         of a (name, value) pair stored in the Header Table or
                         Static Table, the header field name can be represented
                         using the index of that entry. In this case, the index
-                        of the entry, increased by one (index + 1), is
-                        represented as an integer with a 6-bit prefix (see
+                        of the entry, index (which is strictly greater than 0),
+                        is represented as an integer with a 6-bit prefix (see
                         <xref target="integer.representation"/>).
                     </t>
                     <t>
@@ -985,8 +1002,8 @@ Else
                         of a (name, value) pair stored in the Header Table or
                         Static Table, the header field name can be represented
                         using the index of that entry. In this case, the index
-                        of the entry, increased by one (index + 1), is
-                        represented as an integer with a 6-bit prefix (see
+                        of the entry, index (which is strictly greater than 0),
+                        is represented as an integer with a 6-bit prefix (see
                         <xref target="integer.representation"/>).
                     </t>
                     <t>
@@ -1250,6 +1267,9 @@ Else
             <section title="Since draft-ietf-httpbis-header-compression-04">
                 <t><list style="symbols">
                     <t>
+                        Added reference set emptying.
+                    </t>
+                    <t>
                         Editorial changes and clarifications.
                     </t>
                     <t>
@@ -1353,9 +1373,9 @@ Else
             <t>
                 The static table consists of an unchangable ordered list of
                 (name, value) pairs. The first entry in the table is always
-                represented by the index len(header table), and the last entry
+                represented by the index len(header table)+1, and the last entry
                 in the table is represented by the index len(header
-                table)+len(static table)-1.
+                table)+len(static table).
             </t>
             <t>
                 <cref>
@@ -2016,6 +2036,8 @@ Else
             <t>
                 A number of examples are worked through here, for both
                 requests and responses, and with and without huffman coding.
+                <cref>These examples don't take into account the use of index
+                0 for signalling the emptying of the reference set.</cref>
             </t>
             <section title="Request Decoding Example With Huffman"
                 anchor="request.huffman.decoding.example">
