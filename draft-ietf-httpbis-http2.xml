@@ -620,13 +620,17 @@ HTTP2-Settings    = token68
           (see <xref target="PushResources" />).
         </t>
         <t>
-          Header sets are logical collections of zero or more header fields arranged at the
-          application layer.  When transmitted over a connection, the header set is serialized into
-          a header block using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The
+          Header lists are ordered collections of zero or more header fields arranged at the
+          application layer.  When transmitted over a connection, a header list is serialized into a
+          header block using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The
           serialized header block is then divided into one or more octet sequences, called header
           block fragments, and transmitted within the payload of <xref
           target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
-          target="CONTINUATION">CONTINUATION</xref> frames.  
+          target="CONTINUATION">CONTINUATION</xref> frames.
+        </t>
+        <t>
+          The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
+          mapping, see <xref target="CompressCookie"/>.
         </t>
         <t>
           A receiving endpoint reassembles the header block by concatenating the individual
@@ -2486,6 +2490,26 @@ HTTP2-Settings    = token68
           </t>
         </section>
 
+        <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
+          <t>
+            The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
+            redundant data.
+          </t>
+          <t>
+            The Cookie header field uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
+            This header field doesn't follow the list construction rules in HTTP (see <xref
+            target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), which prevents cookie-pairs from
+            being separated into different name-value pairs.  This can significantly reduce
+            compression efficiency as individual cookie-pairs are updated.
+          </t>
+          <t>
+            To allow for better compression efficiency, the Cookie header field MAY be split into
+            separate header fields, each with one or more cookie-pairs.  If there are multiple
+            Cookie header fields after decompression, these MUST be concatenated into a single octet
+            string using the two octet delimiter of 0x3B, 0x20 (the ASCII string "; ").
+          </t>
+        </section>
+
         <section anchor="malformed" title="Malformed Requests and Responses">
           <t>
             A malformed request or response is one that uses a valid sequence of HTTP/2.0 frames,
@@ -3403,6 +3427,17 @@ HTTP2-Settings    = token68
         <x:source href="refs/draft-ietf-httpbis-p7-auth-24.xml" 
                   basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p7-auth"/>
       </reference>
+
+      <reference anchor="COOKIE">
+        <front>
+          <title>HTTP State Management Mechanism</title>
+          <author initials="A." surname="Barth" fullname="A. Barth">
+          <organization /></author>
+          <date year="2011" month="April" />
+        </front>
+        <seriesInfo name="RFC" value="6265" />
+      </reference>
+
     </references>
 
     <references title="Informative References">
@@ -3465,6 +3500,12 @@ HTTP2-Settings    = token68
     </references>
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
+
+      <section title="Since draft-ietf-httpbis-http2-08" anchor="changes.since.draft-ietf-httpbis-http2-08">
+        <t>
+          Added cookie crumbling for more efficient header compression.
+        </t>
+      </section>
 
       <section title="Since draft-ietf-httpbis-http2-07" anchor="changes.since.draft-ietf-httpbis-http2-07">
         <t>
