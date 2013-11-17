@@ -1,7 +1,7 @@
 <!--
     Strip rfc2629.xslt extensions, generating XML input for MTR's xml2rfc
 
-    Copyright (c) 2006-2011, Julian Reschke (julian.reschke@greenbytes.de)
+    Copyright (c) 2006-2013, Julian Reschke (julian.reschke@greenbytes.de)
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -609,14 +609,14 @@
 
 <xsl:template name="insert-begin-code"/>
 <xsl:template name="insert-end-code"/>
-<xsl:template match="@x:isCodeComponent" mode="cleanup"/>
+<xsl:template match="@x:is-code-component" mode="cleanup"/>
 
 <xsl:template match="artwork" mode="cleanup">
   <xsl:variable name="content2"><xsl:apply-templates select="."/></xsl:variable>
   <xsl:variable name="content" select="translate($content2,'&#160;&#x2500;&#x2502;&#x2508;&#x250c;&#x2510;&#x2514;&#x2518;&#x251c;&#x2524;',' -|+++++++')"/>
   <artwork>
     <xsl:apply-templates select="@*" mode="cleanup" />
-    <xsl:if test="@x:isCodeComponent='yes'">
+    <xsl:if test="@x:is-code-component='yes'">
       <xsl:if test="starts-with(.,'&#10;')">
         <xsl:text>&#10;</xsl:text>
       </xsl:if>
@@ -638,7 +638,7 @@
         <xsl:value-of select="$content"/>
       </xsl:otherwise>
     </xsl:choose>
-    <xsl:if test="@x:isCodeComponent='yes'">&#10;&lt;CODE ENDS&gt;&#10;</xsl:if>
+    <xsl:if test="@x:is-code-component='yes'">&#10;&lt;CODE ENDS&gt;&#10;</xsl:if>
   </artwork>  
 </xsl:template>
 

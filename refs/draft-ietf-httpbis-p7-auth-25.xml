@@ -11,8 +11,8 @@
   <!ENTITY SHALL-NOT "<bcp14 xmlns='http://purl.org/net/xml2rfc/ext'>SHALL NOT</bcp14>">
   <!ENTITY SHOULD "<bcp14 xmlns='http://purl.org/net/xml2rfc/ext'>SHOULD</bcp14>">
   <!ENTITY SHOULD-NOT "<bcp14 xmlns='http://purl.org/net/xml2rfc/ext'>SHOULD NOT</bcp14>">
-  <!ENTITY ID-VERSION "24">
-  <!ENTITY ID-MONTH "September">
+  <!ENTITY ID-VERSION "25">
+  <!ENTITY ID-MONTH "November">
   <!ENTITY ID-YEAR "2013">
   <!ENTITY mdash "&#8212;">
   <!ENTITY Note "<x:h xmlns:x='http://purl.org/net/xml2rfc/ext'>Note:</x:h>">
@@ -48,7 +48,7 @@
 <rfc obsoletes="2616" updates="2617" category="std" x:maturity-level="proposed"
      ipr="pre5378Trust200902" docName="draft-ietf-httpbis-p7-auth-&ID-VERSION;"
      xmlns:x='http://purl.org/net/xml2rfc/ext'>
-<x:link rel="prev" basename="draft-ietf-httpbis-p6-cache-24"/>
+<x:link rel="prev" basename="draft-ietf-httpbis-p6-cache-25"/>
 <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
 <front>
 
@@ -82,7 +82,7 @@
     </address>
   </author>
 
-  <date month="&ID-MONTH;" year="&ID-YEAR;" day="25"/>
+  <date month="&ID-MONTH;" year="&ID-YEAR;" day="17"/>
   <workgroup>HTTPbis Working Group</workgroup>
 
 <abstract>
@@ -106,7 +106,7 @@
     <eref target="http://tools.ietf.org/wg/httpbis/"/>.
   </t>
   <t>
-    The changes in this draft are summarized in <xref target="changes.since.23"/>.
+    The changes in this draft are summarized in <xref target="changes.since.24"/>.
   </t>
 </note>
 </front>
@@ -203,15 +203,6 @@
 </artwork></figure>
 <x:note>
   <t>
-     &Note; User agents will need to take special care in parsing the
-     <x:ref>WWW-Authenticate</x:ref> and <x:ref>Proxy-Authenticate</x:ref>
-     header field values because they can contain more than one challenge, or
-     if more than one of each is provided, since the contents of a challenge
-     can itself contain a comma-separated list of authentication parameters.
-  </t>
-</x:note>
-<x:note>
-  <t>
      &Note; Many clients fail to parse challenges containing unknown
      schemes. A workaround for this problem is to list well-supported schemes
      (such as "basic") first.<!-- see http://greenbytes.de/tech/tc/httpauth/#multibasicunknown2 -->
@@ -242,31 +233,30 @@
   <x:ref>credentials</x:ref> = <x:ref>auth-scheme</x:ref> [ 1*<x:ref>SP</x:ref> ( <x:ref>token68</x:ref> / #<x:ref>auth-param</x:ref> ) ]
 </artwork></figure>
 <t>
-   Upon a request for a protected resource that omits credentials, contains
-   invalid credentials (e.g., a bad password) or partial credentials (e.g.,
-   when the authentication scheme requires more than one round trip), an origin
-   server &SHOULD; send a <x:ref>401 (Unauthorized)</x:ref> response that
+   Upon receipt of a request for a protected resource that omits credentials,
+   contains invalid credentials (e.g., a bad password) or partial credentials
+   (e.g., when the authentication scheme requires more than one round trip), an
+   origin server &SHOULD; send a <x:ref>401 (Unauthorized)</x:ref> response that
    contains a <x:ref>WWW-Authenticate</x:ref> header field with at least one
    (possibly new) challenge applicable to the requested resource.
 </t>
 <t>
-   Likewise, upon a request that requires authentication by proxies that omit
-   credentials or contain invalid or partial credentials, a proxy &SHOULD;
-   send a <x:ref>407 (Proxy Authentication Required)</x:ref> response that
-   contains a <x:ref>Proxy-Authenticate</x:ref> header field with a (possibly
-   new) challenge applicable to the proxy.
+   Likewise, upon receipt of a request that requires authentication by proxies
+   that omit credentials or contain invalid or partial credentials, a proxy
+   &SHOULD; send a <x:ref>407 (Proxy Authentication Required)</x:ref> response
+   that contains a <x:ref>Proxy-Authenticate</x:ref> header field with a
+   (possibly new) challenge applicable to the proxy.
 </t>
 <t>
    A server receiving credentials that are valid, but not adequate to gain
    access, ought to respond with the <x:ref>403 (Forbidden)</x:ref> status code (&status.403;).
 </t>
 <t>
-   The HTTP protocol does not restrict applications to this simple
-   challenge-response framework for access authentication. Additional
-   mechanisms &MAY; be used, such as encryption at the transport level or
-   via message encapsulation, and with additional header fields
-   specifying authentication information. However, such additional
-   mechanisms are not defined by this specification.
+   HTTP does not restrict applications to this simple challenge-response
+   framework for access authentication. Additional mechanisms can be used, such
+   as authentication at the transport level or via message encapsulation, and
+   with additional header fields specifying authentication information. However,
+   such additional mechanisms are not defined by this specification.
 </t>
 <t>
    A proxy &MUST; forward the <x:ref>WWW-Authenticate</x:ref> and
@@ -300,10 +290,11 @@
    The protection space determines the domain over which credentials can
    be automatically applied. If a prior request has been authorized, the
    user agent &MAY; reuse the same credentials for all other requests within
-   that protection space for a period of time determined by the
-   authentication scheme, parameters, and/or user preference. Unless
-   specifically allowed by the authentication scheme, a single protection
-   space cannot extend outside the scope of its server.
+   that protection space for a period of time determined by the authentication
+   scheme, parameters, and/or user preferences (such as a configurable
+   inactivity timeout). Unless specifically allowed by the authentication
+   scheme, a single protection space cannot extend outside the scope of its
+   server.
 </t>
 <t>
    For historical reasons, a sender &MUST; only generate the quoted-string syntax.
@@ -456,11 +447,10 @@
   <x:ref>WWW-Authenticate</x:ref> = 1#<x:ref>challenge</x:ref>
 </artwork></figure>
 <t>
-   User agents are advised to take special care in parsing the WWW-Authenticate
-   field value as it might contain more than one challenge,
-   or if more than one WWW-Authenticate header field is provided, the
-   contents of a challenge itself can contain a comma-separated list of
-   authentication parameters.
+   User agents are advised to take special care in parsing the field value, as
+   it might contain more than one challenge, and each challenge can contain a
+   comma-separated list of authentication parameters. Furthermore, the header
+   field itself can occur multiple times.
 </t>
 <figure>
   <preamble>For instance:</preamble>
@@ -478,7 +468,7 @@
   <t>
     &Note; The challenge grammar production uses the list syntax as 
     well. Therefore, a sequence of comma, whitespace, and comma can be
-    considered both as applying to the preceding challenge, or to be an
+    considered either as applying to the preceding challenge, or to be an
     empty entry in the list of challenges. In practice, this ambiguity
     does not affect the semantics of the header field value and thus is
     harmless.
@@ -494,7 +484,7 @@
 <t>
    The HTTP Authentication Scheme Registry defines the name space for the
    authentication schemes in challenges and credentials. It will be created and
-   maintained at <eref target="http://www.iana.org/assignments/http-authschemes"/>.
+   maintained at (the suggested URI) <eref target="http://www.iana.org/assignments/http-authschemes"/>.
 </t>
 
 <section title="Procedure" anchor="authentication.scheme.registry.procedure">
@@ -767,7 +757,7 @@
     <date month="&ID-MONTH;" year="&ID-YEAR;"/>
   </front>
   <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-&ID-VERSION;"/>
-  <x:source href="draft-ietf-httpbis-p1-messaging-24.xml" basename="draft-ietf-httpbis-p1-messaging-24"/>
+  <x:source href="draft-ietf-httpbis-p1-messaging-25.xml" basename="draft-ietf-httpbis-p1-messaging-25"/>
 </reference>
 
 <reference anchor="Part2">
@@ -784,7 +774,7 @@
     <date month="&ID-MONTH;" year="&ID-YEAR;" />
   </front>
   <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-&ID-VERSION;" />
-  <x:source basename="draft-ietf-httpbis-p2-semantics-24" href="draft-ietf-httpbis-p2-semantics-24.xml">
+  <x:source basename="draft-ietf-httpbis-p2-semantics-25" href="draft-ietf-httpbis-p2-semantics-25.xml">
     <x:defines>403 (Forbidden)</x:defines>
     <x:defines>Location</x:defines>
   </x:source>
@@ -808,7 +798,7 @@
     <date month="&ID-MONTH;" year="&ID-YEAR;"/>
   </front>
   <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-&ID-VERSION;"/>
-  <x:source href="draft-ietf-httpbis-p6-cache-24.xml" basename="draft-ietf-httpbis-p6-cache-24"/>
+  <x:source href="draft-ietf-httpbis-p6-cache-25.xml" basename="draft-ietf-httpbis-p6-cache-25"/>
 </reference>
 
 <reference anchor="RFC2119">
@@ -1092,102 +1082,25 @@
 
 <section title="Change Log (to be removed by RFC Editor before publication)"  anchor="change.log">
 <t>
-  Changes up to the first Working Group Last Call draft are summarized
-  in <eref target="http://trac.tools.ietf.org/html/draft-ietf-httpbis-p7-auth-19#appendix-C"/>.
+  Changes up to the IETF Last Call draft are summarized
+  in <eref target="http://trac.tools.ietf.org/html/draft-ietf-httpbis-p7-auth-24#appendix-D"/>.
 </t>
 
-<section title="Since draft-ietf-httpbis-p7-auth-19" anchor="changes.since.19">
+<section title="Since draft-ietf-httpbis-p7-auth-24" anchor="changes.since.24">
 <t>
   Closed issues:
   <list style="symbols">
     <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/348"/>:
-      "Realms and scope"
+      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/510"/>:
+      "SECDIR review of draft-ietf-httpbis-p7-auth-24"
     </t>
     <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/349"/>:
-      "Strength"
+      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/513"/>:
+      "APPSDIR review of draft-ietf-httpbis-p7-auth-24"
     </t>
     <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/357"/>:
-      "Authentication exchanges"
-    </t>
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/361"/>:
-      "ABNF requirements for recipients"
-    </t>
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/368"/>:
-      "note introduction of new IANA registries as normative changes"
-    </t>
-  </list>
-</t>
-</section>
-
-<section title="Since draft-ietf-httpbis-p7-auth-20" anchor="changes.since.20">
-<t>
-  Closed issues:
-  <list style="symbols">
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/376"/>:
-      "rename b64token for clarity"
-    </t>
-  </list>
-</t>
-<t>
-  Other changes:
-  <list style="symbols">
-    <t>
-      Conformance criteria and considerations regarding error handling are
-      now defined in Part 1.
-    </t>
-  </list>
-</t>
-</section>
-
-<section title="Since draft-ietf-httpbis-p7-auth-21" anchor="changes.since.21">
-<t>
-  Closed issues:
-  <list style="symbols">
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/403"/>:
-      "Authentication and caching - max-age"
-    </t>
-  </list>
-</t>
-</section>
-
-<section title="Since draft-ietf-httpbis-p7-auth-22" anchor="changes.since.22">
-<t>
-  Closed issues:
-  <list style="symbols">
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/436"/>:
-      "explain list expansion in ABNF appendices"
-    </t>
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/439"/>:
-      "terminology: mechanism vs framework vs scheme"
-    </t>
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/463"/>:
-      "Editorial suggestions"
-    </t>
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/464"/>:
-      "placement of extension point considerations"
-    </t>
-  </list>
-</t>
-</section>
-
-<section title="Since draft-ietf-httpbis-p7-auth-23" anchor="changes.since.23">
-<t>
-  Closed issues:
-  <list style="symbols">
-    <t>
-      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/473"/>:
-      "Forwarding Proxy-*"
+      <eref target="http://tools.ietf.org/wg/httpbis/trac/ticket/516"/>:
+      "note about WWW-A parsing potentially misleading"
     </t>
   </list>
 </t>
