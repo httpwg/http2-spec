@@ -3,14 +3,15 @@ HTTP/2.0 Draft Specifications
 =============================
 
 This is the working area for the [IETF HTTPbis Working
-Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of HTTP/2.0.
+Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of
+[HTTP/2.0](http://http2.github.io/).
 
-HTTP/2.0 links:
+HTTP/2.0 specification:
 * [Editor's copy](http://http2.github.com/http2-spec/index.html) (HTML)
 * [Editor's copy](http://http2.github.com/http2-spec/index.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-http2) (less recent, more official)
 
-Header Compression (HPACK) links:
+Header Compression (HPACK) specification:
 * [Editor's copy](http://http2.github.com/http2-spec/compression.html) (HTML)
 * [Editor's copy](http://http2.github.com/http2-spec/compression.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
@@ -19,9 +20,10 @@ Contributing
 ------------
 
 Before submitting feedback, please familiarize yourself with our current issues
-list and review [our home
-page](http://trac.tools.ietf.org/wg/httpbis/trac/wiki). If you're new to this,
-you may also want to read the [Tao of the IETF](http://www.ietf.org/tao.html).
+list and review the [HTTP/2 page](http://http2.github.io/) and the [working
+group home page](http://trac.tools.ietf.org/wg/httpbis/trac/wiki). If you're
+new to this, you may also want to read the [Tao of the
+IETF](http://www.ietf.org/tao.html).
 
 Be aware that all contributions to the specification fall under the "NOTE WELL"
 terms outlined below.
