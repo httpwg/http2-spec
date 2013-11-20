@@ -45,7 +45,7 @@
           <code>94304</code>
           <country>US</country>
         </postal>
-        <email>martin.thomson@skype.net</email>
+        <email>martin.thomson@gmail.com</email>
       </address>
     </author>
 
@@ -620,13 +620,17 @@ HTTP2-Settings    = token68
           (see <xref target="PushResources" />).
         </t>
         <t>
-          Header sets are logical collections of zero or more header fields arranged at the
-          application layer.  When transmitted over a connection, the header set is serialized into
-          a header block using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The
+          Header lists are ordered collections of zero or more header fields arranged at the
+          application layer.  When transmitted over a connection, a header list is serialized into a
+          header block using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The
           serialized header block is then divided into one or more octet sequences, called header
           block fragments, and transmitted within the payload of <xref
           target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
-          target="CONTINUATION">CONTINUATION</xref> frames.  
+          target="CONTINUATION">CONTINUATION</xref> frames.
+        </t>
+        <t>
+          The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
+          mapping, see <xref target="CompressCookie"/>.
         </t>
         <t>
           A receiving endpoint reassembles the header block by concatenating the individual
@@ -650,7 +654,7 @@ HTTP2-Settings    = token68
           Header blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
           frames of any other type, or from any other stream.  The last frame in a sequence of
           <x:ref>HEADERS</x:ref> or <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS
-          flag set.  The last frame in a sequence of <x:ref>PUSH_PROMISE</x:ref>or
+          flag set.  The last frame in a sequence of <x:ref>PUSH_PROMISE</x:ref> or
           <x:ref>CONTINUATION</x:ref> frames MUST have the END_PUSH_PROMISE or END_HEADERS flag set
           (respectively).
         </t>
@@ -1541,7 +1545,7 @@ HTTP2-Settings    = token68
                     Allows the sender to inform the remote endpoint of the size of the header
                     compression table used to decode header blocks.  The space available for
                     encoding cannot be changed; it is determined by the setting sent by the peer
-                    that receives the header blocks.  The initial value is 4096 bytes.
+                    that receives the header blocks.  The initial value is 4,096 bytes.
                   </t>
                 </x:lt>
                 <x:lt hangText="SETTINGS_ENABLE_PUSH (2):" anchor="SETTINGS_ENABLE_PUSH">
@@ -2486,6 +2490,26 @@ HTTP2-Settings    = token68
           </t>
         </section>
 
+        <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
+          <t>
+            The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
+            redundant data.
+          </t>
+          <t>
+            The Cookie header field uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
+            This header field doesn't follow the list construction rules in HTTP (see <xref
+            target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), which prevents cookie-pairs from
+            being separated into different name-value pairs.  This can significantly reduce
+            compression efficiency as individual cookie-pairs are updated.
+          </t>
+          <t>
+            To allow for better compression efficiency, the Cookie header field MAY be split into
+            separate header fields, each with one or more cookie-pairs.  If there are multiple
+            Cookie header fields after decompression, these MUST be concatenated into a single octet
+            string using the two octet delimiter of 0x3B, 0x20 (the ASCII string "; ").
+          </t>
+        </section>
+
         <section anchor="malformed" title="Malformed Requests and Responses">
           <t>
             A malformed request or response is one that uses a valid sequence of HTTP/2.0 frames,
@@ -3307,11 +3331,11 @@ HTTP2-Settings    = token68
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month="September" year="2013" />
+          <date month="November" year="2013" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-24" />
-        <x:source href="refs/draft-ietf-httpbis-p1-messaging-24.xml"
-                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p1-messaging"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-25" />
+        <x:source href="refs/draft-ietf-httpbis-p1-messaging-25.xml"
+                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p1-messaging"/>
       </reference>
       <reference anchor="HTTP-p2">
         <front>
@@ -3325,11 +3349,11 @@ HTTP2-Settings    = token68
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month="September" year="2013" />
+          <date month="November" year="2013" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-24" />
-        <x:source href="refs/draft-ietf-httpbis-p2-semantics-24.xml"
-                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p2-semantics"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-25" />
+        <x:source href="refs/draft-ietf-httpbis-p2-semantics-25.xml"
+                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p2-semantics"/>
       </reference>
       <reference anchor="HTTP-p4">
         <front>
@@ -3342,9 +3366,9 @@ HTTP2-Settings    = token68
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month="September" year="2013" />
+          <date month="November" year="2013" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p4-conditional-24" />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p4-conditional-25" />
       </reference>
       <reference anchor="HTTP-p5">
         <front>
@@ -3361,9 +3385,9 @@ HTTP2-Settings    = token68
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month="September" year="2013" />
+          <date month="November" year="2013" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p5-range-24"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p5-range-25"/>
       </reference>
       <reference anchor="HTTP-p6">
         <front>
@@ -3380,11 +3404,11 @@ HTTP2-Settings    = token68
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month="September" year="2013" />
+          <date month="November" year="2013" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-24"/>
-        <x:source href="refs/draft-ietf-httpbis-p6-cache-24.xml" 
-                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p6-cache"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-25"/>
+        <x:source href="refs/draft-ietf-httpbis-p6-cache-25.xml" 
+                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p6-cache"/>
       </reference>
       <reference anchor="HTTP-p7">
         <front>
@@ -3397,12 +3421,23 @@ HTTP2-Settings    = token68
             <organization abbrev="greenbytes">greenbytes GmbH</organization>
             <address><email>julian.reschke@greenbytes.de</email></address>
           </author>
-          <date month="September" year="2013" />
+          <date month="November" year="2013" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p7-auth-24"/>
-        <x:source href="refs/draft-ietf-httpbis-p7-auth-24.xml" 
-                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p7-auth"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p7-auth-25"/>
+        <x:source href="refs/draft-ietf-httpbis-p7-auth-25.xml" 
+                  basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p7-auth"/>
       </reference>
+
+      <reference anchor="COOKIE">
+        <front>
+          <title>HTTP State Management Mechanism</title>
+          <author initials="A." surname="Barth" fullname="A. Barth">
+          <organization /></author>
+          <date year="2011" month="April" />
+        </front>
+        <seriesInfo name="RFC" value="6265" />
+      </reference>
+
     </references>
 
     <references title="Informative References">
@@ -3466,9 +3501,15 @@ HTTP2-Settings    = token68
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
+      <section title="Since draft-ietf-httpbis-http2-08" anchor="changes.since.draft-ietf-httpbis-http2-08">
+        <t>
+          Added cookie crumbling for more efficient header compression.
+        </t>
+      </section>
+
       <section title="Since draft-ietf-httpbis-http2-07" anchor="changes.since.draft-ietf-httpbis-http2-07">
         <t>
-          No major changes.
+          Marked draft for implementation.
         </t>
       </section>
 

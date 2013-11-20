@@ -63,7 +63,7 @@
         </t>
         <t>
           The changes in this draft are summarized in <xref
-          target="changes.since.draft-ietf-httpbis-header-compression-03"/>.
+          target="changes.since.draft-ietf-httpbis-header-compression-04"/>.
         </t>
       </note>
     </front>
@@ -96,9 +96,9 @@
             </t>
 
             <t>
-                In this document, we propose a new compressor for header
+                This document describes HPACK, a new compressor for header
                 fields which eliminates redundant header fields, is not
-                vulnerable to CRIME style attacks, and which also has a
+                vulnerable to known security attacks, and which also has a
                 bounded memory cost for use in constrained environments.
             </t>
 
@@ -164,9 +164,8 @@
                             The reference set (see <xref
                                 target="reference.set"/>) is a component
                             containing an unordered set of references to
-                            entries in the header table or static table.
-                            This is used for the differential encoding of a new
-                            header set.
+                            entries in the header table.  This is used for the
+                            differential encoding of a new header set.
                         </t>
                         <t hangText="Header Set:">
                             A header set is a potentially ordered group of
@@ -222,8 +221,8 @@
                         A header table consists of a list of header fields
                         maintained in first-in, first-out order.
                         The first and newest entry in a header table is always
-                        at index 0, and the oldest entry of a header table is
-                        at the index len(header table)-1.
+                        at index 1, and the oldest entry of a header table is
+                        at the index len(header table).
                     </t>
                     <t>
                         The header table is initially empty.
@@ -244,16 +243,14 @@
                         The header table is updated during the processing of
                         a set of header field representations (see <xref
                             target="header.representation.processing"> header
-                            field
-                            representation processing</xref>.
+                            field representation processing</xref>).
                     </t>
                 </section>
 
                 <section title="Reference Set" anchor="reference.set">
                     <t>
                         A reference set is an unordered set of references to
-                        entries either within the header table or the static
-                        table.
+                        entries of the header table.
                     </t>
                     <t>
                         The reference set is initially empty.
@@ -262,17 +259,30 @@
                         The reference set is updated during the processing of
                         a set of header field representations (see <xref
                             target="header.representation.processing"> header
-                            field representation processing</xref>.
+                            field representation processing</xref>).
                     </t>
                     <t>
                         The reference set enables differential encoding,
                         whereby only differences between the previous header
-                        set and the current header set need to be encoded.
+                        set and the current header set need to be encoded. The
+                        use of differential encoding is optional for any
+                        header set.
                     </t>
                     <t>
                         When an entry is evicted from the header table, if it
                         was referenced from the reference set, its reference
                         is removed from the reference set.
+                    </t>
+                    <t>
+                        To limit the memory requirements on the decoder side
+                        for handling the reference set, only entries within
+                        the header table can be contained in the reference
+                        set. To still allow entries from the static table to
+                        take advantage of the differential encoding, when a
+                        header field is represented as a reference to an entry
+                        of the static table, this entry is inserted into the
+                        header table ((see <xref
+                            target="header.representation.processing"/>).
                     </t>
                 </section>
 
@@ -321,7 +331,7 @@
        <----------  Index Address Space ---------->
        <-- Header  Table -->  <-- Static  Table -->
        +---+-----------+---+  +---+-----------+---+
-       | 0 |    ...    | k |  |k+1|    ...    | n |
+       | 1 |    ...    | k |  |k+1|    ...    | n |
        +---+-----------+---+  +---+-----------+---+
        ^                   |
        |                   V
@@ -331,19 +341,23 @@ Insertion Point       Drop Point
                                 </figure>
                                 <list>
                                     <t>
-                                        Indices between 0 and len(header
-                                        table)-1, inclusive, refer to elements
-                                        in the header table, with index 0
+                                        Indices between 1 and len(header
+                                        table), inclusive, refer to elements
+                                        in the header table, with index 1
                                         referring to the beginning of the
                                         table.
                                     </t>
                                     <t>
-                                        Indices between len(header table) and
-                                        len(header table)+len(static table)-1,
+                                        Indices between len(header table)+1 and
+                                        len(header table)+len(static table),
                                         inclusive, refer to elements in the
                                         static table, where the index
-                                        len(header table) refers to the first
+                                        len(header table)+1 refers to the first
                                         entry in the static table.
+                                    </t>
+                                    <t>
+                                        Index 0 signals that the reference set
+                                        MUST be emptied.
                                     </t>
                                     <t>
                                         Any other indices MUST be treated as
@@ -366,7 +380,7 @@ Insertion Point       Drop Point
                     <t>
                         By emitting header fields instead of emitting header
                         sets, the decoder can be implemented in a streaming
-                        way, and as such must only keep in memory the header
+                        way, and as such has only to keep in memory the header
                         table and the reference set. This bounds the amount of
                         memory used by the decoder, even in presence of a very
                         large set of header fields. The management of memory
@@ -378,6 +392,16 @@ Insertion Point       Drop Point
                         each value within the list MAY be emitted separately,
                         with the same header field name, and the order of
                         emission MUST be the order of appearance in the list.
+                    </t>
+                    <t>
+                        The decoder MUST pass the header fields to the
+                        application in their emission order, except for the
+                        header fields emitted during the reference set
+                        emission (see <xref
+                            target="reference.set.emission"/>). The header
+                        fields emitted during the reference set emission MUST
+                        be emitted after the emission of all the other header
+                        fields, but MAY be emitted in any order.
                     </t>
                 </section>
             </section>
@@ -399,6 +423,13 @@ Insertion Point       Drop Point
                         are presented, as specified below.
                     </t>
                     <t>
+                        An <spanx>indexed representation</spanx> with an index
+                        value of 0 entails the following actions:
+                        <list style="symbols">
+                            <t>The reference set is emptied.</t>
+                        </list>
+                    </t>
+                    <t>
                         An <spanx>indexed representation</spanx> corresponding
                         to an entry <spanx>present</spanx> in the
                         reference set entails the following actions:
@@ -416,8 +447,9 @@ Insertion Point       Drop Point
                                 <list style="symbols">
                                     <t>The header field corresponding to the
                                         referenced entry is emitted.</t>
-                                    <t>The referenced static entry is added to
-                                        the header table.</t>
+                                    <t>The referenced static entry is inserted
+                                        at the beginning of the header
+                                        table.</t>
                                     <t>A reference to this new header table
                                         entry is added to the reference set
                                         (except if this new entry didn't fit
@@ -496,11 +528,11 @@ Insertion Point       Drop Point
                     </t>
                     <t>
                         The size of an entry is the sum of its name's length
-                        in bytes (as defined in <xref
+                        in octets (as defined in <xref
                             target="string.literal.representation" />), of its
-                        value's length in bytes (<xref
+                        value's length in octets (<xref
                             target="string.literal.representation" />) and of
-                        32 bytes.
+                        32 octets.
                     </t>
                     <t>
                         The lengths are measured on the non-encoded entry
@@ -508,12 +540,12 @@ Insertion Point       Drop Point
                         encoding is used to transmit string values).
                     </t>
                     <t>
-                        The 32 bytes are an accounting for the entry
+                        The 32 octets are an accounting for the entry
                         structure overhead. For example, an entry structure
                         using two 64-bits pointers to reference the name and
                         the value and the entry, and two 64-bits integer for
                         counting the number of references to these name and
-                        value would use 32 bytes.
+                        value would use 32 octets.
                     </t>
                 </section>
                 <section title="Entry Eviction When Header Table Size Changes"
@@ -539,11 +571,12 @@ Insertion Point       Drop Point
                     anchor="entry.addition">
                     <t>
                         Whenever a new entry is to be added to the table, any
-                        name referenced by the representation is cached, and
-                        then entries are evicted from the end of the header
-                        table until the size of the header table is less than
-                        or equal to SETTINGS_HEADER_TABLE_SIZE - new entry
-                        size, or until the table is empty.
+                        name referenced by the representation of this new
+                        entry is cached, and then entries are evicted from the
+                        end of the header table until the size of the header
+                        table is less than or equal to
+                        SETTINGS_HEADER_TABLE_SIZE - new entry size, or until
+                        the table is empty.
                     </t>
                     <t>
                         If the size of the new entry is less than or equal to
@@ -564,17 +597,17 @@ Insertion Point       Drop Point
                         Integers are used to represent name indexes, pair
                         indexes or string lengths. To allow for optimized
                         processing, an integer representation always finishes
-                        at the end of a byte.
+                        at the end of an octet.
                     </t>
                     <t>
                         An integer is represented in two parts: a prefix that
-                        fills the current byte and an optional list of bytes
+                        fills the current octet and an optional list of octets
                         that are used if the integer value does not fit within
                         the prefix.  The number of bits of the prefix (called
                         N) is a parameter of the integer representation.
                     </t>
                     <t>
-                        The N-bit prefix allows filling the current byte.  If
+                        The N-bit prefix allows filling the current octet.  If
                         the value is small enough (strictly less than
                         2<x:sup>N</x:sup>-1), it is encoded within the N-bit
                         prefix.  Otherwise all the bits of the prefix are set
@@ -582,7 +615,7 @@ Insertion Point       Drop Point
                             target="http://en.wikipedia.org/wiki/Variable-length_quantity">
                             unsigned variable length integer</eref>
                         representation. N is always between 1 and 8 bits. An
-                        integer starting at a byte-boundary will have an 8-bit
+                        integer starting at an octet-boundary will have an 8-bit
                         prefix.
                     </t>
                     <t>
@@ -602,7 +635,7 @@ Else
                         This integer representation allows for values of
                         indefinite size.  It is also possible for an encoder to
                         send a large number of zero values, which can waste
-                        bytes and could be used to overflow integer values.
+                        octets and could be used to overflow integer values.
                         Excessively large integer encodings - in value or octet
                         length - MUST be treated as a decoding error.  Different
                         limits can be set for each of the different uses of
@@ -690,12 +723,12 @@ Else
                         </figure>
                     </section>
 
-                    <section title="Example 3: Encoding 42 starting at a
-                        byte-boundary"
+                    <section title="Example 3: Encoding 42 starting at an
+                        octet-boundary"
                         anchor="integer.representation.example3">
                         <t>
-                            The value 42 is to be encoded starting at a
-                            byte-boundary. This implies that a 8-bit prefix is
+                            The value 42 is to be encoded starting at an
+                            octet-boundary. This implies that a 8-bit prefix is
                             used.
                             <list style="symbols">
                                 <t>
@@ -720,15 +753,15 @@ Else
                     anchor="string.literal.representation">
                     <t>
                         Header field names and header field values are
-                        encoded as sequences of bytes. A header field name or
+                        encoded as sequences of octets. A header field name or
                         a header field value is encoded in three parts:
                         <list style="numbers">
                             <t>
                                 One bit, H, indicating whether or not
-                                the bytes are huffman encoded.
+                                the octets are huffman encoded.
                             </t>
                             <t>
-                                The number of bytes required to hold the
+                                The number of octets required to hold the
                                 result of the next step, represented as a
                                 <xref target="integer.representation">
                                     variable-length-quantity </xref>, starting
@@ -742,12 +775,12 @@ Else
                                         concatenation of the <xref
                                             target="CANON">canonical</xref><xref
                                             target="HUFF">huffman code</xref>
-                                        corresponding to each character of the
+                                        corresponding to each octet of the
                                         data, followed by between 0-7 bits of
                                         padding.
                                     </t>
                                     <t> If H is false, then the encoded string
-                                        is the bytes of the field value
+                                        is the octets of the field value
                                         without modification.
                                     </t>
                                 </list>
@@ -757,7 +790,7 @@ Else
                     <t>
                         Padding is necessary when doing huffman encoding to
                         ensure that the remaining bits between the actual end of
-                        the data and the next byte boundary are not
+                        the data and the next octet boundary are not
                         misinterpreted as part of the input data.
                     </t>
                     <t>
@@ -771,16 +804,16 @@ Else
                         which use huffman encoding are encoded with the codes
                         within the <xref target="request.huffman.codes">
                             request huffman code table</xref> (see <xref
-                            target="response.huffman.decoding.example">Request
-                            Decoding With Huffman Example</xref>).
+                            target="request.examples.with.huffman"> Request
+                            Examples With Huffman</xref>).
                     </t>
                     <t>
                         String literals sent in the server to client direction
                         which use huffman encoding are encoded with the codes
                         within the <xref target="response.huffman.codes">
                             response huffman code table</xref> (see <xref
-                            target="response.huffman.decoding.example">
-                            Response Decoding With Huffman Example</xref>).
+                            target="response.examples.with.huffman">
+                            Response Examples With Huffman</xref>).
                     </t>
                     <t>
                         The EOS symbol is represented with value 256, and is
@@ -797,7 +830,7 @@ Else
 +---+---+---+---+---+---+---+---+
 | 1 |  Value Length Prefix (7)  |
 +---+---+---+---+---+---+---+---+
-|   Value Length (0-N bytes)    |
+|   Value Length (0-N octets)   |
 +---+---+---+---+---+---+---+---+
 ...
 +---+---+---+---+---+---+---+---+
@@ -811,7 +844,7 @@ Else
 +---+---+---+---+---+---+---+---+
 | 0 |  Value Length Prefix (7)  |
 +---+---+---+---+---+---+---+---+
-|   Value Length (0-N bytes)    |
+|   Value Length (0-N octets)   |
 +---+---+---+---+---+---+---+---+
 ...
 +---+---+---+---+---+---+---+---+
@@ -826,11 +859,9 @@ Else
                 anchor="indexed.header.representation">
                 <t>
                     An indexed header field representation either identifies an
-                    entry in the header table or static table.  The specified
-                    entry is emitted and a reference to that entry is added to
-                    the reference set if it is not currently in the reference
-                    set. If it is present in the reference set then the
-                    reference is removed and the entry is not emitted.
+                    entry in the header table or static table.  The processing
+                    of an indexed header field representation is described in
+                    <xref target="header.representation.processing"/>.
                 </t>
 
                 <figure title="Indexed Header Field">
@@ -845,6 +876,10 @@ Else
                     This representation starts with the '1' 1-bit pattern,
                     followed by the index of the matching pair, represented as
                     an integer with a 7-bit prefix.
+                </t>
+                <t>
+                    The index value of 0 is reserved for signalling that the
+                    reference set is emptied.
                 </t>
             </section>
 
@@ -901,16 +936,16 @@ Else
                     <t>
                         If the header field name matches the header field name
                         of a (name, value) pair stored in the Header Table or
-                        Static Table, the index of that entry, increased by
-                        one (index + 1), is represented as an integer with a
-                        6-bit prefix.  Note that if the index is strictly
-                        below 63, only one byte is used for this
-                        representation.
+                        Static Table, the header field name can be represented
+                        using the index of that entry. In this case, the index
+                        of the entry, index (which is strictly greater than 0),
+                        is represented as an integer with a 6-bit prefix (see
+                        <xref target="integer.representation"/>).
                     </t>
                     <t>
-                        If the header field name does not match a header field
-                        name entry, the value 0 is represented on 6 bits
-                        followed by the header field name (<xref
+                        Otherwise, the header field name is represented as a
+                        literal. The value 0 is represented on 6 bits followed
+                        by the header field name (see <xref
                             target="string.literal.representation" />).
                     </t>
                     <t>
@@ -964,15 +999,17 @@ Else
                     </t>
                     <t>
                         If the header field name matches the header field name
-                        of a (name, value) pair stored in the header table or
-                        static table, the index of the pair increased by one
-                        (index + 1) is represented as an integer with a 6-bit
-                        prefix.
+                        of a (name, value) pair stored in the Header Table or
+                        Static Table, the header field name can be represented
+                        using the index of that entry. In this case, the index
+                        of the entry, index (which is strictly greater than 0),
+                        is represented as an integer with a 6-bit prefix (see
+                        <xref target="integer.representation"/>).
                     </t>
                     <t>
-                        If the header field name does not match a header field
-                        name entry, the value 0 is represented on 6 bits
-                        followed by the header field name (<xref
+                        Otherwise, the header field name is represented as a
+                        literal. The value 0 is represented on 6 bits followed
+                        by the header field name (see <xref
                             target="string.literal.representation" />).
                     </t>
                     <t>
@@ -1066,11 +1103,11 @@ Else
                   <organization abbrev="greenbytes">greenbytes GmbH</organization>
                   <address><email>julian.reschke@greenbytes.de</email></address>
                 </author>
-                <date month="September" year="2013" />
+                <date month="November" year="2013" />
               </front>
-              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-24" />
-              <x:source href="refs/draft-ietf-httpbis-p1-messaging-24.xml"
-                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p1-messaging"/>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-25" />
+              <x:source href="refs/draft-ietf-httpbis-p1-messaging-25.xml"
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p1-messaging"/>
             </reference>
 <!--
             <reference anchor="HTTP-p2">
@@ -1085,11 +1122,11 @@ Else
                   <organization abbrev="greenbytes">greenbytes GmbH</organization>
                   <address><email>julian.reschke@greenbytes.de</email></address>
                 </author>
-                <date month="September" year="2013" />
+                <date month="November" year="2013" />
               </front>
-              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-24" />
-              <x:source href="refs/draft-ietf-httpbis-p2-semantics-24.xml"
-                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p2-semantics"/>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p2-semantics-25" />
+              <x:source href="refs/draft-ietf-httpbis-p2-semantics-25.xml"
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p2-semantics"/>
             </reference>
             <reference anchor="HTTP-p4">
               <front>
@@ -1102,9 +1139,9 @@ Else
                   <organization abbrev="greenbytes">greenbytes GmbH</organization>
                   <address><email>julian.reschke@greenbytes.de</email></address>
                 </author>
-                <date month="September" year="2013" />
+                <date month="November" year="2013" />
               </front>
-              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p4-conditional-24" />
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p4-conditional-25" />
             </reference>
             <reference anchor="HTTP-p5">
               <front>
@@ -1121,9 +1158,9 @@ Else
                   <organization abbrev="greenbytes">greenbytes GmbH</organization>
                   <address><email>julian.reschke@greenbytes.de</email></address>
                 </author>
-                <date month="September" year="2013" />
+                <date month="November" year="2013" />
               </front>
-              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p5-range-24"/>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p5-range-25"/>
             </reference>
             <reference anchor="HTTP-p6">
               <front>
@@ -1140,11 +1177,11 @@ Else
                   <organization abbrev="greenbytes">greenbytes GmbH</organization>
                   <address><email>julian.reschke@greenbytes.de</email></address>
                 </author>
-                <date month="September" year="2013" />
+                <date month="November" year="2013" />
               </front>
-              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-24"/>
-              <x:source href="refs/draft-ietf-httpbis-p6-cache-24.xml" 
-                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p6-cache"/>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-25"/>
+              <x:source href="refs/draft-ietf-httpbis-p6-cache-25.xml" 
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p6-cache"/>
             </reference>
             <reference anchor="HTTP-p7">
               <front>
@@ -1157,11 +1194,11 @@ Else
                   <organization abbrev="greenbytes">greenbytes GmbH</organization>
                   <address><email>julian.reschke@greenbytes.de</email></address>
                 </author>
-                <date month="September" year="2013" />
+                <date month="November" year="2013" />
               </front>
-              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p7-auth-24"/>
-              <x:source href="refs/draft-ietf-httpbis-p7-auth-24.xml" 
-                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/24/p7-auth"/>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p7-auth-25"/>
+              <x:source href="refs/draft-ietf-httpbis-p7-auth-25.xml" 
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p7-auth"/>
             </reference>
 -->
         </references>
@@ -1227,7 +1264,30 @@ Else
 
 
         <section title="Change Log (to be removed by RFC Editor before publication">
-            <section title="Since draft-ietf-httpbis-header-compression-03" anchor="changes.since.draft-ietf-httpbis-header-compression-03">
+            <section title="Since draft-ietf-httpbis-header-compression-04"
+                anchor="changes.since.draft-ietf-httpbis-header-compression-04">
+                <t><list style="symbols">
+                    <t>
+                        Use 'octet' everywhere instead of having both 'byte'
+                        and 'octet'.
+                    </t>
+                    <t>
+                        Added reference set emptying.
+                    </t>
+                    <t>
+                        Editorial changes and clarifications.
+                    </t>
+                    <t>
+                        Added "host" header to the static table.
+                    </t>
+                    <t>
+                        Specify emission order constraints.
+                    </t>
+                </list></t>
+            </section>
+
+            <section title="Since draft-ietf-httpbis-header-compression-03"
+                anchor="changes.since.draft-ietf-httpbis-header-compression-03">
                 <t><list style="symbols">
                     <t>
                         A large number of editorial changes; changed the
@@ -1279,7 +1339,7 @@ Else
                             header list, as per issue #188.
                         </t>
                         <t>
-                            Added example of 32 bytes entry structure (issue
+                            Added example of 32 octets entry structure (issue
                             #191).
                         </t>
                         <t>
@@ -1308,7 +1368,7 @@ Else
                             use.</t>
                         <t>Removed "specific use cases" section</t>
                         <t>Corrected erroneous statement about what index can
-                            be contained in one byte</t>
+                            be contained in one octet</t>
                         <t>Added descriptions of opcodes</t>
                         <t>Removed security claims from introduction.</t>
                     </list>
@@ -1319,9 +1379,9 @@ Else
             <t>
                 The static table consists of an unchangable ordered list of
                 (name, value) pairs. The first entry in the table is always
-                represented by the index len(header table), and the last entry
+                represented by the index len(header table)+1, and the last entry
                 in the table is represented by the index len(header
-                table)+len(static table)-1.
+                table)+len(static table).
             </t>
             <t>
                 <cref>
@@ -1330,7 +1390,7 @@ Else
                     such that the table entries with the smallest indices are
                     those which, based on a statistical analysis of the
                     frequency of use weighted by size, achieve the largest
-                    decrease in bytes transmitted subject to HTTP 2.0 header
+                    decrease in octets transmitted subject to HTTP 2.0 header
                     field
                     rules (like removal of some header fields). This set of header fields
                     is currently very likely incomplete, and should be made
@@ -1346,71 +1406,72 @@ Else
             <texttable title="Static Table Entries"
                 anchor="static.table.entries">
                 <!-- An easy way to renumber these in vim:
-                      :let @a=0 | 'a,'bs/>[0-9 ][0-9 ]*</\='>'.(@a+setreg('a',@a+1)).'<'/
+                      :let @a=1 | 'a,'bs/>[0-9 ][0-9 ]*</\='>'.(@a+setreg('a',@a+1)).'<'/
                     -->
                     <ttcol>Index</ttcol>
                     <ttcol>Header Name</ttcol>
                     <ttcol>Header Value</ttcol>
 
-                    <c>0</c><c>:authority</c><c></c>
-                    <c>1</c><c>:method</c><c>GET</c>
-                    <c>2</c><c>:method</c><c>POST</c>
-                    <c>3</c><c>:path</c><c>/</c>
-                    <c>4</c><c>:path</c><c>/index.html</c>
-                    <c>5</c><c>:scheme</c><c>http</c>
-                    <c>6</c><c>:scheme</c><c>https</c>
-                    <c>7</c><c>:status</c><c>200</c>
-                    <c>8</c><c>:status</c><c>500</c>
-                    <c>9</c><c>:status</c><c>404</c>
-                    <c>10</c><c>:status</c><c>403</c>
-                    <c>11</c><c>:status</c><c>400</c>
-                    <c>12</c><c>:status</c><c>401</c>
-                    <c>13</c><c>accept-charset</c><c></c>
-                    <c>14</c><c>accept-encoding</c><c></c>
-                    <c>15</c><c>accept-language</c><c></c>
-                    <c>16</c><c>accept-ranges</c><c></c>
-                    <c>17</c><c>accept</c><c></c>
-                    <c>18</c><c>access-control-allow-origin</c><c></c>
-                    <c>19</c><c>age</c><c></c>
-                    <c>20</c><c>allow</c><c></c>
-                    <c>21</c><c>authorization</c><c></c>
-                    <c>22</c><c>cache-control</c><c></c>
-                    <c>23</c><c>content-disposition</c><c></c>
-                    <c>24</c><c>content-encoding</c><c></c>
-                    <c>25</c><c>content-language</c><c></c>
-                    <c>26</c><c>content-length</c><c></c>
-                    <c>27</c><c>content-location</c><c></c>
-                    <c>28</c><c>content-range</c><c></c>
-                    <c>29</c><c>content-type</c><c></c>
-                    <c>30</c><c>cookie</c><c></c>
-                    <c>31</c><c>date</c><c></c>
-                    <c>32</c><c>etag</c><c></c>
-                    <c>33</c><c>expect</c><c></c>
-                    <c>34</c><c>expires</c><c></c>
-                    <c>35</c><c>from</c><c></c>
-                    <c>36</c><c>if-match</c><c></c>
-                    <c>37</c><c>if-modified-since</c><c></c>
-                    <c>38</c><c>if-none-match</c><c></c>
-                    <c>39</c><c>if-range</c><c></c>
-                    <c>40</c><c>if-unmodified-since</c><c></c>
-                    <c>41</c><c>last-modified</c><c></c>
-                    <c>42</c><c>link</c><c></c>
-                    <c>43</c><c>location</c><c></c>
-                    <c>44</c><c>max-forwards</c><c></c>
-                    <c>45</c><c>proxy-authenticate</c><c></c>
-                    <c>46</c><c>proxy-authorization</c><c></c>
-                    <c>47</c><c>range</c><c></c>
-                    <c>48</c><c>referer</c><c></c>
-                    <c>49</c><c>refresh</c><c></c>
-                    <c>50</c><c>retry-after</c><c></c>
-                    <c>51</c><c>server</c><c></c>
-                    <c>52</c><c>set-cookie</c><c></c>
-                    <c>53</c><c>strict-transport-security</c><c></c>
-                    <c>54</c><c>transfer-encoding</c><c></c>
-                    <c>55</c><c>user-agent</c><c></c>
-                    <c>56</c><c>vary</c><c></c>
-                    <c>57</c><c>via</c><c></c>
-                    <c>58</c><c>www-authenticate</c><c></c>
+                    <c>1</c><c>:authority</c><c></c>
+                    <c>2</c><c>:method</c><c>GET</c>
+                    <c>3</c><c>:method</c><c>POST</c>
+                    <c>4</c><c>:path</c><c>/</c>
+                    <c>5</c><c>:path</c><c>/index.html</c>
+                    <c>6</c><c>:scheme</c><c>http</c>
+                    <c>7</c><c>:scheme</c><c>https</c>
+                    <c>8</c><c>:status</c><c>200</c>
+                    <c>9</c><c>:status</c><c>500</c>
+                    <c>10</c><c>:status</c><c>404</c>
+                    <c>11</c><c>:status</c><c>403</c>
+                    <c>12</c><c>:status</c><c>400</c>
+                    <c>13</c><c>:status</c><c>401</c>
+                    <c>14</c><c>accept-charset</c><c></c>
+                    <c>15</c><c>accept-encoding</c><c></c>
+                    <c>16</c><c>accept-language</c><c></c>
+                    <c>17</c><c>accept-ranges</c><c></c>
+                    <c>18</c><c>accept</c><c></c>
+                    <c>19</c><c>access-control-allow-origin</c><c></c>
+                    <c>20</c><c>age</c><c></c>
+                    <c>21</c><c>allow</c><c></c>
+                    <c>22</c><c>authorization</c><c></c>
+                    <c>23</c><c>cache-control</c><c></c>
+                    <c>24</c><c>content-disposition</c><c></c>
+                    <c>25</c><c>content-encoding</c><c></c>
+                    <c>26</c><c>content-language</c><c></c>
+                    <c>27</c><c>content-length</c><c></c>
+                    <c>28</c><c>content-location</c><c></c>
+                    <c>29</c><c>content-range</c><c></c>
+                    <c>30</c><c>content-type</c><c></c>
+                    <c>31</c><c>cookie</c><c></c>
+                    <c>32</c><c>date</c><c></c>
+                    <c>33</c><c>etag</c><c></c>
+                    <c>34</c><c>expect</c><c></c>
+                    <c>35</c><c>expires</c><c></c>
+                    <c>36</c><c>from</c><c></c>
+                    <c>37</c><c>host</c><c></c>
+                    <c>38</c><c>if-match</c><c></c>
+                    <c>39</c><c>if-modified-since</c><c></c>
+                    <c>40</c><c>if-none-match</c><c></c>
+                    <c>41</c><c>if-range</c><c></c>
+                    <c>42</c><c>if-unmodified-since</c><c></c>
+                    <c>43</c><c>last-modified</c><c></c>
+                    <c>44</c><c>link</c><c></c>
+                    <c>45</c><c>location</c><c></c>
+                    <c>46</c><c>max-forwards</c><c></c>
+                    <c>47</c><c>proxy-authenticate</c><c></c>
+                    <c>48</c><c>proxy-authorization</c><c></c>
+                    <c>49</c><c>range</c><c></c>
+                    <c>50</c><c>referer</c><c></c>
+                    <c>51</c><c>refresh</c><c></c>
+                    <c>52</c><c>retry-after</c><c></c>
+                    <c>53</c><c>server</c><c></c>
+                    <c>54</c><c>set-cookie</c><c></c>
+                    <c>55</c><c>strict-transport-security</c><c></c>
+                    <c>56</c><c>transfer-encoding</c><c></c>
+                    <c>57</c><c>user-agent</c><c></c>
+                    <c>58</c><c>vary</c><c></c>
+                    <c>59</c><c>via</c><c></c>
+                    <c>60</c><c>www-authenticate</c><c></c>
                 </texttable>
             <t>
                 The table give the index of each entry in the static table.
@@ -1981,1246 +2042,824 @@ Else
             <t>
                 A number of examples are worked through here, for both
                 requests and responses, and with and without huffman coding.
+                <cref>These examples don't take into account the use of index
+                0 for signalling the emptying of the reference set.</cref>
             </t>
-            <section title="Request Decoding Example With Huffman"
-                anchor="request.huffman.decoding.example">
-                <t>
-                    <figure>
-                        <artwork>
+<section title="Request Examples With Huffman"
+    anchor="request.examples.with.huffman">
+    <section title="First request">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
 <![CDATA[
-# Header set to be encoded
 :method: GET
 :scheme: http
 :path: /
-:authority: www.foo.com
-
-# Hexdump of encoded data which will be decoded
-02 84 f7 77 78 ff 07 83 ce 31 77 06 81 0f 04 88 | ...wx....1w.....
-db 6d 89 8b 5a 44 b7 4f                         | .m..ZD.O
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '02'
-    name_index:
-        encoded: "02"
-        decoded: 2
-    value_data_length:
-        encoded: "84"
-        decoded: 4
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "f77778ff"
-        decoded: "GET"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '07'
-    name_index:
-        encoded: "07"
-        decoded: 7
-    value_data_length:
-        encoded: "83"
-        decoded: 3
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "ce3177"
-        decoded: "http"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '06'
-    name_index:
-        encoded: "06"
-        decoded: 6
-    value_data_length:
-        encoded: "81"
-        decoded: 1
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "0f"
-        decoded: "/"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '04'
-    name_index:
-        encoded: "04"
-        decoded: 4
-    value_data_length:
-        encoded: "88"
-        decoded: 8
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "db6d898b5a44b74f"
-        decoded: "www.foo.com"
-
-
-# Decoded header set
-:authority: www.foo.com
-:method: GET
-:path: /
-:scheme: http
-
-#########################
-
-# Header set to be encoded
-:method: GET
-:scheme: https
-:path: /
-:authority: www.bar.com
-cache-control: no-cache
-
-# Hexdump of encoded data which will be decoded
-03 84 ce 31 74 3f 02 88 db 6d 89 7a 1e 44 b7 4f | ...1t?...m.z.D.O
-1d 86 63 65 4a 13 98 ff 83 85                   | ..ceJ.....
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '03'
-    name_index:
-        encoded: "03"
-        decoded: 3
-    value_data_length:
-        encoded: "84"
-        decoded: 4
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "ce31743f"
-        decoded: "https"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '02'
-    name_index:
-        encoded: "02"
-        decoded: 2
-    value_data_length:
-        encoded: "88"
-        decoded: 8
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "db6d897a1e44b74f"
-        decoded: "www.bar.com"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '1d'
-    name_index:
-        encoded: "1d"
-        decoded: 29
-    value_data_length:
-        encoded: "86"
-        decoded: 6
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "63654a1398ff"
-        decoded: "no-cache"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '83'
-    entry_index:
-        encoded: "83"
-        decoded: 3
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '85'
-    entry_index:
-        encoded: "85"
-        decoded: 5
-
-
-# Decoded header set
-:authority: www.bar.com
-:method: GET
-:path: /
-:scheme: https
-cache-control: no-cache
-
-#########################
-
-# Header set to be encoded
-:method: GET
-:scheme: https
-:path: /custom-path.css
-:authority: www.bar.com
-custom-key: custom-value
-
-# Hexdump of encoded data which will be decoded
-05 8b 04 eb 08 b7 49 5c 88 e6 44 c2 1f 00 88 4e | ......I\..D....N
-b0 8b 74 97 90 fa 7f 89 4e b0 8b 74 97 9a 17 a8 | ..t.....N..t....
-ff 82 86                                        | ...
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '05'
-    name_index:
-        encoded: "05"
-        decoded: 5
-    value_data_length:
-        encoded: "8b"
-        decoded: 11
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "04eb08b7495c88e644c21f"
-        decoded: "/custom-path.css"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '00'
-    name_index:
-        encoded: "00"
-        decoded: 0
-    name_data_length:
-        encoded: "88"
-        decoded: 8
-    name_data:
-        is_huffman_encoded: 1
-        encoded: "4eb08b749790fa7f"
-        decoded: "custom-key"
-    value_data_length:
-        encoded: "89"
-        decoded: 9
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "4eb08b74979a17a8ff"
-        decoded: "custom-value"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '82'
-    entry_index:
-        encoded: "82"
-        decoded: 2
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '86'
-    entry_index:
-        encoded: "86"
-        decoded: 6
-
-
-# Decoded header set
-:authority: www.bar.com
-:method: GET
-:path: /custom-path.css
-:scheme: https
-custom-key: custom-value
-
-#########################
+:authority: www.example.com
 ]]>
-                  </artwork>
-                </figure>
-                </t>
-            </section>
-
-            <section title="Request Decoding Example Without Huffman"
-                anchor="request.decoding.example">
-                <t>
-                    <figure>
-                        <artwork>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
 <![CDATA[
-# Header set to be encoded
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+8287 8604 8bdb 6d88 3e68 d1cb 1225 ba7f | ......m..h...%..
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -> :method: GET
+87                                      | == Indexed - Add ==
+                                        |   idx = 7
+                                        | -> :scheme: http
+86                                      | == Indexed - Add ==
+                                        |   idx = 6
+                                        | -> :path: /
+04                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 4)
+                                        |     :authority
+8b                                      |   Literal value (len = 15)
+                                        |     Huffman encoded:
+db6d 883e 68d1 cb12 25ba 7f             | .m..h...%..
+                                        |     Decoded:
+                                        | www.example.com
+                                        | -> :authority: www.example\
+                                        |   .com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
 :method: GET
 :scheme: http
 :path: /
-:authority: www.foo.com
+:authority: www.example.com
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
 
-# Hexdump of encoded data which will be decoded
-02 03 47 45 54 07 04 68 74 74 70 06 01 2f 04 0b | ..GET..http../..
-77 77 77 2e 66 6f 6f 2e 63 6f 6d                | www.foo.com
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '02'
-    name_index:
-        encoded: "02"
-        decoded: 2
-    value_data_length:
-        encoded: "03"
-        decoded: 3
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "474554"
-        decoded: "GET"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '07'
-    name_index:
-        encoded: "07"
-        decoded: 7
-    value_data_length:
-        encoded: "04"
-        decoded: 4
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "68747470"
-        decoded: "http"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '06'
-    name_index:
-        encoded: "06"
-        decoded: 6
-    value_data_length:
-        encoded: "01"
-        decoded: 1
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "2f"
-        decoded: "/"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '04'
-    name_index:
-        encoded: "04"
-        decoded: 4
-    value_data_length:
-        encoded: "0b"
-        decoded: 11
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "7777772e666f6f2e636f6d"
-        decoded: "www.foo.com"
-
-
-# Decoded header set
-:authority: www.foo.com
+    <section title="Second request">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
 :method: GET
+:scheme: https
 :path: /
+:authority: www.example.com
+cache-control: no-cache
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+[  0] :authority: www.example.com
+[  1] :path: /
+[  2] :scheme: http
+[  3] :method: GET
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+838b 1c86 6365 4a13 98ff                | ....ceJ...
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+83                                      | == Indexed - Remove ==
+                                        |   idx = 3
+                                        | -> :scheme: http
+8b                                      | == Indexed - Add ==
+                                        |   idx = 11
+                                        | -> :scheme: https
+1c                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 28)
+                                        |     cache-control
+86                                      |   Literal value (len = 8)
+                                        |     Huffman encoded:
+6365 4a13 98ff                          | ceJ...
+                                        |     Decoded:
+                                        | no-cache
+                                        | -> cache-control: no-cache
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+:scheme: https
+cache-control: no-cache
+:authority: www.example.com
+:path: /
+:method: GET
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
+
+    <section title="Third request">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
+:method: GET
+:scheme: https
+:path: /
+:authority: www.example.com
+custom-key: custom-value
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+[  0] cache-control: no-cache
+[  1] :scheme: https
+[  2] :authority: www.example.com
+[  3] :path: /
+[  5] :method: GET
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+8100 884e b08b 7497 90fa 7f89 4eb0 8b74 | ...N..t.....N..t
+979a 17a8 ff                            | .....
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+81                                      | == Indexed - Remove ==
+                                        |   idx = 1
+                                        | -> cache-control: no-cache
+00                                      | == Literal indexed ==
+88                                      |   Literal name (len = 10)
+                                        |     Huffman encoded:
+4eb0 8b74 9790 fa7f                     | N..t....
+                                        |     Decoded:
+                                        | custom-key
+89                                      |   Literal value (len = 12)
+                                        |     Huffman encoded:
+4eb0 8b74 979a 17a8 ff                  | N..t.....
+                                        |     Decoded:
+                                        | custom-value
+                                        | -> custom-key: custom-valu\
+                                        |   e
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+custom-key: custom-value
+:scheme: https
+:authority: www.example.com
+:path: /
+:method: GET
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
+
+</section>
+<section title="Request Examples Without Huffman"
+    anchor="request.examples.without.huffman">
+    <section title="First request">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
+:method: GET
 :scheme: http
+:path: /
+:authority: www.example.com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+8287 8604 0f77 7777 2e65 7861 6d70 6c65 | .....www.example
+2e63 6f6d                               | .com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -> :method: GET
+87                                      | == Indexed - Add ==
+                                        |   idx = 7
+                                        | -> :scheme: http
+86                                      | == Indexed - Add ==
+                                        |   idx = 6
+                                        | -> :path: /
+04                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 4)
+                                        |     :authority
+0f                                      |   Literal value (len = 15)
+7777 772e 6578 616d 706c 652e 636f 6d   | www.example.com
+                                        | -> :authority: www.example\
+                                        |   .com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
 
-#########################
-
-# Header set to be encoded
+    <section title="Second request">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
 :method: GET
 :scheme: https
 :path: /
-:authority: www.bar.com
+:authority: www.example.com
 cache-control: no-cache
-
-# Hexdump of encoded data which will be decoded
-03 05 68 74 74 70 73 02 0b 77 77 77 2e 62 61 72 | ..https..www.bar
-2e 63 6f 6d 1d 08 6e 6f 2d 63 61 63 68 65 83 85 | .com..no-cache..
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '03'
-    name_index:
-        encoded: "03"
-        decoded: 3
-    value_data_length:
-        encoded: "05"
-        decoded: 5
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "6874747073"
-        decoded: "https"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '02'
-    name_index:
-        encoded: "02"
-        decoded: 2
-    value_data_length:
-        encoded: "0b"
-        decoded: 11
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "7777772e6261722e636f6d"
-        decoded: "www.bar.com"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '1d'
-    name_index:
-        encoded: "1d"
-        decoded: 29
-    value_data_length:
-        encoded: "08"
-        decoded: 8
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "6e6f2d6361636865"
-        decoded: "no-cache"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '83'
-    entry_index:
-        encoded: "83"
-        decoded: 3
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '85'
-    entry_index:
-        encoded: "85"
-        decoded: 5
-
-
-# Decoded header set
-:authority: www.bar.com
-:method: GET
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+[  0] :authority: www.example.com
+[  1] :path: /
+[  2] :scheme: http
+[  3] :method: GET
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+838b 1c08 6e6f 2d63 6163 6865           | ....no-cache
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+83                                      | == Indexed - Remove ==
+                                        |   idx = 3
+                                        | -> :scheme: http
+8b                                      | == Indexed - Add ==
+                                        |   idx = 11
+                                        | -> :scheme: https
+1c                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 28)
+                                        |     cache-control
+08                                      |   Literal value (len = 8)
+6e6f 2d63 6163 6865                     | no-cache
+                                        | -> cache-control: no-cache
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+:scheme: https
+cache-control: no-cache
+:authority: www.example.com
 :path: /
-:scheme: https
-cache-control: no-cache
+:method: GET
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
 
-#########################
-
-# Header set to be encoded
+    <section title="Third request">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
 :method: GET
 :scheme: https
-:path: /custom-path.css
-:authority: www.bar.com
+:path: /
+:authority: www.example.com
 custom-key: custom-value
-
-# Hexdump of encoded data which will be decoded
-05 10 2f 63 75 73 74 6f 6d 2d 70 61 74 68 2e 63 | ../custom-path.c
-73 73 00 0a 63 75 73 74 6f 6d 2d 6b 65 79 0c 63 | ss..custom-key.c
-75 73 74 6f 6d 2d 76 61 6c 75 65 82 86          | ustom-value..
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '05'
-    name_index:
-        encoded: "05"
-        decoded: 5
-    value_data_length:
-        encoded: "10"
-        decoded: 16
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "2f637573746f6d2d706174682e637373"
-        decoded: "/custom-path.css"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '00'
-    name_index:
-        encoded: "00"
-        decoded: 0
-    name_data_length:
-        encoded: "0a"
-        decoded: 10
-    name_data:
-        is_huffman_encoded: 0
-        encoded: "637573746f6d2d6b6579"
-        decoded: "custom-key"
-    value_data_length:
-        encoded: "0c"
-        decoded: 12
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "637573746f6d2d76616c7565"
-        decoded: "custom-value"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '82'
-    entry_index:
-        encoded: "82"
-        decoded: 2
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '86'
-    entry_index:
-        encoded: "86"
-        decoded: 6
-
-
-# Decoded header set
-:authority: www.bar.com
-:method: GET
-:path: /custom-path.css
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+[  0] cache-control: no-cache
+[  1] :scheme: https
+[  2] :authority: www.example.com
+[  3] :path: /
+[  5] :method: GET
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+8100 0a63 7573 746f 6d2d 6b65 790c 6375 | ...custom-key.cu
+7374 6f6d 2d76 616c 7565                | stom-value
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+81                                      | == Indexed - Remove ==
+                                        |   idx = 1
+                                        | -> cache-control: no-cache
+00                                      | == Literal indexed ==
+0a                                      |   Literal name (len = 10)
+6375 7374 6f6d 2d6b 6579                | custom-key
+0c                                      |   Literal value (len = 12)
+6375 7374 6f6d 2d76 616c 7565           | custom-value
+                                        | -> custom-key: custom-valu\
+                                        |   e
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+custom-key: custom-value
 :scheme: https
-custom-key: custom-value
-
-#########################
+:authority: www.example.com
+:path: /
+:method: GET
 ]]>
-                  </artwork>
-                </figure>
-                </t>
-            </section>
+                </artwork>
+            </figure>
+        </t>
+    </section>
 
-            <section title="Response Decoding Example With Huffman"
-                anchor="response.huffman.decoding.example">
-                <t>
-                    <figure>
-                        <artwork>
+</section>
+<section title="Response Examples With Huffman"
+    anchor="response.examples.with.huffman">
+    <section title="First response">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
 <![CDATA[
-# Header set to be encoded
 :status: 302
 cache-control: private
-date: Mon, 21 OCt 2013 20:13:21 GMT
-location: : https://www.bar.com
-
-# Hexdump of encoded data which will be decoded
-08 82 40 9f 18 86 c3 1b 39 bf 38 7f 22 92 a2 fb | ..@.....9.8."...
-a2 03 20 f2 eb cc 0c 49 00 62 d2 43 4c 82 7a 1d | .. ....I.b.CL.z.
-2f 91 68 71 cf 3c 32 6e bd 7e 9e 9e 92 6e 7e 32 | /.hq.<2n.~...n~2
-55 7d bf                                        | U}.
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '08'
-    name_index:
-        encoded: "08"
-        decoded: 8
-    value_data_length:
-        encoded: "82"
-        decoded: 2
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "409f"
-        decoded: "302"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '18'
-    name_index:
-        encoded: "18"
-        decoded: 24
-    value_data_length:
-        encoded: "86"
-        decoded: 6
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "c31b39bf387f"
-        decoded: "private"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '22'
-    name_index:
-        encoded: "22"
-        decoded: 34
-    value_data_length:
-        encoded: "92"
-        decoded: 18
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "a2fba20320f2ebcc0c490062d2434c827a1d"
-        decoded: "Mon, 21 OCt 2013 20:13:21 GMT"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '2f'
-    name_index:
-        encoded: "2f"
-        decoded: 47
-    value_data_length:
-        encoded: "91"
-        decoded: 17
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "6871cf3c326ebd7e9e9e926e7e32557dbf"
-        decoded: ": https://www.bar.com"
-
-
-# Decoded header set
-:status: 302
-cache-control: private
-date: Mon, 21 OCt 2013 20:13:21 GMT
-location: : https://www.bar.com
-
-#########################
-
-# Header set to be encoded
-:status: 200
-cache-control: private
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-content-encoding: gzip
-set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-age\
-=3600; version=1
-
-# Hexdump of encoded data which will be decoded
-04 82 31 1f 03 92 a2 fb a2 03 20 f2 eb cc 0c 49 | ..1....... ....I
-00 62 d2 43 4c c2 7a 1d 03 90 e3 9e 78 64 dd 7a | .b.CL.z.....xd.z
-fd 3d 3d 24 dc fc 64 aa fb 7f 20 84 e1 fb b3 0f | .==$..d... .....
-3d ff ee 02 df 7d fb 36 ed db b7 6e dd bb 76 ed | =....}.6...n..v.
-db b7 6e dd bb 76 ed db b7 6e dd bb 76 ed db b7 | ..n..v...n..v...
-6e dd bb 76 ed db b7 6e dd bb 76 ed db b7 6e dd | n..v...n..v...n.
-bb 76 ed db b7 6e dd bb 76 ed db b7 6e dd bb 76 | .v...n..v...n..v
-ed db b7 6e dd bb 7e 3b 69 ec f0 fe 7e 1f d7 f3 | ...n..~;i...~...
-d5 fe 7f 7e 5f d7 9f 6f 97 cb bf e9 b7 fb fe bc | ...~_..o........
-fb 7c bb fe 9b 7f bf 8f 87 f3 f0 fe bc fc bb 7b | .|.............{
-fe 9b 7e 3f d7 9f 6f 97 7f d3 6f f7 f1 fe bb 7e | ..~?..o...o....~
-9b 7f bf 8f c7 f9 f0 db 4f 67 f5 e7 db e5 f4 ef | ........Og......
-db fd f8 91 a1 3f 1d b4 f6 78 7f 3f 0f eb f9 ea | .....?...x.?....
-ff 3f bf 2f eb cf b7 cb e5 df f4 db fd ff 5e 7d | .?./..........^}
-be 5d ff 4d bf df c7 c3 f9 f8 7f 5e 7e 5d bd ff | .].M.......^~]..
-4d bf 1f eb cf b7 cb bf e9 b7 fb f8 ff 5d bf 4d | M............].M
-bf df c7 e3 fc f8 6d a7 b3 fa f3 ed f2 fa 77 ed | ......m.......w.
-fe fc 48 d0 9f 8e da 7b 3c 3f 9f 87 f5 fc f5 7f | ..H....{<?......
-9f df 97 f5 e7 db e5 f2 ef fa 6d fe ff af 3e df | ..........m...>.
-2e ff a6 df ef e3 e1 fc fc 3f af 3f 2e de ff a6 | .........?.?....
-df 8f f5 e7 db e5 df f4 db fd fc 7f ae df a6 df | ................
-ef e3 f1 fe 7c 36 d3 d9 fd 79 f6 f9 7d 3b f6 ff | ....|6...y..};..
-7e 24 68 4f c7 6d 3d 9e 1f cf c3 fa fe 7a bf cf | ~$hO.m=......z..
-ef cb fa f3 ed f2 f9 77 fd 36 ff 7f d7 9f 6f 97 | .......w.6....o.
-7f d3 6f f7 f1 f0 fe 7e 1f d7 9f 97 6f 7f d3 6f | ..o....~....o..o
-c7 fa f3 ed f2 ef fa 6d fe fe 3f d7 6f d3 6f f7 | .......m..?.o.o.
-f1 f8 ff 3e 1b 69 ec fe bc fb 7c be 9d fb 7f bf | ...>.i....|.....
-12 34 27 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f | .4'..?....?....?
-cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf | ....?....?....?.
-f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 | ...?....?....?..
-fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc | ..?....?....?...
-ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff | .?....?....?....
-3f cf f3 fc ff 3f cf f3 fc ff 3f cf f0 8d 09 0b | ?....?....?.....
-5f d2 37 f0 86 c4 4a 23 ef 0e 70 c7 2b 2f bb 61 | _.7...J#..p.+/.a
-7f 85 86 88                                     | ....
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '04'
-    name_index:
-        encoded: "04"
-        decoded: 4
-    value_data_length:
-        encoded: "82"
-        decoded: 2
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "311f"
-        decoded: "200"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '03'
-    name_index:
-        encoded: "03"
-        decoded: 3
-    value_data_length:
-        encoded: "92"
-        decoded: 18
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "a2fba20320f2ebcc0c490062d2434cc27a1d"
-        decoded: "Mon, 21 OCt 2013 20:13:22 GMT"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '03'
-    name_index:
-        encoded: "03"
-        decoded: 3
-    value_data_length:
-        encoded: "90"
-        decoded: 16
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "e39e7864dd7afd3d3d24dcfc64aafb7f"
-        decoded: "https://www.bar.com"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '20'
-    name_index:
-        encoded: "20"
-        decoded: 32
-    value_data_length:
-        encoded: "84"
-        decoded: 4
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "e1fbb30f"
-        decoded: "gzip"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '3d'
-    name_index:
-        encoded: "3d"
-        decoded: 61
-    value_data_length:
-        encoded: "ffee02"
-        decoded: 493
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "df7dfb36eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76\
-eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb\
-76eddbb76eddbb7e3b69ecf0fe7e1fd7f3d5fe7f7e5fd79f6f97cbbfe9b7fbfebcfb\
-7cbbfe9b7fbf8f87f3f0febcfcbb7bfe9b7e3fd79f6f977fd36ff7f1febb7e9b7fbf\
-8fc7f9f0db4f67f5e7dbe5f4efdbfdf891a13f1db4f6787f3f0febf9eaff3fbf2feb\
-cfb7cbe5dff4dbfdff5e7dbe5dff4dbfdfc7c3f9f87f5e7e5dbdff4dbf1febcfb7cb\
-bfe9b7fbf8ff5dbf4dbfdfc7e3fcf86da7b3faf3edf2fa77edfefc48d09f8eda7b3c\
-3f9f87f5fcf57f9fdf97f5e7dbe5f2effa6dfeffaf3edf2effa6dfefe3e1fcfc3faf\
-3f2edeffa6df8ff5e7dbe5dff4dbfdfc7faedfa6dfefe3f1fe7c36d3d9fd79f6f97d\
-3bf6ff7e24684fc76d3d9e1fcfc3fafe7abfcfefcbfaf3edf2f977fd36ff7fd79f6f\
-977fd36ff7f1f0fe7e1fd79f976f7fd36fc7faf3edf2effa6dfefe3fd76fd36ff7f1\
-f8ff3e1b69ecfebcfb7cbe9dfb7fbf123427fcff3fcff3fcff3fcff3fcff3fcff3fc\
-ff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3\
-fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcf\
-f3fcff3fcff08d090b5fd237f086c44a23ef0e70c72b2fbb617f"
-        decoded: "foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUAL\
-QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
-QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
-IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
-IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234ma\
-x-age=3600; version=1"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '85'
-    entry_index:
-        encoded: "85"
-        decoded: 5
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '86'
-    entry_index:
-        encoded: "86"
-        decoded: 6
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '88'
-    entry_index:
-        encoded: "88"
-        decoded: 8
-
-
-# Decoded header set
-:status: 200
-cache-control: private
-content-encoding: gzip
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-age\
-=3600; version=1
-
-#########################
-
-# Header set to be encoded
-:status: 200
-cache-control: private
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-content-encoding: gzip
-set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-age\
-=3600; version=1
-
-# Hexdump of encoded data which will be decoded
-01 ff ee 02 df 7d fb 3f cf f3 fc ff 3f cf f3 fc | .....}.?....?...
-ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff | .?....?....?....
-3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f | ?....?....?....?
-cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf | ....?....?....?.
-f3 fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 | ...?....?....?..
-fc ff 3f cf f3 fc ff 3f cf f3 fc ff 3f cf f3 fc | ..?....?....?...
-ff 3e 3b 69 ec f0 fe 7e 1f d7 f3 d5 fe 7f 7e 5f | .>;i...~......~_
-d7 9f 6f 97 cb bf e9 b7 fb fe bc fb 7c bb fe 9b | ..o.........|...
-7f bf 8f 87 f3 f0 fe bc fc bb 7b fe 9b 7e 3f d7 | ..........{..~?.
-9f 6f 97 7f d3 6f f7 f1 fe bb 7e 9b 7f bf 8f c7 | .o...o....~.....
-f9 f0 db 4f 67 f5 e7 db e5 f4 ef db fd f8 91 a1 | ...Og...........
-3f 1d b4 f6 78 7f 3f 0f eb f9 ea ff 3f bf 2f eb | ?...x.?.....?./.
-cf b7 cb e5 df f4 db fd ff 5e 7d be 5d ff 4d bf | .........^}.].M.
-df c7 c3 f9 f8 7f 5e 7e 5d bd ff 4d bf 1f eb cf | ......^~]..M....
-b7 cb bf e9 b7 fb f8 ff 5d bf 4d bf df c7 e3 fc | ........].M.....
-f8 6d a7 b3 fa f3 ed f2 fa 77 ed fe fc 48 d0 9f | .m.......w...H..
-8e da 7b 3c 3f 9f 87 f5 fc f5 7f 9f df 97 f5 e7 | ..{<?...........
-db e5 f2 ef fa 6d fe ff af 3e df 2e ff a6 df ef | .....m...>......
-e3 e1 fc fc 3f af 3f 2e de ff a6 df 8f f5 e7 db | ....?.?.........
-e5 df f4 db fd fc 7f ae df a6 df ef e3 f1 fe 7c | ...............|
-36 d3 d9 fd 79 f6 f9 7d 3b f6 ff 7e 24 68 4f c7 | 6...y..};..~$hO.
-6d 3d 9e 1f cf c3 fa fe 7a bf cf ef cb fa f3 ed | m=......z.......
-f2 f9 77 fd 36 ff 7f d7 9f 6f 97 7f d3 6f f7 f1 | ..w.6....o...o..
-f0 fe 7e 1f d7 9f 97 6f 7f d3 6f c7 fa f3 ed f2 | ..~....o..o.....
-ef fa 6d fe fe 3f d7 6f d3 6f f7 f1 f8 ff 3e 1b | ..m..?.o.o....>.
-69 ec fe bc fb 7c be 9d fb 7f bf 12 34 27 6e dd | i....|......4'n.
-bb 76 ed db b7 6e dd bb 76 ed db b7 6e dd bb 76 | .v...n..v...n..v
-ed db b7 6e dd bb 76 ed db b7 6e dd bb 76 ed db | ...n..v...n..v..
-b7 6e dd bb 76 ed db b7 6e dd bb 76 ed db b7 6e | .n..v...n..v...n
-dd bb 76 ed db b7 6e dd bb 76 ed db b4 8d 09 0b | ..v...n..v......
-5f d2 37 f0 86 c4 4a 23 ef 0e 70 c7 2b 2f bb 61 | _.7...J#..p.+/.a
-7f 81                                           | ..
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '01'
-    name_index:
-        encoded: "01"
-        decoded: 1
-    value_data_length:
-        encoded: "ffee02"
-        decoded: 493
-    value_data:
-        is_huffman_encoded: 1
-        encoded: "df7dfb3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcf\
-f3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3f\
-cff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff3fcff\
-3e3b69ecf0fe7e1fd7f3d5fe7f7e5fd79f6f97cbbfe9b7fbfebcfb7cbbfe9b7fbf8f\
-87f3f0febcfcbb7bfe9b7e3fd79f6f977fd36ff7f1febb7e9b7fbf8fc7f9f0db4f67\
-f5e7dbe5f4efdbfdf891a13f1db4f6787f3f0febf9eaff3fbf2febcfb7cbe5dff4db\
-fdff5e7dbe5dff4dbfdfc7c3f9f87f5e7e5dbdff4dbf1febcfb7cbbfe9b7fbf8ff5d\
-bf4dbfdfc7e3fcf86da7b3faf3edf2fa77edfefc48d09f8eda7b3c3f9f87f5fcf57f\
-9fdf97f5e7dbe5f2effa6dfeffaf3edf2effa6dfefe3e1fcfc3faf3f2edeffa6df8f\
-f5e7dbe5dff4dbfdfc7faedfa6dfefe3f1fe7c36d3d9fd79f6f97d3bf6ff7e24684f\
-c76d3d9e1fcfc3fafe7abfcfefcbfaf3edf2f977fd36ff7fd79f6f977fd36ff7f1f0\
-fe7e1fd79f976f7fd36fc7faf3edf2effa6dfefe3fd76fd36ff7f1f8ff3e1b69ecfe\
-bcfb7cbe9dfb7fbf1234276eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76edd\
-bb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76eddbb76e\
-ddbb76eddbb48d090b5fd237f086c44a23ef0e70c72b2fbb617f"
-        decoded: "foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUAL\
-QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
-QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
-IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
-IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234ma\
-x-age=3600; version=1"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '81'
-    entry_index:
-        encoded: "81"
-        decoded: 1
-
-
-# Decoded header set
-:status: 200
-cache-control: private
-content-encoding: gzip
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-age\
-=3600; version=1
-
-#########################
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com
 ]]>
-                        </artwork>
-                    </figure>
-                </t>
-            </section>
-
-            <section title="Response Decoding Example Without Huffman"
-              anchor="response.decoding.example">
-              <t>
-                  <figure>
-                      <artwork>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
 <![CDATA[
-# Header set to be encoded
-:status: 302
-cache-control: private
-date: Mon, 21 OCt 2013 20:13:21 GMT
-location: : https://www.bar.com
-
-# Hexdump of encoded data which will be decoded
-08 03 33 30 32 18 07 70 72 69 76 61 74 65 22 1d | ..302..private".
-4d 6f 6e 2c 20 32 31 20 4f 43 74 20 32 30 31 33 | Mon, 21 OCt 2013
-20 32 30 3a 31 33 3a 32 31 20 47 4d 54 2f 15 3a |  20:13:21 GMT/.:
-20 68 74 74 70 73 3a 2f 2f 77 77 77 2e 62 61 72 |  https://www.bar
-2e 63 6f 6d                                     | .com
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '08'
-    name_index:
-        encoded: "08"
-        decoded: 8
-    value_data_length:
-        encoded: "03"
-        decoded: 3
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "333032"
-        decoded: "302"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '18'
-    name_index:
-        encoded: "18"
-        decoded: 24
-    value_data_length:
-        encoded: "07"
-        decoded: 7
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "70726976617465"
-        decoded: "private"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '22'
-    name_index:
-        encoded: "22"
-        decoded: 34
-    value_data_length:
-        encoded: "1d"
-        decoded: 29
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "4d6f6e2c203231204f437420323031332032303a31333a3231\
-20474d54"
-        decoded: "Mon, 21 OCt 2013 20:13:21 GMT"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '2f'
-    name_index:
-        encoded: "2f"
-        decoded: 47
-    value_data_length:
-        encoded: "15"
-        decoded: 21
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "3a2068747470733a2f2f7777772e6261722e636f6d"
-        decoded: ": https://www.bar.com"
-
-
-# Decoded header set
-:status: 302
-cache-control: private
-date: Mon, 21 OCt 2013 20:13:21 GMT
-location: : https://www.bar.com
-
-#########################
-
-# Header set to be encoded
-:status: 200
-cache-control: private
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-content-encoding: gzip
-set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-age\
-=3600; version=1
-
-# Hexdump of encoded data which will be decoded
-04 03 32 30 30 03 1d 4d 6f 6e 2c 20 32 31 20 4f | ..200..Mon, 21 O
-43 74 20 32 30 31 33 20 32 30 3a 31 33 3a 32 32 | Ct 2013 20:13:22
-20 47 4d 54 03 13 68 74 74 70 73 3a 2f 2f 77 77 |  GMT..https://ww
-77 2e 62 61 72 2e 63 6f 6d 20 04 67 7a 69 70 3d | w.bar.com .gzip=
-7f e1 02 66 6f 6f 3d 41 41 41 41 41 41 41 41 41 | ...foo=AAAAAAAAA
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 4c | AAAAAAAAAAAAAAAL
-41 53 44 4a 4b 48 51 4b 42 5a 58 4f 51 57 45 4f | ASDJKHQKBZXOQWEO
-50 49 55 41 58 51 57 45 4f 49 55 41 58 4c 4a 4b | PIUAXQWEOIUAXLJK
-48 51 57 4f 45 49 55 41 4c 51 57 45 4f 49 55 41 | HQWOEIUALQWEOIUA
-58 4c 51 45 55 41 58 4c 4c 4b 4a 41 53 44 51 57 | XLQEUAXLLKJASDQW
-45 4f 55 49 41 58 4e 31 32 33 34 4c 41 53 44 4a | EOUIAXN1234LASDJ
-4b 48 51 4b 42 5a 58 4f 51 57 45 4f 50 49 55 41 | KHQKBZXOQWEOPIUA
-58 51 57 45 4f 49 55 41 58 4c 4a 4b 48 51 57 4f | XQWEOIUAXLJKHQWO
-45 49 55 41 4c 51 57 45 4f 49 55 41 58 4c 51 45 | EIUALQWEOIUAXLQE
-55 41 58 4c 4c 4b 4a 41 53 44 51 57 45 4f 55 49 | UAXLLKJASDQWEOUI
-41 58 4e 31 32 33 34 4c 41 53 44 4a 4b 48 51 4b | AXN1234LASDJKHQK
-42 5a 58 4f 51 57 45 4f 50 49 55 41 58 51 57 45 | BZXOQWEOPIUAXQWE
-4f 49 55 41 58 4c 4a 4b 48 51 57 4f 45 49 55 41 | OIUAXLJKHQWOEIUA
-4c 51 57 45 4f 49 55 41 58 4c 51 45 55 41 58 4c | LQWEOIUAXLQEUAXL
-4c 4b 4a 41 53 44 51 57 45 4f 55 49 41 58 4e 31 | LKJASDQWEOUIAXN1
-32 33 34 4c 41 53 44 4a 4b 48 51 4b 42 5a 58 4f | 234LASDJKHQKBZXO
-51 57 45 4f 50 49 55 41 58 51 57 45 4f 49 55 41 | QWEOPIUAXQWEOIUA
-58 4c 4a 4b 48 51 57 4f 45 49 55 41 4c 51 57 45 | XLJKHQWOEIUALQWE
-4f 49 55 41 58 4c 51 45 55 41 58 4c 4c 4b 4a 41 | OIUAXLQEUAXLLKJA
-53 44 51 57 45 4f 55 49 41 58 4e 31 32 33 34 5a | SDQWEOUIAXN1234Z
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 31 32 33 34 20 6d 61 78 2d | ZZZZZZZ1234 max-
-61 67 65 3d 33 36 30 30 3b 20 76 65 72 73 69 6f | age=3600; versio
-6e 3d 31 85 86 88                               | n=1...
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '04'
-    name_index:
-        encoded: "04"
-        decoded: 4
-    value_data_length:
-        encoded: "03"
-        decoded: 3
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "323030"
-        decoded: "200"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '03'
-    name_index:
-        encoded: "03"
-        decoded: 3
-    value_data_length:
-        encoded: "1d"
-        decoded: 29
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "4d6f6e2c203231204f437420323031332032303a31333a3232\
-20474d54"
-        decoded: "Mon, 21 OCt 2013 20:13:22 GMT"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '03'
-    name_index:
-        encoded: "03"
-        decoded: 3
-    value_data_length:
-        encoded: "13"
-        decoded: 19
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "68747470733a2f2f7777772e6261722e636f6d"
-        decoded: "https://www.bar.com"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '20'
-    name_index:
-        encoded: "20"
-        decoded: 32
-    value_data_length:
-        encoded: "04"
-        decoded: 4
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "677a6970"
-        decoded: "gzip"
-
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '3d'
-    name_index:
-        encoded: "3d"
-        decoded: 61
-    value_data_length:
-        encoded: "7fe102"
-        decoded: 480
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "666f6f3d414141414141414141414141414141414141414141\
-41414141414141414141414141414141414141414141414141414141414141414141\
-41414141414141414141414141414141414c4153444a4b48514b425a584f5157454f\
-50495541585157454f495541584c4a4b4851574f454955414c5157454f495541584c\
-51455541584c4c4b4a4153445157454f554941584e313233344c4153444a4b48514b\
-425a584f5157454f50495541585157454f495541584c4a4b4851574f454955414c51\
-57454f495541584c51455541584c4c4b4a4153445157454f554941584e313233344c\
-4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851\
-574f454955414c5157454f495541584c51455541584c4c4b4a4153445157454f5549\
-41584e313233344c4153444a4b48514b425a584f5157454f50495541585157454f49\
-5541584c4a4b4851574f454955414c5157454f495541584c51455541584c4c4b4a41\
-53445157454f554941584e313233345a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a\
-5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a\
-5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a31323334206d61782d6167653d3336\
-30303b2076657273696f6e3d31"
-        decoded: "foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUAL\
-QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
-QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
-IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
-IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234ma\
-x-age=3600; version=1"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '85'
-    entry_index:
-        encoded: "85"
-        decoded: 5
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '86'
-    entry_index:
-        encoded: "86"
-        decoded: 6
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '88'
-    entry_index:
-        encoded: "88"
-        decoded: 8
-
-
-# Decoded header set
-:status: 200
-cache-control: private
-content-encoding: gzip
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-set-cookie: foo=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAALASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234ZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ1234 max-age\
-=3600; version=1
-
-#########################
-
-# Header set to be encoded
-:status: 200
-cache-control: private
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-content-encoding: gzip
-set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-age\
-=3600; version=1
-
-# Hexdump of encoded data which will be decoded
-01 7f e1 02 66 6f 6f 3d 5a 5a 5a 5a 5a 5a 5a 5a | ....foo=ZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a | ZZZZZZZZZZZZZZZZ
-4c 41 53 44 4a 4b 48 51 4b 42 5a 58 4f 51 57 45 | LASDJKHQKBZXOQWE
-4f 50 49 55 41 58 51 57 45 4f 49 55 41 58 4c 4a | OPIUAXQWEOIUAXLJ
-4b 48 51 57 4f 45 49 55 41 4c 51 57 45 4f 49 55 | KHQWOEIUALQWEOIU
-41 58 4c 51 45 55 41 58 4c 4c 4b 4a 41 53 44 51 | AXLQEUAXLLKJASDQ
-57 45 4f 55 49 41 58 4e 31 32 33 34 4c 41 53 44 | WEOUIAXN1234LASD
-4a 4b 48 51 4b 42 5a 58 4f 51 57 45 4f 50 49 55 | JKHQKBZXOQWEOPIU
-41 58 51 57 45 4f 49 55 41 58 4c 4a 4b 48 51 57 | AXQWEOIUAXLJKHQW
-4f 45 49 55 41 4c 51 57 45 4f 49 55 41 58 4c 51 | OEIUALQWEOIUAXLQ
-45 55 41 58 4c 4c 4b 4a 41 53 44 51 57 45 4f 55 | EUAXLLKJASDQWEOU
-49 41 58 4e 31 32 33 34 4c 41 53 44 4a 4b 48 51 | IAXN1234LASDJKHQ
-4b 42 5a 58 4f 51 57 45 4f 50 49 55 41 58 51 57 | KBZXOQWEOPIUAXQW
-45 4f 49 55 41 58 4c 4a 4b 48 51 57 4f 45 49 55 | EOIUAXLJKHQWOEIU
-41 4c 51 57 45 4f 49 55 41 58 4c 51 45 55 41 58 | ALQWEOIUAXLQEUAX
-4c 4c 4b 4a 41 53 44 51 57 45 4f 55 49 41 58 4e | LLKJASDQWEOUIAXN
-31 32 33 34 4c 41 53 44 4a 4b 48 51 4b 42 5a 58 | 1234LASDJKHQKBZX
-4f 51 57 45 4f 50 49 55 41 58 51 57 45 4f 49 55 | OQWEOPIUAXQWEOIU
-41 58 4c 4a 4b 48 51 57 4f 45 49 55 41 4c 51 57 | AXLJKHQWOEIUALQW
-45 4f 49 55 41 58 4c 51 45 55 41 58 4c 4c 4b 4a | EOIUAXLQEUAXLLKJ
-41 53 44 51 57 45 4f 55 49 41 58 4e 31 32 33 34 | ASDQWEOUIAXN1234
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
-41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 41 | AAAAAAAAAAAAAAAA
-41 41 41 41 41 41 41 41 31 32 33 34 20 6d 61 78 | AAAAAAAA1234 max
-2d 61 67 65 3d 33 36 30 30 3b 20 76 65 72 73 69 | -age=3600; versi
-6f 6e 3d 31 81                                  | on=1.
-
-# Decoded opcodes
-LITERAL_INCREMENTAL_OPCODE:
-        opcodeLengthInBits: 2
-        discoveredFromPeekingAtByte: '01'
-    name_index:
-        encoded: "01"
-        decoded: 1
-    value_data_length:
-        encoded: "7fe102"
-        decoded: 480
-    value_data:
-        is_huffman_encoded: 0
-        encoded: "666f6f3d5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a\
-5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a\
-5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a4c4153444a4b48514b425a584f5157454f\
-50495541585157454f495541584c4a4b4851574f454955414c5157454f495541584c\
-51455541584c4c4b4a4153445157454f554941584e313233344c4153444a4b48514b\
-425a584f5157454f50495541585157454f495541584c4a4b4851574f454955414c51\
-57454f495541584c51455541584c4c4b4a4153445157454f554941584e313233344c\
-4153444a4b48514b425a584f5157454f50495541585157454f495541584c4a4b4851\
-574f454955414c5157454f495541584c51455541584c4c4b4a4153445157454f5549\
-41584e313233344c4153444a4b48514b425a584f5157454f50495541585157454f49\
-5541584c4a4b4851574f454955414c5157454f495541584c51455541584c4c4b4a41\
-53445157454f554941584e3132333441414141414141414141414141414141414141\
-41414141414141414141414141414141414141414141414141414141414141414141\
-4141414141414141414141414141414141414131323334206d61782d6167653d3336\
-30303b2076657273696f6e3d31"
-        decoded: "foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUAL\
-QWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKH\
-QWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEO\
-IUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOP\
-IUAXQWEOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234ma\
-x-age=3600; version=1"
-
-INDEX_OPCODE:
-        opcodeLengthInBits: 1
-        discoveredFromPeekingAtByte: '81'
-    entry_index:
-        encoded: "81"
-        decoded: 1
-
-
-# Decoded header set
-:status: 200
-cache-control: private
-content-encoding: gzip
-date: Mon, 21 OCt 2013 20:13:22 GMT
-location: https://www.bar.com
-set-cookie: foo=ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\
-ZZZZZZZZZZZZZZZZZZZZLASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU\
-AXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIU\
-ALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJ\
-KHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234LASDJKHQKBZXOQWEOPIUAXQW\
-EOIUAXLJKHQWOEIUALQWEOIUAXLQEUAXLLKJASDQWEOUIAXN1234AAAAAAAAAAAAAAAA\
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1234 max-age\
-=3600; version=1
-
-#########################
 ]]>
-                      </artwork>
-                  </figure>
-              </t>
-          </section>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+0882 409f 1886 c31b 39bf 387f 2292 a2fb | ..@.....9.8."...
+a203 20f2 ab30 3124 018b 490d 3209 e877 | .. ..01$..I.2..w
+2f93 e39e 7864 dd7a fd3d 3d24 8747 db87 | /...xd.z.==$.G..
+2849 55f6 ff                            | (IU..
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+08                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 8)
+                                        |     :status
+82                                      |   Literal value (len = 3)
+                                        |     Huffman encoded:
+409f                                    | @.
+                                        |     Decoded:
+                                        | 302
+                                        | -> :status: 302
+18                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 24)
+                                        |     cache-control
+86                                      |   Literal value (len = 7)
+                                        |     Huffman encoded:
+c31b 39bf 387f                          | ..9.8.
+                                        |     Decoded:
+                                        | private
+                                        | -> cache-control: private
+22                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 34)
+                                        |     date
+92                                      |   Literal value (len = 29)
+                                        |     Huffman encoded:
+a2fb a203 20f2 ab30 3124 018b 490d 3209 | .... ..01$..I.2.
+e877                                    | .w
+                                        |     Decoded:
+                                        | Mon, 21 Oct 2013 20:13:21 \
+                                        | GMT
+                                        | -> date: Mon, 21 Oct 2013 \
+                                        |   20:13:21 GMT
+2f                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 47)
+                                        |     location
+93                                      |   Literal value (len = 23)
+                                        |     Huffman encoded:
+e39e 7864 dd7a fd3d 3d24 8747 db87 2849 | ..xd.z.==$.G..(I
+55f6 ff                                 | U..
+                                        |     Decoded:
+                                        | https://www.example.com
+                                        | -> location: https://www.e\
+                                        |   xample.com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+:status: 302
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
+
+    <section title="Second response">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
+:status: 200
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:22 GMT
+location: https://www.example.com
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU; max\
+-age=3600; version=1
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+[  0] location: https://www.example.com
+[  1] date: Mon, 21 Oct 2013 20:13:21 GMT
+[  2] cache-control: private
+[  3] :status: 302
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+8284 8c03 92a2 fba2 0320 f2ab 3031 2401 | ......... ..01$.
+8b49 0d33 09e8 771f 84e1 fbb3 0f3c c8df | .I.3..w.........
+7dfb 36d3 d9e1 fcfc 3faf e7ab fcfe fcbf | }.6.....?.......
+af3e df2f 977f d36f f7fd 79f6 f977 fd36 | .../...o..y..w.6
+ff7f 1f0f e7e1 fd79 f976 f7fd 36fc 7faf | .......y.v..6...
+3edf 2eff a7bc 2d7f 48df c21b 1128 8fbc | ......-.H....(..
+39c3 1cac beed 85                       | 9......
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+82                                      | == Indexed - Remove ==
+                                        |   idx = 2
+                                        | -> date: Mon, 21 Oct 2013 \
+                                        |   20:13:21 GMT
+84                                      | == Indexed - Remove ==
+                                        |   idx = 4
+                                        | -> :status: 302
+8c                                      | == Indexed - Add ==
+                                        |   idx = 12
+                                        | -> :status: 200
+03                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 3)
+                                        |     date
+92                                      |   Literal value (len = 29)
+                                        |     Huffman encoded:
+a2fb a203 20f2 ab30 3124 018b 490d 3309 | .... ..01$..I.3.
+e877                                    | .w
+                                        |     Decoded:
+                                        | Mon, 21 Oct 2013 20:13:22 \
+                                        | GMT
+                                        | -> date: Mon, 21 Oct 2013 \
+                                        |   20:13:22 GMT
+1f                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 31)
+                                        |     content-encoding
+84                                      |   Literal value (len = 4)
+                                        |     Huffman encoded:
+e1fb b30f                               | ....
+                                        |     Decoded:
+                                        | gzip
+                                        | -> content-encoding: gzip
+3c                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 60)
+                                        |     set-cookie
+c8                                      |   Literal value (len = 76)
+                                        |     Huffman encoded:
+df7d fb36 d3d9 e1fc fc3f afe7 abfc fefc | .}.6.....?......
+bfaf 3edf 2f97 7fd3 6ff7 fd79 f6f9 77fd | ..../...o..y..w.
+36ff 7f1f 0fe7 e1fd 79f9 76f7 fd36 fc7f | 6.......y.v..6..
+af3e df2e ffa7 bc2d 7f48 dfc2 1b11 288f | .......-.H....(.
+bc39 c31c acbe ed85                     | .9......
+                                        |     Decoded:
+                                        | foo=ASDJKHQKBZXOQWEOPIUAXQ\
+                                        | WEOIUAXLJKHQWOEIUALQWEOIU;\
+                                        |  max-age=3600; version=1
+                                        | -> set-cookie: foo=ASDJKHQ\
+                                        |   KBZXOQWEOPIUAXQWEOIUAXLJ\
+                                        |   KHQWOEIUALQWEOIU; max-ag\
+                                        |   e=3600; version=1
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+:status: 200
+date: Mon, 21 Oct 2013 20:13:22 GMT
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU; max\
+-age=3600; version=1
+location: https://www.example.com
+cache-control: private
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
+
+</section>
+<section title="Response Examples Without Huffman"
+    anchor="response.examples.without.huffman">
+    <section title="First response">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
+:status: 302
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+0803 3330 3218 0770 7269 7661 7465 221d | ..302..private".
+4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
+2032 303a 3133 3a32 3120 474d 542f 1768 |  20:13:21 GMT/.h
+7474 7073 3a2f 2f77 7777 2e65 7861 6d70 | ttps://www.examp
+6c65 2e63 6f6d                          | le.com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+08                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 8)
+                                        |     :status
+03                                      |   Literal value (len = 3)
+3330 32                                 | 302
+                                        | -> :status: 302
+18                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 24)
+                                        |     cache-control
+07                                      |   Literal value (len = 7)
+7072 6976 6174 65                       | private
+                                        | -> cache-control: private
+22                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 34)
+                                        |     date
+1d                                      |   Literal value (len = 29)
+4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
+2032 303a 3133 3a32 3120 474d 54        |  20:13:21 GMT
+                                        | -> date: Mon, 21 Oct 2013 \
+                                        |   20:13:21 GMT
+2f                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 47)
+                                        |     location
+17                                      |   Literal value (len = 23)
+6874 7470 733a 2f2f 7777 772e 6578 616d | https://www.exam
+706c 652e 636f 6d                       | ple.com
+                                        | -> location: https://www.e\
+                                        |   xample.com
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+:status: 302
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
+
+    <section title="Second response">
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[
+:status: 200
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:22 GMT
+location: https://www.example.com
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU; max\
+-age=3600; version=1
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Reference set:</preamble>
+                <artwork>
+<![CDATA[
+[  0] location: https://www.example.com
+[  1] date: Mon, 21 Oct 2013 20:13:21 GMT
+[  2] cache-control: private
+[  3] :status: 302
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Hexdump of encoded data:</preamble>
+                <artwork>
+<![CDATA[
+8284 8c03 1d4d 6f6e 2c20 3231 204f 6374 | .....Mon, 21 Oct
+2032 3031 3320 3230 3a31 333a 3232 2047 |  2013 20:13:22 G
+4d54 1f04 677a 6970 3c4c 666f 6f3d 4153 | MT..gzip.Lfoo=AS
+444a 4b48 514b 425a 584f 5157 454f 5049 | DJKHQKBZXOQWEOPI
+5541 5851 5745 4f49 5541 584c 4a4b 4851 | UAXQWEOIUAXLJKHQ
+574f 4549 5541 4c51 5745 4f49 553b 206d | WOEIUALQWEOIU; m
+6178 2d61 6765 3d33 3630 303b 2076 6572 | ax-age=3600; ver
+7369 6f6e 3d31                          | sion=1
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[
+82                                      | == Indexed - Remove ==
+                                        |   idx = 2
+                                        | -> date: Mon, 21 Oct 2013 \
+                                        |   20:13:21 GMT
+84                                      | == Indexed - Remove ==
+                                        |   idx = 4
+                                        | -> :status: 302
+8c                                      | == Indexed - Add ==
+                                        |   idx = 12
+                                        | -> :status: 200
+03                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 3)
+                                        |     date
+1d                                      |   Literal value (len = 29)
+4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
+2032 303a 3133 3a32 3220 474d 54        |  20:13:22 GMT
+                                        | -> date: Mon, 21 Oct 2013 \
+                                        |   20:13:22 GMT
+1f                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 31)
+                                        |     content-encoding
+04                                      |   Literal value (len = 4)
+677a 6970                               | gzip
+                                        | -> content-encoding: gzip
+3c                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 60)
+                                        |     set-cookie
+4c                                      |   Literal value (len = 76)
+666f 6f3d 4153 444a 4b48 514b 425a 584f | foo=ASDJKHQKBZXO
+5157 454f 5049 5541 5851 5745 4f49 5541 | QWEOPIUAXQWEOIUA
+584c 4a4b 4851 574f 4549 5541 4c51 5745 | XLJKHQWOEIUALQWE
+4f49 553b 206d 6178 2d61 6765 3d33 3630 | OIU; max-age=360
+303b 2076 6572 7369 6f6e 3d31           | 0; version=1
+                                        | -> set-cookie: foo=ASDJKHQ\
+                                        |   KBZXOQWEOPIUAXQWEOIUAXLJ\
+                                        |   KHQWOEIUALQWEOIU; max-ag\
+                                        |   e=3600; version=1
+]]>
+                </artwork>
+            </figure>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[
+:status: 200
+date: Mon, 21 Oct 2013 20:13:22 GMT
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIUAXLJKHQWOEIUALQWEOIU; max\
+-age=3600; version=1
+location: https://www.example.com
+cache-control: private
+]]>
+                </artwork>
+            </figure>
+        </t>
+    </section>
+
+</section>
+
         </section>
     </back>
 </rfc>

@@ -661,13 +661,13 @@
 </xsl:template>
 
 <xsl:template name="insert-begin-code">
-  <xsl:if test="@x:isCodeComponent='yes'">
+  <xsl:if test="@x:is-code-component='yes'">
     <pre class="ccmarker cct"><span>&lt;CODE BEGINS></span></pre>
   </xsl:if>
 </xsl:template>
 
 <xsl:template name="insert-end-code">
-  <xsl:if test="@x:isCodeComponent='yes'">
+  <xsl:if test="@x:is-code-component='yes'">
     <pre class="ccmarker ccb"><span>&lt;CODE ENDS></span></pre>
   </xsl:if>
 </xsl:template>
@@ -1175,7 +1175,13 @@
 
   <!-- check for conforming ipr attribute -->
   <xsl:choose>
-    <xsl:when test="not(/rfc/@ipr)" />
+    <xsl:when test="not(/rfc/@ipr)">
+      <xsl:if test="not(/rfc/@number) and $xml2rfc-private=''">
+        <xsl:call-template name="error">
+          <xsl:with-param name="msg">Either /rfc/@ipr or /rfc/@number is required</xsl:with-param>
+        </xsl:call-template>
+      </xsl:if>
+    </xsl:when>
     <xsl:when test="/rfc/@ipr = 'full2026'" />
     <xsl:when test="/rfc/@ipr = 'noDerivativeWorks'" />
     <xsl:when test="/rfc/@ipr = 'noDerivativeWorksNow'" />
@@ -1450,7 +1456,7 @@
   </xsl:if>
 </xsl:template>
 
-<xsl:template match="list[starts-with(@style,'format ') and (contains(@style,'%c') or contains(@style,'%d'))]/t">
+<xsl:template match="list[starts-with(@style,'format ') and (contains(@style,'%c') or contains(@style,'%C') or contains(@style,'%d') or contains(@style,'%i') or contains(@style,'%I'))]/t">
   <xsl:variable name="list" select=".." />
   <xsl:variable name="format" select="substring-after(../@style,'format ')" />
   <xsl:variable name="pos">
@@ -1469,8 +1475,23 @@
       <xsl:when test="contains($format,'%c')">
         <xsl:value-of select="substring-before($format,'%c')"/><xsl:number value="$pos" format="a" /><xsl:value-of select="substring-after($format,'%c')"/>
       </xsl:when>
+      <xsl:when test="contains($format,'%C')">
+        <xsl:value-of select="substring-before($format,'%C')"/><xsl:number value="$pos" format="A" /><xsl:value-of select="substring-after($format,'%C')"/>
+      </xsl:when>
+      <xsl:when test="contains($format,'%d')">
+        <xsl:value-of select="substring-before($format,'%d')"/><xsl:number value="$pos" /><xsl:value-of select="substring-after($format,'%d')"/>
+      </xsl:when>
+      <xsl:when test="contains($format,'%i')">
+        <xsl:value-of select="substring-before($format,'%i')"/><xsl:number value="$pos" format="i" /><xsl:value-of select="substring-after($format,'%i')"/>
+      </xsl:when>
+      <xsl:when test="contains($format,'%I')">
+        <xsl:value-of select="substring-before($format,'%I')"/><xsl:number value="$pos" format="I" /><xsl:value-of select="substring-after($format,'%I')"/>
+      </xsl:when>
       <xsl:otherwise>
-        <xsl:value-of select="substring-before($format,'%d')"/><xsl:number value="$pos" format="1" /><xsl:value-of select="substring-after($format,'%d')"/>
+        <xsl:value-of select="$format"/>
+        <xsl:call-template name="warning">
+          <xsl:with-param name="msg" select="concat('@format string ',$format,' not understood')"/>
+        </xsl:call-template>
       </xsl:otherwise>
     </xsl:choose>
   </dt>
@@ -3565,7 +3586,7 @@ pre {
   background-color: lightyellow;
   padding: .25em;
   page-break-inside: avoid;
-}<xsl:if test="//artwork[@x:isCodeComponent='yes']"><!-- support "<CODE BEGINS>" and "<CODE ENDS>" markers-->
+}<xsl:if test="//artwork[@x:is-code-component='yes']"><!-- support "<CODE BEGINS>" and "<CODE ENDS>" markers-->
 pre.ccmarker {
   background-color: white;
   color: gray;
@@ -6680,11 +6701,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.603 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.603 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.608 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.608 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2013/09/18 20:22:25 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/09/18 20:22:25 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2013/11/05 01:54:09 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/11/05 01:54:09 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
