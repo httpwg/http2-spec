@@ -1954,10 +1954,10 @@
       <title>
         <xsl:apply-templates select="front/title" mode="get-text-content" />
       </title>
+      <meta name="viewport" content="width=device-width">
       <xsl:call-template name="insertScript" />
       <xsl:call-template name="insertCss" />
       <!-- <link rel="alternate stylesheet" type="text/css" media="screen" title="Plain (typewriter)" href="rfc2629tty.css" /> -->
-      <meta name="viewport" content="initial-scale=1">
 
       <!-- link elements -->
       <xsl:if test="$xml2rfc-toc='yes'">
