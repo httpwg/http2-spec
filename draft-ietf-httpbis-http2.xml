@@ -2246,24 +2246,62 @@ HTTP2-Settings    = token68
 
         <section anchor="informational-responses" title="Informational Responses">
           <t>
-            <cref>This section is likely to change significantly.  This only captures the high
-            points.</cref>
+            The 1xx series of HTTP response status codes (<xref target="HTTP-p2" x:fmt=","
+            x:rel="#status.1xx"/>) are not supported in HTTP/2.0.
           </t>
           <t>
-            The 1xx series of HTTP response codes (<xref target="HTTP-p2" x:fmt=","
-            x:rel="#status.1xx"/>) are not supported by HTTP/2.0.
+            The most common use case for 1xx is using a Expect header field with a <spanx
+            style="verb">100-continue</spanx> token (colloquially, "Expect/continue") to indicate
+            that the client expects a 100 (Continue) non-final response status code, receipt of
+            which indicating that the client should continue sending the request body if it has not
+            already done so.
           </t>
           <t>
-            An intermediary that translates HTTP/1.1 requests to HTTP/2.0 MUST generate any
-            mandatory informational responses.  For instance, a translating intermediary generates a
-            100 (Continue) response if a request includes an Expect header field with a <spanx
-            style="verb">100-continue</spanx> token (<xref target="HTTP-p2" x:fmt=","
-            x:rel="#header.expect"/>).
+            Typically, Expect/continue is used by clients wishing to avoid sending a large amount
+            of data in a request body, only to have the request rejected by the origin server.
           </t>
           <t>
-            An intermediary that translates HTTP/1.1 responses to HTTP/2.0 MUST ignore informational
-            responses.
+            HTTP/2.0 does not enable the Expect/continue mechanism; if the server sends a final
+            status code to reject the request, it can do so without making the underlying
+            connection unusable.
           </t>
+          <t>
+            Note that this means HTTP/2.0 clients sending requests with bodies may waste at least
+            one round trip of sent data when the request is rejected. This can be mitigated by
+            restricting the amount of data sent for the first round trip by bandwidth-constrained
+            clients, in anticipation of a final status code.
+          </t>
+          <t>
+            Other defined 1xx status codes are not applicable to HTTP/2.0; the semantics of 101
+            (Switching Protocols) is better expressed using a distinct frame type, since they apply
+            to the entire connection, not just one stream. Likewise, 102 (Processing) is no longer
+            necessary, because HTTP/2.0 has a separate means of keeping the connection alive.
+          </t>
+          <t>
+            This difference between protocol versions necessitates special handling by
+            intermediaries that translate between them:
+            <list style="symbols">
+              <t>
+                An intermediary that gateways HTTP/1.1 to HTTP/2.0 MUST generate a 100 (Continue)
+                response if a received request includes and Expect header field with a <spanx
+                style="verb">100-continue</spanx> token (<xref target="HTTP-p2" x:fmt=","
+                x:rel="#header.expect"/>), unless it can immediately generate a final status code.
+                It MUST NOT forward the <spanx style="verb">100-continue</spanx> expectation in the
+                request header fields.
+              </t>
+              <t>
+                An intermediary that gateways HTTP/2.0 to HTTP/1.1 MAY add an Expect header field
+                with a <spanx style="verb">100-continue</spanx> expectation when forwarding a
+                request that has a body; see <xref target="HTTP-p2" x:fmt=","
+                x:rel="#header.expect"/> for specific requirements.
+              </t>
+              <t>
+                An intermediary that gateways HTTP/2.0 to HTTP/1.1 MUST discard all other 1xx
+                informational responses.
+              </t>
+            </list>
+          </t>          
+          
         </section>
 
         <section title="Examples">
