@@ -620,14 +620,19 @@ HTTP2-Settings    = token68
           (see <xref target="PushResources" />).
         </t>
         <t>
-          Header lists are ordered collections of zero or more header fields arranged at the
-          application layer.  When transmitted over a connection, a header list is serialized into a
-          header block using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The
-          serialized header block is then divided into one or more octet sequences, called header
-          block fragments, and transmitted within the payload of <xref
-          target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
+          Header sets are collections of zero or more header fields arranged at the application
+          layer.  When transmitted over a connection, a header set is serialized into a header block
+          using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The serialized header
+          block is then divided into one or more octet sequences, called header block fragments, and
+          transmitted within the payload of <xref target="HEADERS">HEADERS</xref>, <xref
+          target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
           target="CONTINUATION">CONTINUATION</xref> frames.
         </t>
+	<t>
+	  HTTP Header Compression does not preserve the relative ordering of header fields.  Header
+	  fields with multiple values are encoded into a single header field using a special
+	  delimiter, see <xref target="HeaderOrdering"/>.
+	</t>
         <t>
           The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
           mapping, see <xref target="CompressCookie"/>.
@@ -2527,30 +2532,37 @@ HTTP2-Settings    = token68
             an HTTP/1.1 status line.
           </t>
         </section>
+	
+	<section anchor="HeaderOrdering" title="Header Field Ordering">
+	  <t>
+	    <xref target="COMPRESSION">HTTP Header Compression</xref> does not preserve the order of
+	    header fields.  The relative order of header fields with different names is not
+	    important.  However, the same header field can be repeated to form a comma-separated
+	    list (see <xref target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), where the relative
+	    order of header field values is significant.
+	  </t>
+	  <t>
+	    To preserve the order of a comma-separated list, the ordered values for a single header
+	    field name are concatenated into a single value.  A zero-valued octet (0x0) is used to
+	    delimit multiple values.
+	  </t>
+	  <t>
+	    After decompression, header fields that have values containing zero octets (0x0) MUST be
+	    split into multiple header fields before being processed.
+	  </t>
+	  <t>
+	    Header fields containing multiple values MUST be concatenated into a single value unless
+	    the ordering of that header field is known to be not significant.
+	  </t>
+	  <t>
+	    The special case of <spanx style="verb">set-cookie</spanx> - which does not form a
+	    comma-separated list, but can have multiple values - does not depend on ordering.  The
+	    <spanx style="verb">set-cookie</spanx> header field MAY be encoded as multiple header
+	    field values, or as a single concatenated value.
+	  </t>
+	</section>
 
-        <section anchor="HeaderOrdering" title="Header Field Ordering">
-          <t>
-            HTTP/1.1 allows a header field to have multiple values defined as a comma-separated
-            list. This is equivalent to splitting the list across several header fields with the
-            same name. For these headers, the ordering of the values can be significant. However,
-            the serialization mechanism for header blocks has no requirement to keep the ordering of
-            header fields.
-          </t>
-          <t>
-            The value-concatenation mechanism enables to concatenate several values for the same
-            header field into a single NULL-separated list of values. These concatenated values are
-            used to preserve the ordering of the values. The ordering of values contained in a
-            NULL-separated list of values or a comma-separated list of values MUST be preserved.
-          </t>
-          <t>
-            Within a set of headers, several header fields with the same name MUST be combined into
-            a single header field using value-concatenation, unless ordering of values is not
-            significant for this header field. A header field with a comma-separated list of values
-            MAY be transformed into a NULL-separated list of values.
-          </t>
-        </section>
-
-        <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
+	<section anchor="CompressCookie" title="Compressing the Cookie Header Field">
           <t>
             The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
             redundant data.
