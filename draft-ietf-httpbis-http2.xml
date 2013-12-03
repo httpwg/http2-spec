@@ -620,14 +620,19 @@ HTTP2-Settings    = token68
           (see <xref target="PushResources" />).
         </t>
         <t>
-          Header lists are ordered collections of zero or more header fields arranged at the
-          application layer.  When transmitted over a connection, a header list is serialized into a
-          header block using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The
-          serialized header block is then divided into one or more octet sequences, called header
-          block fragments, and transmitted within the payload of <xref
-          target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
+          Header sets are collections of zero or more header fields arranged at the application
+          layer.  When transmitted over a connection, a header set is serialized into a header block
+          using <xref target="COMPRESSION">HTTP Header Compression</xref>.  The serialized header
+          block is then divided into one or more octet sequences, called header block fragments, and
+          transmitted within the payload of <xref target="HEADERS">HEADERS</xref>, <xref
+          target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
           target="CONTINUATION">CONTINUATION</xref> frames.
         </t>
+	<t>
+	  HTTP Header Compression does not preserve the relative ordering of header fields.  Header
+	  fields with multiple values are encoded into a single header field using a special
+	  delimiter, see <xref target="HeaderOrdering"/>.
+	</t>
         <t>
           The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
           mapping, see <xref target="CompressCookie"/>.
@@ -2525,8 +2530,39 @@ HTTP2-Settings    = token68
             an HTTP/1.1 status line.
           </t>
         </section>
+	
+	<section anchor="HeaderOrdering" title="Header Field Ordering">
+	  <t>
+	    <xref target="COMPRESSION">HTTP Header Compression</xref> does not preserve the order of
+	    header fields.  The relative order of header fields with different names is not
+	    important.  However, the same header field can be repeated to form a comma-separated
+	    list (see <xref target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), where the relative
+	    order of header field values is significant. This repetition can occur either as a single
+        header field with a comma-separated list of values, or as several header fields with a
+        single value, or any combination thereof.
+	  </t>
+	  <t>
+	    To preserve the order of a comma-separated list, the ordered values for a single header
+        field name appearing in different header fields are concatenated into a single value.  A
+        zero-valued octet (0x0) is used to delimit multiple values.
+	  </t>
+	  <t>
+	    After decompression, header fields that have values containing zero octets (0x0) MUST be
+	    split into multiple header fields before being processed.
+	  </t>
+	  <t>
+	    Header fields containing multiple values MUST be concatenated into a single value unless
+	    the ordering of that header field is known to be not significant.
+	  </t>
+	  <t>
+	    The special case of <spanx style="verb">set-cookie</spanx> - which does not form a
+	    comma-separated list, but can have multiple values - does not depend on ordering.  The
+	    <spanx style="verb">set-cookie</spanx> header field MAY be encoded as multiple header
+	    field values, or as a single concatenated value.
+	  </t>
+	</section>
 
-        <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
+	<section anchor="CompressCookie" title="Compressing the Cookie Header Field">
           <t>
             The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
             redundant data.
@@ -3540,6 +3576,9 @@ HTTP2-Settings    = token68
       <section title="Since draft-ietf-httpbis-http2-08" anchor="changes.since.draft-ietf-httpbis-http2-08">
         <t>
           Added cookie crumbling for more efficient header compression.
+        </t>
+        <t>
+          Added header field ordering with the value-concatenation mechanism.
         </t>
       </section>
 
