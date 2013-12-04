@@ -69,6 +69,7 @@ If you're an editor, or forking a copy of the draft, a few things to know:
 * You'll need xml2rfc, Java and Saxon-HE available. You can override the
   default locations in the environment.  On a Mac with
   [Homebrew](http://mxcl.github.io/homebrew/), "saxon-b" is the right package.
+* Some of the make targets require GNU Make 4.0
 * Making the txt and html for the latest drafts is done with "make".
 * Output for a specific draft can be made using "make http2" or
   "make hpack".
