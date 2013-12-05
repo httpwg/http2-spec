@@ -305,12 +305,4 @@ the certificate checks are "relaxed", it could be that there is no need for a
 separate protocol identifier. However, this needs to be discussed.
 
 
-# Implementation Status
-
-No current implementations.
-
-It is expected that if this proposal is adopted, first interop will be achieved by:
-
-1. Specifying a set of ALPN protocol identifiers with TLS variants (possibly including -relaxed), with an appropriate level of detail for each.
-2. Nominating a set of negotiation mechanisms targeted for interop (e.g., Alt-Svc).
 
