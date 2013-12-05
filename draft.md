@@ -120,45 +120,47 @@ use of encryption as well as configuration of that encryption, independent of
 the URI scheme in use.
 
 Thus, we won't have just one protocol identifier for HTTP/2.0, but two; one
-with and one without the use of TLS. For example, the following identifiers
-might be registered if this approach is adopted:
+with and one without the use of TLS. As such, the following identifiers
+are recommended if this approach is adopted:
 
-* http1 - http/1.x over TCP
-* http1-tls - http/1.x over TLS over TCP (as per {{RFC2818}})
-* http2 - http/2.x over TCP
-* http2-tls - http/2.x over TLS over TCP (as per {{RFC2818}})
-* http2-tls-relaxed - http/2.x over TLS over TCP (see {{relaxed}})
+* h1 - http/1.x over TCP
+* h1t - http/1.x over TLS over TCP (as per {{RFC2818}})
+* h2 - http/2.x over TCP
+* h2t - http/2.x over TLS over TCP (as per {{RFC2818}})
+* h2r - http/2.x over TLS over TCP (see {{relaxed}})
+
+Draft implementations could be indicated with a suffix; e.g., h2t-draft10.
 
 Most of these are already latently defined by HTTP/2.0, with the exception
-being http2-tls-relaxed, defined below. Note that the focus of this proposal is
+being h2r, defined below. Note that the focus of this proposal is
 on the semantics of the identifiers; an exact syntax for them is not part of it.
 
 By indicating the use of TLS in the protocol identifier allows a client and
 server to negotiate the use of TLS for "http://" URIs; if the server offers
-http2-tls, the client can select that protocol, start TLS and use it.
+h2t, the client can select that protocol, start TLS and use it.
 
 Note that, as discussed in {{downgrade}}, there may be situations (e.g,. ALPN)
 where advertising some of these profiles are inapplicable or inadvisable. For
 example, in an ALPN negotiation for a "https://" URI, it is only sensible to
-offer http1-tls and http2-tls.
+offer h1t and h2t.
 
 
-## The "http2-tls-relaxed" Protocol {#relaxed}
+## The "h2r" Protocol {#relaxed}
 
-Servers that support the "http2-tls-relaxed" protocol indicate that they
+Servers that support the "h2r" protocol indicate that they
 support TLS for access to URIs with the "http" URI scheme using HTTP/2.0 or
 greater.
 
-Servers MAY advertise the "http2-tls-relaxed" profile for resources with a
+Servers MAY advertise the "h2r" profile for resources with a
 "http" origin scheme; they MUST NOT advertise it for resources with a "https"
 origin.
 
-When a client connects to an "http2-tls-relaxed" alternate service, it MUST use
+When a client connects to an "h2r" alternate service, it MUST use
 TLS1.1 or greater, and MUST use HTTP/2.x. HTTP/2.0 SHOULD be used as
 soon as TLS negotiation is completed; i.e., the "Upgrade dance" SHOULD NOT be
 performed.
 
-When connecting to an "http2-tls-relaxed" service, the algorithm for
+When connecting to an "h2r" service, the algorithm for
 authenticating the server described in {{RFC2818}} Section 3.1 changes; the
 client does not necessarily validate its certificate for expiry, hostname match
 or relationship to a known certificate authority (as it would with "normal"
@@ -170,7 +172,7 @@ additional checks are out of scope for this specification.
 
 Upon initial adoption of this proposal, it is expected that no such additional
 checks will be performed. Therefore, the client MUST NOT use the
-"http2-tls-relaxed" profile to connect to alternate services whose host does
+"h2r" profile to connect to alternate services whose host does
 not match that of the origin (as per {{I-D.nottingham-httpbis-alt-svc}}), unless additional checks are performed.
 
 Servers SHOULD use the same certificate consistently over time, to aid future
@@ -178,7 +180,7 @@ extensions for building trust and adding other services.
 
 [TODO: define "same"; likely not the same actual certificate. ]
 
-When the http2-tls-relaxed protocol is in use, User Agents MUST NOT indicate
+When the h2r protocol is in use, User Agents MUST NOT indicate
 the connection has the same level of security as https:// (e.g. using a "lock
 device").
 
@@ -274,7 +276,7 @@ HTTP/2.0 for HTTP URIs.
 
 ## No certificate checks? Really?
 
-http2-tls-relaxed has the effect of relaxing certificate checks on "http://" -
+h2r has the effect of relaxing certificate checks on "http://" -
 but not "https://" - URIs when TLS is in use. Since TLS isn't in use for any
 "http://" URIs today, there is no net loss of security, and we gain some
 privacy from passive attacks.
