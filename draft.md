@@ -1,7 +1,7 @@
 ---
 title: Opportunistic Encryption for HTTP URIs
 abbrev: Opportunistic HTTP Encryption
-docname: draft-nottingham-http2-encryption-01
+docname: draft-nottingham-http2-encryption-02
 date: 2013
 category: std
 
