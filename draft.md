@@ -63,8 +63,8 @@ informative:
 
 --- abstract
 
-This document proposes a way to optimistically encrypt HTTP/2.0 using TLS for
-HTTP URIs.
+This document proposes a way to opportunistically encrypt HTTP/2.0 using TLS
+for HTTP URIs.
 
 --- middle
 
@@ -78,7 +78,7 @@ in determining whether encryption (through use of TLS {{RFC6246}}) is used.
 This document uses the new "alternate services" layer described in
 {{I-D.nottingham-httpbis-alt-svc}} to decouple the URI scheme from the use and
 configuration of underlying encryption, allowing a "http://" URI to be upgraded
-to use TLS optimistically.
+to use TLS opportunistically.
 
 Additionally, because using TLS requires acquiring and configuring a valid
 certificate, some deployments may find supporting it difficult. Therefore, this
