@@ -831,7 +831,20 @@
         </object>
       </xsl:when>
       <xsl:otherwise>
-        <img src="{@src}" alt="{.}">
+        <xsl:variable name="alt">
+          <xsl:choose>
+            <xsl:when test="@alt!=''">
+              <xsl:value-of select="@alt"/>
+            </xsl:when>
+            <xsl:otherwise>
+              <xsl:value-of select="."/>
+            </xsl:otherwise>
+          </xsl:choose>
+        </xsl:variable>
+        <img src="{@src}">
+          <xsl:if test="normalize-space($alt)!=''">
+            <xsl:attribute name="alt"><xsl:value-of select="$alt"/></xsl:attribute>
+          </xsl:if>
           <xsl:if test="@width and @width!=''">
             <xsl:copy-of select="@width"/>
           </xsl:if>
@@ -1048,6 +1061,14 @@
 
 <xsl:template match="figure">
   <xsl:call-template name="check-no-text-content"/>
+  <!-- warn about the attributes that we do not support -->
+  <xsl:for-each select="@*[local-name()!='title' and local-name()!='suppress-title' and local-name()!='anchor' and normalize-space(.)!='']">
+    <xsl:if test="local-name(.)!='align' or normalize-space(.)!='left'">
+      <xsl:call-template name="warning">
+        <xsl:with-param name="msg" select="concat('unsupported attribute ',local-name(.),' on figure element')"/>
+      </xsl:call-template>
+    </xsl:if>
+  </xsl:for-each>
   <xsl:if test="@anchor!=''">
     <xsl:call-template name="check-anchor"/>
     <div id="{@anchor}"/>
@@ -3550,8 +3571,11 @@ h2 {
   line-height: 15pt;
   page-break-after: avoid;
 }
-h3, h4, h5, h6 {
+h3 {
   font-size: 110%;
+  page-break-after: avoid;
+}
+h4, h5, h6 {
   page-break-after: avoid;
 }
 h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
@@ -6701,11 +6725,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.608 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.608 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.611 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.611 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2013/11/05 01:54:09 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/11/05 01:54:09 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2013/11/27 12:23:51 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2013/11/27 12:23:51 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
