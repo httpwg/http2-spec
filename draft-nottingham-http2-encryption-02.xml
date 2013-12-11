@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?xml-stylesheet type="text/xsl" href="../Tools/rfc2629xslt/rfc2629.xslt" ?>
 <!DOCTYPE rfc SYSTEM "../Tools/rfc2629xslt/rfc2629.dtd">
-<rfc ipr="trust200902" docName="draft-nottingham-http2-encryption-01" category="std">
+<rfc ipr="trust200902" docName="draft-nottingham-http2-encryption-02" category="std">
   <?rfc toc="yes"?>
   <?rfc tocindent="yes"?>
   <?rfc sortrefs="yes"?>
@@ -23,8 +23,10 @@
     <area>General</area>
     <keyword>Internet-Draft</keyword>
     <abstract>
-      <t>This document proposes a way to optimistically encrypt HTTP/2.0 using TLS for
-HTTP URIs.</t>
+      <t>This document proposes two changes to HTTP/2.0; first, it suggests using ALPN
+Protocol Identifies to identify the specific stack of protocols in use,
+including TLS, and second, it proposes a way to opportunistically encrypt
+HTTP/2.0 using TLS for HTTP URIs.</t>
     </abstract>
   </front>
   <middle>
@@ -33,10 +35,10 @@ HTTP URIs.</t>
 bootstrapping encryption in HTTP <xref target="I-D.ietf-httpbis-p1-messaging"/> – using the
 “HTTPS” URI scheme – unintentionally gives the server disproportionate power
 in determining whether encryption (through use of TLS <xref target="RFC6246"/>) is used.</t>
-      <t>This document uses the new “alternate services” layer described in
+      <t>This document proposes using the new “alternate services” layer described in
 <xref target="I-D.nottingham-httpbis-alt-svc"/> to decouple the URI scheme from the use and
 configuration of underlying encryption, allowing a “http://” URI to be upgraded
-to use TLS optimistically.</t>
+to use TLS opportunistically.</t>
       <t>Additionally, because using TLS requires acquiring and configuring a valid
 certificate, some deployments may find supporting it difficult. Therefore, this
 document also proposes a “relaxed” profile of HTTP/2.0 over TLS that does not
@@ -59,47 +61,53 @@ upon performance (in keeping with the goals of HTTP/2.0).</t>
 document are to be interpreted as described in <xref target="RFC2119"/>.</t>
       </section>
     </section>
-    <section anchor="indicating-security-properties-in-protocol-identifiers" title="Indicating Security Properties in Protocol Identifiers">
-      <t>In past dicussions, there has been general agreement to reusing the ALPN
+    <section anchor="proposal-indicating-security-properties-in-protocol-identifiers" title="Proposal: Indicating Security Properties in Protocol Identifiers">
+      <t>In past discussions, there has been general agreement to reusing the ALPN
 protocol identifier <xref target="I-D.ietf-tls-applayerprotoneg"/> for all negotiation
 mechanisms in HTTP/2.0, not just TLS.</t>
       <t>This document proposes putting additional information into them to identify the
 use of encryption as well as configuration of that encryption, independent of
 the URI scheme in use.</t>
       <t>Thus, we won’t have just one protocol identifier for HTTP/2.0, but two; one
-with and one without the use of TLS. For example, the following identifiers
-might be registered if this approach is adopted:</t>
+with and one without the use of TLS. As such, the following identifiers
+are recommended if this approach is adopted:</t>
       <t>
         <list style="symbols">
-          <t>http1 - http/1.x over TCP</t>
-          <t>http1-tls - http/1.x over TLS over TCP (as per <xref target="RFC2818"/>)</t>
-          <t>http2 - http/2.x over TCP</t>
-          <t>http2-tls - http/2.x over TLS over TCP (as per <xref target="RFC2818"/>)</t>
-          <t>http2-tls-relaxed - http/2.x over TLS over TCP (see <xref target="relaxed"/>)</t>
+          <t>h1 - http/1.x over TCP</t>
+          <t>h1t - http/1.x over TLS over TCP (as per <xref target="RFC2818"/>)</t>
+          <t>h2 - http/2.x over TCP</t>
+          <t>h2t - http/2.x over TLS over TCP (as per <xref target="RFC2818"/>)</t>
+          <t>h2r - http/2.x over TLS over TCP (see <xref target="relaxed"/>)</t>
         </list>
       </t>
+      <t>Draft implementations could be indicated with a suffix; e.g., h2t-draft10.</t>
       <t>Most of these are already latently defined by HTTP/2.0, with the exception
-being http2-tls-relaxed, defined below. Note that the focus of this proposal is
+being h2r, defined below. Note that the focus of this proposal is
 on the semantics of the identifiers; an exact syntax for them is not part of it.</t>
       <t>By indicating the use of TLS in the protocol identifier allows a client and
 server to negotiate the use of TLS for “http://” URIs; if the server offers
-http2-tls, the client can select that protocol, start TLS and use it.</t>
+h2t, the client can select that protocol, start TLS and use it.</t>
       <t>Note that, as discussed in <xref target="downgrade"/>, there may be situations (e.g,. ALPN)
 where advertising some of these profiles are inapplicable or inadvisable. For
 example, in an ALPN negotiation for a “https://” URI, it is only sensible to
-offer http1-tls and http2-tls.</t>
-      <section anchor="relaxed" title="The “http2-tls-relaxed” Protocol">
-        <t>Servers that support the “http2-tls-relaxed” protocol indicate that they
+offer h1t and h2t.</t>
+      <t>If adopted, this proposal would be effected by adjusting the text in Section 3
+of <xref target="I-D.ietf-httpbis-http2"/> (“Starting HTTP/2.0”) along the lines described
+above. Note that the specific protocol identifiers above are suggestions only.</t>
+      <section anchor="relaxed" title="Proposal: The “h2r” Protocol">
+        <t>If the proposal above is adopted, a separate proposal is to define a separate
+protocol identifier for “relaxed” TLS operation.</t>
+        <t>Servers that support the “h2r” protocol indicate that they
 support TLS for access to URIs with the “http” URI scheme using HTTP/2.0 or
 greater.</t>
-        <t>Servers MAY advertise the “http2-tls-relaxed” profile for resources with a
+        <t>Servers MAY advertise the “h2r” profile for resources with a
 “http” origin scheme; they MUST NOT advertise it for resources with a “https”
 origin.</t>
-        <t>When a client connects to an “http2-tls-relaxed” alternate service, it MUST use
+        <t>When a client connects to an “h2r” alternate service, it MUST use
 TLS1.1 or greater, and MUST use HTTP/2.x. HTTP/2.0 SHOULD be used as
 soon as TLS negotiation is completed; i.e., the “Upgrade dance” SHOULD NOT be
 performed.</t>
-        <t>When connecting to an “http2-tls-relaxed” service, the algorithm for
+        <t>When connecting to an “h2r” service, the algorithm for
 authenticating the server described in <xref target="RFC2818"/> Section 3.1 changes; the
 client does not necessarily validate its certificate for expiry, hostname match
 or relationship to a known certificate authority (as it would with “normal”
@@ -109,19 +117,21 @@ decision as to its validity before using the server. Definition of such
 additional checks are out of scope for this specification.</t>
         <t>Upon initial adoption of this proposal, it is expected that no such additional
 checks will be performed. Therefore, the client MUST NOT use the
-“http2-tls-relaxed” profile to connect to alternate services whose host does
+“h2r” profile to connect to alternate services whose host does
 not match that of the origin (as per <xref target="I-D.nottingham-httpbis-alt-svc"/>), unless additional checks are performed.</t>
         <t>Servers SHOULD use the same certificate consistently over time, to aid future
 extensions for building trust and adding other services.</t>
         <t>[TODO: define “same”; likely not the same actual certificate. ]</t>
-        <t>When the http2-tls-relaxed protocol is in use, User Agents MUST NOT indicate
+        <t>When the h2r protocol is in use, User Agents MUST NOT indicate
 the connection has the same level of security as https:// (e.g. using a “lock
 device”).</t>
+        <t>If this proposal is adopted, the “h2r” protocol could be defined in
+<xref target="I-D.ietf-httpbis-http2"/> (most likely, Section 3), or in a separate document.</t>
       </section>
     </section>
     <section anchor="security-considerations" title="Security Considerations">
       <section anchor="downgrade" title="Downgrade Attacks">
-        <t>A downgrade attack against the negotation for TLS is possible, depending upon
+        <t>A downgrade attack against the negotiation for TLS is possible, depending upon
 the properties of the negotiation mechanism.</t>
         <t>For example, because the Alt-Svc header field <xref target="I-D.nottingham-httpbis-alt-svc"/>
 appears in the clear for “http://” URIs, it is subject to downgrade by
@@ -227,13 +237,13 @@ such active attacks. </t>
           <author initials="A" surname="Melnikov" fullname="Alexey Melnikov">
             <organization/>
           </author>
-          <date month="August" day="21" year="2013"/>
+          <date month="November" day="11" year="2013"/>
           <abstract>
-            <t>This specification describes an optimized expression of the syntax of the Hypertext Transfer Protocol (HTTP).  The HTTP/2.0 encapsulation enables more efficient use of network resources and reduced perception of latency by allowing header field compression and multiple concurrent messages on the same connection.  It also introduces unsolicited push of representations from servers to clients.  This document is an alternative to, but does not obsolete the HTTP/1.1 message format or protocol.  HTTP's existing semantics remain unchanged.  This version of the draft has been marked for implementation. Interoperability testing will occur in the HTTP/2.0 interim in Seatle, US, starting 2013-10-09.</t>
+            <t>This specification describes an optimized expression of the syntax of the Hypertext Transfer Protocol (HTTP).  HTTP/2.0 enables a more efficient use of network resources and a reduced perception of latency by introducing header field compression and allowing multiple concurrent messages on the same connection.  It also introduces unsolicited push of representations from servers to clients.  This document is an alternative to, but does not obsolete, the HTTP/1.1 message syntax.  HTTP's existing semantics remain unchanged.  This version of the draft has been marked for implementation. Interoperability testing will occur in the HTTP/2.0 interim in Zurich, CH, starting 2014-01-22.</t>
           </abstract>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-06"/>
-        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-http2-06.txt"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-08"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-http2-08.txt"/>
       </reference>
       <reference anchor="I-D.nottingham-httpbis-alt-svc">
         <front>
@@ -283,13 +293,13 @@ such active attacks. </t>
           <author initials="J" surname="Reschke" fullname="Julian Reschke">
             <organization/>
           </author>
-          <date month="September" day="25" year="2013"/>
+          <date month="November" day="17" year="2013"/>
           <abstract>
             <t>The Hypertext Transfer Protocol (HTTP) is an application-level protocol for distributed, collaborative, hypertext information systems.  HTTP has been in use by the World Wide Web global information initiative since 1990.  This document provides an overview of HTTP architecture and its associated terminology, defines the "http" and "https" Uniform Resource Identifier (URI) schemes, defines the HTTP/1.1 message syntax and parsing requirements, and describes general security concerns for implementations.</t>
           </abstract>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-24"/>
-        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p1-messaging-24.txt"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-25"/>
+        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p1-messaging-25.txt"/>
       </reference>
       <reference anchor="firesheep" target="http://codebutler.com/firesheep/">
         <front>
@@ -476,11 +486,11 @@ implement one of the encryption-enabling profiles to interoperate using
 HTTP/2.0 for HTTP URIs.</t>
       </section>
       <section anchor="no-certificate-checks-really" title="No certificate checks? Really?">
-        <t>http2-tls-relaxed has the effect of relaxing certificate checks on “http://” -
+        <t>h2r has the effect of relaxing certificate checks on “http://” -
 but not “https://” - URIs when TLS is in use. Since TLS isn’t in use for any
 “http://” URIs today, there is no net loss of security, and we gain some
 privacy from passive attacks.</t>
-        <t>This makes TLS signficantly simpler to deploy for servers; they are able to use
+        <t>This makes TLS significantly simpler to deploy for servers; they are able to use
 a self-signed certificate. </t>
         <t>Additionally, it is possible to detect some attacks by remembering what
 certificate is used in the past “pinning” or third-party verification of the
@@ -499,16 +509,6 @@ protocol interactions; as such, they bring a risk of discovery.</t>
 the certificate checks are “relaxed”, it could be that there is no need for a 
 separate protocol identifier. However, this needs to be discussed.</t>
       </section>
-    </section>
-    <section anchor="implementation-status" title="Implementation Status">
-      <t>No current implementations.</t>
-      <t>It is expected that if this proposal is adopted, first interop will be achieved by:</t>
-      <t>
-        <list style="numbers">
-          <t>Specifying a set of ALPN protocol identifiers with TLS variants (possibly including -relaxed), with an appropriate level of detail for each.</t>
-          <t>Nominating a set of negotiation mechanisms targeted for interop (e.g., Alt-Svc).</t>
-        </list>
-      </t>
     </section>
   </back>
 </rfc>
