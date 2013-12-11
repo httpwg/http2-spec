@@ -63,8 +63,10 @@ informative:
 
 --- abstract
 
-This document proposes a way to opportunistically encrypt HTTP/2.0 using TLS
-for HTTP URIs.
+This document proposes two changes to HTTP/2.0; first, it suggests using ALPN
+Protocol Identifies to identify the specific stack of protocols in use,
+including TLS, and second, it proposes a way to opportunistically encrypt
+HTTP/2.0 using TLS for HTTP URIs.
 
 --- middle
 
@@ -109,7 +111,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 document are to be interpreted as described in {{RFC2119}}.
 
 
-# Indicating Security Properties in Protocol Identifiers
+# Proposal: Indicating Security Properties in Protocol Identifiers
 
 In past discussions, there has been general agreement to reusing the ALPN
 protocol identifier {{I-D.ietf-tls-applayerprotoneg}} for all negotiation
@@ -144,8 +146,15 @@ where advertising some of these profiles are inapplicable or inadvisable. For
 example, in an ALPN negotiation for a "https://" URI, it is only sensible to
 offer h1t and h2t.
 
+If adopted, this proposal would be effected by adjusting the text in Section 3
+of {{I-D.ietf-httpbis-http2}} ("Starting HTTP/2.0") along the lines described
+above. Note that the specific protocol identifiers above are suggestions only.
 
-## The "h2r" Protocol {#relaxed}
+
+## Proposal: The "h2r" Protocol {#relaxed}
+
+If the proposal above is adopted, a separate proposal is to define a separate
+protocol identifier for "relaxed" TLS operation.
 
 Servers that support the "h2r" protocol indicate that they
 support TLS for access to URIs with the "http" URI scheme using HTTP/2.0 or
@@ -183,6 +192,9 @@ extensions for building trust and adding other services.
 When the h2r protocol is in use, User Agents MUST NOT indicate
 the connection has the same level of security as https:// (e.g. using a "lock
 device").
+
+If this proposal is adopted, the "h2r" protocol could be defined in
+{{I-D.ietf-httpbis-http2}} (most likely, Section 3), or in a separate document.
 
 
 # Security Considerations
