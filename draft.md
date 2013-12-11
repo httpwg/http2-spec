@@ -75,7 +75,7 @@ bootstrapping encryption in HTTP {{I-D.ietf-httpbis-p1-messaging}} -- using the
 "HTTPS" URI scheme -- unintentionally gives the server disproportionate power
 in determining whether encryption (through use of TLS {{RFC6246}}) is used.
 
-This document uses the new "alternate services" layer described in
+This document proposes using the new "alternate services" layer described in
 {{I-D.nottingham-httpbis-alt-svc}} to decouple the URI scheme from the use and
 configuration of underlying encryption, allowing a "http://" URI to be upgraded
 to use TLS opportunistically.
@@ -111,7 +111,7 @@ document are to be interpreted as described in {{RFC2119}}.
 
 # Indicating Security Properties in Protocol Identifiers
 
-In past dicussions, there has been general agreement to reusing the ALPN
+In past discussions, there has been general agreement to reusing the ALPN
 protocol identifier {{I-D.ietf-tls-applayerprotoneg}} for all negotiation
 mechanisms in HTTP/2.0, not just TLS.
 
@@ -189,7 +189,7 @@ device").
 
 ## Downgrade Attacks {#downgrade}
 
-A downgrade attack against the negotation for TLS is possible, depending upon
+A downgrade attack against the negotiation for TLS is possible, depending upon
 the properties of the negotiation mechanism.
 
 For example, because the Alt-Svc header field {{I-D.nottingham-httpbis-alt-svc}}
@@ -281,7 +281,7 @@ but not "https://" - URIs when TLS is in use. Since TLS isn't in use for any
 "http://" URIs today, there is no net loss of security, and we gain some
 privacy from passive attacks.
 
-This makes TLS signficantly simpler to deploy for servers; they are able to use
+This makes TLS significantly simpler to deploy for servers; they are able to use
 a self-signed certificate. 
 
 Additionally, it is possible to detect some attacks by remembering what
