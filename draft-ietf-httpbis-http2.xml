@@ -1058,7 +1058,7 @@ HTTP2-Settings    = token68
                 receiver MAY choose to set any window size that it desires for each stream and for
                 the entire connection.  A sender MUST respect flow control limits imposed by a
                 receiver.  Clients, servers and intermediaries all independently advertise their
-                flow control preferences as a receiver and abide by the flow control limits set by
+                flow control window as a receiver and abide by the flow control limits set by
                 their peer when sending.
               </t>
               <t>
@@ -1072,10 +1072,7 @@ HTTP2-Settings    = token68
                 window.  This ensures that important control frames are not blocked by flow control.
               </t>
               <t>
-                Flow control can be disabled by a receiver.  A receiver can choose to disable both
-                forms of flow control by sending the <x:ref>SETTINGS_FLOW_CONTROL_OPTIONS</x:ref>
-                setting.  See <xref target="EndFlowControl">Ending Flow Control</xref> for more
-                details.
+                Flow control cannot be disabled.
               </t>
               <t>
                 HTTP/2.0 standardizes only the format of the <x:ref>WINDOW_UPDATE</x:ref> frame
@@ -1103,9 +1100,9 @@ HTTP2-Settings    = token68
             continue to process other streams in the same connection.
           </t>
           <t>
-            Deployments that do not require this capability SHOULD disable flow control for data
-            that is being received.  Note that flow control cannot be disabled for sending.  Sending
-            data is always subject to the flow control window advertised by the receiver.
+            Deployments that do not require this capability can advertise a flow control of the
+            maximum size, incrementing the available space when new data is received.  Sending data
+            is always subject to the flow control window advertised by the receiver.
           </t>
           <t>
             Deployments with constrained resources (for example, memory) MAY employ flow control to
@@ -1153,7 +1150,6 @@ HTTP2-Settings    = token68
           associated stream.  The promised stream inherits the priority value of the associated
           stream plus one, up to a maximum of 2<x:sup>31</x:sup>-1.
         </t>
-
       </section>
 
       <section title="Error Handling">
@@ -1595,16 +1591,6 @@ HTTP2-Settings    = token68
                     Values above the maximum flow control window size of 2<x:sup>31</x:sup> - 1 MUST
                     be treated as a <xref target="ConnectionErrorHandler">connection error</xref> of
                     type <x:ref>FLOW_CONTROL_ERROR</x:ref>.
-                  </t>
-                </x:lt>
-                <x:lt hangText="SETTINGS_FLOW_CONTROL_OPTIONS (5):" anchor="SETTINGS_FLOW_CONTROL_OPTIONS">
-                  <t>
-                    Indicates flow control options.  The least significant bit (0x1) of the value is
-                    set to indicate that the sender has disabled all flow control.  This bit cannot
-                    be cleared once set, see <xref target="EndFlowControl"/>.
-                  </t>
-                  <t>
-                    All bits other than the least significant are reserved.
                   </t>
                 </x:lt>
               </list>
@@ -2056,27 +2042,6 @@ HTTP2-Settings    = token68
               </list>
               If a receiver decides to accept streams, both sides MUST recompute the available flow
               control window based on the initial window size sent in the <x:ref>SETTINGS</x:ref>.
-            </t>
-          </section>
-
-          <section anchor="EndFlowControl" title="Ending Flow Control">
-            <t>
-              After a receiver reads in a frame that marks the end of a stream (for example, a data
-              stream with a END_STREAM flag set), it MUST cease transmission of WINDOW_UPDATE frames
-              for that stream. A sender is not obligated to maintain the available flow control
-              window for streams that it is no longer sending on.
-            </t>
-            <t>
-              Flow control can be disabled for the entire connection using the
-              <x:ref>SETTINGS_FLOW_CONTROL_OPTIONS</x:ref> setting.  This setting ends all forms of
-              flow control.  An implementation that does not wish to perform flow control can use
-              this in the initial <x:ref>SETTINGS</x:ref> exchange.
-            </t>
-            <t>
-              Flow control cannot be enabled again once disabled.  Any attempt to re-enable flow
-              control - by sending a WINDOW_UPDATE or by clearing the bits on the
-              <x:ref>SETTINGS_FLOW_CONTROL_OPTIONS</x:ref> setting - MUST be rejected with a
-              <x:ref>FLOW_CONTROL_ERROR</x:ref> error code.
             </t>
           </section>
         </section>
@@ -3033,8 +2998,8 @@ HTTP2-Settings    = token68
       <section title="Denial of Service Considerations">
         <t>
           An HTTP/2.0 connection can demand a greater commitment of resources to operate than a
-          HTTP/1.1 connection.  The use of header compression and flow control require that an
-          implementation commit resources for storing a greater amount of state.  Settings for these
+          HTTP/1.1 connection.  The use of header compression and flow control depend on a
+          commitment of resources for storing a greater amount of state.  Settings for these
           features ensure that memory commitments for these features are strictly bounded.
           Processing capacity cannot be guarded in the same fashion.
         </t>
@@ -3668,6 +3633,9 @@ HTTP2-Settings    = token68
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-09" anchor="changes.since.draft-ietf-httpbis-http2-09">
+        <t>
+          Removing the ability to disable flow control.
+        </t>
         <t>
           Changing the protocol identification token to "h2".
         </t>
