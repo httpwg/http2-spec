@@ -1124,30 +1124,34 @@ HTTP2-Settings    = token68
 
       <section anchor="StreamPriority" title="Stream priority">
         <t>
-          The endpoint establishing a new stream can assign a priority for the stream.  Priority is
-          represented as an unsigned 31-bit integer.  0 represents the highest priority and
-          2<x:sup>31</x:sup>-1 represents the lowest priority.
+          A client can assign a priority for a new stream by including prioritization information in
+          the <x:ref>HEADERS</x:ref> frame containing priorization information.  For an existing
+          stream, the <xref target="PRIORITY">PRIORITY frame</xref> can be used to change the
+          priority.
         </t>
         <t>
-          The purpose of this value is to allow an endpoint to express the relative priority of a
-          stream.  An endpoint can use this information to preferentially allocate resources to a
-          stream.  Within HTTP/2, priority can be used to select streams for transmitting frames
-          when there is limited capacity for sending.  For instance, an endpoint might enqueue
-          frames for all concurrently active streams.  As transmission capacity becomes available,
-          frames from higher priority streams might be sent before lower priority streams.
+          Each stream is prioritized into a group.  Each group is identified using an identifier
+          that is selected by the client.  Each group is assigned a relative weight, a number that
+          is used to determine the relative proportion of available resources that are assigned to
+          that group.
         </t>
         <t>
-          Explicitly setting the priority for a stream does not guarantee any particular processing
-          or transmission order for the stream relative to any other stream. Nor is there any
-          mechanism provided by which the initiator of a stream can force or require a receiving
-          endpoint to process concurrent streams in a particular order.
+          Within the group, streams can also be marked as being dependent on the completion of other
+          streams.
         </t>
         <t>
-          Unless explicitly specified in the <x:ref>HEADERS</x:ref> frame (<xref target="HEADERS"/>)
-          during stream creation, the default stream priority is 2<x:sup>30</x:sup>.
+          The purpose of this value is to allow an endpoint to express how it would prefer its peer
+          prioritize resources between concurrent streams.  Most importantly, priority can be used
+          to select streams for transmitting frames when there is limited capacity for sending.
         </t>
         <t>
-          <xref target="PushResources">Pushed streams</xref> have a lower priority than their
+          Explicitly setting the priority for a stream is input to a prioritization process.  It
+          does not guarantee any particular processing or transmission order for the stream relative
+          to any other stream.  An endpoint cannot force a peer to process concurrent streams in a
+          particular order using priority.
+        </t>
+        <t>
+          <xref target="PushResources">Pushed streams</xref> have an explicit dependency on their
           associated stream.  The promised stream inherits the priority value of the associated
           stream plus one, up to a maximum of 2<x:sup>31</x:sup>-1.
         </t>
@@ -3733,6 +3737,9 @@ HTTP2-Settings    = token68
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-09" anchor="changes.since.draft-ietf-httpbis-http2-09">
+        <t>
+          Changed priority indication system.
+        </t>
         <t>
           Adding padding for data frames.
         </t>
