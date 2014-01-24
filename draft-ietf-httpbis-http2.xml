@@ -515,7 +515,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Clients and servers MUST terminate the TCP connection if either peer does not begin with a
-          valid connection header.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) MAY be
+          valid connection header.  A <x:ref>GTFO</x:ref> frame (<xref target="GTFO"/>) MAY be
           omitted if it is clear that the peer is not using HTTP/2.0.
         </t>
       </section>
@@ -1176,22 +1176,22 @@ HTTP2-Settings    = token68
             or which corrupts any connection state.
           </t>
           <t>
-            An endpoint that encounters a connection error SHOULD first send a <x:ref>GOAWAY</x:ref>
-            frame (<xref target="GOAWAY"/>) with the stream identifier of the last stream that it
-            successfully received from its peer.  The <x:ref>GOAWAY</x:ref> frame includes an error
+            An endpoint that encounters a connection error SHOULD first send a <x:ref>GTFO</x:ref>
+            frame (<xref target="GTFO"/>) with the stream identifier of the last stream that it
+            successfully received from its peer.  The <x:ref>GTFO</x:ref> frame includes an error
             code that indicates why the connection is terminating.  After sending the
-            <x:ref>GOAWAY</x:ref> frame, the endpoint MUST close the TCP connection.
+            <x:ref>GTFO</x:ref> frame, the endpoint MUST close the TCP connection.
           </t>
           <t>
-            It is possible that the <x:ref>GOAWAY</x:ref> will not be reliably received by the
-            receiving endpoint.  In the event of a connection error, <x:ref>GOAWAY</x:ref> only
+            It is possible that the <x:ref>GTFO</x:ref> will not be reliably received by the
+            receiving endpoint.  In the event of a connection error, <x:ref>GTFO</x:ref> only
             provides a best-effort attempt to communicate with the peer about why the connection is
             being terminated.
           </t>
           <t>
             An endpoint can end a connection at any time.  In particular, an endpoint MAY choose to
             treat a stream error as a connection error.  Endpoints SHOULD send a
-            <x:ref>GOAWAY</x:ref> frame when ending a connection, as long as circumstances permit
+            <x:ref>GTFO</x:ref> frame when ending a connection, as long as circumstances permit
             it.
           </t>
         </section>
@@ -1779,36 +1779,37 @@ HTTP2-Settings    = token68
 
         </section>
 
-        <section anchor="GOAWAY" title="GOAWAY">
+        <section anchor="GTFO" title="GTFO">
           <t>
-            The GOAWAY frame (type=0x7) informs the remote peer to stop creating streams on this
-            connection.  It can be sent from the client or the server. Once sent, the sender will
+            Senders indicate a General Termination of Future Operations by sending a GTFO frame
+            (type=0x7), which informs the remote peer to stop creating streams on this connection.
+            It can be sent from the client or the server. Once sent, the sender will
             ignore frames sent on new streams for the remainder of the connection. Receivers of a
-            GOAWAY frame MUST NOT open additional streams on the connection, although a new
+            GTFO frame MUST NOT open additional streams on the connection, although a new
             connection can be established for new streams.  The purpose of this frame is to allow an
             endpoint to gracefully stop accepting new streams (perhaps for a reboot or maintenance),
             while still finishing processing of previously established streams.
           </t>
           <t>
             There is an inherent race condition between an endpoint starting new streams and the
-            remote sending a GOAWAY frame.  To deal with this case, the GOAWAY contains the stream
+            remote sending a GTFO frame.  To deal with this case, the GTFO contains the stream
             identifier of the last stream which was processed on the sending endpoint in this
-            connection.  If the receiver of the GOAWAY used streams that are newer than the
+            connection.  If the receiver of the GTFO used streams that are newer than the
             indicated stream identifier, they were not processed by the sender and the receiver may
             treat the streams as though they had never been created at all (hence the receiver may
             want to re-create the streams later on a new connection).
           </t>
           <t>
-            Endpoints SHOULD always send a GOAWAY frame before closing a connection so that the
+            Endpoints SHOULD always send a GTFO frame before closing a connection so that the
             remote can know whether a stream has been partially processed or not.  For example, if
             an HTTP client sends a POST at the same time that a server closes a connection, the
             client cannot know if the server started to process that POST request if the server does
-            not send a GOAWAY frame to indicate where it stopped working.  An endpoint might choose
-            to close a connection without sending GOAWAY for misbehaving peers.
+            not send a GTFO frame to indicate where it stopped working.  An endpoint might choose
+            to close a connection without sending GTFO for misbehaving peers.
           </t>
 
           <t>
-            After sending a GOAWAY frame, the sender can discard frames for new streams.  However,
+            After sending a GTFO frame, the sender can discard frames for new streams.  However,
             any frames that alter connection state cannot be completely ignored.  For instance,
             <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref>
             frames MUST be minimally processed to ensure a consistent compression state (see <xref
@@ -1816,7 +1817,7 @@ HTTP2-Settings    = token68
             flow control window.
           </t>
 
-          <figure title="GOAWAY Payload Format">
+          <figure title="GTFO Payload Format">
             <artwork type="inline"><![CDATA[
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1830,17 +1831,17 @@ HTTP2-Settings    = token68
 ]]></artwork>
           </figure>
           <t>
-            The GOAWAY frame does not define any flags.
+            The GTFO frame does not define any flags.
           </t>
           <t>
-            The GOAWAY frame applies to the connection, not a specific stream.  An endpoint MUST
-            treat a <x:ref>GOAWAY</x:ref> frame with a stream identifier other than 0x0 as a <xref
+            The GTFO frame applies to the connection, not a specific stream.  An endpoint MUST
+            treat a <x:ref>GTFO</x:ref> frame with a stream identifier other than 0x0 as a <xref
             target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
           <t>
-            The last stream identifier in the GOAWAY frame contains the highest numbered stream
-            identifier for which the sender of the GOAWAY frame has received frames on and might
+            The last stream identifier in the GTFO frame contains the highest numbered stream
+            identifier for which the sender of the GTFO frame has received frames on and might
             have taken some action on.  All streams up to and including the identified stream might
             have been processed in some way.  The last stream identifier is set to 0 if no streams
             were processed.
@@ -1850,7 +1851,7 @@ HTTP2-Settings    = token68
                 some higher layer of software that might have taken some action as a result.
               </t>
             </list>
-            If a connection terminates without a GOAWAY frame, this value is effectively the highest
+            If a connection terminates without a GTFO frame, this value is effectively the highest
             stream identifier.
           </t>
           <t>
@@ -1862,19 +1863,19 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Activity on streams numbered lower or equal to the last stream identifier might still
-            complete successfully.  The sender of a GOAWAY frame might gracefully shut down a
-            connection by sending a GOAWAY frame, maintaining the connection in an open state until
+            complete successfully.  The sender of a GTFO frame might gracefully shut down a
+            connection by sending a GTFO frame, maintaining the connection in an open state until
             all in-progress streams complete.
           </t>
           <t>
             The last stream ID MUST be 0 if no streams were acted upon.
           </t>
           <t>
-            The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
+            The GTFO frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
             contains the reason for closing the connection.
           </t>
           <t>
-            Endpoints MAY append opaque data to the payload of any GOAWAY frame.  Additional debug
+            Endpoints MAY append opaque data to the payload of any GTFO frame.  Additional debug
             data is intended for diagnostic purposes only and carries no semantic value.  Debug
             information could contain security- or privacy-sensitive data.  Logged or otherwise
             persistently stored debug data MUST have adequate safeguards to prevent unauthorized
@@ -1979,7 +1980,7 @@ HTTP2-Settings    = token68
               If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
               maximum it MUST terminate either the stream or the connection, as appropriate.  For
               streams, the sender sends a <x:ref>RST_STREAM</x:ref> with the error code of
-              <x:ref>FLOW_CONTROL_ERROR</x:ref> code; for the connection, a <x:ref>GOAWAY</x:ref>
+              <x:ref>FLOW_CONTROL_ERROR</x:ref> code; for the connection, a <x:ref>GTFO</x:ref>
               frame with a <x:ref>FLOW_CONTROL_ERROR</x:ref> code.
             </t>
             <t>
@@ -2119,7 +2120,7 @@ HTTP2-Settings    = token68
     <section anchor="ErrorCodes" title="Error Codes">
       <t>
         Error codes are 32-bit fields that are used in <x:ref>RST_STREAM</x:ref> and
-        <x:ref>GOAWAY</x:ref> frames to convey the reasons for the stream or connection error.
+        <x:ref>GTFO</x:ref> frames to convey the reasons for the stream or connection error.
       </t>
 
       <t>
@@ -2132,7 +2133,7 @@ HTTP2-Settings    = token68
         <list style="hanging">
           <t hangText="NO_ERROR (0):" anchor="NO_ERROR">
             The associated condition is not as a result of an error.  For example, a
-            <x:ref>GOAWAY</x:ref> might include this code to indicate graceful shutdown of a
+            <x:ref>GTFO</x:ref> might include this code to indicate graceful shutdown of a
             connection.
           </t>
           <t hangText="PROTOCOL_ERROR (1):" anchor="PROTOCOL_ERROR">
@@ -2624,7 +2625,7 @@ HTTP2-Settings    = token68
             has not been processed:
             <list style="symbols">
               <t>
-                The <x:ref>GOAWAY</x:ref> frame indicates the highest stream number that might have
+                The <x:ref>GTFO</x:ref> frame indicates the highest stream number that might have
                 been processed.  Requests on streams with higher numbers are therefore guaranteed to
                 be safe to retry.
               </t>
@@ -2644,7 +2645,7 @@ HTTP2-Settings    = token68
             A server MUST NOT indicate that a stream has not been processed unless it can guarantee
             that fact.  If frames that are on a stream are passed to the application layer for any
             stream, then <x:ref>REFUSED_STREAM</x:ref> MUST NOT be used for that stream, and a
-            <x:ref>GOAWAY</x:ref> frame MUST include a stream identifier that is greater than or
+            <x:ref>GTFO</x:ref> frame MUST include a stream identifier that is greater than or
             equal to the given stream identifier.
           </t>
           <t>
@@ -2878,7 +2879,7 @@ HTTP2-Settings    = token68
           Servers are encouraged to maintain open connections for as long as possible, but are
           permitted to terminate idle connections if necessary.  When either endpoint chooses to
           close the transport-level TCP connection, the terminating endpoint SHOULD first send a
-          <x:ref>GOAWAY</x:ref> (<xref target="GOAWAY"/>) frame so that both endpoints can reliably
+          <x:ref>GTFO</x:ref> (<xref target="GTFO"/>) frame so that both endpoints can reliably
           determine whether previously sent frames have been processed and gracefully complete or
           terminate any necessary remaining tasks.
         </t>
