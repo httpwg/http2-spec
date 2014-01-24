@@ -2175,6 +2175,10 @@ HTTP2-Settings    = token68
             The endpoint detected that its peer is exhibiting a behavior over a given amount of time
             that has caused it to refuse to process further frames.
           </t>
+          <t hangText="INADEQUATE_SECURITY (12):" anchor="INADEQUATE_SECURITY">
+            The underlying transport has properties that do not meet the minimum requirements
+            imposed by this document (see <xref target="TLSUsage"/>) or the endpoint.
+          </t>
         </list>
       </t>
     </section>
@@ -2885,7 +2889,7 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section title="Use of TLS Features">
+      <section title="Use of TLS Features" anchor="TLSUsage">
         <t>
           Implementations of HTTP/2.0 MUST support <xref target="TLS12">TLS 1.2</xref>.  The general
           TLS usage guidance in <xref target="TLSBCP"/> SHOULD be followed, with some additional
@@ -2904,19 +2908,23 @@ HTTP2-Settings    = token68
           security or other reasons.
         </t>
         <t>
-          A server that receives a TLS handshake that does not include either TLS 1.2 or SNI, MUST
-          NOT negotiate HTTP/2.0.
-        </t>
-        <t>
           Implementations MUST negotiate ephemeral cipher suites (DHE or ECDHE) with a minimum size
           of 2048 bits (DHE) or security level of 128 bits (ECDHE). Clients MUST accept DHE sizes of
-          up to 4096 bits. Servers which are unable to negotiate cipher suites which are conformant
-          to this requirement MUST not negotiate HTTP/2.0.
+          up to 4096 bits.
         </t>
         <t>
-          Removing HTTP/2.0 protocols from consideration could result in the removal of all
-          protocols from the set of protocols offered by the client.  This causes protocol
-          negotiation failure, as described in <xref target="TLSALPN" x:fmt="of" x:sec="3.2"/>.
+          An implementation that negotiates a TLS connection that does not meet the requirements in
+          this section, or any policy-based constraints, SHOULD NOT negotiate HTTP/2.0.  Removing
+          HTTP/2.0 protocols from consideration could result in the removal of all protocols from
+          the set of protocols offered by the client.  This causes protocol negotiation failure, as
+          described in <xref target="TLSALPN" x:fmt="of" x:sec="3.2"/>.
+        </t>
+        <t>
+          Due to implementation limitations, it might not be possible to fail TLS negotiation based
+          on all of these requirements.  An endpoint MUST terminate a HTTP/2.0 connection that is
+          opened on a TLS session that does not meet these minimum requirements with a <xref
+          target="ConnectionErrorHandler">connection error</xref> of type
+          <x:ref>INADEQUATE_SECURITY</x:ref>.
         </t>
         <t>
           Implementations are encouraged not to negotiate TLS cipher suites with known
@@ -3581,6 +3589,9 @@ HTTP2-Settings    = token68
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
       <section title="Since draft-ietf-httpbis-http2-09" anchor="changes.since.draft-ietf-httpbis-http2-09">
+        <t>
+          Adding INADEQUATE_SECURITY error code.
+        </t>
         <t>
           Updating TLS usage requirements to 1.2; forbidding TLS compression.
         </t>
