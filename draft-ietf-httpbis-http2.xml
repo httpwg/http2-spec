@@ -1235,7 +1235,7 @@ HTTP2-Settings    = token68
       </section>
     </section>
 
-    <section  anchor="frame-types" title="Frame Definitions">
+    <section anchor="frame-types" title="Frame Definitions">
         <t>
           This specification defines a number of frame types, each identified by a unique 8-bit type
           code. Each frame type serves a distinct purpose either in the establishment and management
@@ -1258,6 +1258,46 @@ HTTP2-Settings    = token68
             response payloads.
           </t>
           <t>
+            DATA frames MAY also contain arbitrary padding.  Padding can be added to DATA frames to
+            hide the size of messages.
+          </t>
+          <figure title="DATA Frame Payload">
+            <artwork type="inline"><![CDATA[
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ | [Pad High(8)] | [Pad Low (8)] |          Data (*)             .
+ +-+-------------------------------------------------------------+
+ .                            Data (*)                         ...
+ +---------------------------------------------------------------+
+ |                           Padding (*)                       ...
+ +---------------------------------------------------------------+
+]]></artwork>
+          </figure>
+          <t>
+            The DATA frame contains the following fields:
+            <list style="hanging">
+              <t hangText="Pad High:">
+                An 8-bit field containing an amount of padding in units of 256 octets.  This field
+                is optional and is only present if the PAD_HIGH flag is set.  This field, in
+                combination with Pad Low, determines how much padding there is on a frame.
+              </t>
+              <t hangText="Pad Low:">
+                An 8-bit field containing an amount of padding in units of single octets.  This
+                field is optional and is only present if the PAD_LOW flag is set.  This field, in
+                combination with Pad High, determines how much padding there is on a frame.
+              </t>
+              <t hangText="Data:">
+                Application data.  The amount of data is the remainder of the frame payload after
+                subtracting the length of the other fields that are present.
+              </t>
+              <t hangText="Padding:">
+                Padding octets that contain no application semantic value.  Padding octets MUST be
+                set to zero when sending and ignored when receiving.
+              </t>
+            </list>
+          </t>
+          <t>
             The DATA frame defines the following flags:
             <list style="hanging">
               <t hangText="END_STREAM (0x1):">
@@ -1267,6 +1307,13 @@ HTTP2-Settings    = token68
               </t>
               <t hangText="RESERVED (0x2):">
                 Bit 2 is reserved for future use.
+              </t>
+              <t hangText="PAD_HIGH (0x4):">
+                Bit 3 being set indicates that the Pad High field is present.  This bit MUST NOT be
+                set unless the PAD_LOW flag is also set.
+              </t>
+              <t hangText="PAD_LOW (0x8):">
+                Bit 4 being set indicates that the Pad Low field is present.
               </t>
             </list>
           </t>
@@ -1278,9 +1325,24 @@ HTTP2-Settings    = token68
           </t>
           <t>
             DATA frames are subject to flow control and can only be sent when a stream is in the
-            "open" or "half closed (remote)" states. If a DATA frame is received whose stream is not
-            in "open" or "half closed (local)" state, the recipient MUST respond with a <xref
-            target="StreamErrorHandler">stream error</xref> of type <x:ref>STREAM_CLOSED</x:ref>.
+            "open" or "half closed (remote)" states. Padding is not excluded from flow control.  If
+            a DATA frame is received whose stream is not in "open" or "half closed (local)" state,
+            the recipient MUST respond with a <xref target="StreamErrorHandler">stream error</xref>
+            of type <x:ref>STREAM_CLOSED</x:ref>.
+          </t>
+          <t>
+            The total number of padding octets is determined by multiplying the value of the Pad
+            High field by 256 and adding the value of the Pad Low field.  Both Pad High and Pad Low
+            fields assume a value of zero if absent.  If the length of the padding is greater than
+            the length of the remainder of the frame payload, the recipient MUST treat this as a
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
+            <list style="hanging">
+              <t hangText="Note:">
+                A frame can be increased in size by one octet by including a Pad Low field with a
+                value of zero.
+              </t>
+            </list>
           </t>
         </section>
 
