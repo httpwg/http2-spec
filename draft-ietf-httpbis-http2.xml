@@ -384,9 +384,10 @@ Upgrade: h2
         </t>
         <t>
           The HTTP/1.1 request that is sent prior to upgrade is assigned stream identifier 1 and is
-          assigned the default priority values for order and weight.  Stream 1 is implicitly half
-          closed from the client toward the server, since the request is completed as an HTTP/1.1
-          request.  After commencing the HTTP/2 connection, stream 1 is used for the response.
+          assigned <xref target="DefaultPriority">default priority values</xref>.  Stream 1 is
+          implicitly half closed from the client toward the server, since the request is completed
+          as an HTTP/1.1 request.  After commencing the HTTP/2 connection, stream 1 is used for the
+          response.
         </t>
 
         <section anchor="Http2SettingsHeader" title="HTTP2-Settings Header Field">
@@ -1224,36 +1225,40 @@ HTTP2-Settings    = token68
             higher than expressed by a peer.
           </t>
           <t>
-            To avoid this problem, endpoints SHOULD maintain prioritization state for closed streams
-            for a period after streams close.  This could create an large state burden for the
-            endpoint, so this state can be limited.  The amount of additional state an endpoint
-            maintains could be dependent on load; under high or extreme load, prioritization state
-            can be discarded to limit resource commitments, including any state for active streams.
+            To avoid the first case - where a stream is closed prior to a dependency being created
+            upon it - endpoints SHOULD maintain prioritization state for closed streams for a period
+            after streams close.  This could create a large state burden for the endpoint, so the
+            number of streams that are tracked MAY be limited.  The amount of additional state an
+            endpoint maintains could be dependent on load; under high load, prioritization state can
+            be discarded to limit resource commitments; in extreme cases, this could include
+            prioritization state for active or reserved streams.
           </t>
           <t>
             Priority group information is part of the priority state of a stream.  Priority groups
-            with no active streams can be assigned a weight of zero.
+            that contain only closed streams can be assigned a weight of zero.
           </t>
           <t>
-            The number of priority groups cannot exceed the number of tracked streams.  This
-            includes streams in the "reserved" state.  Peer-initiated streams are limited to the
-            value of <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.  Reserved streams do not count
-            toward the concurrent stream limit of either peer, but priority information is only
-            necessary for the endpoint that creates the reservation.  Since both are under control
-            of the endpoint, the total number of priority groups can be limited.
+            The number of priority groups cannot exceed the number of non-closed streams.  This
+            includes streams in the "reserved" state.  Priority state size for peer-initiated
+            streams is limited by the value of <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.
+            Reserved streams do not count toward the concurrent stream limit of either peer, but
+            only the endpoint that creates the reservation needs to maintain priority information.
+            Thus, the total amount of priority state for non-closed streams can be limited by an
+            endpoint.
           </t>
         </section>
 
-        <section title="Default Priorities">
+        <section title="Default Priorities" anchor="DefaultPriority">
           <t>
             Providing priority information is optional.  Streams are assigned default values for
-            priority if not specified:
+            priority if not specified.  Streams that are opened with a <x:ref>HEADERS</x:ref> frame
+            that does not include priority information are assigned values of:
             <list style="symbols">
               <t>
-                a weight of zero,
+                a priority group equal to the lower 24 bits of their stream identifier,
               </t>
               <t>
-                a priority group equal to the lower 24 bits of their stream identifier, and
+                a weight of 16, and
               </t>
               <t>
                 a dependency on the non-existent stream 0.
@@ -1261,9 +1266,8 @@ HTTP2-Settings    = token68
             </list>
           </t>
           <t>
-            <xref target="PushResources">Pushed streams</xref> inherit weight and priority group
-            from their associated stream.  Pushed streams initially depend on their associated
-            stream.
+            <xref target="PushResources">Pushed streams</xref> inherit the priority group from their
+            associated stream.  Pushed streams initially depend on their associated stream.
           </t>
         </section>
       </section>
