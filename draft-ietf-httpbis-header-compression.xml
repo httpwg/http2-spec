@@ -787,15 +787,15 @@ else
                             </t>
                             <t>
                                 The number of octets required to hold the
-                                result of the next step, represented as a
-                                <xref target="integer.representation">
-                                    variable-length-quantity </xref>, starting
-                                with a 7-bit prefix immediately following
-                                the first bit.
+                                result of the next step, represented as an
+                                integer with a 7-bit prefix (see <xref
+                                    target="integer.representation"/>),
+                                immediately following the first bit.
                             </t>
-                            <t> The encoded data of the string:
-                                <list>
-                                    <t> If H is true, then the encoded
+                            <t>
+                                The encoded data of the string:
+                                <list style="symbols">
+                                    <t> If H is '1', then the encoded
                                         string data is the bitwise
                                         concatenation of the <xref
                                             target="CANON">canonical</xref><xref
@@ -804,7 +804,7 @@ else
                                         data, followed by between 0-7 bits of
                                         padding.
                                     </t>
-                                    <t> If H is false, then the encoded string
+                                    <t> If H is '0', then the encoded string
                                         is the octets of the field value
                                         without modification.
                                     </t>
@@ -819,26 +819,29 @@ else
                         misinterpreted as part of the input data.
                     </t>
                     <t>
-                        When padding for Huffman encoding, use the bits from the
-                        EOS (end-of-string) entry in the Huffman table, starting
-                        with the MSB (most significant bit). This entry is
-                        guaranteed to be at least 8 bits long.
+                        When padding for Huffman encoding, the bits from the
+                        EOS (end-of-string) entry in the Huffman table are
+                        used, starting with the MSB (most significant bit).
+                        This entry is guaranteed to be at least 8 bits long.
                     </t>
                     <t>
-                        String literals sent in the client to server direction
-                        which use Huffman encoding are encoded with the codes
-                        within the <xref target="request.huffman.codes">
-                            request Huffman code table</xref> (see <xref
+                        String literals corresponding to the value of a header
+                        whose name is 'cookie' or 'set-cookie' and which use
+                        Huffman encoding MUST be encoded with the
+                        <xref target="cookie.huffman.codes"> Cookie Huffman
+                            Codes</xref> (see <xref
+                            target="response.examples.with.huffman">Response
+                            Examples with Huffman</xref>).
+                    </t>
+                    <t>
+                        Other string literals which use Huffman encoding
+                        are encoded with the <xref
+                            target="huffman.codes">Default Huffman
+                            Codes</xref> (see <xref
                             target="request.examples.with.huffman"> Request
-                            Examples With Huffman</xref>).
-                    </t>
-                    <t>
-                        String literals sent in the server to client direction
-                        which use Huffman encoding are encoded with the codes
-                        within the <xref target="response.huffman.codes">
-                            response Huffman code table</xref> (see <xref
-                            target="response.examples.with.huffman">
-                            Response Examples With Huffman</xref>).
+                            Examples with Huffman</xref> and <xref
+                            target="response.examples.with.huffman"> Response
+                            Examples with Huffman</xref>).
                     </t>
                     <t>
                         The EOS symbol is represented with value 256, and is
@@ -849,7 +852,7 @@ else
                         the EOS symbol is at least 8 bits long, it is expected
                         that it should never be successfully decoded.
                     </t>
-                    <figure title="String Literal With Huffman Encoding">
+                    <figure title="String Literal with Huffman Encoding">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -863,7 +866,7 @@ else
 +---+---+---+---+---+---+---+---+
 ]]></artwork>
                     </figure>
-                    <figure title="String Literal Without Huffman Encoding">
+                    <figure title="String Literal without Huffman Encoding">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -873,7 +876,7 @@ else
 +---+---+---+---+---+---+---+---+
 ...
 +---+---+---+---+---+---+---+---+
-|  Field Bytes Without Encoding |
+|  Field Bytes without Encoding |
 +---+---+---+---+---+---+---+---+
 ]]></artwork>
                     </figure>
@@ -1349,6 +1352,10 @@ else
                 anchor="changes.since.draft-ietf-httpbis-header-compression-05">
                 <t><list style="symbols">
                     <t>
+                        Only one Huffman table for requests and responses. New
+                        Huffman table for cookies.
+                    </t>
+                    <t>
                         Added maximum size for header table, independent of
                         SETTINGS_HEADER_TABLE_SIZE.
                     </t>
@@ -1581,14 +1588,14 @@ else
             </t>
         </section>
 
-        <section title="Huffman Codes For Requests" anchor="request.huffman.codes">
+        <section title="Default Huffman Codes" anchor="huffman.codes">
             <t>
-                The following Huffman codes are used when encoding string
-                literals in the client to server direction.
+                The following Huffman codes are used by default when encoding
+                string literals.
             </t>
             <t>
                 <cref>
-                    This table may need to be regenerated.
+                    This table will be regenerated.
                 </cref>
                 <figure>
                     <artwork><![CDATA[
@@ -1852,21 +1859,20 @@ else
       (253) |11111111|11111111|11110110|01 [26]       3ffffd9 [26]
       (254) |11111111|11111111|11110110|10 [26]       3ffffda [26]
       (255) |11111111|11111111|11110110|11 [26]       3ffffdb [26]
-  EOS (256) |11111111|11111111|11110111|00 [26]       3ffffdc [26]
-            ]]>
+  EOS (256) |11111111|11111111|11110111|00 [26]       3ffffdc [26]]]>
                     </artwork>
                 </figure>
             </t>
         </section>
-        <section title="Huffman Codes for Responses" anchor="response.huffman.codes">
+        <section title="Cookie Huffman Codes" anchor="cookie.huffman.codes">
             <t>
                 The following Huffman codes are used when encoding string
-                literals in the server to client direction. These codes apply
-                for both responses to client requests and for push-promises.
+                literals corresponding to the value of a header whose name is
+                'cookie' or 'set-cookie'.
             </t>
             <t>
                 <cref>
-                    This table may need to be regenerated.
+                    This table will be regenerated. It may be suppressed if not deemed efficient enought.
                 </cref>
             </t>
             <t>
