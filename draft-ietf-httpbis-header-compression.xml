@@ -361,8 +361,11 @@ Insertion Point       Drop Point
                                         entry in the static table.
                                     </t>
                                     <t>
-                                        Index 0 signals that the reference set
-                                        MUST be emptied.
+                                        Index 0 signals a modification of the
+                                        encoding context: either the reference
+                                        set is emptied, or the maximum size of
+                                        the header table is updated (see <xref
+                                            target="encoding.context.update"/>).
                                     </t>
                                     <t>
                                         Any other indices MUST be treated as
@@ -420,9 +423,12 @@ Insertion Point       Drop Point
                     </t>
                     <t>
                         An <spanx>indexed representation</spanx> with an index
-                        value of 0 entails the following actions:
+                        value of 0 entails one of the following actions,
+                        depending on what is encoded next:
                         <list style="symbols">
                             <t>The reference set is emptied.</t>
+                            <t>The maximum size of the header table is
+                                updated.</t>
                         </list>
                     </t>
                     <t>
@@ -513,10 +519,18 @@ Insertion Point       Drop Point
                     <t>
                         To limit the memory requirements on the decoder side,
                         the size of the header table is bounded. The size
-                        of the header table MUST stay lower than or equal to
-                        the value of the HTTP/2.0 setting
-                        SETTINGS_HEADER_TABLE_SIZE (see <xref
-                            target="HTTP2"/>).
+                        of the header table MUST stay lower than or equal to its
+                        maximum size.
+                    </t>
+                    <t>
+                        By default, the maximum size of the header table is
+                        equal to the value of the HTTP/2.0 setting
+                        SETTINGS_HEADER_TABLE_SIZE defined by the decoder (see
+                        <xref target="HTTP2"/>).  The encoder can change this
+                        maximum size (see <xref
+                            target="encoding.context.update"/>), but it must
+                        stay lower than or equal to the value of
+                        SETTINGS_HEADER_TABLE_SIZE.
                     </t>
                     <t>
                         The size of the header table is the sum of the
@@ -552,10 +566,10 @@ Insertion Point       Drop Point
                         set is removed.
                     </t>
                     <t>
-                        Whenever SETTINGS_HEADER_TABLE_SIZE is made smaller,
-                        entries are evicted from the end of the header table
-                        until the size of the header table is less than or
-                        equal to SETTINGS_HEADER_TABLE_SIZE.
+                        Whenever the maximum size for the header table is made
+                        smaller, entries are evicted from the end of the
+                        header table until the size of the header table is
+                        less than or equal to the maximum size.
                     </t>
                     <t>
                         The eviction of an entry from the header
@@ -570,15 +584,14 @@ Insertion Point       Drop Point
                         name referenced by the representation of this new
                         entry is cached, and then entries are evicted from the
                         end of the header table until the size of the header
-                        table is less than or equal to
-                        SETTINGS_HEADER_TABLE_SIZE - new entry size, or until
-                        the table is empty.
+                        table is less than or equal to (maximum size - new
+                        entry size), or until the table is empty.
                     </t>
                     <t>
                         If the size of the new entry is less than or equal to
-                        SETTINGS_HEADER_TABLE_SIZE, that entry is added to the
-                        table.  It is not an error to attempt to add an entry
-                        that is larger than SETTINGS_HEADER_TABLE_SIZE.
+                        the maxium size, that entry is added to the table.  It
+                        is not an error to attempt to add an entry
+                        that is larger than the maximum size.
                     </t>
                 </section>
             </section>
@@ -890,8 +903,9 @@ else
                     an integer with a 7-bit prefix.
                 </t>
                 <t>
-                    The index value of 0 is reserved for signalling that the
-                    reference set is emptied.
+                    The index value of 0 is reserved for signalling changes in
+                    the encoding context (see <xref
+                        target="encoding.context.update" />).
                 </t>
             </section>
 
@@ -1032,6 +1046,51 @@ else
                     </t>
                 </section>
            </section>
+            <section title="Encoding Context Update"
+                anchor="encoding.context.update">
+                <t>
+                    An indexed value of 0 is reserved for signalling changes
+                    in the encoding context.  The type of the change is
+                    encoded on the following byte(s). Any change in the
+                    encoding context is applied immediately.
+                </t>
+                <figure title="Reference Set Emptying">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 1 |             0             | 
++---+---------------------------+
+</artwork>
+                </figure>
+                <t>
+                    A byte with its high bit set to '1' signals that the
+                    reference set is emptied. The remaining bits are set
+                    to '0'.
+                </t>
+                <figure title="Maximum Header Table Size Change">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 |   New maximum size (7+)   | 
++---+---------------------------+
+</artwork>
+                </figure>
+                <t>
+                    A byte with its high bit set to '0' signals the new
+                    maximum size of the header table. This new maximum size
+                    MUST be lower than or equal to the value of the setting
+                    SETTINGS_HEADER_TABLE_SIZE (see <xref target="HTTP2"/>).
+                </t>
+                <t>
+                    The new maximum size is encoded as an integer with a 7-bit
+                    prefix.
+                </t>
+                <t>
+                    Change in the maximum size of the header table can trigger
+                    entry evictions (see <xref
+                        target="entry.eviction"/>).
+                </t>
+            </section>
         </section>
 
         <section anchor="Security" title="Security Considerations">
@@ -1077,6 +1136,16 @@ else
                 value. Failure to implement these kinds of safeguards may
                 still result in a scenario where the local endpoint exhausts
                 its memory.
+            </t>
+            <t>
+                A particular care should be used for the maximum size of the
+                header table. While an endpoint can fully control the maximum
+                size of its header table for the decoding size, by using
+                SETTINGS_HEADER_TABLE_SIZE, the maximum size of the encoding
+                size is controled by the remote peer. The endpoint should
+                check the SETTINGS_HEADER_TABLE_SIZE defined by the remote
+                peer, and decrease the maximum size for the encoding size if
+                needed.
             </t>
         </section>
     </middle>
@@ -1280,7 +1349,14 @@ else
                 anchor="changes.since.draft-ietf-httpbis-header-compression-05">
                 <t><list style="symbols">
                     <t>
-                        None yet.
+                        Added maximum size for header table, independent of
+                        SETTINGS_HEADER_TABLE_SIZE.
+                    </t>
+                    <t>
+                        Added pseudo-code for integer decoding.
+                    </t>
+                    <t>
+                        Improved examples (removing unnecessary removals).
                     </t>
                 </list></t>
             </section>
