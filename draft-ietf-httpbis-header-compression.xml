@@ -361,8 +361,11 @@ Insertion Point       Drop Point
                                         entry in the static table.
                                     </t>
                                     <t>
-                                        Index 0 signals that the reference set
-                                        MUST be emptied.
+                                        Index 0 signals a modification of the
+                                        encoding context: either the reference
+                                        set is emptied, or the maximum size of
+                                        the header table is updated (see <xref
+                                            target="encoding.context.update"/>).
                                     </t>
                                     <t>
                                         Any other indices MUST be treated as
@@ -420,9 +423,12 @@ Insertion Point       Drop Point
                     </t>
                     <t>
                         An <spanx>indexed representation</spanx> with an index
-                        value of 0 entails the following actions:
+                        value of 0 entails one of the following actions,
+                        depending on what is encoded next:
                         <list style="symbols">
                             <t>The reference set is emptied.</t>
+                            <t>The maximum size of the header table is
+                                updated.</t>
                         </list>
                     </t>
                     <t>
@@ -513,10 +519,18 @@ Insertion Point       Drop Point
                     <t>
                         To limit the memory requirements on the decoder side,
                         the size of the header table is bounded. The size
-                        of the header table MUST stay lower than or equal to
-                        the value of the HTTP/2.0 setting
-                        SETTINGS_HEADER_TABLE_SIZE (see <xref
-                            target="HTTP2"/>).
+                        of the header table MUST stay lower than or equal to its
+                        maximum size.
+                    </t>
+                    <t>
+                        By default, the maximum size of the header table is
+                        equal to the value of the HTTP/2.0 setting
+                        SETTINGS_HEADER_TABLE_SIZE defined by the decoder (see
+                        <xref target="HTTP2"/>).  The encoder can change this
+                        maximum size (see <xref
+                            target="encoding.context.update"/>), but it must
+                        stay lower than or equal to the value of
+                        SETTINGS_HEADER_TABLE_SIZE.
                     </t>
                     <t>
                         The size of the header table is the sum of the
@@ -552,10 +566,10 @@ Insertion Point       Drop Point
                         set is removed.
                     </t>
                     <t>
-                        Whenever SETTINGS_HEADER_TABLE_SIZE is made smaller,
-                        entries are evicted from the end of the header table
-                        until the size of the header table is less than or
-                        equal to SETTINGS_HEADER_TABLE_SIZE.
+                        Whenever the maximum size for the header table is made
+                        smaller, entries are evicted from the end of the
+                        header table until the size of the header table is
+                        less than or equal to the maximum size.
                     </t>
                     <t>
                         The eviction of an entry from the header
@@ -570,15 +584,14 @@ Insertion Point       Drop Point
                         name referenced by the representation of this new
                         entry is cached, and then entries are evicted from the
                         end of the header table until the size of the header
-                        table is less than or equal to
-                        SETTINGS_HEADER_TABLE_SIZE - new entry size, or until
-                        the table is empty.
+                        table is less than or equal to (maximum size - new
+                        entry size), or until the table is empty.
                     </t>
                     <t>
                         If the size of the new entry is less than or equal to
-                        SETTINGS_HEADER_TABLE_SIZE, that entry is added to the
-                        table.  It is not an error to attempt to add an entry
-                        that is larger than SETTINGS_HEADER_TABLE_SIZE.
+                        the maxium size, that entry is added to the table.  It
+                        is not an error to attempt to add an entry
+                        that is larger than the maximum size.
                     </t>
                 </section>
             </section>
@@ -617,14 +630,30 @@ Insertion Point       Drop Point
                     <t>
                         The algorithm to represent an integer I is as follows:
                         <figure><artwork type = "inline"><![CDATA[
-If I < 2^N - 1, encode I on N bits
-Else
-    encode 2^N - 1 on N bits
+if I < 2^N - 1, encode I on N bits
+else
+    encode (2^N - 1) on N bits
     I = I - (2^N - 1)
-    While I >= 128
-         Encode (I % 128 + 128) on 8 bits
+    while I >= 128
+         encode (I % 128 + 128) on 8 bits
          I = I / 128
-    encode (I) on 8 bits
+    encode I on 8 bits
+]]></artwork></figure>
+                    </t>
+                    <t>
+                        For informationnal purpose, the algorithm to decode an
+                        integer I is as follows:
+                        <figure><artwork type="inline"><![CDATA[
+decode I from the next N bits
+if I < 2^N - 1, return I
+else
+    M = 0
+    repeat
+        B = next byte
+        I = I + (B & 127) * 2^M
+        M = M + 7
+    while B & 128 == 128
+    return I
 ]]></artwork></figure>
                     </t>
                     <t>
@@ -758,15 +787,15 @@ Else
                             </t>
                             <t>
                                 The number of octets required to hold the
-                                result of the next step, represented as a
-                                <xref target="integer.representation">
-                                    variable-length-quantity </xref>, starting
-                                with a 7-bit prefix immediately following
-                                the first bit.
+                                result of the next step, represented as an
+                                integer with a 7-bit prefix (see <xref
+                                    target="integer.representation"/>),
+                                immediately following the first bit.
                             </t>
-                            <t> The encoded data of the string:
-                                <list>
-                                    <t> If H is true, then the encoded
+                            <t>
+                                The encoded data of the string:
+                                <list style="symbols">
+                                    <t> If H is '1', then the encoded
                                         string data is the bitwise
                                         concatenation of the <xref
                                             target="CANON">canonical</xref><xref
@@ -775,7 +804,7 @@ Else
                                         data, followed by between 0-7 bits of
                                         padding.
                                     </t>
-                                    <t> If H is false, then the encoded string
+                                    <t> If H is '0', then the encoded string
                                         is the octets of the field value
                                         without modification.
                                     </t>
@@ -790,26 +819,29 @@ Else
                         misinterpreted as part of the input data.
                     </t>
                     <t>
-                        When padding for Huffman encoding, use the bits from the
-                        EOS (end-of-string) entry in the Huffman table, starting
-                        with the MSB (most significant bit). This entry is
-                        guaranteed to be at least 8 bits long.
+                        When padding for Huffman encoding, the bits from the
+                        EOS (end-of-string) entry in the Huffman table are
+                        used, starting with the MSB (most significant bit).
+                        This entry is guaranteed to be at least 8 bits long.
                     </t>
                     <t>
-                        String literals sent in the client to server direction
-                        which use Huffman encoding are encoded with the codes
-                        within the <xref target="request.huffman.codes">
-                            request Huffman code table</xref> (see <xref
+                        String literals corresponding to the value of a header
+                        whose name is 'cookie' or 'set-cookie' and which use
+                        Huffman encoding MUST be encoded with the
+                        <xref target="cookie.huffman.codes"> Cookie Huffman
+                            Codes</xref> (see <xref
+                            target="response.examples.with.huffman">Response
+                            Examples with Huffman</xref>).
+                    </t>
+                    <t>
+                        Other string literals which use Huffman encoding
+                        are encoded with the <xref
+                            target="huffman.codes">Default Huffman
+                            Codes</xref> (see <xref
                             target="request.examples.with.huffman"> Request
-                            Examples With Huffman</xref>).
-                    </t>
-                    <t>
-                        String literals sent in the server to client direction
-                        which use Huffman encoding are encoded with the codes
-                        within the <xref target="response.huffman.codes">
-                            response Huffman code table</xref> (see <xref
-                            target="response.examples.with.huffman">
-                            Response Examples With Huffman</xref>).
+                            Examples with Huffman</xref> and <xref
+                            target="response.examples.with.huffman"> Response
+                            Examples with Huffman</xref>).
                     </t>
                     <t>
                         The EOS symbol is represented with value 256, and is
@@ -820,7 +852,7 @@ Else
                         the EOS symbol is at least 8 bits long, it is expected
                         that it should never be successfully decoded.
                     </t>
-                    <figure title="String Literal With Huffman Encoding">
+                    <figure title="String Literal with Huffman Encoding">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -834,7 +866,7 @@ Else
 +---+---+---+---+---+---+---+---+
 ]]></artwork>
                     </figure>
-                    <figure title="String Literal Without Huffman Encoding">
+                    <figure title="String Literal without Huffman Encoding">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -844,7 +876,7 @@ Else
 +---+---+---+---+---+---+---+---+
 ...
 +---+---+---+---+---+---+---+---+
-|  Field Bytes Without Encoding |
+|  Field Bytes without Encoding |
 +---+---+---+---+---+---+---+---+
 ]]></artwork>
                     </figure>
@@ -874,8 +906,9 @@ Else
                     an integer with a 7-bit prefix.
                 </t>
                 <t>
-                    The index value of 0 is reserved for signalling that the
-                    reference set is emptied.
+                    The index value of 0 is reserved for signalling changes in
+                    the encoding context (see <xref
+                        target="encoding.context.update" />).
                 </t>
             </section>
 
@@ -1016,6 +1049,51 @@ Else
                     </t>
                 </section>
            </section>
+            <section title="Encoding Context Update"
+                anchor="encoding.context.update">
+                <t>
+                    An indexed value of 0 is reserved for signalling changes
+                    in the encoding context.  The type of the change is
+                    encoded on the following byte(s). Any change in the
+                    encoding context is applied immediately.
+                </t>
+                <figure title="Reference Set Emptying">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 1 |             0             | 
++---+---------------------------+
+</artwork>
+                </figure>
+                <t>
+                    A byte with its high bit set to '1' signals that the
+                    reference set is emptied. The remaining bits are set
+                    to '0'.
+                </t>
+                <figure title="Maximum Header Table Size Change">
+                    <artwork type="inline">
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 |   New maximum size (7+)   | 
++---+---------------------------+
+</artwork>
+                </figure>
+                <t>
+                    A byte with its high bit set to '0' signals the new
+                    maximum size of the header table. This new maximum size
+                    MUST be lower than or equal to the value of the setting
+                    SETTINGS_HEADER_TABLE_SIZE (see <xref target="HTTP2"/>).
+                </t>
+                <t>
+                    The new maximum size is encoded as an integer with a 7-bit
+                    prefix.
+                </t>
+                <t>
+                    Change in the maximum size of the header table can trigger
+                    entry evictions (see <xref
+                        target="entry.eviction"/>).
+                </t>
+            </section>
         </section>
 
         <section anchor="Security" title="Security Considerations">
@@ -1061,6 +1139,16 @@ Else
                 value. Failure to implement these kinds of safeguards may
                 still result in a scenario where the local endpoint exhausts
                 its memory.
+            </t>
+            <t>
+                A particular care should be used for the maximum size of the
+                header table. While an endpoint can fully control the maximum
+                size of its header table for the decoding size, by using
+                SETTINGS_HEADER_TABLE_SIZE, the maximum size of the encoding
+                size is controled by the remote peer. The endpoint should
+                check the SETTINGS_HEADER_TABLE_SIZE defined by the remote
+                peer, and decrease the maximum size for the encoding size if
+                needed.
             </t>
         </section>
     </middle>
@@ -1264,7 +1352,18 @@ Else
                 anchor="changes.since.draft-ietf-httpbis-header-compression-05">
                 <t><list style="symbols">
                     <t>
-                        None yet.
+                        Only one Huffman table for requests and responses. New
+                        Huffman table for cookies.
+                    </t>
+                    <t>
+                        Added maximum size for header table, independent of
+                        SETTINGS_HEADER_TABLE_SIZE.
+                    </t>
+                    <t>
+                        Added pseudo-code for integer decoding.
+                    </t>
+                    <t>
+                        Improved examples (removing unnecessary removals).
                     </t>
                 </list></t>
             </section>
@@ -1489,14 +1588,14 @@ Else
             </t>
         </section>
 
-        <section title="Huffman Codes For Requests" anchor="request.huffman.codes">
+        <section title="Default Huffman Codes" anchor="huffman.codes">
             <t>
-                The following Huffman codes are used when encoding string
-                literals in the client to server direction.
+                The following Huffman codes are used by default when encoding
+                string literals.
             </t>
             <t>
                 <cref>
-                    This table may need to be regenerated.
+                    This table will be regenerated.
                 </cref>
                 <figure>
                     <artwork><![CDATA[
@@ -1760,21 +1859,20 @@ Else
       (253) |11111111|11111111|11110110|01 [26]       3ffffd9 [26]
       (254) |11111111|11111111|11110110|10 [26]       3ffffda [26]
       (255) |11111111|11111111|11110110|11 [26]       3ffffdb [26]
-  EOS (256) |11111111|11111111|11110111|00 [26]       3ffffdc [26]
-            ]]>
+  EOS (256) |11111111|11111111|11110111|00 [26]       3ffffdc [26]]]>
                     </artwork>
                 </figure>
             </t>
         </section>
-        <section title="Huffman Codes for Responses" anchor="response.huffman.codes">
+        <section title="Cookie Huffman Codes" anchor="cookie.huffman.codes">
             <t>
                 The following Huffman codes are used when encoding string
-                literals in the server to client direction. These codes apply
-                for both responses to client requests and for push-promises.
+                literals corresponding to the value of a header whose name is
+                'cookie' or 'set-cookie'.
             </t>
             <t>
                 <cref>
-                    This table may need to be regenerated.
+                    This table will be regenerated. It may be suppressed if not deemed efficient enought.
                 </cref>
             </t>
             <t>
@@ -2821,9 +2919,12 @@ location: https://www.example.com]]></artwork>
 
     <section title="Second response">
         <t>
-            The (":status", "302") header field is evicted from the header table
-to free space to allow adding the (":status", "200") header field to be
-copied from the static table into the header table.
+            The (":status", "302") header field is evicted from the header
+            table to free space to allow adding the (":status", "200") header
+            field, copied from the static table into the header table.
+            The (":status", "302") header field doesn't need to be
+            removed from the reference set as it is evicted from the header
+            table.
         </t>
         <t>
             <figure>
@@ -2849,17 +2950,14 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[848c                                    | ..]]></artwork>
+<![CDATA[8c                                      | .]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[84                                      | == Indexed - Remove ==
-                                        |   idx = 4
-                                        | -> :status: 302
-8c                                      | == Indexed - Add ==
+<![CDATA[8c                                      | == Indexed - Add ==
                                         |   idx = 12
                                         | - evict: :status: 302
                                         | -> :status: 200]]></artwork>
@@ -2922,24 +3020,20 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8384 8403 1d4d 6f6e 2c20 3231 204f 6374 | .....Mon, 21 Oct
-2032 3031 3320 3230 3a31 333a 3232 2047 |  2013 20:13:22 G
-4d54 1d04 677a 6970 8484 8383 3a38 666f | MT..gzip....:8fo
-6f3d 4153 444a 4b48 514b 425a 584f 5157 | o=ASDJKHQKBZXOQW
-454f 5049 5541 5851 5745 4f49 553b 206d | EOPIUAXQWEOIU; m
-6178 2d61 6765 3d33 3630 303b 2076 6572 | ax-age=3600; ver
-7369 6f6e 3d31                          | sion=1]]></artwork>
+<![CDATA[8484 031d 4d6f 6e2c 2032 3120 4f63 7420 | ....Mon, 21 Oct 
+3230 3133 2032 303a 3133 3a32 3220 474d | 2013 20:13:22 GM
+541d 0467 7a69 7084 8483 833a 3866 6f6f | T..gzip....:8foo
+3d41 5344 4a4b 4851 4b42 5a58 4f51 5745 | =ASDJKHQKBZXOQEW
+4f50 4955 4158 5157 454f 4955 3b20 6d61 | OPIUAXQWEOIU; ma
+782d 6167 653d 3336 3030 3b20 7665 7273 | x-age=3600; vers
+696f 6e3d 31                            | ion=1]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[83                                      | == Indexed - Remove ==
-                                        |   idx = 3
-                                        | -> date: Mon, 21 Oct 2013 \
-                                        |   20:13:21 GMT
-84                                      | == Indexed - Remove ==
+<![CDATA[84                                      | == Indexed - Remove ==
                                         |   idx = 4
                                         | -> cache-control: private
 84                                      | == Indexed - Add ==
@@ -3123,9 +3217,12 @@ location: https://www.example.com]]></artwork>
 
     <section title="Second response">
         <t>
-            The (":status", "302") header field is evicted from the header table
-to free space to allow adding the (":status", "200") header field to be
-copied from the static table into the header table.
+            The (":status", "302") header field is evicted from the header
+            table to free space to allow adding the (":status", "200") header
+            field, copied from the static table into the header table.
+            The (":status", "302") header field doesn't need to be
+            removed from the reference set as it is evicted from the header
+            table.
         </t>
         <t>
             <figure>
@@ -3151,17 +3248,14 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[848c                                    | ..]]></artwork>
+<![CDATA[8c                                      | .]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[84                                      | == Indexed - Remove ==
-                                        |   idx = 4
-                                        | -> :status: 302
-8c                                      | == Indexed - Add ==
+<![CDATA[8c                                      | == Indexed - Add ==
                                         |   idx = 12
                                         | - evict: :status: 302
                                         | -> :status: 200]]></artwork>
@@ -3224,23 +3318,19 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8384 8403 92a2 fba2 0320 f2ab 3031 2401 | ......... ..01$.
-8b49 0d33 09e8 771d 84e1 fbb3 0f84 8483 | .I.3..w.........
-833a b3df 7dfb 36d3 d9e1 fcfc 3faf e7ab | .:..}.6.....?...
-fcfe fcbf af3e df2f 977f d36f f7fd 79f6 | ......./...o..y.
-f977 fd3d e16b fa46 fe10 d889 447d e1ce | .w.=.k.F....D}..
-18e5 65f7 6c2f                          | ..e.l/]]></artwork>
+<![CDATA[8484 0392 a2fb a203 20f2 ab30 3124 018b | ........ ..01$..
+490d 3309 e877 1d84 e1fb b30f 8484 8383 | I.3..w..........
+3ab3 df7d fb36 d3d9 e1fc fc3f afe7 abfc | :..}.6.....?....
+fefc bfaf 3edf 2f97 7fd3 6ff7 fd79 f6f9 | ....../...o..y..
+77fd 3de1 6bfa 46fe 10d8 8944 7de1 ce18 | w.=.k.F....D}...
+e565 f76c 2f                            | .e.l/]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[83                                      | == Indexed - Remove ==
-                                        |   idx = 3
-                                        | -> date: Mon, 21 Oct 2013 \
-                                        |   20:13:21 GMT
-84                                      | == Indexed - Remove ==
+<![CDATA[84                                      | == Indexed - Remove ==
                                         |   idx = 4
                                         | -> cache-control: private
 84                                      | == Indexed - Add ==
