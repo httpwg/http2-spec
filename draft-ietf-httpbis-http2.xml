@@ -616,7 +616,7 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section anchor="HeaderBlock"  title="Header Compression and Decompression">
+      <section anchor="HeaderBlock" title="Header Compression and Decompression">
         <t>
           A header field in HTTP/2 is a name-value pair with one or more associated values. They are
           used within HTTP request and response messages as well as server push operations (see
@@ -1846,20 +1846,20 @@ HTTP2-Settings    = token68
 
         <section anchor="GTFO" title="GTFO">
           <t>
-            Senders indicate a General Termination of Future Operations by sending a GTFO frame
-            (type=0x7), which informs the remote peer to stop creating streams on this connection.
-            GTFO can be sent by either client or server.  Once sent, the sender will ignore frames
-            sent on new streams for the remainder of the connection. Receivers of a GTFO frame MUST
-            NOT open additional streams on the connection, although a new connection can be
-            established for new streams.  The purpose of this frame is to allow an endpoint to
-            gracefully stop accepting new streams (perhaps for a reboot or maintenance), while still
-            finishing processing of previously established streams.
+            A General Termination of Future Operations (GTFO) frame (type=0x7) informs the remote
+            peer to stop creating streams on this connection.  GTFO can be sent by either client or
+            server.  Once sent, the sender will ignore frames sent on new streams for the remainder
+            of the connection.  Receivers of a GTFO frame MUST NOT open additional streams on the
+            connection, although a new connection can be established for new streams.  The purpose
+            of this frame is to allow an endpoint to gracefully stop accepting new streams (perhaps
+            for a reboot or maintenance), while still finishing processing of previously established
+            streams.
           </t>
           <t>
             There is an inherent race condition between an endpoint starting new streams and the
-            remote sending a GTFO frame.  To deal with this case, the GTFO contains the stream
+            remote sending a GTFO frame.  To deal with this case, the GTFO frame contains the stream
             identifier of the last stream which was processed on the sending endpoint in this
-            connection.  If the receiver of the GTFO used streams that are newer than the
+            connection.  If the receiver of the GTFO frame used streams that are newer than the
             indicated stream identifier, they were not processed by the sender and the receiver may
             treat the streams as though they had never been created at all (hence the receiver may
             want to re-create the streams later on a new connection).
@@ -1905,11 +1905,11 @@ HTTP2-Settings    = token68
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
           <t>
-            The last stream identifier in the GTFO frame contains the highest numbered stream
-            identifier for which the sender of the GTFO frame has received frames on and might
-            have taken some action on.  All streams up to and including the identified stream might
-            have been processed in some way.  The last stream identifier is set to 0 if no streams
-            were processed.
+            The last stream identifier (<spanx style="verb">Last-Stream-ID</spanx>) in the GTFO
+            frame contains the highest numbered stream identifier for which the sender of the GTFO
+            frame has received frames on and might have taken some action on.  All streams up to and
+            including the identified stream might have been processed in some way.  The last stream
+            identifier is set to 0 if no streams were processed.
             <list>
               <t>
                 Note: In this case, "processed" means that some data from the stream was passed to
@@ -1936,8 +1936,14 @@ HTTP2-Settings    = token68
             The last stream ID MUST be 0 if no streams were acted upon.
           </t>
           <t>
+            If an endpoint maintains the connection and continues to exchange frames, ignored frames
+            MUST be counted toward <xref target="FlowControl">flow control limits</xref> or update
+            <xref target="HeaderBlock">header compression state</xref>.  Otherwise, flow control or
+            header compression state can become unsynchronized.
+          </t>
+          <t>
             The GTFO frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
-            contains the reason for closing the connection.
+            contains the reason for ending communication.
           </t>
           <t>
             Endpoints MAY append opaque data to the payload of any GTFO frame.  Additional debug
@@ -2947,9 +2953,9 @@ HTTP2-Settings    = token68
           Servers are encouraged to maintain open connections for as long as possible, but are
           permitted to terminate idle connections if necessary.  When either endpoint chooses to
           close the transport-level TCP connection, the terminating endpoint SHOULD first send a
-          <x:ref>GTFO</x:ref> (<xref target="GTFO"/>) frame so that both endpoints can reliably
-          determine whether previously sent frames have been processed and gracefully complete or
-          terminate any necessary remaining tasks.
+          <xref target="GTFO">GTFO frame</xref> so that both endpoints can reliably determine
+          whether previously sent frames have been processed and gracefully complete or terminate
+          any necessary remaining tasks.
         </t>
       </section>
 
