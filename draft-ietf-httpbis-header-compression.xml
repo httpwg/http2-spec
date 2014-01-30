@@ -44,8 +44,9 @@
         <keyword>Header</keyword>
         <abstract>
             <t>
-                This document describes HPACK, a format adapted to efficiently
-                represent HTTP header fields in the context of HTTP/2.
+                This specification defines HPACK, a compression format for
+                efficiently representing HTTP header fields in the context
+                of HTTP/2.
             </t>
         </abstract>
 
@@ -71,66 +72,72 @@
     <middle>
         <section title="Introduction">
             <t>
-                This document describes HPACK, a format adapted to efficiently
-                represent HTTP header fields in the context of HTTP/2 (see
-                <xref target="HTTP2"/>).
+                This specification defines HPACK, a compression format for
+                efficiently representing HTTP header fields in the context
+                of HTTP/2 (see <xref target="HTTP2"/>).
             </t>
         </section>
 
         <section title="Overview" anchor="overview">
             <t>
                 In HTTP (see <xref target="HTTP-p1"/>), header fields are
-                sent without any form of compression.  As web pages have grown
+                encoded without any form of compression.  As web pages have grown
                 to include dozens to hundreds of requests, the redundant
-                header fields in these requests now pose a problem of
-                measurable latency and unnecessary bandwidth (see <xref
-                    target="PERF1"/> and <xref target="PERF2"/>).
+                header fields in these requests now measurably increase
+                latency and unnecessarily consume bandwidth (see <xref
+                target="PERF1"/> and <xref target="PERF2"/>).
             </t>
 
             <t>
                 <xref target="SPDY">SPDY</xref> initially addressed this
-                redundancy by compressing header fields with Deflate, which
-                proved very effective at eliminating the redundant header
+                redundancy by compressing header fields using the "deflate"
+                format <xref target="DEFLATE">DEFLATE</xref>, which proved
+                very effective at efficiently representing the redundant header
                 fields.  However, that approach exposed a security risk as
-                demonstrated by the <xref target="CRIME">CRIME</xref>.
+                demonstrated by the <xref target="CRIME">CRIME</xref> attack.
             </t>
 
             <t>
                 This document describes HPACK, a new compressor for header
                 fields which eliminates redundant header fields, is not
                 vulnerable to known security attacks, and which also has a
-                bounded memory cost for use in constrained environments.
+                bounded memory requirement for use in constrained environments.
             </t>
 
             <section title="Outline">
                 <t>
-                    The HTTP header field encoding described in this document
-                    is based on a header table that map name-value pairs to
-                    index values.  Header tables are incrementally updated
-                    during the HTTP/2 session.
+                    The HTTP header field encoding defined in this document
+                    is based on a header table that maps name-value pairs to
+                    index values.  The header table is incrementally updated
+                    during the HTTP/2 connection.
                 </t>
                 <t>
-                    The encoder is responsible for deciding which header
-                    fields to insert as new entries in the header table.  The
-                    decoder then does exactly what the encoder prescribes,
-                    ending in a state that exactly matches the encoder's
-                    state.  This enables decoders to remain simple and
-                    understand a wide variety of encoders.
+                    A set of header fields is treated as an unordered collection
+                    of name-value pairs.  Names and values are considered to be
+                    opaque sequences of octets.  The order of header fields is
+                    not guaranteed to be perserved after being compressed and
+                    decompressed.
                 </t>
                 <t>
                     As two consecutive sets of header fields often have header
-                    fields in common, each set of header fields is coded as a
-                    difference from the previous set of header fields. The
-                    goal is to only encode the changes (header fields present
-                    in one of the set and not in the other) between the two
-                    sets of header fields.
+                    fields in common, each set is coded as a difference from
+                    the previous set. The goal is to only encoded the changes
+                    (header fields present in one of the sets that are absent
+                    from the other) between the two sets of header fields.
                 </t>
                 <t>
-                    HTTP header field compression treats a set of header fields
-                    as an unordered collection of name-value pairs.  Names and
-                    values are opaque sequences of octets.  The order of header
-                    fields is not guaranteed to be preserved after being
-                    compressed and decompressed.
+                    The encoder represents a header field either literally or
+                    with a reference to a name-value pair in the header table.
+                    A set of header fields is stored as a set of references to
+                    entries in the header table. Differences between consecutive
+                    sets of header fields are encoded as changes to the set of
+                    references. The encoder is responsible for deciding which
+                    header fields to insert as new entries in the header table.
+                    The decoder executes the modifications to the header table
+                    and reference set perscribed by the encoder, reconstructing
+                    the set of header fields in the process.  This enables
+                    decoders to remain simple and understand a wide variety of
+                    encoders.
                 </t>
                 <t>
                     Examples illustrating the use of these different
@@ -147,15 +154,13 @@
                     components and concepts:
                     <list style="hanging">
                         <t hangText="Header Field:">
-                            A name-value pair.  Both name and value are
-                            sequences of octets.
+                            A name-value pair.  Both the name and value are
+                            treated as opaque sequences of octets.
                         </t>
                         <t hangText="Header Table:">
                             The header table (see <xref
                                 target="header.table"/>) is a component used
                             to associate stored header fields to index values.
-                            The data stored in this table is in first-in,
-                            first-out order.
                         </t>
                         <t hangText="Static Table:">
                             The static table (see <xref
@@ -173,7 +178,7 @@
                             differential encoding of a new header set.
                         </t>
                         <t hangText="Header Set:">
-                            A header set is a potentially ordered group of
+                            A header set is an unordered group of
                             header fields that are encoded jointly. A complete
                             set of key-value pairs contained in a HTTP
                             request or response is a header set.
@@ -192,9 +197,8 @@
                             When decoding a set of header field
                             representations, some operations emit a header
                             field (see <xref target="header.emission"/>).
-                            Emitted header fields can be safely passed to the
-                            upper processing layers as part of the current
-                            Header Set.
+                            Emitted header fields are added to the current
+                            header set and cannot be removed.
                         </t>
                     </list>
                 </t>
@@ -206,18 +210,12 @@
                         Everything else is either immutable or conceptual.
                     </t>
                     <t>
-                        Using HTTP, messages are exchanged between a client
-                        and a server in both direction. To keep the encoding
-                        of header fields in each direction independent from the
-                        other direction, there is one encoding context for
-                        each direction.
-                    </t>
-                    <t>
-                        The header fields contained in a PUSH_PROMISE frame
-                        sent by a server to a client are encoded within the
-                        same context as the header fields contained in the
-                        HEADERS frame corresponding to a response sent from
-                        the server to the client.
+                        HTTP messages are exchanged between a client and a
+                        server in both directions.  The encoding of header
+                        fields in each direction is independent from the
+                        other direction.  There is a single encoding context
+                        for each direction used to encode all header fields
+                        sent in that direction.
                     </t>
                 </section>
 
@@ -240,8 +238,8 @@
                     <t>
                         The encoder decides how to update the header table and
                         as such can control how much memory is used by the
-                        header table. To limit the memory requirements on the
-                        decoder side, the header table size is strictly
+                        header table. To limit the memory requirements of
+                        the decoder, the header table size is strictly
                         bounded (see <xref target="maximum.table.size"/>).
                     </t>
                     <t>
@@ -1300,6 +1298,16 @@ else
                     <date month="February" year="2012"/>
                 </front>
                 <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
+            </reference>
+            <reference anchor="DEFLATE">
+                <front>
+                    <title>DEFLATE Compressed Data Format Specification version 1.3</title>
+                    <author initials="P." surname="Deutsch" fullname="L. Peter Deutsch">
+                        <organization>Aladdin Enterprises</organization>
+                    </author>
+                    <date month="May" year="1996"/>
+                </front>
+                <seriesInfo name="RFC" value="1951"/>
             </reference>
             <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit#slide=id.g1eb6c1b5_3_6">
                 <front>
