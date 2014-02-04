@@ -1177,22 +1177,43 @@ HTTP2-Settings    = token68
             preference to the dependent stream.
           </t>
           <t>
-            Stream dependencies do not form a tree.  Instead, streams that depend on another stream
-            also depend on all other streams at the same dependency level.  For example, if both B
-            and C depend on A, then creating a dependency from D to B also implicitly creates a
-            dependency on C.
+            Stream dependencies do not form a tree, but are organized as an ordered list of bags of
+            streams. Each bag represents a dependency level. All streams belonging to the same bag
+            have the same priority. A stream that depend on another stream also depend on all other
+            streams in the same bag.  For example, if both B and C depend on A, then creating a
+            dependency from D to B also implicitly creates a dependency on C.
+            <cref>Rename bag to dependency level?</cref>
           </t>
           <t>
             Expressing a dependency on stream zero causes the stream to have no dependency,
-            effectively making it the highest priority stream in the priority group, or of equal
-            priority to any other streams in the group that also depend on stream zero.
+            effectively making it belong to the highest priority bag in the priority
+            group.
           </t>
           <t>
-            Stream dependencies are effectively an ordered list of bags of streams.  New or changed
-            dependencies are created on a bag of streams by identifying any stream in that bag.  For
-            example, within the same priority group, stream dependencies of (in order) A->0, B->A,
-            C->A, D->B, E->C, F->0, G->A generate a dependency list of (A, F) followed by (B, C, G)
-            followed by (D, E).
+            A stream is made dependent on a bag of streams by identifying any stream in
+            that bag.  For example, within the same priority group, stream dependencies of (in
+            order) A->0, B->A, C->A, D->B, E->C, F->0, G->A generate a dependency list of (A, F),
+            followed by (B, C, G), followed by (D, E).
+          </t>
+          <t>
+            Changing a stream dependency only affects the specified stream. In the previous
+            example, when the stream dependency for C is updated to C->B, the dependency list becomes
+            (A, F) followed by (B, G), followed by (C, D, E).
+          </t>
+          <t>
+            If a bag becomes empty, either through a dependency update or because a stream is
+            closed, it is removed from the list of bags of the priority group. Any bag dependent
+            from it becomes dependent of the deleted bag dependency, or becomes the highest priority
+            bag if the deleted bag had no dependency. In the previous example, once streams B and G
+            are removed, the dependency list becomes (A, F) followed by (C, D, E).
+          </t>
+          <t>
+            If a stream is made dependent on a bag of streams, and the insert flag is set for this
+            dependency specification, a new bag is created for this stream. This new bag is
+            dependent on the identified bag of streams. The previous bag depending on the identified
+            bag becomes dependent on the new bag. In the previous example, when a new stream
+            dependency is created G->A, with the insert flag set, the dependency list becomes (A, F),
+            followed by (G), followed by (C, D, E).
           </t>
           <t>
             Streams are strictly ordered based on dependency relationships within their priority
@@ -1217,12 +1238,12 @@ HTTP2-Settings    = token68
         <section title="Prioritization State Management">
           <t>
             It is possible for a stream to become closed while prioritization information that
-            creates a dependency on that stream is in transit.  If a stream has been closed and any
-            associated priority information destroyed; a stream is assigned a dependency on a stream
-            that is in a different priority group; or a stream is assigned a dependency on itself;
-            then that stream is instead made dependent on stream zero.  This potentially creates
-            suboptimal prioritization, since the stream can be given an effective priority that is
-            higher than expressed by a peer.
+            creates a dependency on that stream is in transit.  If a stream is assigned a dependency on a
+            stream that has been closed and for which the associated priority information has been
+            destroyed; a stream is assigned a dependency on a stream that is in a different priority
+            group; or a stream is assigned a dependency on itself; then that stream is instead made
+            dependent on stream zero.  This potentially creates suboptimal prioritization, since the
+            stream can be given an effective priority that is higher than expressed by a peer.
           </t>
           <t>
             To avoid the first case - where a stream is closed prior to a dependency being created
@@ -1475,15 +1496,24 @@ HTTP2-Settings    = token68
             target="StreamStates">open a stream</xref>.  HEADERS frames can be sent on a stream in
             the "open" or "half closed (remote)" states.
           </t>
-          <figure title="HEADERS Frame Payload">
+          <figure title="HEADERS Frame Payload with priority information">
             <artwork type="inline"><![CDATA[
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  |           Priority Group (24)                 |  Weight (8)   |
  +-+---------------------------------------------+---------------+
- |X|                 Stream Dependency (31)                      |
+ |I|                 Stream Dependency (31)                      |
  +-+-------------------------------------------------------------+
+ |                   Header Block Fragment (*)                 ...
+ +---------------------------------------------------------------+
+]]></artwork>
+          </figure>
+         <figure title="HEADERS Frame Payload without priority information">
+            <artwork type="inline"><![CDATA[
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  |                   Header Block Fragment (*)                 ...
  +---------------------------------------------------------------+
 ]]></artwork>
@@ -1568,7 +1598,7 @@ HTTP2-Settings    = token68
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  |           Priority Group (24)                 |  Weight (8)   |
  +-+---------------------------------------------+---------------+
- |X|                 Stream Dependency (31)                      |
+ |I|                 Stream Dependency (31)                      |
  +-+-------------------------------------------------------------+
 ]]></artwork>
           </figure>
@@ -1582,8 +1612,9 @@ HTTP2-Settings    = token68
                 An unsigned 8-bit integer containing the weight to assign to the priority group.
                 Add one to the value to obtain a weight between 1 and 256.
               </t>
-              <t hangText="X:">
-                A single reserved bit.
+              <t hangText="I (Insert flag):">
+                A single bit specifying whether a new dependency level should be created for the
+                current stream.
               </t>
               <t hangText="Stream Dependency:">
                 A 31-bit stream identifier that identifies the stream that the current stream
