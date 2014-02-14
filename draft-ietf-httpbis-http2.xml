@@ -1369,7 +1369,7 @@ HTTP2-Settings    = token68
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  | [Pad High(8)] | [Pad Low (8)] |X|      [Priority (31)]      ...
  +---------------+---------------+-+-----------------------------+
- ...[Priority]                   | Header Block Fragment (*)   ...
+ ...      [Priority]             | Header Block Fragment (*)   ...
  +-------------------------------+-------------------------------+
  |                   Header Block Fragment (*)                 ...
  +---------------------------------------------------------------+
@@ -1768,30 +1768,42 @@ HTTP2-Settings    = token68
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |X|                Promised-Stream-ID (31)                      |
- +-+-------------------------------------------------------------+
- |                 Header Block Fragment (*)                   ...
+ | [Pad High(8)] | [Pad Low (8)] |X|  Promised Stream ID (31)  ...
+ +---------------+---------------+-+-----------------------------+
+ ...    Promised Stream ID       | Header Block Fragment (*)   ...
+ +-------------------------------+-------------------------------+
+ |                   Header Block Fragment (*)                 ...
+ +---------------------------------------------------------------+
+ |                           Padding (*)                       ...
  +---------------------------------------------------------------+
 ]]></artwork>
           </figure>
-
           <t>
-            The payload of a PUSH_PROMISE includes a "Promised-Stream-ID".  This unsigned 31-bit
-            integer identifies the stream the endpoint intends to start sending frames for.  The
-            promised stream identifier MUST be a valid choice for the next stream sent by the sender
-            (see <xref target="StreamIdentifiers">new stream identifier</xref>).
-          </t>
-
-          <t>
-            Following the "Promised-Stream-ID" is a <xref target="HeaderBlock">header block
-            fragment</xref>.
-          </t>
-
-          <t>
-            PUSH_PROMISE frames MUST be associated with an existing, peer-initiated stream. If the
-            stream identifier field specifies the value 0x0, a recipient MUST respond with a <xref
-            target="ConnectionErrorHandler">connection error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
+            The HEADERS frame payload has the following fields:
+            <list style="hanging">
+              <t hangText="Pad High:">
+                Padding size high bits.  This field is only present if the PAD_HIGH flag is set.
+              </t>
+              <t hangText="Pad Low:">
+                Padding size low bits.  This field is only present if the PAD_LOW flag is set.
+              </t>
+              <t hangText="X:">
+                A single reserved bit.
+              </t>
+              <t hangText="Promised Stream ID:">
+                This unsigned 31-bit integer identifies the stream the endpoint intends to start
+                sending frames for.  The promised stream identifier MUST be a valid choice for the
+                next stream sent by the sender (see <xref target="StreamIdentifiers">new stream
+                identifier</xref>).
+              </t>
+              <t hangText="Header Block Fragment:">
+                A <xref target="HeaderBlock">header block fragment</xref> containing request header
+                fields.
+              </t>
+              <t hangText="Padding:">
+                Padding octets.
+              </t>
+            </list>
           </t>
 
           <t>
@@ -1811,7 +1823,28 @@ HTTP2-Settings    = token68
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
               </x:lt>
+              <x:lt hangText="PAD_LOW (0x10):">
+                <t>
+                  Bit 5 being set indicates that the Pad Low field is present.
+                </t>
+              </x:lt>
+              <x:lt hangText="PAD_HIGH (0x20):">
+                <t>
+                  Bit 6 being set indicates that the Pad High field is present.  This bit MUST NOT
+                  be set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
+                  PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
+                  target="ConnectionErrorHandler">connection error</xref> of type
+                  <x:ref>PROTOCOL_ERROR</x:ref>.
+                </t>
+              </x:lt>
             </list>
+          </t>
+
+          <t>
+            PUSH_PROMISE frames MUST be associated with an existing, peer-initiated stream. If the
+            stream identifier field specifies the value 0x0, a recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
           <t>
@@ -1848,6 +1881,11 @@ HTTP2-Settings    = token68
             identifier</xref> (that is, an identifier for a stream that is not currently in the
             "idle" state) as a <xref target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
+          </t>
+
+          <t>
+            The PUSH_PROMISE frame includes optional padding.  Padding fields and flags are
+            identical to those defined for <xref target="DATA">DATA frames</xref>.
           </t>
         </section>
 
