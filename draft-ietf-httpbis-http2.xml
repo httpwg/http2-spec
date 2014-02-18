@@ -79,9 +79,9 @@
         target="http://lists.w3.org/Archives/Public/ietf-http-wg/"/>.
       </t>
       <t>
-        Working Group information and related documents can be found at <eref
-        target="http://tools.ietf.org/wg/httpbis/"/> (Wiki) and <eref
-        target="https://github.com/http2/http2-spec"/> (source code and issues tracker).
+        Working Group information can be found at <eref
+        target="http://tools.ietf.org/wg/httpbis/"/>; that specific to HTTP/2 are at <eref
+        target="http://http2.github.io/"/>.
       </t>
       <t>
         The changes in this draft are summarized in <xref
@@ -96,10 +96,10 @@
 
       <t>
         The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the
-        HTTP/1.1 message format (<xref target="HTTP-p1" x:fmt="," x:rel="#http.message"/>) is
-        optimized for implementation simplicity and accessibility, not application performance.  As
-        such it has several characteristics that have a negative overall effect on application
-        performance.
+        HTTP/1.1 message format (<xref target="HTTP-p1" x:fmt="," x:rel="#http.message"/>) was
+        designed to be implemented with the tools at hand in the 1990s, not modern Web application
+        performance. As such it has several characteristics that have a negative overall effect on
+        application performance today.
       </t>
       <t>
         In particular, HTTP/1.0 only allows one request to be outstanding at a time on a given
@@ -150,8 +150,8 @@
             </t>
             <t>
               <xref target="HTTPLayer">HTTP mappings</xref> and <xref target="HttpExtra">additional
-              requirements</xref> describe how HTTP semantics are expressed using the mechanisms
-              defined.
+              requirements</xref> describe how HTTP semantics are expressed using frames and 
+              streams.
           </t>
           </list>
         </t>
@@ -228,8 +228,7 @@
       <t>
         This document describes the HTTP/2 protocol using a logical structure that is formed of
         three parts: framing, streams, and application mapping.  This structure is provided
-        primarily as an aid to specification, implementations are free to diverge from this
-        structure as necessary.
+        primarily as an aid to specification, not as a constraint upon implementations.
       </t>
 
       <section title="HTTP Frames">
@@ -379,7 +378,7 @@ Upgrade: h2
         <t>
           The first HTTP/2 frame sent by the server is a <x:ref>SETTINGS</x:ref> frame (<xref
           target="SETTINGS"/>). Upon receiving the 101 response, the client sends a <xref
-          target="ConnectionHeader">connection header</xref>, which includes a
+          target="ConnectionHeader">connection preface</xref>, which includes a
           <x:ref>SETTINGS</x:ref> frame.
         </t>
         <t>
@@ -444,7 +443,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Once TLS negotiation is complete, both the client and the server send a <xref
-          target="ConnectionHeader">connection header</xref>.
+          target="ConnectionHeader">connection preface</xref>.
         </t>
       </section>
 
@@ -453,9 +452,9 @@ HTTP2-Settings    = token68
           A client can learn that a particular server supports HTTP/2 by other means.  For example,
           <xref target="AltSvc"/> describes a mechanism for advertising this capability in an HTTP
           header field.  A client MAY immediately send HTTP/2 frames to a server that is known to
-          support HTTP/2, after the <xref target="ConnectionHeader">connection header</xref>.  A
+          support HTTP/2, after the <xref target="ConnectionHeader">connection preface</xref>.  A
           server can identify such a connection by the use of the "PRI" method in the connection
-          header. This only affects the resolution of "http" URIs; servers supporting HTTP/2 are
+          preface. This only affects the resolution of "http" URIs; servers supporting HTTP/2 are
           required to support <xref target="TLSALPN">protocol negotiation in TLS</xref> for "https"
           URIs.
         </t>
@@ -467,54 +466,54 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section anchor="ConnectionHeader" title="HTTP/2 Connection Header">
+      <section anchor="ConnectionHeader" title="HTTP/2 Connection Preface">
         <t>
           Upon establishment of a TCP connection and determination that HTTP/2 will be used by both
-          peers, each endpoint MUST send a connection header as a final confirmation and to
+          peers, each endpoint MUST send a connection preface as a final confirmation and to
           establish the initial settings for the HTTP/2 connection.
         </t>
         <t>
-          The client connection header starts with a sequence of 24 octets, which in hex notation
+          The client connection preface starts with a sequence of 24 octets, which in hex notation
           are:
         </t>
         <figure>
           <artwork type="inline" x:indent-with="  "><![CDATA[
-505249202a20485454502f322e300d0a0d0a534d0d0a0d0a
+0x505249202a20485454502f322e300d0a0d0a534d0d0a0d0a
 ]]></artwork>
         </figure>
         <t>
           (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>).  This sequence
           is followed by a <x:ref>SETTINGS</x:ref> frame (<xref target="SETTINGS"/>).  The client
-          sends the client connection header immediately upon receipt of a 101 Switching Protocols
+          sends the client connection preface immediately upon receipt of a 101 Switching Protocols
           response (indicating a successful upgrade), or as the first application data octets of a
           TLS connection. If starting an HTTP/2 connection with prior knowledge of server support
-          for the protocol, the client connection header is sent upon connection establishment.
+          for the protocol, the client connection preface is sent upon connection establishment.
         </t>
         <t>
           <list>
             <t>
-              The client connection header is selected so that a large proportion of HTTP/1.1 or
+              The client connection preface is selected so that a large proportion of HTTP/1.1 or
               HTTP/1.0 servers and intermediaries do not attempt to process further frames.  Note
               that this does not address the concerns raised in <xref target="TALKING"/>.
             </t>
           </list>
         </t>
         <t>
-          The server connection header consists of just a <x:ref>SETTINGS</x:ref> frame (<xref
+          The server connection preface consists of just a <x:ref>SETTINGS</x:ref> frame (<xref
           target="SETTINGS"/>) that MUST be the first frame the server sends in the HTTP/2
           connection.
         </t>
         <t>
           To avoid unnecessary latency, clients are permitted to send additional frames to the
-          server immediately after sending the client connection header, without waiting to receive
-          the server connection header.  It is important to note, however, that the server
-          connection header <x:ref>SETTINGS</x:ref> frame might include parameters that necessarily
+          server immediately after sending the client connection preface, without waiting to receive
+          the server connection preface.  It is important to note, however, that the server
+          connection preface <x:ref>SETTINGS</x:ref> frame might include parameters that necessarily
           alter how a client is expected to communicate with the server. Upon receiving the
           <x:ref>SETTINGS</x:ref> frame, the client is expected to honor any parameters established.
         </t>
         <t>
           Clients and servers MUST terminate the TCP connection if either peer does not begin with a
-          valid connection header.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) MAY be
+          valid connection preface.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) MAY be
           omitted if it is clear that the peer is not using HTTP/2.
         </t>
       </section>
@@ -599,9 +598,10 @@ HTTP2-Settings    = token68
 
       <section anchor="FrameSize" title="Frame Size">
         <t>
-          The maximum size of a frame payload varies by frame type.  The absolute maximum
-          size of a frame is 2<x:sup>14</x:sup>-1 (16,383) octets.  All implementations SHOULD be
-          capable of receiving and minimally processing frames up to this maximum size.
+          The maximum size of a frame payload varies by frame type. The absolute maximum size of a
+          frame payload is 2<x:sup>14</x:sup>-1 (16,383) octets, meaning that the maximum frame
+          size is 16,391 octets. All implementations SHOULD be capable of receiving and minimally
+          processing frames up to this maximum size.
         </t>
         <t>
           Certain frame types, such as <x:ref>PING</x:ref> (see <xref target="PING"/>), impose
@@ -634,21 +634,21 @@ HTTP2-Settings    = token68
         <t>
           HTTP Header Compression does not preserve the relative ordering of header fields.  Header
           fields with multiple values are encoded into a single header field using a special
-          delimiter, see <xref target="HeaderOrdering"/>.
+          delimiter; see <xref target="HeaderOrdering"/>.
         </t>
         <t>
           The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
-          mapping, see <xref target="CompressCookie"/>.
+          mapping; see <xref target="CompressCookie"/>.
         </t>
         <t>
-          A receiving endpoint reassembles the header block by concatenating the individual
-          fragments, then decompresses the block to reconstruct the header set.
+          A receiving endpoint reassembles the header block by concatenating its fragments, then
+          decompresses the block to reconstruct the header set.
         </t>
         <t>
           A complete header block consists of either:
           <list style="symbols">
             <t>
-              a single <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame each respectively
+              a single <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame,
               with the END_HEADERS or END_PUSH_PROMISE flag set, or
             </t>
             <t>
@@ -660,7 +660,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Header blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
-          frames of any other type, or from any other stream.  The last frame in a sequence of
+          frames of any other type or from any other stream.  The last frame in a sequence of
           <x:ref>HEADERS</x:ref> or <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS
           flag set.  The last frame in a sequence of <x:ref>PUSH_PROMISE</x:ref> or
           <x:ref>CONTINUATION</x:ref> frames MUST have the END_PUSH_PROMISE or END_HEADERS flag set
@@ -668,14 +668,13 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Header block fragments can only be sent as the payload of <x:ref>HEADERS</x:ref>,
-          <x:ref>PUSH_PROMISE</x:ref> or <x:ref>CONTINUATION</x:ref> frames.
-          <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames
+          <x:ref>PUSH_PROMISE</x:ref> or <x:ref>CONTINUATION</x:ref> frames, because these frames
           carry data that can modify the compression context maintained by a receiver.  An endpoint
           receiving <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> or
           <x:ref>CONTINUATION</x:ref> frames MUST reassemble header blocks and perform decompression
           even if the frames are to be discarded.  A receiver MUST terminate the connection with a
           <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>COMPRESSION_ERROR</x:ref>, if it does not decompress a header block.
+          <x:ref>COMPRESSION_ERROR</x:ref> if it does not decompress a header block.
         </t>
       </section>
     </section>
@@ -703,7 +702,7 @@ HTTP2-Settings    = token68
             </t>
             <t>
               Streams are identified by an integer.  Stream identifiers are assigned to streams by
-              the initiating endpoint.
+              the endpoint initiating the stream.
             </t>
           </list>
         </t>
@@ -741,13 +740,18 @@ HTTP2-Settings    = token68
  |  R                  | closed |                  R  |
  `-------------------->|        |<--------------------'
                        +--------+
+
+   H:  HEADERS frame (with implied CONTINUATIONs)
+   PP: PUSH_PROMISE frame (with implied CONTINUATIONs)
+   ES: END_STREAM flag
+   R:  RST_STREAM frame
 ]]>
           </artwork>
         </figure>
 
         <t>
           Both endpoints have a subjective view of the state of a stream that could be different
-          when frames are in transit.  Endpoints do not coordinate the creation of streams, they are
+          when frames are in transit.  Endpoints do not coordinate the creation of streams; they are
           created unilaterally by either endpoint.  The negative consequences of a mismatch in
           states are limited to the "closed" state after sending <x:ref>RST_STREAM</x:ref>, where
           frames might be received for some time after closing.
@@ -976,8 +980,8 @@ HTTP2-Settings    = token68
             new stream.
           </t>
           <t>
-            A stream identifier of one (0x1) is used to respond to the HTTP/1.1 request which was
-            specified during Upgrade (see <xref target="discover-http"/>).  After the upgrade
+            HTTP/1.1 requests that are upgraded to HTTP/2 (see <xref target="discover-http"/>) are
+            responded to with a stream identifier of one (0x1).  After the upgrade
             completes, stream 0x1 is "half closed (local)" to the client.  Therefore, stream 0x1
             cannot be selected as a new stream identifier by a client that upgrades from HTTP/1.1.
           </t>
@@ -1021,9 +1025,7 @@ HTTP2-Settings    = token68
             target="SettingValues"/>).
           </t>
           <t>
-            Streams in either of the "reserved" states do not count as open, even if a small amount
-            of application state is retained to ensure that the promised stream can be successfully
-            used.
+            Streams in either of the "reserved" states do not count as open.
           </t>
         </section>
       </section>
@@ -1101,9 +1103,9 @@ HTTP2-Settings    = token68
             continue to process other streams in the same connection.
           </t>
           <t>
-            Deployments that do not require this capability can advertise a flow control of the
-            maximum size, incrementing the available space when new data is received.  Sending data
-            is always subject to the flow control window advertised by the receiver.
+            Deployments that do not require this capability can advertise a flow control window of
+            the maximum size, incrementing the available space when new data is received. Sending
+            data is always subject to the flow control window advertised by the receiver.
           </t>
           <t>
             Deployments with constrained resources (for example, memory) MAY employ flow control to
@@ -1228,8 +1230,8 @@ HTTP2-Settings    = token68
         <section title="Connection Termination">
           <t>
             If the TCP connection is torn down while streams remain in open or half closed states,
-            then the endpoint MUST assume that the stream was abnormally interrupted and could be
-            incomplete.
+            then the endpoint MUST assume that those streams were abnormally interrupted and could
+            be incomplete.
           </t>
         </section>
       </section>
@@ -2165,7 +2167,7 @@ HTTP2-Settings    = token68
               flow control window size of 65,535 bytes. The connection flow control window is 65,535
               bytes.  Both endpoints can adjust the initial window size for new streams by including
               a value for <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> in the <x:ref>SETTINGS</x:ref>
-              frame that forms part of the connection header.
+              frame that forms part of the connection preface.
             </t>
             <t>
               Prior to receiving a <x:ref>SETTINGS</x:ref> frame that sets a value for
@@ -3352,7 +3354,7 @@ HTTP2-Settings    = token68
       </t>
       <t>
         This document registers the <spanx style="verb">PRI</spanx> method for use in HTTP, to avoid
-        collisions with the <xref target="ConnectionHeader">connection header</xref>.
+        collisions with the <xref target="ConnectionHeader">connection preface</xref>.
       </t>
 
       <section anchor="iana-alpn" title="Registration of HTTP/2 Identification String">
@@ -3448,8 +3450,9 @@ HTTP2-Settings    = token68
               <xref target="ConnectionHeader"/> of this document
             </t>
             <t hangText="Related information:">
-              This method is never used by an actual client.  This method will appear to be used
-              when an HTTP/1.1 server or intermediary attempts to parse an HTTP/2 connection header.
+              This method is never used by an actual client. This method will appear to be used
+              when an HTTP/1.1 server or intermediary attempts to parse an HTTP/2 connection
+              preface.
             </t>
           </list>
         </t>
@@ -3879,6 +3882,12 @@ HTTP2-Settings    = token68
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
+      <section title="Since draft-ietf-httpbis-http2-10" anchor="changes.since.draft-ietf-httpbis-http2-10">
+        <t>
+          Changed "connection header" to "connection preface" to avoid confusion.
+        </t>
+      </section>
+      
       <section title="Since draft-ietf-httpbis-http2-09" anchor="changes.since.draft-ietf-httpbis-http2-09">
         <t>
           Adding padding for data frames.
