@@ -378,7 +378,7 @@ Upgrade: h2
         <t>
           The first HTTP/2 frame sent by the server is a <x:ref>SETTINGS</x:ref> frame (<xref
           target="SETTINGS"/>). Upon receiving the 101 response, the client sends a <xref
-          target="ConnectionHeader">connection header</xref>, which includes a
+          target="ConnectionHeader">connection preface</xref>, which includes a
           <x:ref>SETTINGS</x:ref> frame.
         </t>
         <t>
@@ -443,7 +443,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Once TLS negotiation is complete, both the client and the server send a <xref
-          target="ConnectionHeader">connection header</xref>.
+          target="ConnectionHeader">connection preface</xref>.
         </t>
       </section>
 
@@ -452,9 +452,9 @@ HTTP2-Settings    = token68
           A client can learn that a particular server supports HTTP/2 by other means.  For example,
           <xref target="AltSvc"/> describes a mechanism for advertising this capability in an HTTP
           header field.  A client MAY immediately send HTTP/2 frames to a server that is known to
-          support HTTP/2, after the <xref target="ConnectionHeader">connection header</xref>.  A
+          support HTTP/2, after the <xref target="ConnectionHeader">connection preface</xref>.  A
           server can identify such a connection by the use of the "PRI" method in the connection
-          header. This only affects the resolution of "http" URIs; servers supporting HTTP/2 are
+          preface. This only affects the resolution of "http" URIs; servers supporting HTTP/2 are
           required to support <xref target="TLSALPN">protocol negotiation in TLS</xref> for "https"
           URIs.
         </t>
@@ -466,14 +466,14 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section anchor="ConnectionHeader" title="HTTP/2 Connection Header">
+      <section anchor="ConnectionHeader" title="HTTP/2 Connection Preface">
         <t>
           Upon establishment of a TCP connection and determination that HTTP/2 will be used by both
-          peers, each endpoint MUST send a connection header as a final confirmation and to
+          peers, each endpoint MUST send a connection preface as a final confirmation and to
           establish the initial settings for the HTTP/2 connection.
         </t>
         <t>
-          The client connection header starts with a sequence of 24 octets, which in hex notation
+          The client connection preface starts with a sequence of 24 octets, which in hex notation
           are:
         </t>
         <figure>
@@ -484,36 +484,36 @@ HTTP2-Settings    = token68
         <t>
           (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>).  This sequence
           is followed by a <x:ref>SETTINGS</x:ref> frame (<xref target="SETTINGS"/>).  The client
-          sends the client connection header immediately upon receipt of a 101 Switching Protocols
+          sends the client connection preface immediately upon receipt of a 101 Switching Protocols
           response (indicating a successful upgrade), or as the first application data octets of a
           TLS connection. If starting an HTTP/2 connection with prior knowledge of server support
-          for the protocol, the client connection header is sent upon connection establishment.
+          for the protocol, the client connection preface is sent upon connection establishment.
         </t>
         <t>
           <list>
             <t>
-              The client connection header is selected so that a large proportion of HTTP/1.1 or
+              The client connection preface is selected so that a large proportion of HTTP/1.1 or
               HTTP/1.0 servers and intermediaries do not attempt to process further frames.  Note
               that this does not address the concerns raised in <xref target="TALKING"/>.
             </t>
           </list>
         </t>
         <t>
-          The server connection header consists of just a <x:ref>SETTINGS</x:ref> frame (<xref
+          The server connection preface consists of just a <x:ref>SETTINGS</x:ref> frame (<xref
           target="SETTINGS"/>) that MUST be the first frame the server sends in the HTTP/2
           connection.
         </t>
         <t>
           To avoid unnecessary latency, clients are permitted to send additional frames to the
-          server immediately after sending the client connection header, without waiting to receive
-          the server connection header.  It is important to note, however, that the server
-          connection header <x:ref>SETTINGS</x:ref> frame might include parameters that necessarily
+          server immediately after sending the client connection preface, without waiting to receive
+          the server connection preface.  It is important to note, however, that the server
+          connection preface <x:ref>SETTINGS</x:ref> frame might include parameters that necessarily
           alter how a client is expected to communicate with the server. Upon receiving the
           <x:ref>SETTINGS</x:ref> frame, the client is expected to honor any parameters established.
         </t>
         <t>
           Clients and servers MUST terminate the TCP connection if either peer does not begin with a
-          valid connection header.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) MAY be
+          valid connection preface.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) MAY be
           omitted if it is clear that the peer is not using HTTP/2.
         </t>
       </section>
@@ -2164,7 +2164,7 @@ HTTP2-Settings    = token68
               flow control window size of 65,535 bytes. The connection flow control window is 65,535
               bytes.  Both endpoints can adjust the initial window size for new streams by including
               a value for <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> in the <x:ref>SETTINGS</x:ref>
-              frame that forms part of the connection header.
+              frame that forms part of the connection preface.
             </t>
             <t>
               Prior to receiving a <x:ref>SETTINGS</x:ref> frame that sets a value for
@@ -3351,7 +3351,7 @@ HTTP2-Settings    = token68
       </t>
       <t>
         This document registers the <spanx style="verb">PRI</spanx> method for use in HTTP, to avoid
-        collisions with the <xref target="ConnectionHeader">connection header</xref>.
+        collisions with the <xref target="ConnectionHeader">connection preface</xref>.
       </t>
 
       <section anchor="iana-alpn" title="Registration of HTTP/2 Identification String">
@@ -3447,8 +3447,9 @@ HTTP2-Settings    = token68
               <xref target="ConnectionHeader"/> of this document
             </t>
             <t hangText="Related information:">
-              This method is never used by an actual client.  This method will appear to be used
-              when an HTTP/1.1 server or intermediary attempts to parse an HTTP/2 connection header.
+              This method is never used by an actual client. This method will appear to be used
+              when an HTTP/1.1 server or intermediary attempts to parse an HTTP/2 connection
+              preface.
             </t>
           </list>
         </t>
@@ -3878,6 +3879,12 @@ HTTP2-Settings    = token68
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
 
+      <section title="Since draft-ietf-httpbis-http2-10" anchor="changes.since.draft-ietf-httpbis-http2-10">
+        <t>
+          Changed "connection header" to "connection preface" to avoid confusion.
+        </t>
+      </section>
+      
       <section title="Since draft-ietf-httpbis-http2-09" anchor="changes.since.draft-ietf-httpbis-http2-09">
         <t>
           Adding padding for data frames.
