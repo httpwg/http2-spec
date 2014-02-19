@@ -2782,25 +2782,48 @@ HTTP2-Settings    = token68
         <section anchor="HeaderOrdering" title="Header Field Ordering">
           <t>
             <xref target="COMPRESSION">HTTP Header Compression</xref> does not preserve the order of
-            header fields.  The relative order of header fields with different names is not
-            important.  However, the same header field can be repeated to form a comma-separated
+            header fields, because the relative order of header fields with different names is not
+            important.  However, the same header field can be repeated to form a
             list (see <xref target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), where the relative
             order of header field values is significant. This repetition can occur either as a
             single header field with a comma-separated list of values, or as several header fields
-            with a single value, or any combination thereof.
+            with a single value, or any combination thereof. Therefore, in the latter case, ordering
+            needs to be preserved before compression takes place.
           </t>
           <t>
-            To preserve the order of a comma-separated list, the ordered values for a single header
-            field name appearing in different header fields are concatenated into a single value.  A
-            zero-valued octet (0x0) is used to delimit multiple values.
+            To preserve the order of multiple occurrences of a header field with the same name, its
+            ordered values are concatenated into a single value using a zero-valued octet (0x0) to
+            delimit them.
           </t>
           <t>
             After decompression, header fields that have values containing zero octets (0x0) MUST be
             split into multiple header fields before being processed.
           </t>
+          <t>For example, the following HTTP/1.x header block:</t>
+          <figure>
+            <artwork type="inline"><![CDATA[
+              Content-Type: text/html
+              Cache-Control: max-age=60, private
+              Cache-Control: must-revalidate
+]]></artwork></figure>
+          <t>
+            contains three Cache-Control directives; two in the first Cache-Control header field,
+            and the last one in the second Cache-Control field. Before compression, they would need
+            to be converted to a form similar to this (with 0x0 represented as "\0"):
+          </t>
+          <figure>
+            <artwork type="inline"><![CDATA[
+              cache-control: max-age=60, private\0must-revalidate
+              content-type: text/html
+]]></artwork></figure>
+          <t>
+            Note here that the ordering between Content-Type and Cache-Control is not preserved, but
+            the relative ordering of the Cache-Control directives -- as well as the fact that the
+            first two were comma-separated, while the last was on a different line -- is.
+          </t>
           <t>
             Header fields containing multiple values MUST be concatenated into a single value unless
-            the ordering of that header field is known to be not significant.
+            the ordering of that header field is known to be insignificant.
           </t>
           <t>
             The special case of <spanx style="verb">set-cookie</spanx> - which does not form a
