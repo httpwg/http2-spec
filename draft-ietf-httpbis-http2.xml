@@ -395,7 +395,7 @@ Upgrade: h2
             A request that upgrades from HTTP/1.1 to HTTP/2 MUST include exactly one <spanx
             style="verb">HTTP2-Settings</spanx> header field.  The <spanx
             style="verb">HTTP2-Settings</spanx> header field is a hop-by-hop header field that
-            includes settings that govern the HTTP/2 connection, provided in anticipation of the
+            includes parameters that govern the HTTP/2 connection, provided in anticipation of the
             server accepting the request to upgrade.  A server MUST reject an attempt to upgrade if
             this header field is not present.
           </t>
@@ -415,7 +415,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             The client MUST include values for the following <xref
-            target="SettingFormat">settings</xref>:
+            target="SettingFormat">SETTINGS parameters</xref>:
             <list style="symbols">
               <t><x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref></t>
               <t><x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref></t>
@@ -429,10 +429,10 @@ HTTP2-Settings    = token68
           <t>
             A server decodes and interprets these values as it would any other
             <x:ref>SETTINGS</x:ref> frame.  <xref target="SettingsSync">Acknowledgement of the
-            settings</xref> is not necessary, since a 101 response serves as implicit
+            SETTINGS parameters</xref> is not necessary, since a 101 response serves as implicit
             acknowledgment.  Providing these values in the Upgrade request ensures that the protocol
-            does not require default values for the above settings, and gives a client an
-            opportunity to provide other settings prior to receiving any frames from the server.
+            does not require default values for the above SETTINGS parameters, and gives a client an
+            opportunity to provide other parameters prior to receiving any frames from the server.
           </t>
         </section>
       </section>
@@ -472,7 +472,7 @@ HTTP2-Settings    = token68
         <t>
           Upon establishment of a TCP connection and determination that HTTP/2 will be used by both
           peers, each endpoint MUST send a connection preface as a final confirmation and to
-          establish the initial settings for the HTTP/2 connection.
+          establish the initial SETTINGS parameters for the HTTP/2 connection.
         </t>
         <t>
           The client connection preface starts with a sequence of 24 octets, which in hex notation
@@ -1583,27 +1583,30 @@ HTTP2-Settings    = token68
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
-            The SETTINGS frame (type=0x4) conveys configuration parameters that affect how endpoints
-            communicate. The parameters are either constraints on peer behavior or preferences.
+            The SETTINGS frame (type=0x4) conveys configuration parameters (such as preferences and
+            constraints on peer behavior) that affect how endpoints communicate, and is also used
+            to acknowledge the receipt of those parameters. Individually, a SETTINGS parameter can
+            also be referred to as a "setting".
           </t>
           <t>
-            Settings are not negotiated.  Settings describe characteristics of the sending peer,
-            which are used by the receiving peer.  Different values for the same setting can be
-            advertised by each peer.  For example, a client might set a high initial flow control
+            SETTINGS parameters are not negotiated; they describe characteristics of the sending
+            peer, which are used by the receiving peer. Different values for the same parameter can
+            be advertised by each peer. For example, a client might set a high initial flow control
             window, whereas a server might set a lower value to conserve resources.
           </t>
 
           <t>
             A SETTINGS frame MUST be sent by both endpoints at the start of a connection, and MAY
             be sent at any other time by either endpoint over the lifetime of the connection.
-            Implementations MUST support all of the settings defined by this specification.
+            Implementations MUST support all of the parameters defined by this specification.
           </t>
 
           <t>
-            Each setting in a SETTINGS frame replaces the existing value for that setting.  Settings
-            are processed in the order in which they appear, and a receiver of a SETTINGS frame does
-            not need to maintain any state other than the current value of settings.  Therefore, the
-            value of a setting is the last value that is seen by a receiver.
+            Each parameter in a SETTINGS frame replaces any existing value for that parameter.
+            Parameters are processed in the order in which they appear, and a receiver of a
+            SETTINGS frame does not need to maintain any state other than the current value of its
+            parameters. Therefore, the value of a SETTINGS parameter is the last value that is seen
+            by a receiver.
           </t>
           <t>
             The SETTINGS frame defines the following flag:
@@ -1621,7 +1624,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             SETTINGS frames always apply to a connection, never a single stream.  The stream
-            identifier for a settings frame MUST be zero. If an endpoint receives a SETTINGS frame
+            identifier for a SETTINGS frame MUST be zero. If an endpoint receives a SETTINGS frame
             whose stream identifier field is anything other than 0x0, the endpoint MUST respond with
             a <xref target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
@@ -1632,10 +1635,10 @@ HTTP2-Settings    = token68
             of type <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
-          <section title="Setting Format" anchor="SettingFormat">
+          <section title="SETTINGS Format" anchor="SettingFormat">
             <t>
-              The payload of a SETTINGS frame consists of zero or more settings.  Each setting
-              consists of an unsigned 8-bit setting identifier, and an unsigned 32-bit value.
+              The payload of a SETTINGS frame consists of zero or more parameters, each consisting
+              of an unsigned 8-bit identifier and an unsigned 32-bit value.
             </t>
 
             <figure title="Setting Format">
@@ -1651,15 +1654,15 @@ HTTP2-Settings    = token68
             </figure>
           </section>
 
-          <section anchor="SettingValues" title="Defined Settings">
+          <section anchor="SettingValues" title="Defined SETTINGS Parameters">
             <t>
-              The following settings are defined:
+              The following parameters are defined:
               <list style="hanging">
                 <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (1):" anchor="SETTINGS_HEADER_TABLE_SIZE">
                   <t>
                     Allows the sender to inform the remote endpoint of the size of the
                     header compression table used to decode header blocks. The encoder can reduce
-                    this size by using signalling specific to the header compression format inside a
+                    this size by using signaling specific to the header compression format inside a
                     header block.  The initial value is 4,096 bytes.
                   </t>
                 </x:lt>
@@ -1667,8 +1670,8 @@ HTTP2-Settings    = token68
                   <t>
                     This setting can be use to disable <xref target="PushResources">server
                     push</xref>.  An endpoint MUST NOT send a <x:ref>PUSH_PROMISE</x:ref> frame if
-                    it receives this setting set to a value of 0.  An endpoint that has set this
-                    setting to 0 and had it acknowledged MUST treat the receipt of a
+                    it receives this parameter set to a value of 0.  An endpoint that has set this
+                    parameter to 0 and had it acknowledged MUST treat the receipt of a
                     <x:ref>PUSH_PROMISE</x:ref> frame as a <xref
                     target="ConnectionErrorHandler">connection error</xref> of type
                     <x:ref>PROTOCOL_ERROR</x:ref>.
@@ -1702,7 +1705,7 @@ HTTP2-Settings    = token68
                     control.
                   </t>
                   <t>
-                    This settings affects the window size of all streams, including existing
+                    This setting affects the window size of all streams, including existing
                     streams, see <xref target="InitialWindowSize"/>.
                   </t>
                   <t>
@@ -1714,7 +1717,7 @@ HTTP2-Settings    = token68
               </list>
             </t>
             <t>
-              An endpoint that receives a SETTINGS frame with any other setting identifier MUST
+              An endpoint that receives a SETTINGS frame with any other identifier MUST
               treat this as a <xref target="ConnectionErrorHandler">connection error</xref> of type
               <x:ref>PROTOCOL_ERROR</x:ref>.
             </t>
@@ -1723,16 +1726,17 @@ HTTP2-Settings    = token68
           <section anchor="SettingsSync" title="Settings Synchronization">
             <t>
               Most values in SETTINGS benefit from or require an understanding of when the peer has
-              received and applied the changed setting values.  In order to provide such
-              synchronization timepoints, the recipient of a SETTINGS frame in which the ACK flag is
-              not set MUST apply the updated settings as soon as possible upon receipt.
+              received and applied the changed the communicated parameter values. In order to
+              provide such synchronization timepoints, the recipient of a SETTINGS frame in which
+              the ACK flag is not set MUST apply the updated parameters as soon as possible upon
+              receipt.
             </t>
             <t>
               The values in the SETTINGS frame MUST be applied in the order they appear, with no
-              other frame processing between values.  Once all values have been applied, the
-              recipient MUST immediately emit a SETTINGS frame with the ACK flag set.  The sender of
-              altered settings applies changes upon receiving a SETTINGS frame with the ACK flag
-              set.
+              other frame processing between values. Once all values have been applied, the
+              recipient MUST immediately emit a SETTINGS frame with the ACK flag set. Upon
+              receiving a SETTINGS frame with the ACK flag set, the sender of the altered parameters
+              can rely upon their application.
             </t>
             <t>
               If the sender of a SETTINGS frame does not receive an acknowledgement within a
@@ -3253,9 +3257,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           The <x:ref>SETTINGS</x:ref> frame can be abused to cause a peer to expend additional
-          processing time.  This might be done by pointlessly changing settings, setting multiple
-          undefined settings, or changing the same setting multiple times in the same frame.
-          Similarly, <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be
+          processing time. This might be done by pointlessly changing SETTINGS parameters, setting
+          multiple undefined parameters, or changing the same setting multiple times in the same
+          frame. Similarly, <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be
           abused to cause an unnecessary waste of resources.
         </t>
         <t>
@@ -3268,10 +3272,10 @@ HTTP2-Settings    = token68
           target="COMPRESSION"/> for more details on potential abuses.
         </t>
         <t>
-          Limits in settings cannot be reduced instantaneously, which leaves an endpoint exposed to
-          behavior from a peer that could exceed the new limits.  In particular, immediately after
-          establishing a connection, limits set by a server are not known to clients and could be
-          exceeded without being an obvious protocol violation.
+          Limits in SETTINGS parameters cannot be reduced instantaneously, which leaves an endpoint
+          exposed to behavior from a peer that could exceed the new limits. In particular,
+          immediately after establishing a connection, limits set by a server are not known to
+          clients and could be exceeded without being an obvious protocol violation.
         </t>
         <t>
           In all these cases, there are legitimate reasons to use these protocol mechanisms.  These
