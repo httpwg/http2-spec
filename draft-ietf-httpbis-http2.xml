@@ -2932,23 +2932,23 @@ HTTP2-Settings    = token68
 
       <section anchor="PushResources" title="Server Push">
         <t>
-          HTTP/2 enables a server to pre-emptively send (or "push") multiple associated resources to
-          a client in response to a single request.  This feature becomes particularly helpful when
-          the server knows the client will need to have those resources available in order to fully
-          process the originally requested resource.
+          HTTP/2 enables a server to pre-emptively send (or "push") one or more associated
+          responses to a client in response to a single request. This feature becomes particularly
+          helpful when the server knows the client will need to have those responses available in
+          order to fully process the response to the original request.
         </t>
 
         <t>
-          Pushing additional resources is optional, and is negotiated only between individual
+          Pushing additional responses is optional, and is negotiated only between individual
           endpoints.  The <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting can be set to 0 to indicate
           that server push is disabled.  Even if enabled, an intermediary could receive pushed
-          resources from the server but could choose not to forward those on to the client.  How to
-          make use of the pushed resources is up to that intermediary.  Equally, the intermediary
-          might choose to push additional resources to the client, without any action taken by the
+          responses from the server but could choose not to forward those on to the client.  How to
+          make use of the pushed responses is up to that intermediary.  Equally, the intermediary
+          might choose to push additional responses to the client, without any action taken by the
           server.
         </t>
         <t>
-          A client cannot push resources.  Clients and servers MUST operate as though the server has
+          A client cannot push.  Clients and servers MUST operate as though the server has
           disabled <x:ref>PUSH_PROMISE</x:ref> by setting the <x:ref>SETTINGS_ENABLE_PUSH</x:ref> to
           0.  As a consequence, servers MUST treat the receipt of a <x:ref>PUSH_PROMISE</x:ref>
           frame as a <xref target="ConnectionErrorHandler">connection error</xref>.  Clients MUST
@@ -2972,7 +2972,7 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            Pushed resources are always associated with an explicit request from a client.  The
+            Pushed responses are always associated with an explicit request from a client.  The
             <x:ref>PUSH_PROMISE</x:ref> frames sent by the server are sent on the stream created for
             the original request.  The <x:ref>PUSH_PROMISE</x:ref> frame includes a promised stream
             identifier, chosen from the stream identifiers available to the server (see <xref
@@ -2992,19 +2992,19 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            The server SHOULD send <x:ref>PUSH_PROMISE</x:ref> (<xref target="PUSH_PROMISE"/>) frames
-            prior to sending any frames that reference
-            the promised resources.  This avoids a race where clients issue requests for resources
-            prior to receiving any <x:ref>PUSH_PROMISE</x:ref> frames.
+            The server SHOULD send <x:ref>PUSH_PROMISE</x:ref> (<xref target="PUSH_PROMISE"/>)
+            frames prior to sending any frames that reference the promised responses. This avoids a
+            race where clients issue requests prior to receiving any <x:ref>PUSH_PROMISE</x:ref>
+            frames.
           </t>
           <t>
-            For example, if the server receives a request for a document containing embedded links to
-            multiple image files, and the server chooses to push those additional images to the
-            client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the image
-            links ensures that the client is able to see the promises before discovering the resources.
-            Similarly, if the server pushes resources referenced by the header block (for instance, in
-            Link header fields), sending the push promises before sending the header block ensures
-            that clients do not request those resources.
+            For example, if the server receives a request for a document containing embedded links
+            to multiple image files, and the server chooses to push those additional images to the
+            client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the
+            image links ensures that the client is able to see the promises before discovering
+            embedded links. Similarly, if the server pushes responses referenced by the header
+            block (for instance, in Link header fields), sending the push promises before sending
+            the header block ensures that clients do not request them.
           </t>
 
           <t>
@@ -3021,7 +3021,7 @@ HTTP2-Settings    = token68
         <section title="Push Responses">
           <t>
             After sending the <x:ref>PUSH_PROMISE</x:ref> frame, the server can begin delivering the
-            pushed resource as a <xref target="HttpResponse">response</xref> on a server-initiated
+            pushed response as a <xref target="HttpResponse">response</xref> on a server-initiated
             stream that uses the promised stream identifier.  The server uses this stream to transmit
             an HTTP response, using the same sequence of frames as defined in <xref
             target="HttpSequence"/>.  This stream becomes <xref target="StreamStates">"half closed" to
@@ -3030,20 +3030,20 @@ HTTP2-Settings    = token68
 
           <t>
             Once a client receives a <x:ref>PUSH_PROMISE</x:ref> frame and chooses to accept the
-            pushed resource, the client SHOULD NOT issue any requests for the promised resource until
-            after the promised stream has closed.
+            pushed response, the client SHOULD NOT issue any requests for the promised response
+            until after the promised stream has closed.
           </t>
 
           <t>
             If the client determines, for any reason, that it does not wish to receive the pushed
-            resource from the server, or if the server takes too long to begin sending the promised
-            resource, the client can send an <x:ref>RST_STREAM</x:ref> frame, using either the
+            response from the server, or if the server takes too long to begin sending the promised
+            response, the client can send an <x:ref>RST_STREAM</x:ref> frame, using either the
             <x:ref>CANCEL</x:ref> or <x:ref>REFUSED_STREAM</x:ref> codes, and referencing the pushed
             stream's identifier.
           </t>
           <t>
             A client can use the <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> setting to limit the
-            number of resources that can be concurrently pushed by a server.  Advertising a
+            number of responses that can be concurrently pushed by a server.  Advertising a
             <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> value of zero disables server push by
             preventing the server from creating the necessary streams.  This does not prohibit a
             server from sending PUSH_PROMISE frames; clients need to reset any promised streams that
@@ -3052,7 +3052,7 @@ HTTP2-Settings    = token68
 
           <t>
             Clients receiving a pushed response MUST validate that the server is authorized to push
-            the resource using the same-origin policy (<xref target="RFC6454" x:fmt=","
+            it using the same-origin policy (<xref target="RFC6454" x:fmt=","
             x:sec="3"/>).  For example, a HTTP/2 connection to <spanx
             style="verb">example.com</spanx> is generally <cref>Ed: weaselly use of "generally",
             needs better definition</cref> not permitted to push a response for <spanx
@@ -3270,14 +3270,13 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section title="Cacheability of Pushed Resources">
+      <section title="Cacheability of Pushed Responses">
         <t>
-          Pushed resources are responses without an explicit request from the client.  Request
-          header fields are provided by the server in the <x:ref>PUSH_PROMISE</x:ref> frame.  These
-          header fields are provided so that existing HTTP semantics can be applied.
+          Pushed responses do not have an explicit request from the client; the request
+          is provided by the server in the <x:ref>PUSH_PROMISE</x:ref> frame.
         </t>
         <t>
-          Caching resources that are pushed is possible based on the guidance provided by the origin
+          Caching responses that are pushed is possible based on the guidance provided by the origin
           server in the Cache-Control header field.  However, this can cause issues if a single
           server hosts more than one tenant.  For example, a server might offer multiple users each
           a small portion of its URI space.
@@ -3290,7 +3289,7 @@ HTTP2-Settings    = token68
           provides.
         </t>
         <t>
-          Pushed resources for which an origin server is not authoritative are never cached or used.
+          Pushed responses for which an origin server is not authoritative are never cached or used.
         </t>
       </section>
 
