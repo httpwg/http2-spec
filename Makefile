@@ -23,12 +23,6 @@ hpack: header-compression
 
 submit: $(addsuffix .txt,$(next))
 
-ifeq "$(shell uname -s 2>/dev/null)" "Darwin"
-    sed_i := sed -i ''
-else
-    sed_i := sed -i
-endif
-
 idnits: $(addsuffix .txt,$(next))
 	idnits $<
 
@@ -40,8 +34,7 @@ clean:
 
 define makerule_submit_xml =
 $(1)
-	cp $$< $$@
-	$$(sed_i) -e"s/$$(basename $$<)-latest/$$(basename $$@)/" $$@
+	sed -e"s/$$(basename $$<)-latest/$$(basename $$@)/" $$< > $$@
 endef
 submit_deps := $(join $(addsuffix .xml: ,$(next)),$(addsuffix .redxml,$(drafts)))
 $(foreach rule,$(submit_deps),$(eval $(call makerule_submit_xml,$(rule))))
@@ -49,15 +42,17 @@ $(foreach rule,$(submit_deps),$(eval $(call makerule_submit_xml,$(rule))))
 $(addsuffix .txt,$(next)): %.txt: %.xml
 	$(xml2rfc) $< $@
 
-$(addsuffix .txt,$(drafts)): %.txt: %.redxml
+%.txt: %.redxml
 	$(xml2rfc) $< $@
 
 stylesheet := lib/myxml2rfc.xslt
 extra_css := lib/style.css
 css_content = $(shell cat $(extra_css))
-%.html: %.xml $(stylesheet) $(extra_css)
+%.htmltmp: %.xml $(stylesheet) $(extra_css)
 	$(saxon) $< $(stylesheet) > $@
-	$(sed_i) -e's~</style>~</style><style tyle="text/css">$(css_content)</style>~' $@
+
+%.html: %.htmltmp
+	sed -e's~</style>~</style><style tyle="text/css">$(css_content)</style>~' $< > $@
 
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
