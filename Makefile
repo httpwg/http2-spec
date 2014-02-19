@@ -29,20 +29,6 @@ else
     sed_i := sed -i
 endif
 
-define makerule_submit_xml =
-$(1)
-	cp $$< $$@
-	$$(sed_i) -e"s/$$(basename $$<)-latest/$$(basename $$@)/" $$@
-endef
-submit_deps := $(join $(addsuffix .xml: ,$(next)),$(addsuffix .redxml,$(drafts)))
-$(foreach rule,$(submit_deps),$(eval $(call makerule_submit_xml,$(rule))))
-define makerule_txt =
-$(1)
-	$$(xml2rfc) $$< $$@
-endef
-txt_deps := $(join $(addsuffix .txt: ,$(drafts) $(next)),$(addsuffix .redxml,$(drafts)) $(addsuffix .xml,$(next)))
-$(foreach rule,$(txt_deps),$(eval $(call makerule_txt,$(rule))))
-
 idnits: $(addsuffix .txt,$(next))
 	idnits $<
 
@@ -51,6 +37,20 @@ clean:
 	-rm -f $(addsuffix *.txt,$(drafts))
 	-rm -f $(addsuffix *-[0-9][0-9].xml,$(drafts))
 	-rm -f $(addsuffix *.html,$(drafts))
+
+define makerule_submit_xml =
+$(1)
+	cp $$< $$@
+	$$(sed_i) -e"s/$$(basename $$<)-latest/$$(basename $$@)/" $$@
+endef
+submit_deps := $(join $(addsuffix .xml: ,$(next)),$(addsuffix .redxml,$(drafts)))
+$(foreach rule,$(submit_deps),$(eval $(call makerule_submit_xml,$(rule))))
+
+$(addsuffix .txt,$(next)): %.txt: %.xml
+	$(xml2rfc) $< $@
+
+$(addsuffix .txt,$(drafts)): %.txt: %.redxml
+	$(xml2rfc) $< $@
 
 stylesheet := lib/myxml2rfc.xslt
 extra_css := lib/style.css
@@ -62,9 +62,6 @@ css_content = $(shell cat $(extra_css))
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
 	$(saxon) $< $(reduction) > $@
-
-#%.txt: %.redxml
-#	$(xml2rfc) $< $@
 
 %.xhtml: %.xml ../../rfc2629xslt/rfc2629toXHTML.xslt
 	$(saxon) $< ../../rfc2629xslt/rfc2629toXHTML.xslt > $@
