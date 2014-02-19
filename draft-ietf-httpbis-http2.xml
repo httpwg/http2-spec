@@ -395,7 +395,7 @@ Upgrade: h2
             A request that upgrades from HTTP/1.1 to HTTP/2 MUST include exactly one <spanx
             style="verb">HTTP2-Settings</spanx> header field.  The <spanx
             style="verb">HTTP2-Settings</spanx> header field is a hop-by-hop header field that
-            includes settings that govern the HTTP/2 connection, provided in anticipation of the
+            includes parameters that govern the HTTP/2 connection, provided in anticipation of the
             server accepting the request to upgrade.  A server MUST reject an attempt to upgrade if
             this header field is not present.
           </t>
@@ -415,7 +415,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             The client MUST include values for the following <xref
-            target="SettingFormat">settings</xref>:
+            target="SettingFormat">SETTINGS parameters</xref>:
             <list style="symbols">
               <t><x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref></t>
               <t><x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref></t>
@@ -429,10 +429,10 @@ HTTP2-Settings    = token68
           <t>
             A server decodes and interprets these values as it would any other
             <x:ref>SETTINGS</x:ref> frame.  <xref target="SettingsSync">Acknowledgement of the
-            settings</xref> is not necessary, since a 101 response serves as implicit
+            SETTINGS parameters</xref> is not necessary, since a 101 response serves as implicit
             acknowledgment.  Providing these values in the Upgrade request ensures that the protocol
-            does not require default values for the above settings, and gives a client an
-            opportunity to provide other settings prior to receiving any frames from the server.
+            does not require default values for the above SETTINGS parameters, and gives a client an
+            opportunity to provide other parameters prior to receiving any frames from the server.
           </t>
         </section>
       </section>
@@ -472,7 +472,7 @@ HTTP2-Settings    = token68
         <t>
           Upon establishment of a TCP connection and determination that HTTP/2 will be used by both
           peers, each endpoint MUST send a connection preface as a final confirmation and to
-          establish the initial settings for the HTTP/2 connection.
+          establish the initial SETTINGS parameters for the HTTP/2 connection.
         </t>
         <t>
           The client connection preface starts with a sequence of 24 octets, which in hex notation
@@ -1175,7 +1175,7 @@ HTTP2-Settings    = token68
 
         <section anchor="ConnectionErrorHandler" title="Connection Error Handling">
           <t>
-            A connection error is any error which prevents further processing of the framing layer
+            A connection error is any error which prevents further processing of the framing layer,
             or which corrupts any connection state.
           </t>
           <t>
@@ -1250,9 +1250,7 @@ HTTP2-Settings    = token68
           fail to maintain a synchronized view of the connection state, successful communication
           within the connection will no longer be possible. Therefore, it is important that
           endpoints have a shared comprehension of how the state is affected by the use any given
-          frame. Accordingly, while it is expected that new frame types will be introduced by
-          extensions to this protocol, only frames defined by this document are permitted to alter
-          the connection state.
+          frame.
         </t>
 
         <section anchor="DATA" title="DATA">
@@ -1335,7 +1333,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             DATA frames are subject to flow control and can only be sent when a stream is in the
-            "open" or "half closed (remote)" states. Padding is not excluded from flow control.  If
+            "open" or "half closed (remote)" states. Padding is included in flow control.  If
             a DATA frame is received whose stream is not in "open" or "half closed (local)" state,
             the recipient MUST respond with a <xref target="StreamErrorHandler">stream error</xref>
             of type <x:ref>STREAM_CLOSED</x:ref>.
@@ -1446,10 +1444,9 @@ HTTP2-Settings    = token68
               </x:lt>
               <x:lt hangText="PRIORITY (0x8):">
                 <t>
-                  Bit 4 being set indicates that the first four octets of this frame contain a
-                  single reserved bit and a 31-bit priority; see <xref target="StreamPriority"/>.
-                  If this bit is not set, the four bytes do not appear and the frame only contains a
-                  header block fragment.
+                  Bit 4 being set indicates that the frame contains a single reserved bit and a
+                  31-bit priority; see <xref target="StreamPriority"/>. If this bit is not set,
+                  those four bytes do not appear.
                 </t>
               </x:lt>
               <x:lt hangText="PAD_LOW (0x10):">
@@ -1586,35 +1583,34 @@ HTTP2-Settings    = token68
 
         <section anchor="SETTINGS" title="SETTINGS">
           <t>
-            The SETTINGS frame (type=0x4) conveys configuration parameters that affect how endpoints
-            communicate. The parameters are either constraints on peer behavior or preferences.
+            The SETTINGS frame (type=0x4) conveys configuration parameters (such as preferences and
+            constraints on peer behavior) that affect how endpoints communicate, and is also used
+            to acknowledge the receipt of those parameters. Individually, a SETTINGS parameter can
+            also be referred to as a "setting".
           </t>
           <t>
-            Settings are not negotiated.  Settings describe characteristics of the sending peer,
-            which are used by the receiving peer.  Different values for the same setting can be
-            advertised by each peer.  For example, a client might set a high initial flow control
+            SETTINGS parameters are not negotiated; they describe characteristics of the sending
+            peer, which are used by the receiving peer. Different values for the same parameter can
+            be advertised by each peer. For example, a client might set a high initial flow control
             window, whereas a server might set a lower value to conserve resources.
           </t>
 
           <t>
-            SETTINGS frames MUST be sent at the start of a connection, and MAY be sent at any other
-            time by either endpoint over the lifetime of the connection.
+            A SETTINGS frame MUST be sent by both endpoints at the start of a connection, and MAY
+            be sent at any other time by either endpoint over the lifetime of the connection.
+            Implementations MUST support all of the parameters defined by this specification.
           </t>
 
           <t>
-            Implementations MUST support all of the settings defined by this specification.
-          </t>
-
-          <t>
-            Each setting in a SETTINGS frame replaces the existing value for that setting.  Settings
-            are processed in the order in which they appear, and a receiver of a SETTINGS frame does
-            not need to maintain any state other than the current value of settings.  Therefore, the
-            value of a setting is the last value that is seen by a receiver.  This permits the
-            inclusion of the same settings multiple times in the same SETTINGS frame, though doing
-            so does nothing other than waste connection capacity.
+            Each parameter in a SETTINGS frame replaces any existing value for that parameter.
+            Parameters are processed in the order in which they appear, and a receiver of a
+            SETTINGS frame does not need to maintain any state other than the current value of its
+            parameters. Therefore, the value of a SETTINGS parameter is the last value that is seen
+            by a receiver.
           </t>
           <t>
-            The SETTINGS frame defines the following flag:
+            SETTINGS parameters are acknowledged by the receiving peer. To enable this, the SETTINGS
+            frame defines the following flag:
             <list style="hanging">
               <t hangText="ACK (0x1):">
                 Bit 1 being set indicates that this frame acknowledges receipt and application of
@@ -1629,7 +1625,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             SETTINGS frames always apply to a connection, never a single stream.  The stream
-            identifier for a settings frame MUST be zero. If an endpoint receives a SETTINGS frame
+            identifier for a SETTINGS frame MUST be zero. If an endpoint receives a SETTINGS frame
             whose stream identifier field is anything other than 0x0, the endpoint MUST respond with
             a <xref target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
@@ -1640,10 +1636,10 @@ HTTP2-Settings    = token68
             of type <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
-          <section title="Setting Format" anchor="SettingFormat">
+          <section title="SETTINGS Format" anchor="SettingFormat">
             <t>
-              The payload of a SETTINGS frame consists of zero or more settings.  Each setting
-              consists of an unsigned 8-bit setting identifier, and an unsigned 32-bit value.
+              The payload of a SETTINGS frame consists of zero or more parameters, each consisting
+              of an unsigned 8-bit identifier and an unsigned 32-bit value.
             </t>
 
             <figure title="Setting Format">
@@ -1659,24 +1655,24 @@ HTTP2-Settings    = token68
             </figure>
           </section>
 
-          <section anchor="SettingValues" title="Defined Settings">
+          <section anchor="SettingValues" title="Defined SETTINGS Parameters">
             <t>
-              The following settings are defined:
+              The following parameters are defined:
               <list style="hanging">
                 <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (1):" anchor="SETTINGS_HEADER_TABLE_SIZE">
                   <t>
                     Allows the sender to inform the remote endpoint of the size of the
                     header compression table used to decode header blocks. The encoder can reduce
-                    this size by using signalling specific to the header compression format inside a
+                    this size by using signaling specific to the header compression format inside a
                     header block.  The initial value is 4,096 bytes.
                   </t>
                 </x:lt>
                 <x:lt hangText="SETTINGS_ENABLE_PUSH (2):" anchor="SETTINGS_ENABLE_PUSH">
                   <t>
                     This setting can be use to disable <xref target="PushResources">server
-                    push</xref>.  An endpoint MUST NOT send a <x:ref>PUSH_PROMISE</x:ref> frame if
-                    it receives this setting set to a value of 0.  An endpoint that has set this
-                    setting to 0 and had it acknowledged MUST treat the receipt of a
+                    push</xref>. An endpoint MUST NOT send a <x:ref>PUSH_PROMISE</x:ref> frame if
+                    it receives this parameter set to a value of 0. An endpoint that has both set
+                    this parameter to 0 and had it acknowledged MUST treat the receipt of a
                     <x:ref>PUSH_PROMISE</x:ref> frame as a <xref
                     target="ConnectionErrorHandler">connection error</xref> of type
                     <x:ref>PROTOCOL_ERROR</x:ref>.
@@ -1710,7 +1706,7 @@ HTTP2-Settings    = token68
                     control.
                   </t>
                   <t>
-                    This settings affects the window size of all streams, including existing
+                    This setting affects the window size of all streams, including existing
                     streams, see <xref target="InitialWindowSize"/>.
                   </t>
                   <t>
@@ -1722,7 +1718,7 @@ HTTP2-Settings    = token68
               </list>
             </t>
             <t>
-              An endpoint that receives a SETTINGS frame with any other setting identifier MUST
+              An endpoint that receives a SETTINGS frame with any other identifier MUST
               treat this as a <xref target="ConnectionErrorHandler">connection error</xref> of type
               <x:ref>PROTOCOL_ERROR</x:ref>.
             </t>
@@ -1731,16 +1727,17 @@ HTTP2-Settings    = token68
           <section anchor="SettingsSync" title="Settings Synchronization">
             <t>
               Most values in SETTINGS benefit from or require an understanding of when the peer has
-              received and applied the changed setting values.  In order to provide such
-              synchronization timepoints, the recipient of a SETTINGS frame in which the ACK flag is
-              not set MUST apply the updated settings as soon as possible upon receipt.
+              received and applied the changed the communicated parameter values. In order to
+              provide such synchronization timepoints, the recipient of a SETTINGS frame in which
+              the ACK flag is not set MUST apply the updated parameters as soon as possible upon
+              receipt.
             </t>
             <t>
               The values in the SETTINGS frame MUST be applied in the order they appear, with no
-              other frame processing between values.  Once all values have been applied, the
-              recipient MUST immediately emit a SETTINGS frame with the ACK flag set.  The sender of
-              altered settings applies changes upon receiving a SETTINGS frame with the ACK flag
-              set.
+              other frame processing between values. Once all values have been applied, the
+              recipient MUST immediately emit a SETTINGS frame with the ACK flag set. Upon
+              receiving a SETTINGS frame with the ACK flag set, the sender of the altered parameters
+              can rely upon their application.
             </t>
             <t>
               If the sender of a SETTINGS frame does not receive an acknowledgement within a
@@ -2004,7 +2001,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             The last stream identifier in the GOAWAY frame contains the highest numbered stream
-            identifier for which the sender of the GOAWAY frame has received frames on and might
+            identifier for which the sender of the GOAWAY frame has received frames and might
             have taken some action on.  All streams up to and including the identified stream might
             have been processed in some way.  The last stream identifier is set to 0 if no streams
             were processed.
@@ -2400,13 +2397,19 @@ HTTP2-Settings    = token68
 
     <section anchor="HTTPLayer" title="HTTP Message Exchanges">
       <t>
-        HTTP/2 is intended to be as compatible as possible with current web-based applications. This
-        means that, from the perspective of the server business logic or application API, the
-        features of HTTP are unchanged. To achieve this, all of the application request and response
-        header semantics are preserved, although the syntax of conveying those semantics has
-        changed.  Thus, the rules from HTTP/1.1 (<xref target="HTTP-p1"/>, <xref target="HTTP-p2"/>,
-        <xref target="HTTP-p4"/>, <xref target="HTTP-p5"/>, <xref target="HTTP-p6"/>, and <xref
-        target="HTTP-p7"/>) apply with the changes in the sections below.
+        HTTP/2 is intended to be as compatible as possible with current uses of HTTP. This means
+        that, from the perspective of the server and client applications, the features of the
+        protocol are unchanged. To achieve this, all request and response semantics are preserved,
+        although the syntax of conveying those semantics has changed.
+      </t>
+      <t>
+        Thus, the specification and requirements of HTTP/1.1 Semantics and Content <xref
+        target="HTTP-p2"/>, Conditional Requests <xref target="HTTP-p4"/>, Range Requests <xref
+        target="HTTP-p5"/>, Caching <xref target="HTTP-p6"/> and Authentication <xref
+        target="HTTP-p7"/> are applicable to HTTP/2. Selected portions of HTTP/1.1 Message Syntax
+        and Routing <xref target="HTTP-p1"/>, such as the HTTP and HTTPS URI schemes, are also
+        applicable in HTTP/2, but the expression of those semantics for this protocol are defined
+        in the sections below.
       </t>
 
       <section anchor="HttpSequence" title="HTTP Request/Response Exchange">
@@ -2416,20 +2419,21 @@ HTTP2-Settings    = token68
           the same stream as the request.
         </t>
         <t>
-          An HTTP request or response each consist of:
+          An HTTP message (request or response) consists of:
           <list style="numbers">
             <t>
-              a <x:ref>HEADERS</x:ref> frame;
+              one <x:ref>HEADERS</x:ref> frame, followed by zero or more
+              <x:ref>CONTINUATION</x:ref> frames (containing the message headers; see <xref
+              target="HTTP-p1" x:fmt="," x:rel="#header.fields"/>), and
             </t>
             <t>
-              one contiguous sequence of zero or more <x:ref>CONTINUATION</x:ref> frames;
+              zero or more <x:ref>DATA</x:ref> frames (containing the message payload; see <xref
+              target="HTTP-p1" x:fmt="," x:rel="#message.body"/>), and
             </t>
             <t>
-              zero or more <x:ref>DATA</x:ref> frames; and
-            </t>
-            <t>
-              optionally, a contiguous sequence that starts with a <x:ref>HEADERS</x:ref> frame,
-              followed by zero or more <x:ref>CONTINUATION</x:ref> frames.
+              optionally, one <x:ref>HEADERS</x:ref> frame, followed by zero or more
+              <x:ref>CONTINUATION</x:ref> frames (containing the trailer-part, if present; see
+              <xref target="HTTP-p1" x:fmt="," x:rel="#chunked.trailer.part"/>).
             </t>
           </list>
           The last frame in the sequence bears an END_STREAM flag, though a <x:ref>HEADERS</x:ref>
@@ -2437,8 +2441,13 @@ HTTP2-Settings    = token68
           that carry any remaining portions of the header block.
         </t>
         <t>
-          Other frames MAY be interspersed with these frames, but those frames do not carry HTTP
-          semantics.  In particular, <x:ref>HEADERS</x:ref> frames (and any
+          Other frames (from any stream) MUST NOT occur between either <x:ref>HEADERS</x:ref> frame
+          and the following <x:ref>CONTINUATION</x:ref> frames (if present), nor between
+          <x:ref>CONTINUATION</x:ref> frames.
+        </t>
+        <t>
+          Otherwise, frames MAY be interspersed on the stream between these frames, but those
+          frames do not carry HTTP semantics. In particular, <x:ref>HEADERS</x:ref> frames (and any
           <x:ref>CONTINUATION</x:ref> frames that follow) other than the first and optional last
           frames in this sequence do not carry HTTP semantics.
         </t>
@@ -2474,7 +2483,8 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Typically, Expect/continue is used by clients wishing to avoid sending a large amount
-            of data in a request body, only to have the request rejected by the origin server.
+            of data in a request body, only to have the request rejected by the origin server (thus
+            leaving the connection potentially unusable).
           </t>
           <t>
             HTTP/2 does not enable the Expect/continue mechanism; if the server sends a final status
@@ -2488,10 +2498,10 @@ HTTP2-Settings    = token68
             clients, in anticipation of a final status code.
           </t>
           <t>
-            Other defined 1xx status codes are not applicable to HTTP/2; the semantics of 101
-            (Switching Protocols) is better expressed using a distinct frame type, since they apply
-            to the entire connection, not just one stream. Likewise, 102 (Processing) is no longer
-            necessary, because HTTP/2 has a separate means of keeping the connection alive.
+            Other defined 1xx status codes are not applicable to HTTP/2; For example, the semantics
+            of 101 (Switching Protocols) aren't suitable to a multiplexed protocol. Likewise, 102
+            (Processing) is no longer necessary, because HTTP/2 has a separate means of keeping the
+            connection alive.
           </t>
           <t>
             This difference between protocol versions necessitates special handling by
@@ -2527,7 +2537,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             An HTTP GET request includes request header fields and no body and is therefore
-            transmitted as a single contiguous sequence of <x:ref>HEADERS</x:ref> and
+            transmitted as a single <x:ref>HEADERS</x:ref> frame, followed by zero or more
             <x:ref>CONTINUATION</x:ref> frames containing the serialized block of request header
             fields.  The last <x:ref>HEADERS</x:ref> frame in the sequence has both the END_HEADERS
             and END_STREAM flags set:
@@ -2548,9 +2558,10 @@ HTTP2-Settings    = token68
 
           <t>
             Similarly, a response that includes only response header fields is transmitted as a
-            sequence of <x:ref>HEADERS</x:ref> frames containing the serialized block of response
-            header fields. The last <x:ref>HEADERS</x:ref> frame in the sequence has both the
-            END_HEADERS and END_STREAM flag set:
+            <x:ref>HEADERS</x:ref> frame (again, followed by zero or more
+            <x:ref>CONTINUATION</x:ref> frames) containing the serialized block of response header
+            fields. The last <x:ref>HEADERS</x:ref> frame in the sequence has both the END_HEADERS
+            and END_STREAM flag set:
           </t>
 
           <figure>
@@ -2644,15 +2655,21 @@ HTTP2-Settings    = token68
 
       <section anchor="HttpHeaders" title="HTTP Header Fields">
         <t>
-          HTTP/2 request and response header fields carry information as a series of key-value
-          pairs.  This includes the target URI for the request, the status code for the response, as
-          well as HTTP header fields.
+          HTTP header fields carry information as a series of key-value pairs. For a listing of
+          registered HTTP headers, see the Message Header Field Registry maintained at
+          <eref target="http://www.iana.org/assignments/message-headers"/>.
         </t>
         <t>
-          HTTP header field names are strings of ASCII characters that are compared in a
-          case-insensitive fashion.  Header field names MUST be converted to lowercase prior to
-          their encoding in HTTP/2.  A request or response containing uppercase header field names
-          MUST be treated as <xref target="malformed">malformed</xref>.
+          While HTTP/1.x used the message start-line (see <xref target="HTTP-p1" x:fmt=","
+                x:rel="#start.line"/>) to convey the target URI and method of
+          the request, and the status code for the response, HTTP/2 uses special pseudo-headers
+          beginning with ":" for these tasks.
+        </t>
+        <t>
+          Just as in HTTP/1.x, header field names are strings of ASCII characters that are compared
+          in a case-insensitive fashion. However, header field names MUST be converted to lowercase
+          prior to their encoding in HTTP/2. A request or response containing uppercase header
+          field names MUST be treated as <xref target="malformed">malformed</xref>.
         </t>
         <t>
           HTTP/2 does not use the Connection header field to indicate "hop-by-hop" header fields;
@@ -2707,14 +2724,14 @@ HTTP2-Settings    = token68
                   style="verb">https:</spanx> URIs.
                 </t>
                 <t>
-                  To ensure that the HTTP/1.1 request line can be reproduced accurately, this header
-                  field MUST be omitted when translating from an HTTP/1.1 request that has a request
-                  target in origin or asterisk form (see <xref target="HTTP-p1" x:fmt=","
-                  x:rel="#request-target"/>).  Clients that generate HTTP/2 requests directly SHOULD
-                  instead omit the <spanx style="verb">Host</spanx> header field.  An intermediary
-                  that converts a request to HTTP/1.1 MUST create a <spanx style="verb">Host</spanx>
-                  header field if one is not present in a request by copying the value of the <spanx
-                  style="verb">:authority</spanx> header field.
+                  To ensure that the HTTP/1.1 request line can be reproduced accurately, this
+                  header field MUST be omitted when translating from an HTTP/1.1 request that has a
+                  request target in origin or asterisk form (see <xref target="HTTP-p1" x:fmt=","
+                  x:rel="#request-target"/>). Clients that generate HTTP/2 requests directly SHOULD
+                  instead omit the <spanx style="verb">Host</spanx> header field. An intermediary
+                  that converts a HTTP/2 request to HTTP/1.1 MUST create a <spanx
+                  style="verb">Host</spanx> header field if one is not present in a request by
+                  copying the value of the <spanx style="verb">:authority</spanx> header field.
                 </t>
               </x:lt>
               <x:lt>
@@ -2765,25 +2782,48 @@ HTTP2-Settings    = token68
         <section anchor="HeaderOrdering" title="Header Field Ordering">
           <t>
             <xref target="COMPRESSION">HTTP Header Compression</xref> does not preserve the order of
-            header fields.  The relative order of header fields with different names is not
-            important.  However, the same header field can be repeated to form a comma-separated
+            header fields, because the relative order of header fields with different names is not
+            important.  However, the same header field can be repeated to form a
             list (see <xref target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), where the relative
             order of header field values is significant. This repetition can occur either as a
             single header field with a comma-separated list of values, or as several header fields
-            with a single value, or any combination thereof.
+            with a single value, or any combination thereof. Therefore, in the latter case, ordering
+            needs to be preserved before compression takes place.
           </t>
           <t>
-            To preserve the order of a comma-separated list, the ordered values for a single header
-            field name appearing in different header fields are concatenated into a single value.  A
-            zero-valued octet (0x0) is used to delimit multiple values.
+            To preserve the order of multiple occurrences of a header field with the same name, its
+            ordered values are concatenated into a single value using a zero-valued octet (0x0) to
+            delimit them.
           </t>
           <t>
             After decompression, header fields that have values containing zero octets (0x0) MUST be
             split into multiple header fields before being processed.
           </t>
+          <t>For example, the following HTTP/1.x header block:</t>
+          <figure>
+            <artwork type="inline"><![CDATA[
+              Content-Type: text/html
+              Cache-Control: max-age=60, private
+              Cache-Control: must-revalidate
+]]></artwork></figure>
+          <t>
+            contains three Cache-Control directives; two in the first Cache-Control header field,
+            and the last one in the second Cache-Control field. Before compression, they would need
+            to be converted to a form similar to this (with 0x0 represented as "\0"):
+          </t>
+          <figure>
+            <artwork type="inline"><![CDATA[
+              cache-control: max-age=60, private\0must-revalidate
+              content-type: text/html
+]]></artwork></figure>
+          <t>
+            Note here that the ordering between Content-Type and Cache-Control is not preserved, but
+            the relative ordering of the Cache-Control directives -- as well as the fact that the
+            first two were comma-separated, while the last was on a different line -- is.
+          </t>
           <t>
             Header fields containing multiple values MUST be concatenated into a single value unless
-            the ordering of that header field is known to be not significant.
+            the ordering of that header field is known to be insignificant.
           </t>
           <t>
             The special case of <spanx style="verb">set-cookie</spanx> - which does not form a
@@ -2818,7 +2858,7 @@ HTTP2-Settings    = token68
           </t>
         </section>
 
-        <section anchor="malformed" title="Malformed Requests and Responses">
+        <section anchor="malformed" title="Malformed Messages">
           <t>
             A malformed request or response is one that uses a valid sequence of HTTP/2 frames, but
             is otherwise invalid due to the presence of prohibited header fields, the absence of
@@ -2837,7 +2877,10 @@ HTTP2-Settings    = token68
           <t>
             Implementations that detect malformed requests or responses need to ensure that the
             stream ends.  For malformed requests, a server MAY send an HTTP response prior to
-            closing or resetting the stream.  Clients MUST NOT accept a malformed response.
+            closing or resetting the stream.  Clients MUST NOT accept a malformed response. Note
+            that these requirements are intended to protect against several types of common attacks
+            against HTTP; they are deliberately strict, because being permissive can expose
+            implementations to these vulnerabilites.
           </t>
         </section>
       </section>
@@ -2889,49 +2932,54 @@ HTTP2-Settings    = token68
 
       <section anchor="PushResources" title="Server Push">
         <t>
-          HTTP/2 enables a server to pre-emptively send (or "push") multiple associated resources to
-          a client in response to a single request.  This feature becomes particularly helpful when
-          the server knows the client will need to have those resources available in order to fully
-          process the originally requested resource.
+          HTTP/2 enables a server to pre-emptively send (or "push") one or more associated
+          responses to a client in response to a single request. This feature becomes particularly
+          helpful when the server knows the client will need to have those responses available in
+          order to fully process the response to the original request.
         </t>
 
         <t>
-          Pushing additional resources is optional, and is negotiated only between individual
+          Pushing additional responses is optional, and is negotiated between individual
           endpoints.  The <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting can be set to 0 to indicate
-          that server push is disabled.  Even if enabled, an intermediary could receive pushed
-          resources from the server but could choose not to forward those on to the client.  How to
-          make use of the pushed resources is up to that intermediary.  Equally, the intermediary
-          might choose to push additional resources to the client, without any action taken by the
-          server.
+          that server push is disabled.
         </t>
         <t>
-          A client cannot push resources.  Clients and servers MUST operate as though the server has
-          disabled <x:ref>PUSH_PROMISE</x:ref> by setting the <x:ref>SETTINGS_ENABLE_PUSH</x:ref> to
-          0.  As a consequence, servers MUST treat the receipt of a <x:ref>PUSH_PROMISE</x:ref>
-          frame as a <xref target="ConnectionErrorHandler">connection error</xref>.  Clients MUST
-          reject any attempt to change this setting by treating the message as a <xref
-          target="ConnectionErrorHandler">connection error</xref> of type
+          Because pushing responses is effectively hop-by-hop, an intermediary could receive pushed
+          responses from the server and choose not to forward those on to the client. In other
+          words, how to make use of the pushed responses is up to that intermediary. Equally, the
+          intermediary might choose to push additional responses to the client, without any action
+          taken by the server.
+        </t>
+        <t>
+          A client cannot push. Thus, servers MUST treat the receipt of a
+          <x:ref>PUSH_PROMISE</x:ref> frame as a <xref target="ConnectionErrorHandler">connection
+          error</xref>. Clients MUST reject any attempt to change the
+          <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting to a value other than "0" by treating the
+          message as a <xref target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
         <t>
-          A server can only push requests that are safe (see <xref target="HTTP-p2" x:fmt=","
-          x:rel="#safe.methods"/>), cacheable (see <xref target="HTTP-p6" x:fmt=","
-          x:rel="#response.cacheability"/>) and do not include a request body.
+          A server can only push responses that are cacheable (see <xref target="HTTP-p6" x:fmt=","
+          x:rel="#response.cacheability"/>); promised requests MUST be safe (see <xref
+          target="HTTP-p2" x:fmt="," x:rel="#safe.methods"/>) and MUST NOT include a request body.
         </t>
 
         <section title="Push Requests">
           <t>
-            Server push is semantically equivalent to a server responding to a request. The
-            <x:ref>PUSH_PROMISE</x:ref> frame, or frames, sent by the server includes a header block
-            that contains a complete set of request header fields that the server attributes to
-            the request.  It is not possible to push a response to a request that includes a
-            request body.
+            Server push is semantically equivalent to a server responding to a request; however, in
+            this case that request is also sent by the server, as a <x:ref>PUSH_PROMISE</x:ref>
+            frame.
+          </t>
+          <t>
+            The <x:ref>PUSH_PROMISE</x:ref> frame includes a header block that contains a complete
+            set of request header fields that the server attributes to the request. It is not
+            possible to push a response to a request that includes a request body.
           </t>
 
           <t>
-            Pushed resources are always associated with an explicit request from a client.  The
-            <x:ref>PUSH_PROMISE</x:ref> frames sent by the server are sent on the stream created for
-            the original request.  The <x:ref>PUSH_PROMISE</x:ref> frame includes a promised stream
+            Pushed responses are always associated with an explicit request from the client. The
+            <x:ref>PUSH_PROMISE</x:ref> frames sent by the server are sent on that explicit
+            request's stream. The <x:ref>PUSH_PROMISE</x:ref> frame also includes a promised stream
             identifier, chosen from the stream identifiers available to the server (see <xref
             target="StreamIdentifiers"/>).
           </t>
@@ -2949,19 +2997,19 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            The server SHOULD send <x:ref>PUSH_PROMISE</x:ref> (<xref target="PUSH_PROMISE"/>) frames
-            prior to sending any frames that reference
-            the promised resources.  This avoids a race where clients issue requests for resources
-            prior to receiving any <x:ref>PUSH_PROMISE</x:ref> frames.
+            The server SHOULD send <x:ref>PUSH_PROMISE</x:ref> (<xref target="PUSH_PROMISE"/>)
+            frames prior to sending any frames that reference the promised responses. This avoids a
+            race where clients issue requests prior to receiving any <x:ref>PUSH_PROMISE</x:ref>
+            frames.
           </t>
           <t>
-            For example, if the server receives a request for a document containing embedded links to
-            multiple image files, and the server chooses to push those additional images to the
-            client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the image
-            links ensures that the client is able to see the promises before discovering the resources.
-            Similarly, if the server pushes resources referenced by the header block (for instance, in
-            Link header fields), sending the push promises before sending the header block ensures
-            that clients do not request those resources.
+            For example, if the server receives a request for a document containing embedded links
+            to multiple image files, and the server chooses to push those additional images to the
+            client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the
+            image links ensures that the client is able to see the promises before discovering
+            embedded links. Similarly, if the server pushes responses referenced by the header
+            block (for instance, in Link header fields), sending the push promises before sending
+            the header block ensures that clients do not request them.
           </t>
 
           <t>
@@ -2978,7 +3026,7 @@ HTTP2-Settings    = token68
         <section title="Push Responses">
           <t>
             After sending the <x:ref>PUSH_PROMISE</x:ref> frame, the server can begin delivering the
-            pushed resource as a <xref target="HttpResponse">response</xref> on a server-initiated
+            pushed response as a <xref target="HttpResponse">response</xref> on a server-initiated
             stream that uses the promised stream identifier.  The server uses this stream to transmit
             an HTTP response, using the same sequence of frames as defined in <xref
             target="HttpSequence"/>.  This stream becomes <xref target="StreamStates">"half closed" to
@@ -2987,20 +3035,20 @@ HTTP2-Settings    = token68
 
           <t>
             Once a client receives a <x:ref>PUSH_PROMISE</x:ref> frame and chooses to accept the
-            pushed resource, the client SHOULD NOT issue any requests for the promised resource until
-            after the promised stream has closed.
+            pushed response, the client SHOULD NOT issue any requests for the promised response
+            until after the promised stream has closed.
           </t>
 
           <t>
             If the client determines, for any reason, that it does not wish to receive the pushed
-            resource from the server, or if the server takes too long to begin sending the promised
-            resource, the client can send an <x:ref>RST_STREAM</x:ref> frame, using either the
+            response from the server, or if the server takes too long to begin sending the promised
+            response, the client can send an <x:ref>RST_STREAM</x:ref> frame, using either the
             <x:ref>CANCEL</x:ref> or <x:ref>REFUSED_STREAM</x:ref> codes, and referencing the pushed
             stream's identifier.
           </t>
           <t>
             A client can use the <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> setting to limit the
-            number of resources that can be concurrently pushed by a server.  Advertising a
+            number of responses that can be concurrently pushed by a server.  Advertising a
             <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> value of zero disables server push by
             preventing the server from creating the necessary streams.  This does not prohibit a
             server from sending PUSH_PROMISE frames; clients need to reset any promised streams that
@@ -3009,7 +3057,7 @@ HTTP2-Settings    = token68
 
           <t>
             Clients receiving a pushed response MUST validate that the server is authorized to push
-            the resource using the same-origin policy (<xref target="RFC6454" x:fmt=","
+            it using the same-origin policy (<xref target="RFC6454" x:fmt=","
             x:sec="3"/>).  For example, a HTTP/2 connection to <spanx
             style="verb">example.com</spanx> is generally <cref>Ed: weaselly use of "generally",
             needs better definition</cref> not permitted to push a response for <spanx
@@ -3021,15 +3069,16 @@ HTTP2-Settings    = token68
 
       <section anchor="CONNECT" title="The CONNECT Method">
         <t>
-          The HTTP pseudo-method CONNECT (<xref target="HTTP-p2" x:fmt="," x:rel="#CONNECT"/>) is
-          used to convert an HTTP/1.1 connection into a tunnel to a remote host.  CONNECT is
-          primarily used with HTTP proxies to establish a TLS session with a server for the
-          purposes of interacting with <spanx style="verb">https</spanx> resources.
+          In HTTP/1.x, the pseudo-method CONNECT (<xref target="HTTP-p2" x:fmt=","
+          x:rel="#CONNECT"/>) is used to convert an HTTP connection into a tunnel to a remote host.
+          CONNECT is primarily used with HTTP proxies to establish a TLS session with an origin
+          server for the purposes of interacting with <spanx style="verb">https</spanx> resources.
         </t>
         <t>
-          In HTTP/2, the CONNECT method is used to establish a tunnel over a single HTTP/2 stream to
-          a remote host.  The HTTP header field mapping works as mostly as defined in <xref
-          target="HttpRequest">Request Header Fields</xref>, with a few differences.  Specifically:
+          In HTTP/2, the CONNECT method is used to establish a tunnel over a single HTTP/2 stream
+          to a remote host, for similar purposes. The HTTP header field mapping works as mostly as
+          defined in <xref target="HttpRequest">Request Header Fields</xref>, with a few
+          differences. Specifically:
           <list style="symbols">
               <t>
                 The <spanx style="verb">:method</spanx> header field is set to <spanx
@@ -3047,11 +3096,11 @@ HTTP2-Settings    = token68
           </list>
         </t>
         <t>
-          A proxy that supports CONNECT, establishes a <xref target="TCP">TCP connection</xref> to
-          the server identified in the <spanx style="verb">:authority</spanx> header field.  Once
+          A proxy that supports CONNECT establishes a <xref target="TCP">TCP connection</xref> to
+          the server identified in the <spanx style="verb">:authority</spanx> header field. Once
           this connection is successfully established, the proxy sends a <x:ref>HEADERS</x:ref>
-          frame containing a 2xx series status code, as defined in <xref target="HTTP-p2" x:fmt=","
-          x:rel="#CONNECT"/>.
+          frame containing a 2xx series status code to the client, as defined in <xref
+          target="HTTP-p2" x:fmt="," x:rel="#CONNECT"/>.
         </t>
         <t>
           After the initial <x:ref>HEADERS</x:ref> frame sent by each peer, all subsequent
@@ -3174,7 +3223,7 @@ HTTP2-Settings    = token68
     </section>
 
     <section anchor="security" title="Security Considerations">
-      <section title="Server Authority and Same-Origin">
+      <section title="Server Authority and Same-Origin" anchor="authority">
         <t>
           This specification uses the same-origin policy (<xref target="RFC6454" x:fmt=","
           x:sec="3"/>) to determine whether an origin server is permitted to provide content.
@@ -3183,11 +3232,11 @@ HTTP2-Settings    = token68
           A server that is contacted using TLS is authenticated based on the certificate that it
           offers in the TLS handshake (see <xref target="RFC2818" x:fmt="," x:sec="3"/>).  A server
           is considered authoritative for an "https" resource if it has been successfully
-          authenticated for the domain part of the origin of the resource that it is providing.
+          authenticated for the uri-host of the origin of the resource that it is providing.
         </t>
         <t>
           A server is considered authoritative for an "http" resource if the connection is
-          established to a resolved IP address for the domain in the origin of the resource.
+          established to a resolved IP address for the uri-host of the origin of the resource.
         </t>
         <t>
           A client MUST NOT use, in any way, resources provided by a server that is not
@@ -3227,14 +3276,13 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section title="Cacheability of Pushed Resources">
+      <section title="Cacheability of Pushed Responses">
         <t>
-          Pushed resources are responses without an explicit request from the client.  Request
-          header fields are provided by the server in the <x:ref>PUSH_PROMISE</x:ref> frame.  These
-          header fields are provided so that existing HTTP semantics can be applied.
+          Pushed responses do not have an explicit request from the client; the request
+          is provided by the server in the <x:ref>PUSH_PROMISE</x:ref> frame.
         </t>
         <t>
-          Caching resources that are pushed is possible based on the guidance provided by the origin
+          Caching responses that are pushed is possible based on the guidance provided by the origin
           server in the Cache-Control header field.  However, this can cause issues if a single
           server hosts more than one tenant.  For example, a server might offer multiple users each
           a small portion of its URI space.
@@ -3247,7 +3295,8 @@ HTTP2-Settings    = token68
           provides.
         </t>
         <t>
-          Pushed resources for which an origin server is not authoritative are never cached or used.
+          Pushed responses for which an origin server is not authoritative (see
+          <xref target="authority"/>) are never cached or used.
         </t>
       </section>
 
@@ -3261,9 +3310,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           The <x:ref>SETTINGS</x:ref> frame can be abused to cause a peer to expend additional
-          processing time.  This might be done by pointlessly changing settings, setting multiple
-          undefined settings, or changing the same setting multiple times in the same frame.
-          Similarly, <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be
+          processing time. This might be done by pointlessly changing SETTINGS parameters, setting
+          multiple undefined parameters, or changing the same setting multiple times in the same
+          frame. Similarly, <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be
           abused to cause an unnecessary waste of resources.
         </t>
         <t>
@@ -3272,14 +3321,14 @@ HTTP2-Settings    = token68
           the sending of an empty <x:ref>DATA</x:ref> frame to end a stream.
         </t>
         <t>
-          Header compression also offers some opportunities to waste processing resources, see <xref
+          Header compression also offers some opportunities to waste processing resources; see <xref
           target="COMPRESSION"/> for more details on potential abuses.
         </t>
         <t>
-          Limits in settings cannot be reduced instantaneously, which leaves an endpoint exposed to
-          behavior from a peer that could exceed the new limits.  In particular, immediately after
-          establishing a connection, limits set by a server are not known to clients and could be
-          exceeded without being an obvious protocol violation.
+          Limits in SETTINGS parameters cannot be reduced instantaneously, which leaves an endpoint
+          exposed to behavior from a peer that could exceed the new limits. In particular,
+          immediately after establishing a connection, limits set by a server are not known to
+          clients and could be exceeded without being an obvious protocol violation.
         </t>
         <t>
           In all these cases, there are legitimate reasons to use these protocol mechanisms.  These
@@ -3306,7 +3355,7 @@ HTTP2-Settings    = token68
           padding as a countermeasure.
         </t>
         <t>
-          Padding can be used to obscure the exact size of frame content.  Padding is provided to
+          Padding can be used to obscure the exact size of frame content, and is provided to
           mitigate specific attacks within HTTP.  For example, attacks where compressed content
           includes both attacker-controlled plaintext and secret data (see for example, <xref
           target="BREACH"/>).
@@ -3321,7 +3370,7 @@ HTTP2-Settings    = token68
           possible if an attacker can control plaintext.
         </t>
         <t>
-          Intermediaries SHOULD NOT remove padding; though an intermediary could remove padding and
+          Intermediaries SHOULD NOT remove padding, though an intermediary MAY remove padding and
           add differing amounts if the intent is to improve the protections padding affords.
         </t>
       </section>
@@ -3344,7 +3393,7 @@ HTTP2-Settings    = token68
         (ALPN) Protocol IDs" registry established in <xref target="TLSALPN"/>.
       </t>
       <t>
-        This document establishes registries for error codes.  This new registry is entered into a
+        This document establishes a registry for error codes.  This new registry is entered into a
         new "Hypertext Transfer Protocol (HTTP) 2 Parameters" section.
       </t>
       <t>
