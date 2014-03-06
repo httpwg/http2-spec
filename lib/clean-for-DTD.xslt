@@ -735,9 +735,6 @@
 <!-- referencing extensions -->
 <xsl:template match="iref/@x:for-anchor" mode="cleanup"/>
 
-<!-- table styles -->
-<xsl:template match="texttable/@style" mode="cleanup"/>
-
 <!-- section numbering -->
 <xsl:template match="section/@x:fixed-section-number" mode="cleanup"/>
 
