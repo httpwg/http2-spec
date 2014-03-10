@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+s_<?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="lib/rfc2629.xslt"?>
 <?rfc toc="yes" ?>
 <?rfc symrefs="yes" ?>
@@ -280,24 +280,40 @@
 
       <section anchor="versioning" title="HTTP/2 Version Identification">
         <t>
-          The protocol defined in this document is identified using the string "h2".  This
-          identification is used in the HTTP/1.1 Upgrade header field, in the <xref
-          target="TLSALPN">TLS application layer protocol negotiation extension</xref> field, and
-          other places where protocol identification is required.  When serialised into an ALPN
-          protocol identifier (which is a sequence of octets), the "h2" string is encoded using
-          <xref target="UTF-8">UTF-8</xref>.
+          The protocol defined in this document has two identifiers.
+          <list style="symbols">
+            <x:lt>
+              <t>
+                The string "h2" identifies the protocol where HTTP/2 uses <xref target="TLS"/>.  This
+                identifier is used in the <xref target="TLSALPN">TLS application layer protocol
+                negotiation extension</xref> field and any place that HTTP/2 over TLS is identified.
+              </t>
+              <t>
+                When serialised into an ALPN protocol identifier (which is a sequence of octets), the
+                HTTP/2 protocol identifier string is encoded using <xref target="UTF-8">UTF-8</xref>.
+              </t>
+            </x:lt>
+            <x:lt>
+              <t>
+                The string "h2c" identifies the protocol where HTTP/2 is run over cleartext TCP.  This
+                identifier is used in the HTTP/1.1 Upgrade header field and any place that HTTP/2 over
+                TCP is identified.
+              </t>
+            </x:lt>
+          </list>
         </t>
         <t>
-          Negotiating "h2" implies the use of the transport, security, framing and message
+          Negotiating "h2" or "h2c" implies the use of the transport, security, framing and message
           semantics described in this document.
         </t>
         <t>
-          <cref>Editor's Note: please remove the remainder of this section prior to the publication
-          of a final version of this document.</cref>
+          <cref>RFC Editor's Note: please remove the remainder of this section prior to the
+          publication of a final version of this document.</cref>
         </t>
         <t>
-          Only implementations of the final, published RFC can identify themselves as "h2".
-          Until such an RFC exists, implementations MUST NOT identify themselves using "h2".
+          Only implementations of the final, published RFC can identify themselves as "h2" or "h2c".
+          Until such an RFC exists, implementations MUST NOT identify themselves using these
+          strings.
         </t>
         <t>
           Examples and text throughout the rest of this document use "h2" as a matter of
@@ -306,8 +322,8 @@
         </t>
         <t>
           Implementations of draft versions of the protocol MUST add the string "-" and the
-          corresponding draft number to the identifier. For example, draft-ietf-httpbis-http2-09
-          is identified using the string "h2-09".
+          corresponding draft number to the identifier. For example, draft-ietf-httpbis-http2-11
+          over TLS is identified using the string "h2-11".
         </t>
         <t>
           Non-compatible experiments that are based on these draft versions MUST append the string
@@ -324,7 +340,7 @@
           A client that makes a request to an "http" URI without prior knowledge about support for
           HTTP/2 uses the HTTP Upgrade mechanism (<xref target="HTTP-p1" x:fmt="of"
           x:rel="#header.upgrade"/>).  The client makes an HTTP/1.1 request that includes an Upgrade
-          header field identifying HTTP/2 with the h2 token.  The HTTP/1.1 request MUST include
+          header field identifying HTTP/2 with the "h2c" token.  The HTTP/1.1 request MUST include
           exactly one <xref target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
         </t>
         <figure>
@@ -333,7 +349,7 @@
 GET /default.htm HTTP/1.1
 Host: server.example.com
 Connection: Upgrade, HTTP2-Settings
-Upgrade: h2
+Upgrade: h2c
 HTTP2-Settings: <base64url encoding of HTTP/2 SETTINGS payload>
 
 ]]></artwork>
@@ -455,9 +471,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Prior support for HTTP/2 is not a strong signal that a given server will support HTTP/2
-          for future connections.  It is possible for server configurations to change or for
-          configurations to differ between instances in clustered server.  Interception proxies
-          (a.k.a. "transparent" proxies) are another source of variability.
+          for future connections.  It is possible for server configurations to change; for
+          configurations to differ between instances in clustered server; or network conditions to
+          change.
         </t>
       </section>
 
@@ -3670,13 +3686,23 @@ HTTP2-Settings    = token68
 
       <section anchor="iana-alpn" title="Registration of HTTP/2 Identification String">
         <t>
-          This document creates a registration for the identification of HTTP/2 in the "Application
+          This document creates two registrations for the identification of HTTP/2 in the "Application
           Layer Protocol Negotiation (ALPN) Protocol IDs" registry established in <xref
           target="TLSALPN"/>.
+        </t>
+        <t>
+          The "h2" string identifies HTTP/2 when used over TLS:
           <list style="hanging">
-            <t hangText="Protocol:">HTTP/2</t>
-            <t hangText="Identification Sequence:"> 0x68 0x32
-            ("h2")</t>
+            <t hangText="Protocol:">HTTP/2 over TLS</t>
+            <t hangText="Identification Sequence:">0x68 0x32 ("h2")</t>
+            <t hangText="Specification:">This document (RFCXXXX)</t>
+          </list>
+        </t>
+        <t>
+          The "h2c" string identifies HTTP/2 when used over cleartext TCP:
+          <list style="hanging">
+            <t hangText="Protocol:">HTTP/2 over TCP</t>
+            <t hangText="Identification Sequence:">0x68 0x32 0x63 ("h2c")</t>
             <t hangText="Specification:">This document (RFCXXXX)</t>
           </list>
         </t>
@@ -4189,6 +4215,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Added dependency-based stream prioritization.
+        </t>
+        <t>
+          Added "h2c" identifier to distinguish between cleartext and secured HTTP/2.
         </t>
       </section>
 
