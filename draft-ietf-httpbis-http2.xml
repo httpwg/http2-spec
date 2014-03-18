@@ -1267,10 +1267,6 @@ B   C              / \
             streams B and C are given an equal share of resources.
           </t>
           <t>
-            When a stream is closed, its dependencies can be moved to become dependent on the stream
-            the closed stream depends on, if any, or to become new dependency tree roots otherwise.
-          </t>
-          <t>
             A stream MUST NOT depend on itself.  An endpoint MAY either treat this as a <xref
             target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>,
             or assign <xref target="pri-default">default priority values</xref> to the stream.
@@ -1293,6 +1289,10 @@ B   C              / \
         </section>
 
         <section title="Prioritization State Management">
+          <t>
+            When a stream is closed, its dependencies can be moved to become dependent on the stream
+            the closed stream depends on, if any, or to become new dependency tree roots otherwise.
+          </t>
           <t>
             It is possible for a stream to become closed while prioritization information that
             creates a dependency on that stream is in transit.  If a stream identified in a
@@ -1318,12 +1318,13 @@ B   C              / \
             allowed by their setting for <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.
           </t>
           <t>
-            Priority group information is part of the priority state of a stream.  Priority groups
-            that contain only closed streams can be assigned a weight of zero.
+            An endpoint receiving a <x:ref>PRIORITY</x:ref> frame that changes the priority of a
+            closed stream SHOULD alter the weight of the priority group, or the dependencies
+            of the streams that depend on it, if it has retained enough state to do so.
           </t>
           <t>
-            Priority group information that change the weight of the priority group sent as the
-            reprioritization of a closed stream SHOULD be applied.
+            Priority group information is part of the priority state of a stream.  Priority groups
+            that contain only closed streams can be assigned a weight of zero.
           </t>
           <t>
             The number of priority groups cannot exceed the number of non-closed streams.  This
@@ -1676,10 +1677,6 @@ B   C              / \
                 <t>
                   Bit 7 being set indicates that the Exclusive Flag (E) and Stream
                   Dependency fields are present; see <xref target="StreamPriority"/>.
-                  <cref>What about using one flag for defining whether a priority value is present,
-                    and the reserved bit before the Stream Identifier to specify the type of
-                    priority data? This would free a flag, and prevent possible misuse of the
-                    PRIORITY_GROUP and PRIORITY_DEPENDENCY flags.</cref>
                 </t>
               </x:lt>
             </list>
@@ -1701,9 +1698,8 @@ B   C              / \
           <t>
             A HEADERS frame MUST NOT have both the PRIORITY_GROUP and PRIORITY_DEPENDENCY flags set.
             Receipt of a HEADERS frame with both these flags set MUST be treated as a <xref
-            target="ConnectionErrorHandler">connection error</xref> of type
+            target="StreamErrorHandler">stream error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
-            <cref>A stream error seems to be sufficient.</cref>
           </t>
 
           <t>
@@ -1786,7 +1782,7 @@ B   C              / \
           <t>
             A PRIORITY frame MUST have exactly one of the PRIORITY_GROUP and PRIORITY_DEPENDENCY
             flags set.  Receipt of a PRIORITY frame with either none or both these flags set MUST be
-            treated as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+            treated as a <xref target="StreamErrorHandler">stream error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
          <t>
