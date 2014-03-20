@@ -172,7 +172,7 @@
       </t>
       <t>
         HTTP/2 also supports HTTP Alternative Services (see <xref target="AltSvc"/>) using the <xref
-        target="alt-frame">ALTSVC frame type</a>, to allow servers more control over traffic to
+        target="alt-frame">ALTSVC frame type</xref>, to allow servers more control over traffic to
         them.
       </t>
 
@@ -2597,7 +2597,9 @@ HTTP2-Settings    = token68
 
           <t>
             An ALTSVC frame on stream 0 indicates that the conveyed alternative service is
-            associated with all origins that map to the server’s address (i.e., host and port).
+            associated with the origin(s) contained in the Origin field(s) of the frame.
+            An association with an origin that the client does not consider authoritative for
+            the current connection MUST be ignored.
           </t>
 
           <t>
@@ -2616,7 +2618,9 @@ HTTP2-Settings    = token68
     +---------------------------------------------------------------+
     |                        Protocol-ID (*)                        |
     +---------------------------------------------------------------+
-    |                           Host (*)                            |
+    | HOST_LEN (8)  |                   Host (*)                  ...
+    +---------------------------------------------------------------+
+    | ORGN_LEN* (9)  |                 Origin* (*)                ...
     +---------------------------------------------------------------+
     ]]></artwork>
           </figure>
@@ -2642,11 +2646,23 @@ HTTP2-Settings    = token68
               <t>Protocol-ID: A sequence of bytes (length determined by PID_LEN) containing the
               ALPN protocol identifier of the alternative service.</t>
 
-              <t>Host: A sequence of bytes containing an ascii string indicating the host that the
-              alternative service is available upon.</t>
+              <t>HOST_LEN: An unsigned, 8-bit integer indicating the length, in 8-bit
+              characters, of the Host field.</t>
 
+              <t>Host: A sequence of characters (length determined by HOST_LEN) containing an ASCII
+              string indicating the host that the alternative service is available upon.</t>
+
+              <t>ORGN_LEN: An optional, unsigned, 9-bit integer indicating the length, in 8-bit
+              characters, of the Origin Host field.</t>
+
+              <t>Origin: An optional sequence of characters (length determined by ORGN_LEN)
+              containing ASCII serialisaton of an origin (<xref target="RFC6454"/>, Section 6.2)
+              that the alternate service is applicable to.</t>
+              
             </list>
           </t>
+          
+          <t>An arbitrary number of ORGN_LEN / Origin blocks can appear in an ALTSVC frame.</t>
 
           <t>The ALTSVC frame does not define any flags.</t>
         </section>        
@@ -4036,6 +4052,15 @@ HTTP2-Settings    = token68
         </front>
         <seriesInfo name="STD" value="68" />
         <seriesInfo name="RFC" value="5234" />
+      </reference>
+
+      <reference anchor="RFC6454">
+        <front>
+          <title>The Web Origin Concept</title>
+          <author initials="A." surname="Barth" fullname="Adam Barth"/>
+          <date year="2011" month="December" />
+        </front>
+        <seriesInfo name="RFC" value="6454"/>
       </reference>
 
       <reference anchor="TLS12">
