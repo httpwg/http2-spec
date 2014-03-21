@@ -775,100 +775,77 @@ else
                 <section title="String Literal Representation"
                     anchor="string.literal.representation">
                     <t>
-                        Header field names and header field values are
-                        encoded as sequences of octets. A header field name or
-                        a header field value is encoded in three parts:
-                        <list style="numbers">
-                            <t>
-                                One bit, H, indicating whether or not
-                                the octets are Huffman encoded.
+                        Header field names and header field values can be
+                        represented as literal string. A literal string is
+                        encoded as a sequence of octets, either by directly
+                        encoding the literal string's octets, or by using a
+                        canonical <xref target="CANON"/> Huffman encoding
+                        <xref target="HUFF"/>.
+                    </t>
+                    <figure title="String Literal Representation">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| H |    String Length (7+)     |
++---+---------------------------+
+|  String Data (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <t>
+                        A literal string representation contains the following
+                        fields:
+                    </t>
+                    <t>
+                        <list style="hanging">
+                            <t hangText="H:">
+                                A one bit flag, H, indicating whether or not the
+                                octets of the string are Huffman encoded.
                             </t>
-                            <t>
-                                The number of octets required to hold the
-                                result of the next step, represented as an
-                                integer with a 7-bit prefix (see <xref
-                                    target="integer.representation"/>),
-                                immediately following the first bit.
+                            <t hangText="String Length:">
+                                The number of octets used to encode the string
+                                literal, encoded as an integer with 7-bit prefix
+                                (see <xref target="integer.representation"/>).
                             </t>
-                            <t>
-                                The encoded data of the string:
-                                <list style="symbols">
-                                    <t>
-                                        If H is '1', then the encoded
-                                        string data is the bitwise
-                                        concatenation of the canonical <xref
-                                            target="CANON"/> Huffman code
-                                        <xref target="HUFF"/> corresponding to
-                                        each octet of the data, followed by
-                                        between 0-7 bits of padding.
-                                    </t>
-                                    <t>
-                                        If H is '0', then the encoded string
-                                        is the octets of the field value
-                                        without modification.
-                                    </t>
-                                </list>
+                            <t hangText="String Data:">
+                                The encoded data of the string literal. If H is
+                                '0', then the encoded data is the raw octets of
+                                the string literal. If H is '1', then the encoded
+                                data is the Huffman encoding of the string
+                                literal.
                             </t>
                         </list>
                     </t>
                     <t>
-                        Padding is necessary when doing Huffman encoding to
-                        ensure that the remaining bits between the actual end of
-                        the data and the next octet boundary are not
-                        misinterpreted as part of the input data.
-                    </t>
-                    <t>
-                        When padding for Huffman encoding, the bits from the
-                        EOS (end-of-string) entry in the Huffman table are
-                        used, starting with the MSB (most significant bit).
-                        This entry is guaranteed to be at least 8 bits long.
-                    </t>
-                    <t>
-                        String literals which use Huffman encoding
-                        are encoded with the Huffman Codes <xref
-                            target="huffman.codes"/> (see examples in Request
+                        String literals which use Huffman encoding are encoded
+                        with the Huffman codes defined in <xref
+                            target="huffman.codes"/> (see examples inRequest
                         Examples with Huffman <xref
                             target="request.examples.with.huffman"/> and in
                         Response Examples with Huffman <xref
-                            target="response.examples.with.huffman"/>).
+                            target="response.examples.with.huffman"/>). The
+                        encoded data is the bitwise concatenation of the
+                        Huffman codes corresponding to each octet of the
+                        string literal.
                     </t>
                     <t>
-                        The EOS symbol is represented with value 256, and is
-                        used solely to signal the end of the Huffman-encoded
-                        key data or the end of the Huffman-encoded value data.
-                        Given that only between 0-7 bits of the EOS symbol is
-                        included in any Huffman-encoded string, and given that
-                        the EOS symbol is at least 8 bits long, it is expected
-                        that it should never be successfully decoded.
+                        As the Huffman encoded data doesn't always end at an
+                        octet boundary, some padding is inserted after it up
+                        to the next octet boundary. To prevent this padding to
+                        be misinterpreted as part of the string literal, the
+                        most significant bits of the EOS (end-of-string) entry
+                        in the Huffman table are used.
                     </t>
-                    <figure title="String Literal with Huffman Encoding">
-                        <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 1 |  Value Length Prefix (7)  |
-+---+---+---+---+---+---+---+---+
-|   Value Length (0-N octets)   |
-+---+---+---+---+---+---+---+---+
-...
-+---+---+---+---+---+---+---+---+
-| Huffman Encoded Data  |Padding|
-+---+---+---+---+---+---+---+---+
-]]></artwork>
-                    </figure>
-                    <figure title="String Literal without Huffman Encoding">
-                        <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 |  Value Length Prefix (7)  |
-+---+---+---+---+---+---+---+---+
-|   Value Length (0-N octets)   |
-+---+---+---+---+---+---+---+---+
-...
-+---+---+---+---+---+---+---+---+
-|  Field Bytes without Encoding |
-+---+---+---+---+---+---+---+---+
-]]></artwork>
-                    </figure>
+                    <t>
+                        Upon decoding, an incomplete Huffman code at the end
+                        of the encoded data is to be considered as padding and
+                        discarded. A padding strictly longer than 7 bits MUST
+                        be treated as a decoding error. A padding not
+                        corresponding to the most significant bits of the EOS
+                        entry MUST be treated as a decoding error. A Huffman
+                        encoded string literal containing the EOS entry MUST
+                        be treated as a decoding error.
+                    </t>
                 </section>
             </section>
 
