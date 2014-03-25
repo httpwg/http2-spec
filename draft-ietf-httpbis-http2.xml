@@ -171,8 +171,8 @@
         responses significantly.
       </t>
       <t>
-        HTTP/2 also supports HTTP Alternative Services (see <xref target="AltSvc"/>) using the <xref
-        target="alt-frame">ALTSVC frame type</xref>, to allow servers more control over traffic to
+        HTTP/2 also supports HTTP Alternative Services (see <xref target="ALT-SVC"/>) using the <xref
+        target="ALTSVC">ALTSVC frame type</xref>, to allow servers more control over traffic to
         them.
       </t>
 
@@ -467,13 +467,16 @@ HTTP2-Settings    = token68
       <section anchor="known-http" title="Starting HTTP/2 with Prior Knowledge">
         <t>
           A client can learn that a particular server supports HTTP/2 by other means.  For example,
-          <xref target="AltSvc"/> describes a mechanism for advertising this capability in an HTTP
-          header field.  A client MAY immediately send HTTP/2 frames to a server that is known to
-          support HTTP/2, after the <xref target="ConnectionHeader">connection preface</xref>.  A
-          server can identify such a connection by the use of the "PRI" method in the connection
-          preface. This only affects the resolution of "http" URIs; servers supporting HTTP/2 are
-          required to support <xref target="TLSALPN">protocol negotiation in TLS</xref> for "https"
-          URIs.
+          <xref target="ALT-SVC"/> describes a mechanism for advertising this capability in an HTTP
+          header field; <xref target="ALTSVC">the ALTSVC frame</xref> describes a similar
+          mechanism in HTTP/2.
+        </t>
+        <t>
+          A client MAY immediately send HTTP/2 frames to a server that is known to support HTTP/2,
+          after the <xref target="ConnectionHeader">connection preface</xref>.  A server can
+          identify such a connection by the use of the "PRI" method in the connection preface. This
+          only affects the resolution of "http" URIs; servers supporting HTTP/2 are required to
+          support <xref target="TLSALPN">protocol negotiation in TLS</xref> for "https" URIs.
         </t>
         <t>
           Prior support for HTTP/2 is not a strong signal that a given server will support HTTP/2
@@ -2311,7 +2314,7 @@ HTTP2-Settings    = token68
             connection.
           </t>
           <t>
-            Both types of flow control are hop by hop; that is, only between the two endpoints.
+            Both types of flow control are hop-by-hop; that is, only between the two endpoints.
             Intermediaries do not forward WINDOW_UPDATE frames between dependent connections.
             However, throttling of data transfer by any receiver can indirectly cause the
             propagation of flow control information toward the original sender.
@@ -2581,12 +2584,12 @@ HTTP2-Settings    = token68
           </t>
         </section>
 
-        <section anchor="alt-frame" title="For HTTP/2: ALTSVC Frame">
+        <section anchor="ALTSVC" title="ALTSVC">
           <t>
             The ALTSVC frame (type=0xA) advertises the availability of an alternative service to the
             client. It can be sent at any time for an existing client-initiated stream or stream 0,
             and is intended to allow servers to load balance or otherwise segment traffic; see <xref
-            target="AltSvc"/> for details (in particular, Section 2.4, which outlines client
+            target="ALT-SVC"/> for details (in particular, Section 2.4, which outlines client
             handling of alternative services).
           </t>
 
@@ -2625,7 +2628,7 @@ HTTP2-Settings    = token68
             <list style="hanging">
               <t hangText="Max-Age:">
                 An unsigned, 32-bit integer indicating the freshness lifetime of the alternative
-                service association, as per <xref target="AltSvc"/>, Section 2.2.
+                service association, as per <xref target="ALT-SVC"/>, Section 2.2.
               </t>
 
               <t hangText="Port:">
@@ -2638,7 +2641,7 @@ HTTP2-Settings    = token68
               </t>
 
               <t hangText="PID_LEN:">
-                An unsigned, 8-bit integer indicating the length, in bytes, of the PROTOCOL-ID
+                An unsigned, 8-bit integer indicating the length, in octets, of the PROTOCOL-ID
                 field.
               </t>
 
@@ -2648,19 +2651,20 @@ HTTP2-Settings    = token68
               </t>
 
               <t hangText="HOST_LEN:">
-                An unsigned, 8-bit integer indicating the length, in 8-bit characters, of the Host
-                field.
+                An unsigned, 8-bit integer indicating the length, in octets, of the Host field.
               </t>
 
               <t hangText="Host:">
                 A sequence of characters (length determined by HOST_LEN) containing an ASCII string
-                indicating the host that the alternative service is available upon.
+                indicating the host that the alternative service is available upon.  An <xref
+                target="IDNA">internationalized domain name</xref> MUST be expressed using A-labels.
               </t>
 
               <t hangText="Origin:">
-                An optional sequence of characters (length determined by ORGN_LEN) containing ASCII
-                serialisation of an origin (<xref target="RFC6454"/>, Section 6.2) that the
-                alternate service is applicable to.
+                An optional sequence of characters (length determined by subtracting the length of
+                all preceding fields from the frame length) containing ASCII serialisation of an
+                origin (<xref target="RFC6454"/>, Section 6.2) that the alternate service is
+                applicable to.
               </t>
             </list>
           </t>
@@ -2670,6 +2674,12 @@ HTTP2-Settings    = token68
           <t>
             The ALTSVC frame is intended for receipt by clients; a server that receives an ALTSVC
             frame MUST treat it as a connection error of type PROTOCOL_ERROR.
+          </t>
+
+          <t>
+            The ALTSVC frame is processed hop-by-hop.  An intermediary MUST NOT forward ALTSVC
+            frames, though it can use the information contained in ALTSVC frames in forming new
+            ALTSVC frames to send to its own clients.
           </t>
         </section>
     </section>
@@ -3492,12 +3502,12 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Clients SHOULD NOT open more than one HTTP/2 connection to a given destination, where a
-          destination is the IP address and TCP port that is identified for a given URI <cref>Here
-          is where we need to be careful with <xref target="AltSvc"/></cref>, or the IP and port of a configured
-          proxy.  A client can create additional connections as replacements, either to replace
-          connections that are near to exhausting the available <xref
-          target="StreamIdentifiers">stream identifier space</xref>, or to replace connections that
-          have encountered <xref target="ConnectionErrorHandler">errors</xref>.
+          destination is the IP address and port that is derived from a URI, a selected <xref
+          target="ALT-SVC">alternative service</xref>, or a configured proxy.  A client can create
+          additional connections as replacements, either to replace connections that are near to
+          exhausting the available <xref target="StreamIdentifiers">stream identifier space</xref>,
+          or to replace connections that have encountered <xref
+          target="ConnectionErrorHandler">errors</xref>.
         </t>
         <t>
           A client MAY open multiple connections to the same IP address and TCP port using different
@@ -3685,8 +3695,10 @@ HTTP2-Settings    = token68
           The <x:ref>SETTINGS</x:ref> frame can be abused to cause a peer to expend additional
           processing time. This might be done by pointlessly changing SETTINGS parameters, setting
           multiple undefined parameters, or changing the same setting multiple times in the same
-          frame. Similarly, <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be
-          abused to cause an unnecessary waste of resources.
+          frame.  <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be abused to
+          cause an unnecessary waste of resources.  A server might erroneously issue
+          <x:ref>ALTSVC</x:ref> frames for origins on which it cannot be authoritative to generate
+          excess work for clients.
         </t>
         <t>
           Large numbers of small or empty frames can be abused to cause a peer to expend time
@@ -4219,7 +4231,7 @@ HTTP2-Settings    = token68
         <seriesInfo name="RFC" value="6265" />
       </reference>
 
-      <reference anchor="AltSvc">
+      <reference anchor="ALT-SVC">
         <front>
           <title>
             HTTP Alternative Services
@@ -4230,9 +4242,9 @@ HTTP2-Settings    = token68
           <author initials="P." surname="McManus" fullname="Patrick McManus">
             <organization>Mozilla</organization>
           </author>
-          <date year="2014" month="February"/>
+          <date year="2014" month="March"/>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-nottingham-httpbis-alt-svc-03"/>
+        <seriesInfo name="Internet-Draft" value="draft-nottingham-httpbis-alt-svc-05"/>
       </reference>
 
     </references>
@@ -4336,6 +4348,20 @@ HTTP2-Settings    = token68
           <date year="2014" month="February"/>
         </front>
         <seriesInfo name="Internet-Draft" value="draft-sheffer-tls-bcp-02"/>
+      </reference>
+
+      <reference anchor="IDNA">
+        <front>
+          <title>
+            Internationalized Domain Names for Applications (IDNA): Definitions and Document
+            Framework
+          </title>
+          <author initials="J." surname="Klensin" fullname="John Klensin">
+            <organization></organization>
+          </author>
+          <date year="2010" month="August"/>
+        </front>
+        <seriesInfo name="RFC" value="5890"/>
       </reference>
     </references>
 
