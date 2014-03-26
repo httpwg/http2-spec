@@ -2,7 +2,7 @@ xml2rfc ?= "/usr/local/bin/xml2rfc"
 saxpath ?= "$(HOME)/java/saxon-8-9-j/saxon8.jar"
 saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 
-names := http2 header-compression
+names := http2 header-compression alt-svc
 drafts := $(addprefix draft-ietf-httpbis-,$(names))
 current_ver = $(shell git tag | grep "$(draft)" | sort | tail -1 | awk -F- '{print $$NF}')
 next_ver := $(foreach draft, $(drafts), -$(shell printf "%.2d" $$((1$(current_ver)-99)) ) )
