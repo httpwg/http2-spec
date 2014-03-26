@@ -77,34 +77,49 @@
 
   </front>
   <middle>
-    <section anchor="introduction" title="Introduction">
-      <t>HTTP <xref target="HTTPbis-P1"/> conflates the identification of
-resources with their location. In other words, http:// (and https://) URLs are
-used to both name and find things to interact with.</t>
-      <t>In some cases, it is desirable to separate these aspects; to be able to keep
-the same identifier for a resource, but interact with it using a different
-location on the network.</t>
-      <t>For example:</t>
-      <t>
-        <list style="symbols">
-          <t>An origin server might wish to redirect a client to an alternative when it
-needs to go down for maintenance, or it has found an alternative in a
-location that is more local to the client.</t>
-          <t>An origin server might wish to offer access to its resources using a new
-protocol (such as HTTP/2, see <xref target="I-D.ietf-httpbis-http2"/>) or one using improved
-security (such as TLS, see <xref target="RFC5246"/>).</t>
-          <t>An origin server might wish to segment its clients into groups of
-capabilities, such as those supporting SNI (see <xref target="RFC6066"/>) and those not
-supporting it, for operational purposes.</t>
-        </list>
-      </t>
-      <t>This specification defines a new concept in HTTP, "Alternative Services", that
-allows a resource to nominate additional means of interacting with it on the
-network. It defines a general framework for this in <xref target="alternative"/>, along with
-a specific mechanism for discovering them using HTTP headers in <xref target="alt-svc"/>.</t>
-      <t>It also introduces a new status code in <xref target="status"/>, so that origin servers (or
-their nominated alternatives) can indicate that they are not authoritative for
-a given origin, in cases where the wrong location is used.</t>
+
+<section anchor="introduction" title="Introduction">
+<t>
+   HTTP <xref target="HTTPbis-P1"/> conflates the identification of
+   resources with their location. In other words, "http://" (and "https://") URLs are
+   used to both name and find things to interact with.
+</t>
+<t>
+   In some cases, it is desirable to separate these aspects; to be able to keep
+   the same identifier for a resource, but interact with it using a different
+   location on the network.
+</t>
+<t>For example:
+  <list style="symbols">
+    <t>
+       An origin server might wish to redirect a client to an alternative when it
+       needs to go down for maintenance, or it has found an alternative in a
+       location that is more local to the client.
+    </t>
+    <t>
+       An origin server might wish to offer access to its resources using a new
+       protocol (such as HTTP/2, see <xref target="I-D.ietf-httpbis-http2"/>) or one using improved
+       security (such as TLS, see <xref target="RFC5246"/>).
+    </t>
+    <t>
+       An origin server might wish to segment its clients into groups of
+       capabilities, such as those supporting Server Name Indication (SNI,
+       see <xref target="RFC6066" x:sec="3" x:fmt="of"/>) and those not
+       supporting it, for operational purposes.
+    </t>
+  </list>
+</t>
+<t>
+   This specification defines a new concept in HTTP, "Alternative Services", that
+   allows a resource to nominate additional means of interacting with it on the
+   network. It defines a general framework for this in <xref target="alternative"/>, along with
+   a specific mechanism for discovering them using HTTP header fields in <xref target="alt-svc"/>.
+</t>
+<t>
+   It also introduces a new status code in <xref target="status"/>, so that origin servers (or
+   their nominated alternatives) can indicate that they are not authoritative for
+   a given origin, in cases where the wrong location is used.
+</t>
 
 <section title="Notational Conventions" anchor="notational-conventions">
 <t>
@@ -121,84 +136,108 @@ a given origin, in cases where the wrong location is used.</t>
 </section>
 
     </section>
-    <section anchor="alternative" title="Alternative Services Concepts">
-      <t>This specification defines a new concept in HTTP, the "alternative service."
-When an origin (see <xref target="RFC6454"/>) has resources are accessible through a
-different protocol / host / port combination, it is said to have an alternative
-service.</t>
 
+<section title="Alternative Services Concepts" anchor="alternative">
+<t>
+   This specification defines a new concept in HTTP, the "<x:dfn>alternative service</x:dfn>".
+   When an origin (see <xref target="RFC6454"/>) has resources that are accessible through a
+   different protocol / host / port combination, it is said to have an alternative
+   service.
+</t>
 <t>
    An alternative service can be used to interact with the resources on an origin
    server at a separate location on the network, possibly using a different
    protocol configuration. Alternative services are considered authoritative for
    an origin's resources, in the sense of <xref target="HTTPbis-P1" x:sec="9.1" x:fmt=","/>.
 </t>
-      <t>For example, an origin:</t>
-      <figure>
-        <artwork type="example">
+<figure>
+  <preamble>For example, an origin:</preamble>
+  <artwork type="example">
 ("http", "www.example.com", "80")
 </artwork>
-      </figure>
-      <t>might declare that its resources are also accessible at the alternative service:</t>
-      <figure>
-        <artwork type="example">
+</figure>
+<figure>
+<preamble>might declare that its resources are also accessible at the alternative service:</preamble>
+<artwork type="example">
 ("h2", "new.example.com", "81")
 </artwork>
-      </figure>
-      <t>By their nature, alternative services are explicitly at the granularity of an
-origin; i.e., they cannot be selectively applied to resources within an origin.</t>
-      <t>Alternative services do not replace or change the origin for any given resource;
-in general, they are not visible to the software "above" the access mechanism.
-The alternative service is essentially alternative routing information that can
-also be used to reach the origin in the same way that DNS CNAME or SRV records
-define routing information at the name resolution level. Each origin maps to a
-set of these routes - the default route is derived from origin itself and the
-other routes are introduced based on alternative-protocol information.</t>
-      <t>Furthermore, it is important to note that the first member of an alternative
-service tuple is different from the "scheme" component of an origin; it is more
-specific, identifying not only the major version of the protocol being used,
-but potentially communication options for that protocol.</t>
-      <t>This means that clients using an alternative service will change the host, port
-and protocol that they are using to fetch resources, but these changes MUST NOT
-be propagated to the application that is using HTTP; from that standpoint, the
-URI being accessed and all information derived from it (scheme, host, port) are
-the same as before.</t>
-      <t>Importantly, this includes its security context; in particular, when TLS
-<xref target="RFC5246"/> is in use, the alternative server will need to present a certificate
-for the origin's host name, not that of the alternative. Likewise, the Host
-header is still derived from the origin, not the alternative service (just as it
-would if a CNAME were being used).</t>
-      <t>The changes MAY, however, be made visible in debugging tools, consoles, etc.</t>
-      <t>Formally, an alternative service is identified by the combination of:</t>
-      <t>
-        <list style="symbols">
-          <t>An ALPN protocol, as per <xref target="I-D.ietf-tls-applayerprotoneg"/></t>
-          <t>A host, as per <xref target="RFC3986"/></t>
-          <t>A port, as per <xref target="RFC3986"/></t>
-        </list>
-      </t>
-      <t>Additionally, each alternative service MUST have:</t>
-      <t>
-        <list style="symbols">
-          <t>A freshness lifetime, expressed in seconds; see <xref target="caching"/></t>
-        </list>
-      </t>
-      <t>There are many ways that a client could discover the alternative service(s)
-associated with an origin.</t>
-      <section anchor="host_auth" title="Host Authentication">
-        <t>Clients MUST NOT use alternative services with a host other than the origin's
-without strong server authentication; this mitigates the attack described in
-<xref target="host_security"/>. One way to achieve this is for the alternative to use TLS
-with a certificate that is valid for that origin.</t>
-        <t>For example, if the origin's host is "www.example.com" and an alternative is
-offered on "other.example.com" with the "h2" protocol, and the certificate
-offered is valid for "www.example.com", the client can use the alternative.
-However, if "other.example.com" is offered with the "h2c" protocol, the client
-cannot use it, because there is no mechanism in that protocol to establish
-strong server authentication.</t>
-        <t>Furthermore, this means that the HTTP Host header and the SNI information
-provided in TLS by the client will be that of the origin, not the alternative.</t>
-      </section>
+</figure>
+<t>
+   By their nature, alternative services are explicitly at the granularity of an
+   origin; i.e., they cannot be selectively applied to resources within an origin.
+</t>
+<t>
+   Alternative services do not replace or change the origin for any given resource;
+   in general, they are not visible to the software "above" the access mechanism.
+   The alternative service is essentially alternative routing information that can
+   also be used to reach the origin in the same way that DNS CNAME or SRV records
+   define routing information at the name resolution level. Each origin maps to a
+   set of these routes - the default route is derived from origin itself and the
+   other routes are introduced based on alternative-protocol information.
+</t>
+<t>
+   Furthermore, it is important to note that the first member of an alternative
+   service tuple is different from the "scheme" component of an origin; it is more
+   specific, identifying not only the major version of the protocol being used,
+   but potentially communication options for that protocol.
+</t>
+<t>
+   This means that clients using an alternative service will change the host, port
+   and protocol that they are using to fetch resources, but these changes MUST NOT
+   be propagated to the application that is using HTTP; from that standpoint, the
+   URI being accessed and all information derived from it (scheme, host, port) are
+   the same as before.
+</t>
+<t>
+   Importantly, this includes its security context; in particular, when TLS
+   <xref target="RFC5246"/> is in use, the alternative server will need to present a certificate
+   for the origin's host name, not that of the alternative. Likewise, the Host
+   header is still derived from the origin, not the alternative service (just as it
+   would if a CNAME were being used).
+</t>
+<t>
+  The changes MAY, however, be made visible in debugging tools, consoles, etc.
+</t>
+<t>
+  Formally, an alternative service is identified by the combination of:
+  <list style="symbols">
+    <t>An ALPN protocol, as per <xref target="I-D.ietf-tls-applayerprotoneg"/></t>
+    <t>A host, as per <xref target="RFC3986"/></t>
+    <t>A port, as per <xref target="RFC3986"/></t>
+  </list>
+</t>
+<t>
+   Additionally, each alternative service MUST have:
+  <list style="symbols">
+    <t>A freshness lifetime, expressed in seconds; see <xref target="caching"/></t>
+  </list>
+</t>
+<t>
+   There are many ways that a client could discover the alternative service(s)
+   associated with an origin.
+</t>
+
+<section title="Host Authentication" anchor="host_auth">
+<t>
+   Clients MUST NOT use alternative services with a host other than the origin's
+   without strong server authentication; this mitigates the attack described in
+   <xref target="host_security"/>. One way to achieve this is for the alternative to use TLS
+   with a certificate that is valid for that origin.
+</t>
+<t>
+   For example, if the origin's host is "www.example.com" and an alternative is
+   offered on "other.example.com" with the "h2" protocol, and the certificate
+   offered is valid for "www.example.com", the client can use the alternative.
+   However, if "other.example.com" is offered with the "h2c" protocol, the client
+   cannot use it, because there is no mechanism in that protocol to establish
+   strong server authentication.
+</t>
+<t>
+   Furthermore, this means that the HTTP Host header field and the SNI information
+   provided in TLS by the client will be that of the origin, not the alternative.
+</t>
+</section>
+
       <section anchor="caching" title="Alternative Service Caching">
         <t>Mechanisms for discovering alternative services can associate a freshness
 lifetime with them; for example, the Alt-Svc header field uses the "ma"
@@ -217,32 +256,47 @@ that could be compromised (for example, those whose association with the trust
 root is questionable). UAs that do not have a means of detecting network
 changes SHOULD place an upper bound on their lifetime.</t>
       </section>
-      <section anchor="requiring-server-name-indication" title="Requiring Server Name Indication">
-        <t>A client must only use a TLS-based alternative service if the client also
-supports TLS Server Name Indication (SNI) <xref target="RFC6066"/>. This supports the
-conservation of IP addresses on the alternative service host.</t>
-      </section>
-      <section anchor="switching" title="Using Alternative Services">
-        <t>By their nature, alternative services are optional; clients are not required to
-use them. However, it is advantageous for clients to behave in a predictable
-way when they are used by servers (e.g., for load balancing).</t>
-        <t>Therefore, if a client becomes aware of an alternative service, the client
-SHOULD use that alternative service for all requests to the associated origin
-as soon as it is available, provided that the security properties of the
-alternative service protocol are desirable, as compared to the existing
-connection.</t>
-        <t>When a client uses an alternate service, it MUST emit the Service header field
-<xref target="service"/> on every request using that alternate service.</t>
-        <t>The client is not required to block requests; the origin's connection can be
-used until the alternative connection is established. However, if the security
-properties of the existing connection are weak (e.g. cleartext HTTP/1.1) then
-it might make sense to block until the new connection is fully available in
-order to avoid information leakage.</t>
-        <t>Furthermore, if the connection to the alternative service fails or is
-unresponsive, the client MAY fall back to using the origin. Note, however, that
-this could be the basis of a downgrade attack, thus losing any enhanced
-security properties of the alternative service.</t>
-      </section>
+
+<section title="Requiring Server Name Indication" anchor="requiring-server-name-indication">
+<t>
+   A client must only use a TLS-based alternative service if the client also
+   supports TLS Server Name Indication (SNI) (<xref target="RFC6066" x:sec="3" x:fmt=","/>).
+   This supports the conservation of IP addresses on the alternative service host.
+</t>
+</section>
+
+<section title="Using Alternative Services" anchor="switching">
+<t>
+   By their nature, alternative services are optional; clients are not required to
+   use them. However, it is advantageous for clients to behave in a predictable
+   way when they are used by servers (e.g., for load balancing).
+</t>
+<t>
+   Therefore, if a client becomes aware of an alternative service, the client
+   SHOULD use that alternative service for all requests to the associated origin
+   as soon as it is available, provided that the security properties of the
+   alternative service protocol are desirable, as compared to the existing
+   connection.
+</t>
+<t>
+   When a client uses an alternate service, it MUST emit the Service header field
+   (<xref target="service"/>) on every request using that alternate service.
+</t>
+<t>
+   The client is not required to block requests; the origin's connection can be
+   used until the alternative connection is established. However, if the security
+   properties of the existing connection are weak (e.g. cleartext HTTP/1.1) then
+   it might make sense to block until the new connection is fully available in
+   order to avoid information leakage.
+</t>
+<t>
+   Furthermore, if the connection to the alternative service fails or is
+   unresponsive, the client MAY fall back to using the origin. Note, however, that
+   this could be the basis of a downgrade attack, thus losing any enhanced
+   security properties of the alternative service.
+</t>
+</section>
+
     </section>
     <section anchor="alt-svc" title="The Alt-Svc HTTP Header Field">
       <t>A HTTP(S) origin server can advertise the availability of alternative services
