@@ -238,24 +238,32 @@
 </t>
 </section>
 
-      <section anchor="caching" title="Alternative Service Caching">
-        <t>Mechanisms for discovering alternative services can associate a freshness
-lifetime with them; for example, the Alt-Svc header field uses the "ma"
-parameter.</t>
-        <t>Clients MAY choose to use an alternative service instead of the origin at any
-time when it is considered fresh; see <xref target="switching"/> for specific
-recommendations. </t>
-        <t>Clients with existing connections to alternative services are not required to
-fall back to the origin when its freshness lifetime ends; i.e., the caching
-mechanism is intended for limiting how long an alternative service can be used
-for establishing new requests, not limiting the use of existing ones.</t>
-        <t>To mitigate risks associated with caching compromised values (see
-<xref target="host_security"/> for details), user agents SHOULD examine cached alternative
-services when they detect a change in network configuration, and remove any
-that could be compromised (for example, those whose association with the trust
-root is questionable). UAs that do not have a means of detecting network
-changes SHOULD place an upper bound on their lifetime.</t>
-      </section>
+<section title="Alternative Service Caching" anchor="caching" >
+<t>
+   Mechanisms for discovering alternative services can associate a freshness
+   lifetime with them; for example, the Alt-Svc header field uses the "ma"
+   parameter.
+</t>
+<t>
+   Clients MAY choose to use an alternative service instead of the origin at any
+   time when it is considered fresh; see <xref target="switching"/> for specific
+   recommendations.
+</t>
+<t>
+   Clients with existing connections to alternative services are not required to
+   fall back to the origin when its freshness lifetime ends; i.e., the caching
+   mechanism is intended for limiting how long an alternative service can be used
+   for establishing new requests, not limiting the use of existing ones.
+</t>
+<t>
+   To mitigate risks associated with caching compromised values (see
+   <xref target="host_security"/> for details), user agents SHOULD examine cached alternative
+   services when they detect a change in network configuration, and remove any
+   that could be compromised (for example, those whose association with the trust
+   root is questionable). UAs that do not have a means of detecting network
+   changes SHOULD place an upper bound on their lifetime.
+</t>
+</section>
 
 <section title="Requiring Server Name Indication" anchor="requiring-server-name-indication">
 <t>
@@ -296,111 +304,147 @@ changes SHOULD place an upper bound on their lifetime.</t>
    security properties of the alternative service.
 </t>
 </section>
+</section>
 
-    </section>
-    <section anchor="alt-svc" title="The Alt-Svc HTTP Header Field">
-      <t>A HTTP(S) origin server can advertise the availability of alternative services
-(see <xref target="alternative"/>) to clients by adding an Alt-Svc header field to responses.</t>
-      <figure>
-        <artwork type="abnf2616">
+<section title="The Alt-Svc HTTP Header Field" anchor="alt-svc">
+<t>
+   An HTTP(S) origin server can advertise the availability of alternative services
+   (see <xref target="alternative"/>) to clients by adding an Alt-Svc header field
+   to responses.
+</t>
+<figure>
+  <artwork type="abnf2616">
 Alt-Svc     = 1#( alternative *( OWS ";" OWS parameter ) )
 alternative   = DQUOTE protocol-id DQUOTE "=" port
 protocol-id = &lt;ALPN protocol identifier>
 </artwork>
-      </figure>
-      <t>For example:</t>
-      <figure>
-        <artwork type="example">
+</figure>
+<figure>
+  <preamble>For example:</preamble>
+   <artwork type="example">
 Alt-Svc: "http2"=8000
 </artwork>
-      </figure>
-      <t>This indicates that the "http2" protocol on the same host using the
-indicated port (in this case, 8000).</t>
-      <t>Alt-Svc MAY occur in any HTTP response message, regardless of the status code.</t>
-      <t>Alt-Svc does not allow advertisement of alternative services on other hosts, to
-protect against various header-based attacks.</t>
-      <t>It can, however, have multiple values:</t>
-      <figure>
-        <artwork type="example">
+</figure>
+<t>
+   This indicates that the "http2" protocol on the same host using the
+   indicated port (in this case, 8000).
+</t>
+<t>
+   Alt-Svc MAY occur in any HTTP response message, regardless of the status code.
+</t>
+<t>
+   Alt-Svc does not allow advertisement of alternative services on other hosts, to
+   protect against various header-based attacks.
+</t>
+<figure>
+  <preamble>It can, however, have multiple values:</preamble>
+  <artwork type="example">
 Alt-Svc: "h2c"=8000, "h2"=443
 </artwork>
-      </figure>
-      <t>The value(s) advertised by Alt-Svc can be used by clients to open a new
-connection to one or more alternative services immediately, or simultaneously
-with subsequent requests on the same connection.</t>
-      <t>Intermediaries MUST NOT change or append Alt-Svc values.</t>
-      <t>Finally, note that while it may be technically possible to put content other
-than printable ASCII in a HTTP header, some implementations only support ASCII
-(or a superset of it) in header field values. Therefore, this field SHOULD NOT
-be used to convey protocol identifiers that are not printable ASCII, or those
-that contain quote characters.</t>
-      <section anchor="caching-alt-svc-header-field-values" title="Caching Alt-Svc Header Field Values">
-        <t>When an alternative service is advertised using Alt-Svc, it is considered fresh
-for 24 hours from generation of the message. This can be modified with the ‘ma'
-(max-age) parameter;</t>
-        <figure>
-          <artwork type="example">
+</figure>
+<t>
+   The value(s) advertised by Alt-Svc can be used by clients to open a new
+   connection to one or more alternative services immediately, or simultaneously
+   with subsequent requests on the same connection.
+</t>
+<t>
+   Intermediaries MUST NOT change or append Alt-Svc values.
+</t>
+<t>
+   Finally, note that while it may be technically possible to put content other
+   than printable ASCII in a HTTP header, some implementations only support ASCII
+   (or a superset of it) in header field values. Therefore, this field SHOULD NOT
+   be used to convey protocol identifiers that are not printable ASCII, or those
+   that contain quote characters.
+</t>
+
+<section title="Caching Alt-Svc Header Field Values" anchor="caching-alt-svc-header-field-values">
+<t>
+   When an alternative service is advertised using Alt-Svc, it is considered fresh
+   for 24 hours from generation of the message. This can be modified with the 'ma'
+   (max-age) parameter;
+</t>
+<figure>
+  <artwork type="example">
 Alt-Svc: "h2"=443;ma=3600
 </artwork>
-        </figure>
-        <t>which indicates the number of seconds since the response was generated the
-alternative service is considered fresh for. </t>
-        <figure>
-          <artwork type="abnf2616">
+</figure>
+<t>
+   which indicates the number of seconds since the response was generated the
+   alternative service is considered fresh for.
+</t>
+<figure>
+  <artwork type="abnf2616">
 ma = delta-seconds
-</artwork>
-        </figure>
+</artwork></figure>
 <t>
    See <xref target="HTTPbis-P6" x:sec="4.2.3" x:fmt="of"/> for details of determining
-   response age. For example, a response:
+   response age.
 </t>
-        <figure>
-          <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
+<figure>
+  <preamble>For example, a response:</preamble>
+  <artwork type="message/http; msgtype=&#34;response&#34;" x:indent-with="  ">
 HTTP/1.1 200 OK
 Content-Type: text/html
 Cache-Control: 600
 Age: 30
 Alt-Svc: "h2c"=8000; ma=60
 </artwork>
-        </figure>
-        <t>indicates that an alternative service is available and usable for the next 60
-seconds. However, the response has already been cached for 30 seconds (as per
-the Age header field value), so therefore the alternative service is only fresh
-for the 30 seconds from when this response was received, minus estimated
-transit time. </t>
-        <t>When an Alt-Svc response header is received from an origin, its value
-invalidates and replaces all cached alternative services for that origin.</t>
-        <t>See <xref target="caching"/> for general requirements on caching alternative services.</t>
-        <t>Note that the freshness lifetime for HTTP caching (here, 600 seconds) does not
-affect caching of Alt-Svc values.</t>
-      </section>
-    </section>
-    <section anchor="service" title="The Service HTTP Header Field">
-      <t>The Service HTTP header field is used in requests to indicate the identity of the 
-alternate service in use, just as the Host header identifies the host and port
-of the origin.</t>
-      <figure>
-        <artwork type="abnf2616">
+<postamble>
+   indicates that an alternative service is available and usable for the next 60
+   seconds. However, the response has already been cached for 30 seconds (as per
+   the Age header field value), so therefore the alternative service is only fresh
+   for the 30 seconds from when this response was received, minus estimated
+   transit time.
+</postamble>
+</figure>
+<t>
+   When an Alt-Svc response header field is received from an origin, its value
+   invalidates and replaces all cached alternative services for that origin.
+</t>
+<t>
+   See <xref target="caching"/> for general requirements on caching alternative services.
+</t>
+<t>
+   Note that the freshness lifetime for HTTP caching (here, 600 seconds) does not
+   affect caching of Alt-Svc values.
+</t>
+</section>
+</section>
+
+<section title="The Service HTTP Header Field" anchor="service">
+<t>
+   The Service HTTP header field is used in requests to indicate the identity of the 
+   alternate service in use, just as the Host header field identifies the host and port
+   of the origin.
+</t>
+<figure>
+<artwork type="abnf2616">
 Service = uri-host [ ":" port ]
 </artwork>
-      </figure>
-      <t>Service is intended to allow alternate services to detect loops, differentiate
-traffic for purposes of load balancing, and generally to ensure that it is
-possible to identify the intended destination of traffic, since introducing
-this information after a protocol is in use has proven to be problematic.</t>
-      <t>When using an Alternate Service, clients MUST include a Service header in all 
-requests. For example:</t>
-      <figure>
-        <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
+</figure>
+<t>
+   Service is intended to allow alternate services to detect loops, differentiate
+   traffic for purposes of load balancing, and generally to ensure that it is
+   possible to identify the intended destination of traffic, since introducing
+   this information after a protocol is in use has proven to be problematic.
+</t>
+<t>
+   When using an Alternate Service, clients MUST include a Service header in all 
+   requests.
+</t>
+<figure>
+  <preamble>For example:</preamble>
+  <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
 GET /thing
 Host: origin.example.com
 Service: alternate.example.net
 User-Agent: Example/1.0
 </artwork>
-      </figure>
-    </section>
-    <section anchor="status" title="The 4NN Not Authoritative HTTP Status Code">
+</figure>
+</section>
 
+<section title="The 4NN Not Authoritative HTTP Status Code" anchor="status" >
 <t>
    The 4NN (Not Authoritative) status code indicates that the current origin
    server (usually, but not always an alternative service; see <xref target="alternative"/>) is
@@ -424,48 +468,60 @@ User-Agent: Example/1.0
    A 4NN response is cacheable by default; i.e., unless otherwise indicated by the
    method definition or explicit cache controls (see <xref target="HTTPbis-P6" x:sec="4.2.2" x:fmt="of"/>).
 </t>
-    </section>
-    <section anchor="iana-considerations" title="IANA Considerations">
-      <section anchor="the-alt-svc-message-header-field" title="The Alt-Svc Message Header Field">
-        <t>This document registers Alt-Svc in the Permanent Message Header Registry
-<xref target="RFC3864"/>.</t>
-        <t>
-          <list style="symbols">
-            <t>Header Field Name: Alt-Svc</t>
-            <t>Application Protocol: http</t>
-            <t>Status: standard</t>
-            <t>Author/Change Controller: IETF</t>
-            <t>Specification Document: [this document]</t>
-            <t>Related Information: </t>
-          </list>
-        </t>
-      </section>
-      <section anchor="the-service-message-header-field" title="The Service Message Header Field">
-        <t>This document registers Alt-Svc in the Permanent Message Header Registry
-<xref target="RFC3864"/>.</t>
-        <t>
-          <list style="symbols">
-            <t>Header Field Name: Service</t>
-            <t>Application Protocol: http</t>
-            <t>Status: standard</t>
-            <t>Author/Change Controller: IETF</t>
-            <t>Specification Document: [this document]</t>
-            <t>Related Information: </t>
-          </list>
-        </t>
-      </section>
-      <section anchor="the-4nn-not-authoritative-http-status-code" title="The 4NN Not Authoritative HTTP Status Code">
-        <t>This document registers the 4NN (Not Authoritative) HTTP Status code
-<xref target="HTTPbis-P2"/>.</t>
-        <t>
-          <list style="symbols">
-            <t>Status Code: 4NN</t>
-            <t>Short Description: Not Authoritative</t>
-            <t>Specification: [this document], <xref target="status"/></t>
-          </list>
-        </t>
-      </section>
-    </section>
+</section>
+
+<section title="IANA Considerations" anchor="iana-considerations" >
+
+<section anchor="the-alt-svc-message-header-field" title="The Alt-Svc Message Header Field">
+<t>
+   This document registers Alt-Svc in the Permanent Message Header Registry
+   <xref target="RFC3864"/>.
+</t>
+<t>
+  <list style="symbols">
+    <t>Header Field Name: Alt-Svc</t>
+    <t>Application Protocol: http</t>
+    <t>Status: standard</t>
+    <t>Author/Change Controller: IETF</t>
+    <t>Specification Document: [this document]</t>
+    <t>Related Information: </t>
+  </list>
+</t>
+</section>
+
+<section title="The Service Message Header Field" anchor="the-service-message-header-field" >
+<t>
+   This document registers Alt-Svc in the Permanent Message Header Registry
+   <xref target="RFC3864"/>.
+</t>
+<t>
+  <list style="symbols">
+    <t>Header Field Name: Service</t>
+    <t>Application Protocol: http</t>
+    <t>Status: standard</t>
+    <t>Author/Change Controller: IETF</t>
+    <t>Specification Document: [this document]</t>
+    <t>Related Information: </t>
+  </list>
+</t>
+</section>
+
+<section title="The 4NN Not Authoritative HTTP Status Code" anchor="the-4nn-not-authoritative-http-status-code" >
+<t>
+   This document registers the 4NN (Not Authoritative) HTTP Status code
+   <xref target="HTTPbis-P2"/>.
+</t>
+<t>
+  <list style="symbols">
+    <t>Status Code: 4NN</t>
+    <t>Short Description: Not Authoritative</t>
+    <t>Specification: [this document], <xref target="status"/></t>
+  </list>
+</t>
+</section>
+
+</section>
+
     <section anchor="security-considerations" title="Security Considerations">
       <t>Identified security considerations should be enumerated in the appropriate
 documents depending on which proposals are accepted. Those listed below are
