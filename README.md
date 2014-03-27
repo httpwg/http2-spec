@@ -16,6 +16,11 @@ Header Compression (HPACK) specification:
 * [Editor's copy](http://http2.github.com/http2-spec/compression.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
 
+Alternative Services specification:
+* [Editor's copy](http://http2.github.com/http2-spec/alt-svc.html) (HTML)
+* [Editor's copy](http://http2.github.com/http2-spec/alt-svc.txt) (plain text)
+
+
 Contributing
 ------------
 
