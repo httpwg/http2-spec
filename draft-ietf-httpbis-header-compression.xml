@@ -872,9 +872,9 @@ else
                     an integer with a 7-bit prefix.
                 </t>
                 <t>
-                    The index value of 0 is reserved for signalling changes in
-                    the encoding context (see <xref
-                        target="encoding.context.update" />).
+                    The index value of 0 is not used. It MUST be treated as a
+                    decoding error if found in an indexed header field
+                    representation.
                 </t>
             </section>
 
@@ -890,14 +890,15 @@ else
                     Literal representations all result in the emission of a
                     header field when decoded.
                 </t>
-                <section title="Literal Header Field without Indexing"
-                    anchor="literal.header.without.indexing">
+
+                <section title="Literal Header Field with Incremental Indexing"
+                    anchor="literal.header.with.incremental.indexing">
                     <t>
-                        A literal header field without indexing causes the
-                        emission of a header field without altering the header
-                        table.
+                        A literal header field with incremental indexing adds
+                        a new entry to the header table.
                     </t>
-                    <figure title="Literal Header Field without Indexing - Indexed Name">
+                    <figure title="Literal Header Field with Incremental Indexing -
+                        Indexed Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -909,7 +910,8 @@ else
 +-------------------------------+
 ]]></artwork>
                     </figure>
-                    <figure title="Literal Header Field without Indexing - New Name">
+                    <figure title="Literal Header Field with Incremental Indexing -
+                        New Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -926,70 +928,7 @@ else
 ]]></artwork>
                     </figure>
                     <t>
-                        This representation starts with the '01' 2-bit pattern.
-                    </t>
-                    <t>
-                        If the header field name matches the header field name
-                        of a (name, value) pair stored in the Header Table or
-                        Static Table, the header field name can be represented
-                        using the index of that entry. In this case, the index
-                        of the entry, index (which is strictly greater than 0),
-                        is represented as an integer with a 6-bit prefix (see
-                        <xref target="integer.representation"/>).
-                    </t>
-                    <t>
-                        Otherwise, the header field name is represented as a
-                        literal. The value 0 is represented on 6 bits followed
-                        by the header field name (see <xref
-                            target="string.literal.representation" />).
-                    </t>
-                    <t>
-                        The header field name representation is followed by
-                        the header field value represented as a literal string
-                        as described in <xref
-                            target="string.literal.representation" />.
-                    </t>
-
-                </section>
-
-                <section title="Literal Header Field with Incremental Indexing"
-                    anchor="literal.header.with.incremental.indexing">
-                    <t>
-                        A literal header field with incremental indexing adds
-                        a new entry to the header table.
-                    </t>
-                    <figure title="Literal Header Field with Incremental Indexing -
-                        Indexed Name">
-                        <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 |      Index (6+)       |
-+---+---+-----------------------+
-| H |     Value Length (7+)     |
-+---+---------------------------+
-| Value String (Length octets)  |
-+-------------------------------+
-]]></artwork>
-                    </figure>
-                    <figure title="Literal Header Field with Incremental Indexing -
-                        New Name">
-                        <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 |           0           |
-+---+---+-----------------------+
-| H |     Name Length (7+)      |
-+---+---------------------------+
-|  Name String (Length octets)  |
-+---+---------------------------+
-| H |     Value Length (7+)     |
-+---+---------------------------+
-| Value String (Length octets)  |
-+-------------------------------+
-]]></artwork>
-                    </figure>
-                    <t>
-                        This representation starts with the '00' 2-bit
+                        This representation starts with the '01' 2-bit
                         pattern.
                     </t>
                     <t>
@@ -1014,44 +953,176 @@ else
                             target="string.literal.representation" />.
                     </t>
                 </section>
-           </section>
+ 
+                <section title="Literal Header Field without Indexing"
+                    anchor="literal.header.without.indexing">
+                    <t>
+                        A literal header field without indexing causes the
+                        emission of a header field without altering the header
+                        table.
+                    </t>
+                    <figure title="Literal Header Field without Indexing - Indexed Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 0 |  Index (4+)   |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <figure title="Literal Header Field without Indexing - New Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 0 |       0       |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
+|  Name String (Length octets)  |
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <t>
+                        The literal header field without indexing
+                        representation starts with the '0000' 4-bit pattern.
+                    </t>
+                    <t>
+                        If the header field name matches the header field name
+                        of a (name, value) pair stored in the Header Table or
+                        Static Table, the header field name can be represented
+                        using the index of that entry. In this case, the index
+                        of the entry, index (which is strictly greater than 0),
+                        is represented as an integer with a 6-bit prefix (see
+                        <xref target="integer.representation"/>).
+                    </t>
+                    <t>
+                        Otherwise, the header field name is represented as a
+                        literal. The value 0 is represented on 4 bits followed
+                        by the header field name (see <xref
+                            target="string.literal.representation" />).
+                    </t>
+                    <t>
+                        The header field name representation is followed by
+                        the header field value represented as a literal string
+                        as described in <xref
+                            target="string.literal.representation" />.
+                    </t>
+                </section>
+           
+                <section title="Literal Header Field never Indexed"
+                    anchor="literal.header.never.indexed">
+                    <t>
+                        A literal header field never indexed causes the
+                        emission of a header field without altering the header
+                        table.
+                    </t>
+                    <figure title="Literal Header Field never Indexed - Indexed Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 1 |  Index (4+)   |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <figure title="Literal Header Field never Indexed - New Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 1 |       0       |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
+|  Name String (Length octets)  |
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <t>
+                        The literal header field never indexed
+                        representation starts with the '0001' 4-bit pattern.
+                    </t>
+                    <t>
+                        When a header field is represented as a literal header
+                        field never indexed, it MUST always be encoded
+                        with this same representation. In particular, an
+                        intermediary receiving a header field represented as a
+                        literal header field never indexed MUST use the
+                        same representation to forward this header field.
+                    </t>
+                    <t>
+                        The encoding of the representation is the same as for
+                        the literal header field without indexing
+                        representation (see <xref
+                            target="literal.header.without.indexing"/>).
+                    </t>
+                </section>
+            </section>
+
             <section title="Encoding Context Update"
                 anchor="encoding.context.update">
                 <t>
-                    An indexed value of 0 is reserved for signalling changes
-                    in the encoding context.  The type of the change is
-                    encoded on the following octet(s). Any change in the
-                    encoding context is applied immediately.
+                    An encoding context update causes the immediate application of a
+                    change to the encoding context.
+                </t>
+                <figure title="Context Update">
+                    <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 | F |      ...      |
++---+---------------------------+
+]]></artwork>
+                </figure>
+                <t>
+                    An encoding context update starts with the '001' 3-bit
+                    pattern.
+                </t>
+                <t>
+                    It is followed by a flag specifying the type of the
+                    change, and by any data necessary to describe the change
+                    itself.
                 </t>
                 <figure title="Reference Set Emptying">
                     <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 1 |             0             |
+| 0 | 0 | 1 | 1 |       0       |
 +---+---------------------------+
 ]]></artwork>
                 </figure>
                 <t>
-                    An octet with its high bit set to '1' signals that the
-                    reference set is emptied. The remaining bits are set
-                    to '0'.
+                    The flag bit being set to '1' signals that the reference
+                    set is emptied. The remaining bits are set to '0'.
                 </t>
                 <figure title="Maximum Header Table Size Change">
                     <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 |   New maximum size (7+)   |
+| 0 | 0 | 1 | 0 | Max size (4+) |
 +---+---------------------------+
 ]]></artwork>
                 </figure>
                 <t>
-                    An octet with its high bit set to '0' signals the new
+                    The flag bit being set to '0' signals that a change to the
                     maximum size of the header table. This new maximum size
                     MUST be lower than or equal to the value of the setting
                     SETTINGS_HEADER_TABLE_SIZE (see <xref target="HTTP2"/>).
                 </t>
                 <t>
-                    The new maximum size is encoded as an integer with a 7-bit
+                    The new maximum size is encoded as an integer with a 4-bit
                     prefix.
                 </t>
                 <t>
