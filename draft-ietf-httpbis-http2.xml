@@ -1212,12 +1212,17 @@ HTTP2-Settings    = token68
         <section title="Stream Dependencies" anchor="pri-depend">
           <t>
             Each stream can be given an explicit dependency on another stream.  Including a
-            dependency is a request to always allocate resources to the identified stream in
-            preference to the dependent stream.
+            dependency expresses a preference to allocate resources to the identified stream rather
+            than to the dependent stream.
           </t>
           <t>
-            Streams that are dependent on other streams become part of the priority group of the
-            stream they depend on.
+            A stream that is dependent on another stream becomes part of the priority group of the
+            stream it depends on. It belongs to the same dependency tree as the stream it depends
+            on.
+          </t>
+          <t>
+            A stream that is assigned directly to a priority group is not dependent on any other
+            stream. It is the root of a dependency tree inside its priority group.
           </t>
           <!--  <t>
             Stream dependencies form a tree.  Instead, streams that depend on another stream
@@ -1226,29 +1231,48 @@ HTTP2-Settings    = token68
             dependency on C.
           </t> -->
           <t>
-            When assigning a dependency on another stream, an exclusive flag allows for the
-            insertion of a new level of dependencies.  The exclusive flag causes the stream to
-            become the sole dependency of the stream it depends on, causing other dependencies to
-            become displaced.  For example, if streams B and C are dependent on stream A, and if
-            stream D is created with an exclusive dependency on stream A, this results in a
-            dependency order of A followed by D followed by B and C.
+            When assigning a dependency on another stream, by default, the stream is added as a new
+            dependency of the stream it depends on. For example, if streams B and C are dependent on
+            stream A, and if stream D is created with a dependency on stream A, this results in a
+            dependency order of A followed by B, C, and D.
+          </t>
+          <figure title="Example of Default Dependency Creation">
+            <artwork type="inline"><![CDATA[
+  A                 A
+ / \      ==>      /|\
+B   C             B D C
+]]></artwork>
+          </figure>
+          <t>
+            An exclusive flag allows for the insertion of a new level of dependencies.  The
+            exclusive flag causes the stream to become the sole dependency of the stream it depends
+            on, causing other dependencies to become dependencies of the stream.  In the previous
+            example, if stream D is created with an exclusive dependency on stream A, this results
+            in a dependency order of A followed by D followed by B and C.
+          </t>
+          <figure title="Example of Exclusive Dependency Creation">
+            <artwork type="inline"><![CDATA[
+                    A
+  A                 |
+ / \      ==>       D
+B   C              / \
+                  B   C
+]]></artwork>
+          </figure>
+          <t>
+            Streams are ordered into several dependency trees within their priority group. Each
+            dependency tree within a priority group SHOULD be allocated the same amount of
+            resources.
           </t>
           <t>
-            Streams are strictly ordered based on dependency relationships within their priority
-            group.  A dependent stream SHOULD only be allocated resources if either:
-            <list style="symbols">
-              <t>
-                the streams that it depends on are closed, or
-              </t>
-              <t>
-                it is not possible to make progress on any other stream.
-              </t>
-            </list>
+            Inside a dependency tree, a dependent stream SHOULD only be allocated resources if the
+            streams that it depends on are either closed, or it is not possible to make progress on
+            them.
           </t>
           <t>
-            Streams with the same dependencies are allocated equal weighting.  Thus, if streams B
-            and C depend on stream A, and if no progress can be made on A, streams B and C are given an
-            equal share of resources.
+            Streams with the same dependencies SHOULD be allocated the same amount of resources.
+            Thus, if streams B and C depend on stream A, and if no progress can be made on A,
+            streams B and C are given an equal share of resources.
           </t>
           <t>
             A stream MUST NOT depend on itself.  An endpoint MAY either treat this as a <xref
@@ -1261,16 +1285,22 @@ HTTP2-Settings    = token68
           <t>
             Stream priorities are changed using the <x:ref>PRIORITY</x:ref> frame.  Setting a
             priority group and weight causes a stream to become part of the identified group, and
-            not dependent on any other stream.  Setting a dependency causes to become dependent on
-            the identified stream, which can cause the reprioritized stream to move to a new
-            priority group.
+            not dependent on any other stream.  Setting a dependency causes a stream to become
+            dependent on the identified stream, which can cause the reprioritized stream to move to
+            a new priority group.
           </t>
           <t>
-            All streams that are dependent on a reprioritized stream move with it.
+            All streams that are dependent on a reprioritized stream move with it. Setting a
+            dependency with the exclusive flag for a reprioritized stream moves all the dependencies
+            of the stream it depends on to become dependencies of the reprioritized stream. 
           </t>
         </section>
 
         <section title="Prioritization State Management">
+          <t>
+            When a stream is closed, its dependencies can be moved to become dependent on the stream
+            the closed stream depends on, if any, or to become new dependency tree roots otherwise.
+          </t>
           <t>
             It is possible for a stream to become closed while prioritization information that
             creates a dependency on that stream is in transit.  If a stream identified in a
@@ -1294,6 +1324,11 @@ HTTP2-Settings    = token68
             closed streams for which prioritization state is tracked to limit state exposure.  If a
             fixed limit is applied, endpoints SHOULD maintain state for at least as many streams as
             allowed by their setting for <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.
+          </t>
+          <t>
+            An endpoint receiving a <x:ref>PRIORITY</x:ref> frame that changes the priority of a
+            closed stream SHOULD alter the weight of the priority group, or the dependencies
+            of the streams that depend on it, if it has retained enough state to do so.
           </t>
           <t>
             Priority group information is part of the priority state of a stream.  Priority groups
@@ -1571,18 +1606,14 @@ HTTP2-Settings    = token68
                 PRIORITY_GROUP flag is set.
               </t>
               <t hangText="E:">
-                A single bit flag indicates that the stream dependency is exclusive.  If cleared
-                (0), the stream dependency is added with equal priority to other streams that depend
-                on the identified stream.  If set (1), the dependency is exclusive and displaces
-                other dependencies, causing any existing depedencies of the identified stream to be
-                made dependent on this stream.  This field is optional and is only present if the
+                A single bit flag indicates that the stream dependency is exclusive, see <xref
+                  target="StreamPriority"/>.  This field is optional and is only present if the
                 PRIORITY_DEPENDENCY flag is set.
               </t>
               <t hangText="Stream Dependency:">
-                A 31-bit stream identifier for the stream that this stream depends on.  No resources
-                are to be expected on the dependent stream until the stream it depends on is closed,
-                unless all streams are in this state.  This field is optional and is only present if
-                the PRIORITY_DEPENDENCY flag is set.
+                A 31-bit stream identifier for the stream that this stream depends on, see <xref
+                  target="StreamPriority"/>.  This field is optional and is only present if the
+                PRIORITY_DEPENDENCY flag is set.
               </t>
               <t hangText="Header Block Fragment:">
                 A <xref target="HeaderBlock">header block fragment</xref>.
@@ -1652,7 +1683,7 @@ HTTP2-Settings    = token68
               </x:lt>
               <x:lt hangText="PRIORITY_DEPENDENCY (0x40):">
                 <t>
-                  Bit 7 being set indicates that the Dependency Insertion Flag (I) and Stream
+                  Bit 7 being set indicates that the Exclusive Flag (E) and Stream
                   Dependency fields are present; see <xref target="StreamPriority"/>.
                 </t>
               </x:lt>
@@ -1675,7 +1706,7 @@ HTTP2-Settings    = token68
           <t>
             A HEADERS frame MUST NOT have both the PRIORITY_GROUP and PRIORITY_DEPENDENCY flags set.
             Receipt of a HEADERS frame with both these flags set MUST be treated as a <xref
-            target="ConnectionErrorHandler">connection error</xref> of type
+            target="StreamErrorHandler">stream error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
@@ -1726,17 +1757,13 @@ HTTP2-Settings    = token68
                 PRIORITY_GROUP flag is set.
               </t>
               <t hangText="E:">
-                A single bit flag indicates that the stream dependency is exclusive.  If cleared
-                (0), the stream dependency is added with equal priority to other streams that depend
-                on the identified stream.  If set (1), the dependency is exclusive and displaces
-                other dependencies, causing any existing depedencies of the identified stream to be
-                made dependent on this stream.  This field is optional and is only present if the
+                A single bit flag indicates that the stream dependency is exclusive, see <xref
+                  target="StreamPriority"/>.  This field is optional and is only present if the
                 PRIORITY_DEPENDENCY flag is set.
               </t>
               <t hangText="Stream Dependency:">
-                A 31-bit stream identifier for the stream that this stream depends on.  No resources
-                are to be expected on the dependent stream until the stream it depends on is closed,
-                unless all streams are in this state.  This field is optional and is only present if
+                A 31-bit stream identifier for the stream that this stream depends on, see <xref
+                  target="StreamPriority"/>.  This field is optional and is only present if
                 the PRIORITY_DEPENDENCY flag is set.
               </t>
             </list>
@@ -1753,7 +1780,7 @@ HTTP2-Settings    = token68
               </x:lt>
               <x:lt hangText="PRIORITY_DEPENDENCY (0x40):">
                 <t>
-                  Bit 7 being set indicates that the Dependency Insertion Flag (I) and Stream
+                  Bit 7 being set indicates that the Exclusive Flag (E) and Stream
                   Dependency fields are present; see <xref target="StreamPriority"/>.
                 </t>
               </x:lt>
@@ -1761,9 +1788,9 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            A PRIORITY frame MUST NOT have exactly one of the PRIORITY_GROUP and PRIORITY_DEPENDENCY
-            flags set.  Receipt of a PRIORITY frame with either non or both these flags set MUST be
-            treated as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+            A PRIORITY frame MUST have exactly one of the PRIORITY_GROUP and PRIORITY_DEPENDENCY
+            flags set.  Receipt of a PRIORITY frame with either none or both these flags set MUST be
+            treated as a <xref target="StreamErrorHandler">stream error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
          <t>
