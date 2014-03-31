@@ -1133,59 +1133,107 @@ else
         </section>
 
         <section anchor="Security" title="Security Considerations">
-            <t>
-                This compressor exists to solve security issues present in
-                stream compressors such as DEFLATE whereby the compression
-                context can be efficiently probed to reveal secrets.
-                A conformant implementation of this specification should be
-                fairly safe against that kind of attack, as the reaping of any
-                information from the compression context requires more work than
-                guessing and verifying the plain text data directly with the
-                server.  As with any secret, however, the longer the length
-                of the secret, the more difficult the secret is to guess. It
-                is inadvisable to have short cookies that are relied upon to
-                remain secret for any duration of time.
-            </t>
-            <t>
-                A proper security-conscious implementation will also need to
-                prevent timing attacks by ensuring that the amount of time it
-                takes to do string comparisons is always a function of the
-                total length of the strings, and not a function of the number
-                of matched characters.
-            </t>
-            <t>
-                A decoder needs to ensure that larger values or encodings of
-                integers do not permit exploitation.  Decoders MUST limit the
-                size of integers, both in value and encoded length, that it
-                accepts (see <xref target="integer.representation"/>).
-            </t>
-            <t>
-                Another common security problem is when the remote endpoint
-                successfully causes the local endpoint to exhaust its memory.
-                This compressor attempts to deal with the most obvious ways
-                that this could occur by limiting both the peak and the
-                steady-state amount of memory consumed in the compressor
-                state, by providing ways for the application to consume/flush
-                the emitted header fields in small chunks, and by considering
-                overhead in the state size calculation.  Implementors must
-                still be careful in the creation of APIs to an implementation
-                of this compressor by ensuring that header field keys and
-                values are either emitted as a stream, or that the compression
-                implementation have a limit on the maximum size of a key or
-                value. Failure to implement these kinds of safeguards may
-                still result in a scenario where the local endpoint exhausts
-                its memory.
-            </t>
-            <t>
-                A particular care should be used for the maximum size of the
-                header table. While an endpoint can fully control the maximum
-                size of its header table for the decoding size, by using
-                SETTINGS_HEADER_TABLE_SIZE, the maximum size of the encoding
-                size is controlled by the remote peer. The endpoint should
-                check the SETTINGS_HEADER_TABLE_SIZE defined by the remote
-                peer, and decrease the maximum size for the encoding size if
-                needed.
-            </t>
+            <section title="Compression-based Attacks">
+                <t>
+                    Compression can create a weak point allowing an attacker
+                    to recover secret data. For example, the CRIME attack (see
+                    <xref target="CRIME"/>) took advantage of the DEFLATE
+                    mechanism (see <xref target="DEFLATE"/>) of SPDY (see
+                    <xref target="SPDY"/>) to efficiently probe the
+                    compression context. The full-text compression mechanism
+                    of DEFLATE allowed the attacker to learn some information
+                    from each failed attempt at guessing the secret.
+                </t>
+                <t>
+                    For this reason, HPACK provides only limited compression
+                    mechanisms in the form of an indexing table and of a
+                    static Huffman encoding.
+                </t>
+                <t>
+                    The indexing table can still provide information to an
+                    attacker that would be able to probe the compression
+                    context. However, this information is limited to the
+                    knowledge of whether the attacker's guess is correct or
+                    not.
+                </t>
+                <t>
+                    Still, an attacker could take advantage of this limited
+                    information for breaking low-entropy secrets using a
+                    brute-force attack. A server usually has some protections
+                    against such brute-force attack. Here, the attack would
+                    target the client, where it would be harder to detect. The
+                    attack would be even more dangerous if the attacker is
+                    able to prevent the traffic generated by its brute-force
+                    attack from reaching the server.
+                </t>
+                <t>
+                    To offer some protection against such type of attacks,
+                    HPACK enables an endpoint to indicate that a header field
+                    must never be compressed, across any hop up to the other
+                    endpoint (see <xref
+                        target="literal.header.never.indexed"/>). An endpoint
+                    MUST use this feature to prevent the compression of any
+                    header field whose value contains a secret which could be
+                    put at risk by a brute-force attack.
+                </t>
+                <t>
+                    There is currently no known threat taking advantage of the
+                    use of a fixed Huffman encoding. A study has shown that
+                    using a fixed Huffman encoding table created an
+                    information leakage, however this same study concluded
+                    that an attacker could not take advantage of this
+                    information leakage to recover any meaningful amount of
+                    information (see <xref target="PETAL"/>).
+                </t>
+            </section>
+
+            <section title="Memory Consumption">
+                <t>
+                    An attacker can try to cause an endpoint to exhaust its
+                    memory. HPACK is designed to limit both the peak and state
+                    amounts of memory allocated by an endpoint.
+                </t>
+                <t>
+                    The amount of memory used by the compressor state is
+                    limited by the value of the setting
+                    SETTINGS_HEADER_TABLE_SIZE. This limitation takes into
+                    account both the size of the data stored in the header
+                    table, and the overhead required by the table structure
+                    itself.
+                </t>
+                <t>
+                    For the decoding side, an endpoint can limit the amount of
+                    state memory used by setting an appropriate value for
+                    SETTINGS_HEADER_TABLE_SIZE. For the encoding side, the
+                    endpoint can limit the amount of state memory it uses by
+                    defining a header table maximum size lower than the value
+                    of SETTINGS_HEADER_TABLE_SIZE defined by its peer (see
+                    <xref target="encoding.context.update"/>).
+                </t>
+                <t>
+                    The amount of temporary memory consumed is linked to the
+                    set of header fields emitted or received. However, this
+                    amount of temporary memory can be limited by processing
+                    these header fields in a streaming manner.
+                </t>
+            </section>
+
+            <section title="Implementation Limits">
+                <t>
+                    An implementation of HPACK needs to ensure that large
+                    values for integers, long encoding for integers, or long
+                    string literal do not create security weaknesses.
+                </t>
+                <t>
+                    An implementation has to set a limit for the values it
+                    accepts for integers, as well as for the encoded length
+                    (see <xref target="integer.representation"/>).  In the
+                    same way, it has to set a limit to the length it accepts
+                    for string literals (see <xref
+                        target="string.literal.representation"/>).
+                </t>
+            </section>
+
         </section>
 
         <section title="Acknowledgements">
@@ -1395,6 +1443,17 @@ else
                 </front>
                 <seriesInfo name="Communications of the ACM" value="Volume 7 Issue 3, pp. 166-169"/>
             </reference>
+
+            <reference anchor="PETAL" target="http://www.pdl.cmu.edu/PDL-FTP/associated/CMU-PDL-13-106.pdf">
+                <front>
+                    <title>PETAL: Preset Encoding Table Information
+                        Leakage</title>
+                    <author surname="Tan" initials="J." fullname="Jiaqi Tan"/>
+                    <author surname="Nahata" initials="J."
+                        fullname="Jayvardhan Nahata"/>
+                    <date month="April" year="2013"/>
+                </front>
+            </reference>
         </references>
 
 
@@ -1403,6 +1462,8 @@ else
                 anchor="changes.since.draft-ietf-httpbis-header-compression-06">
                 <t><list style="symbols">
                     <t>
+                        Updated format to include literal headers that must
+                        never be compressed.
                     </t>
                 </list></t>
             </section>
