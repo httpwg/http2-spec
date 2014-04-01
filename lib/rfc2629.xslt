@@ -1079,7 +1079,7 @@
   <div id="{$anch}" />
   <xsl:apply-templates />
   <xsl:if test="(@title!='' or @anchor!='') and not(@suppress-title='true')">
-    <xsl:variable name="n"><xsl:number level="any" count="figure[(@title!='' or @anchor!='') and not(@suppress-title='true')]" /></xsl:variable>
+    <xsl:variable name="n"><xsl:call-template name="get-figure-number"/></xsl:variable>
     <p class="figure">Figure <xsl:value-of select="$n"/><xsl:if test="@title!=''">: <xsl:value-of select="@title" /></xsl:if></p>
   </xsl:if>
 </xsl:template>
@@ -1621,13 +1621,51 @@
     </xsl:when>
     <xsl:when test="$bib/seriesInfo/@name='Internet-Draft'">
       <xsl:value-of select="concat($internetDraftUrlPrefix,$bib/seriesInfo[@name='Internet-Draft']/@value,$internetDraftUrlPostfix)" />
-      <xsl:if test="$ref and $ref/@x:sec and $internetDraftUrlFrag">
-        <xsl:value-of select="concat('#',$internetDraftUrlFrag,$ref/@x:sec)"/>
-      </xsl:if>
+      <xsl:choose>
+        <xsl:when test="$ref and starts-with($ref/@x:rel,'#') and $internetDraftUrlFrag">
+          <xsl:variable name="sec">
+            <xsl:call-template name="compute-section-number">
+              <xsl:with-param name="bib" select="$bib"/>
+              <xsl:with-param name="ref" select="$ref"/>
+            </xsl:call-template>
+          </xsl:variable>
+          <xsl:value-of select="concat('#',$internetDraftUrlFrag,$sec)"/>
+        </xsl:when>
+        <xsl:when test="$ref and $ref/@x:sec and $internetDraftUrlFrag">
+          <xsl:value-of select="concat('#',$internetDraftUrlFrag,$ref/@x:sec)"/>
+        </xsl:when>
+        <xsl:otherwise/>
+      </xsl:choose>
     </xsl:when>
     <xsl:otherwise />
   </xsl:choose>
+</xsl:template>
 
+<xsl:template name="compute-section-number">
+  <xsl:param name="bib"/>
+  <xsl:param name="ref"/>
+  
+  <xsl:variable name="anch" select="substring-after($ref/@x:rel,'#')"/>
+  
+  <xsl:choose>
+    <xsl:when test="$anch=''">
+      <xsl:call-template name="error">
+        <xsl:with-param name="msg">Not a fragment identifier: <xsl:value-of select="$ref/@x:rel"/></xsl:with-param>
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:variable name="extdoc" select="document($bib/x:source/@href)"/>
+      <xsl:variable name="nodes" select="$extdoc//*[@anchor=$anch]"/>
+      <xsl:if test="not($nodes)">
+        <xsl:call-template name="error">
+          <xsl:with-param name="msg">Anchor '<xsl:value-of select="$anch"/>' in <xsl:value-of select="$bib/@anchor"/> not found in source file '<xsl:value-of select="$bib/x:source/@href"/>'.</xsl:with-param>
+        </xsl:call-template>
+      </xsl:if>
+      <xsl:for-each select="$nodes">
+        <xsl:call-template name="get-section-number"/>
+      </xsl:for-each>
+    </xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <xsl:template name="computed-target">
@@ -2543,7 +2581,7 @@
         <a href="#{$xref/@target}">
           <xsl:variable name="figcnt">
             <xsl:for-each select="$node">
-              <xsl:number level="any" count="figure[(@title!='' or @anchor!='') and not(@suppress-title='true')]" />
+              <xsl:call-template name="get-figure-number"/>
             </xsl:for-each>
           </xsl:variable>
           <xsl:choose>
@@ -2568,7 +2606,7 @@
         <a href="#{$xref/@target}">
           <xsl:variable name="tabcnt">
             <xsl:for-each select="$node">
-              <xsl:number level="any" count="texttable[(@title!='' or @anchor!='') and not(@suppress-title='true')]" />
+              <xsl:call-template name="get-table-number"/>
             </xsl:for-each>
           </xsl:variable>
           <xsl:choose>
@@ -2703,16 +2741,10 @@
         <xsl:variable name="sec">
           <xsl:choose>
             <xsl:when test="starts-with($xref/@x:rel,'#') and not($xref/@x:sec)">
-              <xsl:variable name="extdoc" select="document($node/x:source/@href)"/>
-              <xsl:variable name="nodes" select="$extdoc//*[@anchor=substring-after($xref/@x:rel,'#')]"/>
-              <xsl:if test="not($nodes)">
-                <xsl:call-template name="error">
-                  <xsl:with-param name="msg">Anchor '<xsl:value-of select="substring-after($xref/@x:rel,'#')"/>' in <xsl:value-of select="$node/@anchor"/> not found in source file '<xsl:value-of select="$node/x:source/@href"/>'.</xsl:with-param>
-                </xsl:call-template>
-              </xsl:if>
-              <xsl:for-each select="$nodes">
-                <xsl:call-template name="get-section-number"/>
-              </xsl:for-each>
+              <xsl:call-template name="compute-section-number">
+                <xsl:with-param name="bib" select="$node"/>
+                <xsl:with-param name="ref" select="$xref"/>
+              </xsl:call-template>
             </xsl:when>
             <xsl:when test="$xref/@x:rel and not(starts-with($xref/@x:rel,'#')) and not($xref/@x:sec)">
               <xsl:call-template name="error">
@@ -6212,9 +6244,9 @@ dd, li, p {
 
   <!-- check ABNF syntax references -->
   <xsl:if test="//artwork[@type='abnf2616']">
-    <xsl:if test="not(//reference/seriesInfo[@name='RFC' and (@value='2068' or @value='2616')])">
+    <xsl:if test="not(//reference/seriesInfo[@name='RFC' and (@value='2068' or @value='2616')]) and not(//reference/seriesInfo[@name='Internet-Draft' and (starts-with(@value, 'draft-ietf-httpbis-p1-messaging-'))])">
       <xsl:call-template name="warning">
-        <xsl:with-param name="msg">document uses HTTP-style ABNF syntax, but doesn't reference RFC 2068 or 2616.</xsl:with-param>
+        <xsl:with-param name="msg">document uses HTTP-style ABNF syntax, but doesn't reference RFC 2068, RFC 2616, or draft-ietf-httpbis-p1-messaging.</xsl:with-param>
       </xsl:call-template>
     </xsl:if>
   </xsl:if>
@@ -6568,7 +6600,7 @@ dd, li, p {
 
     <table class="{$style}" cellpadding="3" cellspacing="0">
       <xsl:if test="(@title!='' or @anchor!='') and not(@suppress-title='true')">
-        <xsl:variable name="n"><xsl:number level="any" count="texttable[(@title!='' or @anchor!='') and not(@suppress-title='true')]" /></xsl:variable>
+        <xsl:variable name="n"><xsl:call-template name="get-table-number"/></xsl:variable>
         <caption>Table <xsl:value-of select="$n"/><xsl:if test="@title!=''">: <xsl:value-of select="@title" /></xsl:if></caption>
       </xsl:if>
 
@@ -6852,11 +6884,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.620 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.620 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.624 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.624 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2014/02/15 10:52:53 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2014/02/15 10:52:53 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2014/03/28 12:53:01 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2014/03/28 12:53:01 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
@@ -6955,9 +6987,7 @@ dd, li, p {
   </xsl:choose>
 </xsl:template>
 
-<xsl:template name="get-table-anchor">
-  <xsl:value-of select="$anchor-prefix"/>
-  <xsl:text>.table.</xsl:text>
+<xsl:template name="get-table-number">
   <xsl:choose>
     <xsl:when test="@title!='' or @anchor!=''">
       <xsl:number level="any" count="texttable[@title!='' or @anchor!='']" />
@@ -6969,9 +6999,13 @@ dd, li, p {
   </xsl:choose>
 </xsl:template>
 
-<xsl:template name="get-figure-anchor">
+<xsl:template name="get-table-anchor">
   <xsl:value-of select="$anchor-prefix"/>
-  <xsl:text>.figure.</xsl:text>
+  <xsl:text>.table.</xsl:text>
+  <xsl:call-template name="get-table-number"/>
+</xsl:template>
+
+<xsl:template name="get-figure-number">
   <xsl:choose>
     <xsl:when test="@title!='' or @anchor!=''">
       <xsl:number level="any" count="figure[@title!='' or @anchor!='']" />
@@ -6981,6 +7015,12 @@ dd, li, p {
       <xsl:number level="any" count="figure[not(@title!='' or @anchor!='')]" />
     </xsl:otherwise>
   </xsl:choose>
+</xsl:template>
+
+<xsl:template name="get-figure-anchor">
+  <xsl:value-of select="$anchor-prefix"/>
+  <xsl:text>.figure.</xsl:text>
+  <xsl:call-template name="get-figure-number"/>
 </xsl:template>
 
 <!-- reformat contents of author/@initials -->
