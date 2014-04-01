@@ -655,6 +655,11 @@ else
 ]]></artwork></figure>
                     </t>
                     <t>
+                        Examples illustrating the encoding of integers are
+                        available in <xref
+                            target="integer.representation.examples"/>.
+                    </t>
+                    <t>
                         This integer representation allows for values of
                         indefinite size.  It is also possible for an encoder to
                         send a large number of zero values, which can waste
@@ -664,112 +669,6 @@ else
                         limits can be set for each of the different uses of
                         integers, based on implementation constraints.
                     </t>
-
-                    <section title="Example 1: Encoding 10 using a 5-bit prefix"
-                        anchor="integer.representation.example1">
-                        <t>
-                            The value 10 is to be encoded with a 5-bit prefix.
-                            <list style="symbols">
-                                <t>
-                                    10 is less than 31 (= 2<x:sup>5</x:sup> -
-                                    1) and is represented using the 5-bit
-                                    prefix.
-                                </t>
-                            </list>
-                        </t>
-                        <figure>
-                            <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| X | X | X | 0 | 1 | 0 | 1 | 0 |   10 stored on 5 bits
-+---+---+---+---+---+---+---+---+
-]]></artwork>
-                        </figure>
-                    </section>
-
-                    <section title="Example 2: Encoding 1337 using a 5-bit prefix"
-                        anchor="integer.representation.example2">
-                        <t>
-                            The value I=1337 is to be encoded with a 5-bit
-                            prefix.
-                            <list>
-                                <t>
-                                    1337 is greater than 31 (=
-                                    2<x:sup>5</x:sup> - 1).
-                                </t>
-                                <t>
-                                    <list>
-                                        <t>The 5-bit prefix is filled with its
-                                            max value (31).</t>
-                                    </list>
-                                </t>
-                                <t>I = 1337 - (2<x:sup>5</x:sup> - 1) =
-                                    1306.</t>
-                                <t>
-                                    <list>
-                                        <t>I (1306) is greater than or equal
-                                            to 128, the while loop body
-                                            executes:</t>
-                                        <t>
-                                            <list>
-                                                <t>I % 128 == 26</t>
-                                                <t>26 + 128 == 154</t>
-                                                <t>154 is encoded in 8 bits as:
-                                                    10011010</t>
-                                                <t>I is set to 10 (1306 / 128 ==
-                                                    10)</t>
-                                                <t>I is no longer greater than
-                                                    or equal to 128, the while
-                                                    loop terminates.</t>
-                                            </list>
-                                        </t>
-                                        <t>
-                                            I, now 10, is encoded on 8 bits
-                                            as: 00001010
-                                        </t>
-                                    </list>
-                                </t>
-
-                                <t>The process ends.</t>
-                            </list>
-
-                        </t>
-                        <figure>
-                            <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| X | X | X | 1 | 1 | 1 | 1 | 1 |  Prefix = 31, I = 1306
-| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |  1306>=128, encode(154), I=1306/128
-| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |  10<128, encode(10), done
-+---+---+---+---+---+---+---+---+
-]]></artwork>
-                        </figure>
-                    </section>
-
-                    <section title="Example 3: Encoding 42 starting at an
-                        octet-boundary"
-                        anchor="integer.representation.example3">
-                        <t>
-                            The value 42 is to be encoded starting at an
-                            octet-boundary. This implies that a 8-bit prefix is
-                            used.
-                            <list style="symbols">
-                                <t>
-                                    42 is less than 255 (= 2<x:sup>8</x:sup> -
-                                    1) and is represented using the 8-bit
-                                    prefix.
-                                </t>
-                            </list>
-                        </t>
-                        <figure>
-                            <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |   42 stored on 8 bits
-+---+---+---+---+---+---+---+---+
-]]></artwork>
-                        </figure>
-                    </section>
                 </section>
 
                 <section title="String Literal Representation"
@@ -1465,6 +1364,12 @@ else
                         Updated format to include literal headers that must
                         never be compressed.
                     </t>
+                    <t>
+                        Updated security considerations.
+                    </t>
+                    <t>
+                        Moved integer encoding examples to the appendix.
+                    </t>
                 </list></t>
             </section>
             <section title="Since draft-ietf-httpbis-header-compression-05"
@@ -2016,16 +1921,133 @@ else
             </t>
         </section>
 
+
         <section title="Examples" anchor="examples">
             <t>
-                A number of examples are worked through here, for both
-                requests and responses, and with and without Huffman coding.
+                A number of examples are worked through here, covering integer
+                encoding, header field representation, and the encoding of
+                whole sets of header fields, for both requests and responses,
+                and with and without Huffman coding.
             </t>
+
+            <section title="Integer Representation Examples"
+                anchor="integer.representation.examples">
+                <t>
+                    This section shows the representation of integer values in
+                    details (see <xref target="integer.representation"/>).
+                </t>
+                <section title="Example 1: Encoding 10 using a 5-bit prefix"
+                    anchor="integer.representation.example1">
+                    <t>
+                        The value 10 is to be encoded with a 5-bit prefix.
+                        <list style="symbols">
+                            <t>
+                                10 is less than 31 (2<x:sup>5</x:sup> -
+                                1) and is represented using the 5-bit
+                                prefix.
+                            </t>
+                        </list>
+                    </t>
+                    <figure>
+                        <artwork><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 0 | 1 | 0 | 1 | 0 |   10 stored on 5 bits
++---+---+---+---+---+---+---+---+
+]]></artwork>
+                    </figure>
+                </section>
+
+                <section title="Example 2: Encoding 1337 using a 5-bit prefix"
+                    anchor="integer.representation.example2">
+                    <t>
+                        The value I=1337 is to be encoded with a 5-bit
+                        prefix.
+                        <list>
+                            <t>
+                                1337 is greater than 31 (2<x:sup>5</x:sup> -
+                                1).
+                            </t>
+                            <t>
+                                <list>
+                                    <t>The 5-bit prefix is filled with its
+                                        max value (31).</t>
+                                </list>
+                            </t>
+                            <t>I = 1337 - (2<x:sup>5</x:sup> - 1) =
+                                1306.</t>
+                            <t>
+                                <list>
+                                    <t>I (1306) is greater than or equal
+                                        to 128, the while loop body
+                                        executes:</t>
+                                    <t>
+                                        <list>
+                                            <t>I % 128 == 26</t>
+                                            <t>26 + 128 == 154</t>
+                                            <t>154 is encoded in 8 bits as:
+                                                10011010</t>
+                                            <t>I is set to 10 (1306 / 128 ==
+                                                10)</t>
+                                            <t>I is no longer greater than
+                                                or equal to 128, the while
+                                                loop terminates.</t>
+                                        </list>
+                                    </t>
+                                    <t>
+                                        I, now 10, is encoded on 8 bits
+                                        as: 00001010.
+                                    </t>
+                                </list>
+                            </t>
+
+                            <t>The process ends.</t>
+                        </list>
+
+                    </t>
+                    <figure>
+                        <artwork><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 1 | 1 | 1 | 1 | 1 |  Prefix = 31, I = 1306
+| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |  1306>=128, encode(154), I=1306/128
+| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |  10<128, encode(10), done
++---+---+---+---+---+---+---+---+
+]]></artwork>
+                    </figure>
+                </section>
+
+                <section title="Example 3: Encoding 42 starting at an
+                    octet-boundary"
+                    anchor="integer.representation.example3">
+                    <t>
+                        The value 42 is to be encoded starting at an
+                        octet-boundary. This implies that a 8-bit prefix is
+                        used.
+                        <list style="symbols">
+                            <t>
+                                42 is less than 255 (2<x:sup>8</x:sup> -
+                                1) and is represented using the 8-bit
+                                prefix.
+                            </t>
+                        </list>
+                    </t>
+                    <figure>
+                        <artwork><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |   42 stored on 8 bits
++---+---+---+---+---+---+---+---+
+]]></artwork>
+                    </figure>
+                </section>
+            </section>
+
 <!-- stex -->
 <section title="Header Field Representation Examples"
     anchor="header.field.representation.examples">
     <t>
-        This section show several independent representation examples.
+        This section shows several independent representation examples.
     </t>
     <section title="Literal Header Field with Indexing">
         <t>
