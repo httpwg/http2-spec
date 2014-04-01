@@ -143,8 +143,8 @@
 </t>
 <t>
   This document uses the Augmented BNF defined in <xref target="RFC5234"/>
-  along with the "OWS", "DIGIT", "DQUOTE", "parameter", "uri-host", "port" and
-  "delta-second" rules from <xref target="HTTP-p1"/>, and uses the "#rule"
+  along with the "OWS", "delta-seconds", "parameter", "port", "token",
+  and "uri-host" rules from <xref target="HTTP-p1"/>, and uses the "#rule"
   extension defined in <xref target="HTTP-p1" x:rel="#abnf.extension" x:fmt="sec"/> of that document.
 </t>
 </section>
@@ -329,20 +329,63 @@
 <figure>
   <artwork type="abnf2616">
 Alt-Svc     = 1#( alternative *( OWS ";" OWS parameter ) )
-alternative = DQUOTE protocol-id DQUOTE "=" port
-protocol-id = &lt;ALPN protocol identifier>
-</artwork>
-</figure>
-<figure>
-  <preamble>For example:</preamble>
-   <artwork type="example">
-Alt-Svc: "http2"=8000
+alternative = protocol-id "=" port
+protocol-id = token ; percent-encoded ALPN protocol identifier
 </artwork>
 </figure>
 <t>
+   ALPN protocol names are octet sequences with no
+   additional constraints on format.<!-- besides length?-->
+   Octets not allowed in tokens (<xref target="HTTP-p1" x:fmt="," x:rel="#field.components"/>)
+   &MUST; be percent-encoded as per <xref target="RFC3986" x:fmt="of" x:sec="2.1"/>.
+   Consequently, the octet representing the percent character "%" (hex 25) &MUST;
+   be percent-encoded as well.
+</t>
+<t>
+   In order to have precisely one way to represent any ALPN protocol name, the following
+   additional constraints apply:
+   <list style="numbers">
+    <t>
+      Octets in the ALPN protocol &MUST-NOT; be percent-encoded if they are valid 
+      token characters except "%", and
+    </t>
+    <t>
+      When using percent-encoding, uppercase hex digits &MUST; be used.
+    </t>
+   </list>
+</t>
+<t>
+  With these constraints, recipients can apply simple string comparison to
+  match protocol identifiers.
+</t>
+<figure>
+  <preamble>For example:</preamble>
+   <artwork type="example">
+Alt-Svc: http2=8000
+</artwork>
+<postamble>
    This indicates that the "http2" protocol on the same host using the
    indicated port (in this case, 8000).
-</t>
+</postamble>
+</figure>
+<texttable style="all" align="left">
+  <preamble>Examples for protocol name escaping:</preamble>
+  <ttcol>ALPN protocol name</ttcol>
+  <ttcol>protocol-id</ttcol>
+  <ttcol>Note</ttcol>
+  
+  <c>http2</c>
+  <c>http2</c>
+  <c>No escaping needed</c>
+  
+  <c>w=x:y#z</c>
+  <c>w%3Dx%3Ay#z</c>
+  <c>"=" and ":" escaped</c>
+
+  <c>x%y</c>
+  <c>x%25y</c>
+  <c>"%" needs escaping</c>
+</texttable>
 <t>
    Alt-Svc &MAY; occur in any HTTP response message, regardless of the status code.
 </t>
@@ -353,7 +396,7 @@ Alt-Svc: "http2"=8000
 <figure>
   <preamble>It can, however, have multiple values:</preamble>
   <artwork type="example">
-Alt-Svc: "h2c"=8000, "h2"=443
+Alt-Svc: h2c=8000, h2=443
 </artwork>
 </figure>
 <t>
@@ -362,21 +405,7 @@ Alt-Svc: "h2c"=8000, "h2"=443
    with subsequent requests on the same connection.
 </t>
 <t>
-   Intermediaries &MUST-NOT; change or append Alt-Svc values.
-</t>
-<t>
-   Finally, note that while it may be technically possible to put content other
-   than printable ASCII in a HTTP header field, some implementations only support ASCII
-   (or a superset of it) in header field values. Therefore, this field &SHOULD-NOT;
-   be used to convey protocol identifiers that are not printable ASCII, or those
-   that contain quote characters.
-</t>
-<t>
-  <cref anchor="syntax">
-  <eref target="https://github.com/http2/http2-spec/issues/446">#446</eref>
-  The header field syntax is both misleading (use of double quotes
-  although not a quoted string) and incomplete (does not support all values). Alternate
-  proposal in <eref target="http://lists.w3.org/Archives/Public/ietf-http-wg/2014JanMar/0856.html"/>.</cref>
+   Intermediaries &MUST-NOT; change or append Alt-Svc field values.
 </t>
 
 <section title="Caching Alt-Svc Header Field Values" anchor="caching-alt-svc-header-field-values">
@@ -824,6 +853,10 @@ User-Agent: Example/1.0
 <section title="Since draft-ietf-httpbis-alt-svc-00" anchor="changes.since.draft-ietf-httpbis-alt-svc-00">
 <t>
   Selected 421 as proposed status code for "Not Authoritative".
+</t>
+<t>
+  Changed header field syntax to use percent-encoding of ALPN protocol names
+  (<eref target="https://github.com/http2/http2-spec/issues/446"/>).
 </t>
 </section>
 
