@@ -692,11 +692,13 @@ HTTP2-Settings    = token68
           </list>
         </t>
         <t>
-          Header blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
-          frames of any other type or from any other stream.  The last frame in a sequence of
-          <x:ref>HEADERS</x:ref> or <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS
-          flag set.  The last frame in a sequence of <x:ref>PUSH_PROMISE</x:ref> or
-          <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS flag set.
+          Header compression is stateful, using a single compression context for the entire
+          connection.  Each header block is processed as a complete unit.  Header blocks MUST be
+          transmitted as a contiguous sequence of frames, with no interleaved frames of any other
+          type or from any other stream.  The last frame in a sequence of <x:ref>HEADERS</x:ref> or
+          <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS flag set.  The last frame in
+          a sequence of <x:ref>PUSH_PROMISE</x:ref> or <x:ref>CONTINUATION</x:ref> frames MUST have
+          the END_HEADERS flag set.
         </t>
         <t>
           Header block fragments can only be sent as the payload of <x:ref>HEADERS</x:ref>,
@@ -2153,12 +2155,13 @@ B   C              / \
           </t>
           <t>
             A PUSH_PROMISE frame modifies the connection state in two ways.  The inclusion of a
-            <xref target="HeaderBlock">header block</xref> potentially modifies the compression
-            state.  PUSH_PROMISE also reserves a stream for later use, causing the promised stream
-            to enter the "reserved" state.  A sender MUST NOT send a PUSH_PROMISE on a stream unless
-            that stream is either "open" or "half closed (remote)"; the sender MUST ensure that the
-            promised stream is a valid choice for a <xref target="StreamIdentifiers">new stream
-            identifier</xref> (that is, the promised stream MUST be in the "idle" state).
+            <xref target="HeaderBlock">header block</xref> potentially modifies the state maintained
+            for header compression.  PUSH_PROMISE also reserves a stream for later use, causing the
+            promised stream to enter the "reserved" state.  A sender MUST NOT send a PUSH_PROMISE on
+            a stream unless that stream is either "open" or "half closed (remote)"; the sender MUST
+            ensure that the promised stream is a valid choice for a <xref
+            target="StreamIdentifiers">new stream identifier</xref> (that is, the promised stream
+            MUST be in the "idle" state).
           </t>
           <t>
             Since PUSH_PROMISE reserves a stream, ignoring a PUSH_PROMISE frame causes the stream
@@ -2263,9 +2266,9 @@ B   C              / \
             After sending a GOAWAY frame, the sender can discard frames for new streams.  However,
             any frames that alter connection state cannot be completely ignored.  For instance,
             <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref>
-            frames MUST be minimally processed to ensure a consistent compression state (see <xref
-            target="HeaderBlock"/>); similarly DATA frames MUST be counted toward the connection
-            flow control window.
+            frames MUST be minimally processed to ensure the state maintained for header compression
+            is consistent (see <xref target="HeaderBlock"/>); similarly DATA frames MUST be counted
+            toward the connection flow control window.
           </t>
 
           <figure title="GOAWAY Payload Format">
