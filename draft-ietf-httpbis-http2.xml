@@ -2930,8 +2930,8 @@ B   C              / \
             An HTTP GET request includes request header fields and no body and is therefore
             transmitted as a single <x:ref>HEADERS</x:ref> frame, followed by zero or more
             <x:ref>CONTINUATION</x:ref> frames containing the serialized block of request header
-            fields.  The last <x:ref>HEADERS</x:ref> frame in the sequence has both the END_HEADERS
-            and END_STREAM flags set:
+            fields.  The <x:ref>HEADERS</x:ref> frame in the following has both the END_HEADERS and
+            END_STREAM flags set; no <x:ref>CONTINUATION</x:ref> frames are sent:
           </t>
 
           <figure>
@@ -2951,8 +2951,7 @@ B   C              / \
             Similarly, a response that includes only response header fields is transmitted as a
             <x:ref>HEADERS</x:ref> frame (again, followed by zero or more
             <x:ref>CONTINUATION</x:ref> frames) containing the serialized block of response header
-            fields. The last <x:ref>HEADERS</x:ref> frame in the sequence has both the END_HEADERS
-            and END_STREAM flag set:
+            fields.
           </t>
 
           <figure>
@@ -2979,18 +2978,26 @@ B   C              / \
             <artwork type="inline"><![CDATA[
   POST /resource HTTP/1.1          HEADERS
   Host: example.org          ==>     - END_STREAM
-  Content-Type: image/jpeg           + END_HEADERS
+  Content-Type: image/jpeg           - END_HEADERS
   Content-Length: 123                  :method = POST
-                                       :scheme = https
-  {binary data}                        :path = /resource
+                                       :path = /resource
+  {binary data}                        content-type = image/jpeg
+
+                                   CONTINUATION
+                                     + END_HEADERS
                                        :authority = example.org
-                                       content-type = image/jpeg
+                                       :scheme = https
                                        content-length = 123
 
                                    DATA
                                      + END_STREAM
                                    {binary data}
 ]]></artwork>
+            <postamble>
+              Note that data contributing to any given header field could be spread between header
+              block fragments.  The allocation of header fields to frames this example is
+              illustrative only.
+            </postamble>
           </figure>
 
           <t>
@@ -3017,9 +3024,9 @@ B   C              / \
 
           <t>
             Trailing header fields are sent as a header block after both the request or response
-            header block and all the <x:ref>DATA</x:ref> frames have been sent.  The sequence of
-            <x:ref>HEADERS</x:ref>/<x:ref>CONTINUATION</x:ref> frames that bears the trailers
-            includes a terminal frame that has both END_HEADERS and END_STREAM flags set.
+            header block and all the <x:ref>DATA</x:ref> frames have been sent.  The
+            <x:ref>HEADERS</x:ref> frame starting the trailers header block has the END_STREAM flag
+            set.
           </t>
 
           <figure>
