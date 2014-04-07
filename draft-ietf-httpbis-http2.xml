@@ -2930,8 +2930,9 @@ B   C              / \
             An HTTP GET request includes request header fields and no body and is therefore
             transmitted as a single <x:ref>HEADERS</x:ref> frame, followed by zero or more
             <x:ref>CONTINUATION</x:ref> frames containing the serialized block of request header
-            fields.  The last <x:ref>HEADERS</x:ref> frame in the sequence has both the END_HEADERS
-            and END_STREAM flags set:
+            fields. The <x:ref>HEADERS</x:ref> frame has the END_STREAM flag set. If there is one or
+            more <x:ref>CONTINUATION</x:ref> frames, the last one has the END_HEADERS flag set,
+            otherwise the <x:ref>HEADERS</x:ref> frame has the END_HEADERS flag set. 
           </t>
 
           <figure>
@@ -2951,17 +2952,21 @@ B   C              / \
             Similarly, a response that includes only response header fields is transmitted as a
             <x:ref>HEADERS</x:ref> frame (again, followed by zero or more
             <x:ref>CONTINUATION</x:ref> frames) containing the serialized block of response header
-            fields. The last <x:ref>HEADERS</x:ref> frame in the sequence has both the END_HEADERS
-            and END_STREAM flag set:
+            fields. The <x:ref>HEADERS</x:ref> frame has the END_STREAM flag set. If there is one or
+            more <x:ref>CONTINUATION</x:ref> frames, the last one has the END_HEADERS flag set,
+            otherwise the <x:ref>HEADERS</x:ref> frame has the END_HEADERS flag set.
           </t>
 
           <figure>
             <artwork type="inline"><![CDATA[
   HTTP/1.1 304 Not Modified        HEADERS
   ETag: "xyzzy"              ==>     + END_STREAM
-  Expires: Thu, 23 Jan ...           + END_HEADERS
+  Expires: Thu, 23 Jan ...           - END_HEADERS
                                        :status = 304
                                        etag: "xyzzy"
+
+                                   CONTINUATION
+                                     + END_HEADERS
                                        expires: Thu, 23 Jan ...
 ]]></artwork>
           </figure>
@@ -3017,9 +3022,10 @@ B   C              / \
 
           <t>
             Trailing header fields are sent as a header block after both the request or response
-            header block and all the <x:ref>DATA</x:ref> frames have been sent.  The sequence of
-            <x:ref>HEADERS</x:ref>/<x:ref>CONTINUATION</x:ref> frames that bears the trailers
-            includes a terminal frame that has both END_HEADERS and END_STREAM flags set.
+            header block and all the <x:ref>DATA</x:ref> frames have been sent.  The
+            <x:ref>HEADERS</x:ref> frame that bears the start of the trailers has the END_STREAM
+            flag set. The last frame of the sequence of <x:ref>HEADERS</x:ref> and
+            <x:ref>CONTINUATION</x:ref> frames that bears the trailers has the END_HEADERS flag set.
           </t>
 
           <figure>
