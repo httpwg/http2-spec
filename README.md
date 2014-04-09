@@ -1,12 +1,12 @@
 
-HTTP/2.0 Draft Specifications
+HTTP/2 Draft Specifications
 =============================
 
 This is the working area for the [IETF HTTPbis Working
 Group](http://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of
-[HTTP/2.0](http://http2.github.io/).
+[HTTP/2](http://http2.github.io/).
 
-HTTP/2.0 specification:
+HTTP/2 specification:
 * [Editor's copy](http://http2.github.com/http2-spec/index.html) (HTML)
 * [Editor's copy](http://http2.github.com/http2-spec/index.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-http2) (less recent, more official)
@@ -15,6 +15,12 @@ Header Compression (HPACK) specification:
 * [Editor's copy](http://http2.github.com/http2-spec/compression.html) (HTML)
 * [Editor's copy](http://http2.github.com/http2-spec/compression.txt) (plain text)
 * [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
+
+Alternative Services specification:
+* [Editor's copy](http://http2.github.com/http2-spec/alt-svc.html) (HTML)
+* [Editor's copy](http://http2.github.com/http2-spec/alt-svc.txt) (plain text)
+* [Working Group Draft](http://tools.ietf.org/html/draft-ietf-httpbis-alt-svc) (less recent, more official)
+
 
 Contributing
 ------------

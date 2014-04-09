@@ -239,9 +239,10 @@
 
 <xsl:template match="x:dfn" mode="cleanup">
   <!-- help xml2rfc to keep dfn and following text on the same page -->
-  <xsl:if test="not(preceding-sibling::x:dfn) and count(following-sibling::list)=1">
+  <!-- removed for now because it broke httpbis-p2 (def of 200 OK in -25)
+  <xsl:if test="not(preceding-sibling::x:dfn) and count(following-sibling::list)=1 and normalize-space(../text()='')">
     <xsl:processing-instruction name="rfc">needLines="4"</xsl:processing-instruction>
-  </xsl:if>
+  </xsl:if>-->
   <xsl:apply-templates mode="cleanup"/>
 </xsl:template>
 
@@ -589,7 +590,27 @@
   <xsl:value-of select="." />
 </xsl:template>
 
-
+<!-- workgroup format -->
+<xsl:template match="workgroup" mode="cleanup">
+  <workgroup>
+    <xsl:variable name="v" select="normalize-space(.)"/>
+    <xsl:variable name="h">
+      <!-- when a single name, append WG/RG postfix automatically -->
+      <xsl:choose>
+        <xsl:when test="not(contains($v, ' ')) and starts-with(/rfc/@docName,'draft-ietf-') and $submissionType='IETF'">
+          <xsl:value-of select="concat($v, ' Working Group')"/>
+        </xsl:when>
+        <xsl:when test="not(contains($v, ' ')) and starts-with(/rfc/@docName,'draft-irtf-') and $submissionType='IRTF'">
+          <xsl:value-of select="concat($v, ' Research Group')"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="$v"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:value-of select="$h"/>
+  </workgroup>
+</xsl:template>
 
 <!-- markup inside artwork element -->
 
@@ -713,9 +734,6 @@
 
 <!-- referencing extensions -->
 <xsl:template match="iref/@x:for-anchor" mode="cleanup"/>
-
-<!-- table styles -->
-<xsl:template match="texttable/@style" mode="cleanup"/>
 
 <!-- section numbering -->
 <xsl:template match="section/@x:fixed-section-number" mode="cleanup"/>

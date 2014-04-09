@@ -14,14 +14,14 @@
 <?rfc-ext allow-markup-in-artwork="yes" ?>
 <?rfc-ext include-index="no" ?>
 
-<rfc category="info"
+<rfc category="std"
     ipr="trust200902"
     docName="draft-ietf-httpbis-header-compression-latest"
     x:maturity-level="proposed"
     xmlns:x="http://purl.org/net/xml2rfc/ext">
     <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
     <front>
-        <title abbrev="HPACK">HPACK - Header Compression for HTTP/2.0 </title>
+        <title abbrev="HPACK">HPACK - Header Compression for HTTP/2</title>
 
         <author initials="R." surname="Peon" fullname="Roberto Peon">
             <organization>Google, Inc</organization>
@@ -37,15 +37,16 @@
             </address>
         </author>
 
-        <date year="2013"/>
+        <date year="2014"/>
         <area>Applications</area>
-        <workgroup>HTTPbis Working Group</workgroup>
+        <workgroup>HTTPbis</workgroup>
         <keyword>HTTP</keyword>
         <keyword>Header</keyword>
         <abstract>
             <t>
-                This document describes HPACK, a format adapted to efficiently
-                represent HTTP header fields in the context of HTTP/2.0.
+                This specification defines HPACK, a compression format for
+                efficiently representing HTTP header fields in the context
+                of HTTP/2.
             </t>
         </abstract>
 
@@ -56,14 +57,13 @@
           target="http://lists.w3.org/Archives/Public/ietf-http-wg/"/>.
         </t>
         <t>
-          Working Group information and related documents can be found at
-          <eref target="http://tools.ietf.org/wg/httpbis/"/> (Wiki) and <eref
-              target="https://github.com/http2/http2-spec"/> (source code and
-          issues tracker).
+          Working Group information can be found at
+          <eref target="http://tools.ietf.org/wg/httpbis/"/>; that specific to
+          HTTP/2 are at <eref target="http://http2.github.io/"/>.
         </t>
         <t>
           The changes in this draft are summarized in <xref
-          target="changes.since.draft-ietf-httpbis-header-compression-05"/>.
+          target="changes.since.draft-ietf-httpbis-header-compression-07"/>.
         </t>
       </note>
     </front>
@@ -71,66 +71,77 @@
     <middle>
         <section title="Introduction">
             <t>
-                This document describes HPACK, a format adapted to efficiently
-                represent HTTP header fields in the context of HTTP/2.0 (see
-                <xref target="HTTP2"/>).
+                This specification defines HPACK, a compression format for
+                efficiently representing HTTP header fields in the context
+                of HTTP/2 (see <xref target="HTTP2"/>).
             </t>
         </section>
 
         <section title="Overview" anchor="overview">
             <t>
-                In HTTP (see <xref target="HTTP-p1"/>), header fields are
-                sent without any form of compression.  As web pages have grown
+                In HTTP/1.1 (see <xref target="HTTP-p1"/>), header fields are
+                encoded without any form of compression.  As web pages have grown
                 to include dozens to hundreds of requests, the redundant
-                header fields in these requests now pose a problem of
-                measurable latency and unnecessary bandwidth (see <xref
-                    target="PERF1"/> and <xref target="PERF2"/>).
+                header fields in these requests now measurably increase
+                latency and unnecessarily consume bandwidth (see <xref
+                target="PERF1"/> and <xref target="PERF2"/>).
             </t>
 
             <t>
-                <xref target="SPDY">SPDY</xref> initially addressed this
-                redundancy by compressing header fields with Deflate, which
-                proved very effective at eliminating the redundant header
+                SPDY <xref target="SPDY"/> initially addressed this
+                redundancy by compressing header fields using the DEFLATE
+                format <xref target="DEFLATE"/>, which proved
+                very effective at efficiently representing the redundant header
                 fields.  However, that approach exposed a security risk as
-                demonstrated by the <xref target="CRIME">CRIME</xref>.
+                demonstrated by the CRIME attack (see <xref target="CRIME"/>).
             </t>
 
             <t>
                 This document describes HPACK, a new compressor for header
                 fields which eliminates redundant header fields, is not
                 vulnerable to known security attacks, and which also has a
-                bounded memory cost for use in constrained environments.
+                bounded memory requirement for use in constrained environments.
             </t>
 
             <section title="Outline">
                 <t>
-                    The HTTP header field encoding described in this document
-                    is based on a header table that map name-value pairs to
-                    index values.  Header tables are incrementally updated
-                    during the HTTP/2.0 session.
+                    The HTTP header field encoding defined in this document
+                    is based on a header table that maps name-value pairs to
+                    index values.  The header table is incrementally updated
+                    during the HTTP/2 connection.
+                </t>
+                <t>
+                    A set of header fields is treated as an unordered collection
+                    of name-value pairs.  Names and values are considered to be
+                    opaque sequences of octets.  The order of header fields is
+                    not guaranteed to be preserved after being compressed and
+                    decompressed.
+                </t>
+                <t>
+                    As two consecutive sets of header fields often have header
+                    fields in common, each set is coded as a difference from
+                    the previous set. The goal is to only encode the changes
+                    (header fields present in one of the sets that are absent
+                    from the other) between the two sets of header fields.
+                </t>
+                <t>
+                    A header field is represented either literally or as a
+                    reference to a name-value pair in the header table. A set
+                    of header fields is stored as a set of references to
+                    entries in the header table (possibly keeping only a
+                    subset of it, as some header fields may be missing a
+                    corresponding entry in the header table). Differences
+                    between consecutive sets of header fields are encoded as
+                    changes to the set of references.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header
                     fields to insert as new entries in the header table.  The
-                    decoder then does exactly what the encoder prescribes,
-                    ending in a state that exactly matches the encoder's
-                    state.  This enables decoders to remain simple and
-                    understand a wide variety of encoders.
-                </t>
-                <t>
-                    As two consecutive sets of header fields often have header
-                    fields in common, each set of header fields is coded as a
-                    difference from the previous set of header fields. The
-                    goal is to only encode the changes (header fields present
-                    in one of the set and not in the other) between the two
-                    sets of header fields.
-                </t>
-                <t>
-                    HTTP header field compression treats a set of header fields
-                    as an unordered collection of name-value pairs.  Names and
-                    values are opaque sequences of octets.  The order of header
-                    fields is not guaranteed to be preserved after being
-                    compressed and decompressed.
+                    decoder executes the modifications to the header table and
+                    reference set prescribed by the encoder, reconstructing
+                    the set of header fields in the process.  This enables
+                    decoders to remain simple and understand a wide variety of
+                    encoders.
                 </t>
                 <t>
                     Examples illustrating the use of these different
@@ -147,15 +158,13 @@
                     components and concepts:
                     <list style="hanging">
                         <t hangText="Header Field:">
-                            A name-value pair.  Both name and value are
-                            sequences of octets.
+                            A name-value pair.  Both the name and value are
+                            treated as opaque sequences of octets.
                         </t>
                         <t hangText="Header Table:">
                             The header table (see <xref
                                 target="header.table"/>) is a component used
                             to associate stored header fields to index values.
-                            The data stored in this table is in first-in,
-                            first-out order.
                         </t>
                         <t hangText="Static Table:">
                             The static table (see <xref
@@ -173,7 +182,7 @@
                             differential encoding of a new header set.
                         </t>
                         <t hangText="Header Set:">
-                            A header set is a potentially ordered group of
+                            A header set is an unordered group of
                             header fields that are encoded jointly. A complete
                             set of key-value pairs contained in a HTTP
                             request or response is a header set.
@@ -192,9 +201,8 @@
                             When decoding a set of header field
                             representations, some operations emit a header
                             field (see <xref target="header.emission"/>).
-                            Emitted header fields can be safely passed to the
-                            upper processing layers as part of the current
-                            Header Set.
+                            Emitted header fields are added to the current
+                            header set and cannot be removed.
                         </t>
                     </list>
                 </t>
@@ -206,18 +214,12 @@
                         Everything else is either immutable or conceptual.
                     </t>
                     <t>
-                        Using HTTP, messages are exchanged between a client
-                        and a server in both direction. To keep the encoding
-                        of header fields in each direction independent from the
-                        other direction, there is one encoding context for
-                        each direction.
-                    </t>
-                    <t>
-                        The header fields contained in a PUSH_PROMISE frame
-                        sent by a server to a client are encoded within the
-                        same context as the header fields contained in the
-                        HEADERS frame corresponding to a response sent from
-                        the server to the client.
+                        HTTP messages are exchanged between a client and a
+                        server in both directions.  The encoding of header
+                        fields in each direction is independent from the
+                        other direction.  There is a single encoding context
+                        for each direction used to encode all header fields
+                        sent in that direction.
                     </t>
                 </section>
 
@@ -240,15 +242,14 @@
                     <t>
                         The encoder decides how to update the header table and
                         as such can control how much memory is used by the
-                        header table. To limit the memory requirements on the
-                        decoder side, the header table size is strictly
+                        header table. To limit the memory requirements of
+                        the decoder, the header table size is strictly
                         bounded (see <xref target="maximum.table.size"/>).
                     </t>
                     <t>
                         The header table is updated during the processing of
                         a set of header field representations (see <xref
-                            target="header.representation.processing"> header
-                            field representation processing</xref>).
+                            target="header.representation.processing"/>).
                     </t>
                 </section>
 
@@ -263,8 +264,7 @@
                     <t>
                         The reference set is updated during the processing of
                         a set of header field representations (see <xref
-                            target="header.representation.processing"> header
-                            field representation processing</xref>).
+                            target="header.representation.processing"/>).
                     </t>
                     <t>
                         The reference set enables differential encoding,
@@ -286,7 +286,7 @@
                         take advantage of the differential encoding, when a
                         header field is represented as a reference to an entry
                         of the static table, this entry is inserted into the
-                        header table ((see <xref
+                        header table (see <xref
                             target="header.representation.processing"/>).
                     </t>
                 </section>
@@ -307,7 +307,7 @@
                                 represented literally.
                             </t>
                             <t>
-                                Two different literal representations are
+                                Three different literal representations are
                                 provided:
                                 <list style="symbols">
                                     <t>
@@ -315,6 +315,16 @@
                                         add the header field to the header
                                         table (see <xref
                                             target="literal.header.without.indexing"/>).
+                                    </t>
+                                    <t>
+                                        A literal representation that does not
+                                        add the header field to the header
+                                        table and require that this header
+                                        field always use a literal
+                                        representation, in particular when
+                                        re-encoded by an intermediary (see
+                                        <xref
+                                            target="literal.header.never.indexed"/>).
                                     </t>
                                     <t>
                                         A literal representation that adds the
@@ -328,11 +338,30 @@
                             <t hangText="Indexed Representation:">
                                 The indexed representation defines a header
                                 field as a reference to an entry in either the
-                                header table or the static table(see <xref
-                                    target="indexed.header.representation"/>).
-                                <figure title="Index Address Space">
-                                    <artwork type="drawing">
-                                        <![CDATA[
+                                header table or the static table (see <xref target="indexed.header.representation"/>).
+                            </t>
+                            <t>
+                                Indices between 1 and len(header table),
+                                inclusive, refer to elements in the header
+                                table, with index 1 referring to the beginning
+                                of the table.
+                            </t>
+                            <t>
+                                Indices between len(header table) + 1 and
+                                len(header table) + len(static table),
+                                inclusive, refer to elements in the static
+                                table, where the index len(header table) + 1
+                                refers to the first entry in the static table.
+                            </t>
+                            <t>
+                                Any other indices MUST be treated as a
+                                decoding error.
+                            </t>
+                        </list>
+                    </t>
+                    <t>
+                        <figure title="Index Address Space">
+                            <artwork type="drawing"><![CDATA[
        <----------  Index Address Space ---------->
        <-- Header  Table -->  <-- Static  Table -->
        +---+-----------+---+  +---+-----------+---+
@@ -341,37 +370,8 @@
        ^                   |
        |                   V
 Insertion Point       Drop Point
-]]>
-                                    </artwork>
-                                </figure>
-                                <list>
-                                    <t>
-                                        Indices between 1 and len(header
-                                        table), inclusive, refer to elements
-                                        in the header table, with index 1
-                                        referring to the beginning of the
-                                        table.
-                                    </t>
-                                    <t>
-                                        Indices between len(header table)+1 and
-                                        len(header table)+len(static table),
-                                        inclusive, refer to elements in the
-                                        static table, where the index
-                                        len(header table)+1 refers to the first
-                                        entry in the static table.
-                                    </t>
-                                    <t>
-                                        Index 0 signals that the reference set
-                                        MUST be emptied.
-                                    </t>
-                                    <t>
-                                        Any other indices MUST be treated as
-                                        erroneous, and the compression context
-                                        considered corrupt and unusable.
-                                    </t>
-                                </list>
-                            </t>
-                        </list>
+]]></artwork>
+                        </figure>
                     </t>
                 </section>
 
@@ -419,13 +419,6 @@ Insertion Point       Drop Point
                         are presented, as specified below.
                     </t>
                     <t>
-                        An <spanx>indexed representation</spanx> with an index
-                        value of 0 entails the following actions:
-                        <list style="symbols">
-                            <t>The reference set is emptied.</t>
-                        </list>
-                    </t>
-                    <t>
                         An <spanx>indexed representation</spanx> corresponding
                         to an entry <spanx>present</spanx> in the
                         reference set entails the following actions:
@@ -447,9 +440,9 @@ Insertion Point       Drop Point
                                         at the beginning of the header
                                         table.</t>
                                     <t>A reference to this new header table
-                                        entry is added to the reference set
-                                        (except if this new entry didn't fit
-                                        in the header table).</t>
+                                        entry is added to the reference set,
+                                        except if this new entry didn't fit
+                                        in the header table.</t>
                                 </list>
                             </t>
                             <t>If referencing an element of the header table:
@@ -513,10 +506,30 @@ Insertion Point       Drop Point
                     <t>
                         To limit the memory requirements on the decoder side,
                         the size of the header table is bounded. The size
-                        of the header table MUST stay lower than or equal to
-                        the value of the HTTP/2.0 setting
-                        SETTINGS_HEADER_TABLE_SIZE (see <xref
-                            target="HTTP2"/>).
+                        of the header table MUST stay lower than or equal to its
+                        maximum size.
+                    </t>
+                    <t>
+                        By default, the maximum size of the header table is
+                        equal to the value of the HTTP/2 setting
+                        SETTINGS_HEADER_TABLE_SIZE defined by the decoder (see
+                        <xref target="HTTP2"/>).  The encoder can change this
+                        maximum size (see <xref
+                            target="encoding.context.update"/>), but it must
+                        stay lower than or equal to the value of
+                        SETTINGS_HEADER_TABLE_SIZE.
+                    </t>
+                    <t>
+                        After applying an updated value of the HTTP/2 setting
+                        SETTINGS_HEADER_TABLE_SIZE that changes the maximum
+                        size of the header table used by the encoder, the
+                        encoder MUST signal this change via an encoding
+                        context update (see <xref
+                            target="encoding.context.update"/>). This encoding
+                        context update MUST occurs at the beginning of the
+                        first header block following the SETTINGS frame sent
+                        to acknowledge the application of the updated
+                        settings.
                     </t>
                     <t>
                         The size of the header table is the sum of the
@@ -552,10 +565,10 @@ Insertion Point       Drop Point
                         set is removed.
                     </t>
                     <t>
-                        Whenever SETTINGS_HEADER_TABLE_SIZE is made smaller,
-                        entries are evicted from the end of the header table
-                        until the size of the header table is less than or
-                        equal to SETTINGS_HEADER_TABLE_SIZE.
+                        Whenever the maximum size for the header table is made
+                        smaller, entries are evicted from the end of the
+                        header table until the size of the header table is
+                        less than or equal to the maximum size.
                     </t>
                     <t>
                         The eviction of an entry from the header
@@ -570,15 +583,14 @@ Insertion Point       Drop Point
                         name referenced by the representation of this new
                         entry is cached, and then entries are evicted from the
                         end of the header table until the size of the header
-                        table is less than or equal to
-                        SETTINGS_HEADER_TABLE_SIZE - new entry size, or until
-                        the table is empty.
+                        table is less than or equal to (maximum size - new
+                        entry size), or until the table is empty.
                     </t>
                     <t>
                         If the size of the new entry is less than or equal to
-                        SETTINGS_HEADER_TABLE_SIZE, that entry is added to the
-                        table.  It is not an error to attempt to add an entry
-                        that is larger than SETTINGS_HEADER_TABLE_SIZE.
+                        the maximum size, that entry is added to the table.  It
+                        is not an error to attempt to add an entry
+                        that is larger than the maximum size.
                     </t>
                 </section>
             </section>
@@ -607,25 +619,45 @@ Insertion Point       Drop Point
                         the value is small enough (strictly less than
                         2<x:sup>N</x:sup>-1), it is encoded within the N-bit
                         prefix.  Otherwise all the bits of the prefix are set
-                        to 1 and the value is encoded using an <eref
-                            target="http://en.wikipedia.org/wiki/Variable-length_quantity">
-                            unsigned variable length integer</eref>
-                        representation. N is always between 1 and 8 bits. An
-                        integer starting at an octet-boundary will have an 8-bit
-                        prefix.
+                        to 1 and the value is encoded using an unsigned
+                        variable length integer representation (see <eref
+                            target="http://en.wikipedia.org/wiki/Variable-length_quantity"/>).
+                        N is always between 1 and 8 bits. An integer starting
+                        at an octet-boundary will have an 8-bit prefix.
                     </t>
                     <t>
                         The algorithm to represent an integer I is as follows:
                         <figure><artwork type = "inline"><![CDATA[
-If I < 2^N - 1, encode I on N bits
-Else
-    encode 2^N - 1 on N bits
+if I < 2^N - 1, encode I on N bits
+else
+    encode (2^N - 1) on N bits
     I = I - (2^N - 1)
-    While I >= 128
-         Encode (I % 128 + 128) on 8 bits
+    while I >= 128
+         encode (I % 128 + 128) on 8 bits
          I = I / 128
-    encode (I) on 8 bits
+    encode I on 8 bits
 ]]></artwork></figure>
+                    </t>
+                    <t>
+                        For informational purpose, the algorithm to decode an
+                        integer I is as follows:
+                        <figure><artwork type="inline"><![CDATA[
+decode I from the next N bits
+if I < 2^N - 1, return I
+else
+    M = 0
+    repeat
+        B = next octet
+        I = I + (B & 127) * 2^M
+        M = M + 7
+    while B & 128 == 128
+    return I
+]]></artwork></figure>
+                    </t>
+                    <t>
+                        Examples illustrating the encoding of integers are
+                        available in <xref
+                            target="integer.representation.examples"/>.
                     </t>
                     <t>
                         This integer representation allows for values of
@@ -637,217 +669,82 @@ Else
                         limits can be set for each of the different uses of
                         integers, based on implementation constraints.
                     </t>
-
-                    <section title="Example 1: Encoding 10 using a 5-bit prefix"
-                        anchor="integer.representation.example1">
-                        <t>
-                            The value 10 is to be encoded with a 5-bit prefix.
-                            <list style="symbols">
-                                <t>
-                                    10 is less than 31 (= 2<x:sup>5</x:sup> -
-                                    1) and is represented using the 5-bit
-                                    prefix.
-                                </t>
-                            </list>
-                        </t>
-                        <figure>
-                            <artwork type="inline">
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| X | X | X | 0 | 1 | 0 | 1 | 0 |   10 stored on 5 bits
-+---+---+---+---+---+---+---+---+
-</artwork>
-                        </figure>
-                    </section>
-
-                    <section title="Example 2: Encoding 1337 using a 5-bit prefix"
-                        anchor="integer.representation.example2">
-                        <t>
-                            The value I=1337 is to be encoded with a 5-bit
-                            prefix.
-                            <list>
-                                <t>
-                                    1337 is greater than 31 (=
-                                    2<x:sup>5</x:sup> - 1).
-                                </t>
-                                <t>
-                                    <list>
-                                        <t>The 5-bit prefix is filled with its
-                                            max value (31).</t>
-                                    </list>
-                                </t>
-                                <t>I = 1337 - (2<x:sup>5</x:sup> - 1) =
-                                    1306.</t>
-                                <t>
-                                    <list>
-                                        <t>I (1306) is greater than or equal
-                                            to 128, the while loop body
-                                            executes:</t>
-                                        <t>
-                                            <list>
-                                                <t>I % 128 == 26</t>
-                                                <t>26 + 128 == 154</t>
-                                                <t>154 is encoded in 8 bits as:
-                                                    10011010</t>
-                                                <t>I is set to 10 (1306 / 128 ==
-                                                    10)</t>
-                                                <t>I is no longer greater than
-                                                    or equal to 128, the while
-                                                    loop terminates.</t>
-                                            </list>
-                                        </t>
-                                        <t>
-                                            I, now 10, is encoded on 8 bits
-                                            as: 00001010
-                                        </t>
-                                    </list>
-                                </t>
-
-                                <t>The process ends.</t>
-                            </list>
-
-                        </t>
-                        <figure>
-                            <artwork type="inline">
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| X | X | X | 1 | 1 | 1 | 1 | 1 |  Prefix = 31, I = 1306
-| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |  1306>=128, encode(154), I=1306/128
-| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |  10&lt;128, encode(10), done
-+---+---+---+---+---+---+---+---+
-</artwork>
-                        </figure>
-                    </section>
-
-                    <section title="Example 3: Encoding 42 starting at an
-                        octet-boundary"
-                        anchor="integer.representation.example3">
-                        <t>
-                            The value 42 is to be encoded starting at an
-                            octet-boundary. This implies that a 8-bit prefix is
-                            used.
-                            <list style="symbols">
-                                <t>
-                                    42 is less than 255 (= 2<x:sup>8</x:sup> -
-                                    1) and is represented using the 8-bit
-                                    prefix.
-                                </t>
-                            </list>
-                        </t>
-                        <figure>
-                            <artwork type="inline">
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |   42 stored on 8 bits
-+---+---+---+---+---+---+---+---+
-</artwork>
-                        </figure>
-                    </section>
                 </section>
 
                 <section title="String Literal Representation"
                     anchor="string.literal.representation">
                     <t>
-                        Header field names and header field values are
-                        encoded as sequences of octets. A header field name or
-                        a header field value is encoded in three parts:
-                        <list style="numbers">
-                            <t>
-                                One bit, H, indicating whether or not
-                                the octets are Huffman encoded.
+                        Header field names and header field values can be
+                        represented as literal string. A literal string is
+                        encoded as a sequence of octets, either by directly
+                        encoding the literal string's octets, or by using a
+                        canonical <xref target="CANON"/> Huffman encoding
+                        <xref target="HUFF"/>.
+                    </t>
+                    <figure title="String Literal Representation">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| H |    String Length (7+)     |
++---+---------------------------+
+|  String Data (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <t>
+                        A literal string representation contains the following
+                        fields:
+                    </t>
+                    <t>
+                        <list style="hanging">
+                            <t hangText="H:">
+                                A one bit flag, H, indicating whether or not the
+                                octets of the string are Huffman encoded.
                             </t>
-                            <t>
-                                The number of octets required to hold the
-                                result of the next step, represented as a
-                                <xref target="integer.representation">
-                                    variable-length-quantity </xref>, starting
-                                with a 7-bit prefix immediately following
-                                the first bit.
+                            <t hangText="String Length:">
+                                The number of octets used to encode the string
+                                literal, encoded as an integer with 7-bit prefix
+                                (see <xref target="integer.representation"/>).
                             </t>
-                            <t> The encoded data of the string:
-                                <list>
-                                    <t> If H is true, then the encoded
-                                        string data is the bitwise
-                                        concatenation of the <xref
-                                            target="CANON">canonical</xref><xref
-                                            target="HUFF">Huffman code</xref>
-                                        corresponding to each octet of the
-                                        data, followed by between 0-7 bits of
-                                        padding.
-                                    </t>
-                                    <t> If H is false, then the encoded string
-                                        is the octets of the field value
-                                        without modification.
-                                    </t>
-                                </list>
+                            <t hangText="String Data:">
+                                The encoded data of the string literal. If H is
+                                '0', then the encoded data is the raw octets of
+                                the string literal. If H is '1', then the encoded
+                                data is the Huffman encoding of the string
+                                literal.
                             </t>
                         </list>
                     </t>
                     <t>
-                        Padding is necessary when doing Huffman encoding to
-                        ensure that the remaining bits between the actual end of
-                        the data and the next octet boundary are not
-                        misinterpreted as part of the input data.
+                        String literals which use Huffman encoding are encoded
+                        with the Huffman codes defined in <xref
+                            target="huffman.codes"/> (see examples inRequest
+                        Examples with Huffman <xref
+                            target="request.examples.with.huffman"/> and in
+                        Response Examples with Huffman <xref
+                            target="response.examples.with.huffman"/>). The
+                        encoded data is the bitwise concatenation of the
+                        Huffman codes corresponding to each octet of the
+                        string literal.
                     </t>
                     <t>
-                        When padding for Huffman encoding, use the bits from the
-                        EOS (end-of-string) entry in the Huffman table, starting
-                        with the MSB (most significant bit). This entry is
-                        guaranteed to be at least 8 bits long.
+                        As the Huffman encoded data doesn't always end at an
+                        octet boundary, some padding is inserted after it up
+                        to the next octet boundary. To prevent this padding to
+                        be misinterpreted as part of the string literal, the
+                        most significant bits of the EOS (end-of-string) entry
+                        in the Huffman table are used.
                     </t>
                     <t>
-                        String literals sent in the client to server direction
-                        which use Huffman encoding are encoded with the codes
-                        within the <xref target="request.huffman.codes">
-                            request Huffman code table</xref> (see <xref
-                            target="request.examples.with.huffman"> Request
-                            Examples With Huffman</xref>).
+                        Upon decoding, an incomplete Huffman code at the end
+                        of the encoded data is to be considered as padding and
+                        discarded. A padding strictly longer than 7 bits MUST
+                        be treated as a decoding error. A padding not
+                        corresponding to the most significant bits of the EOS
+                        entry MUST be treated as a decoding error. A Huffman
+                        encoded string literal containing the EOS entry MUST
+                        be treated as a decoding error.
                     </t>
-                    <t>
-                        String literals sent in the server to client direction
-                        which use Huffman encoding are encoded with the codes
-                        within the <xref target="response.huffman.codes">
-                            response Huffman code table</xref> (see <xref
-                            target="response.examples.with.huffman">
-                            Response Examples With Huffman</xref>).
-                    </t>
-                    <t>
-                        The EOS symbol is represented with value 256, and is
-                        used solely to signal the end of the Huffman-encoded
-                        key data or the end of the Huffman-encoded value data.
-                        Given that only between 0-7 bits of the EOS symbol is
-                        included in any Huffman-encoded string, and given that
-                        the EOS symbol is at least 8 bits long, it is expected
-                        that it should never be successfully decoded.
-                    </t>
-                    <figure title="String Literal With Huffman Encoding">
-                        <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 1 |  Value Length Prefix (7)  |
-+---+---+---+---+---+---+---+---+
-|   Value Length (0-N octets)   |
-+---+---+---+---+---+---+---+---+
-...
-+---+---+---+---+---+---+---+---+
-| Huffman Encoded Data  |Padding|
-+---+---+---+---+---+---+---+---+
-]]></artwork>
-                    </figure>
-                    <figure title="String Literal Without Huffman Encoding">
-                        <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 |  Value Length Prefix (7)  |
-+---+---+---+---+---+---+---+---+
-|   Value Length (0-N octets)   |
-+---+---+---+---+---+---+---+---+
-...
-+---+---+---+---+---+---+---+---+
-|  Field Bytes Without Encoding |
-+---+---+---+---+---+---+---+---+
-]]></artwork>
-                    </figure>
                 </section>
             </section>
 
@@ -861,12 +758,12 @@ Else
                 </t>
 
                 <figure title="Indexed Header Field">
-                    <artwork type="inline">
+                    <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
 | 1 |        Index (7+)         |
 +---+---------------------------+
-</artwork>
+]]></artwork>
                 </figure>
                 <t>
                     This representation starts with the '1' 1-bit pattern,
@@ -874,8 +771,9 @@ Else
                     an integer with a 7-bit prefix.
                 </t>
                 <t>
-                    The index value of 0 is reserved for signalling that the
-                    reference set is emptied.
+                    The index value of 0 is not used. It MUST be treated as a
+                    decoding error if found in an indexed header field
+                    representation.
                 </t>
             </section>
 
@@ -891,67 +789,6 @@ Else
                     Literal representations all result in the emission of a
                     header field when decoded.
                 </t>
-                <section title="Literal Header Field without Indexing"
-                    anchor="literal.header.without.indexing">
-                    <t>
-                        A literal header field without indexing causes the
-                        emission of a header field without altering the header
-                        table.
-                    </t>
-                    <figure title="Literal Header Field without Indexing - Indexed Name">
-                        <artwork type="inline">
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 1 |      Index (6+)       |
-+---+---+---+-------------------+
-|       Value Length (8+)       |
-+-------------------------------+
-| Value String (Length octets)  |
-+-------------------------------+
-</artwork>
-                    </figure>
-                    <figure title="Literal Header Field without Indexing - New Name">
-                        <artwork type="inline">
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 1 |           0           |
-+---+---+---+-------------------+
-|       Name Length (8+)        |
-+-------------------------------+
-|  Name String (Length octets)  |
-+-------------------------------+
-|       Value Length (8+)       |
-+-------------------------------+
-| Value String (Length octets)  |
-+-------------------------------+
-</artwork>
-                    </figure>
-                    <t>
-                        This representation starts with the '01' 2-bit pattern.
-                    </t>
-                    <t>
-                        If the header field name matches the header field name
-                        of a (name, value) pair stored in the Header Table or
-                        Static Table, the header field name can be represented
-                        using the index of that entry. In this case, the index
-                        of the entry, index (which is strictly greater than 0),
-                        is represented as an integer with a 6-bit prefix (see
-                        <xref target="integer.representation"/>).
-                    </t>
-                    <t>
-                        Otherwise, the header field name is represented as a
-                        literal. The value 0 is represented on 6 bits followed
-                        by the header field name (see <xref
-                            target="string.literal.representation" />).
-                    </t>
-                    <t>
-                        The header field name representation is followed by
-                        the header field value represented as a literal string
-                        as described in <xref
-                            target="string.literal.representation" />.
-                    </t>
-
-                </section>
 
                 <section title="Literal Header Field with Incremental Indexing"
                     anchor="literal.header.with.incremental.indexing">
@@ -961,36 +798,36 @@ Else
                     </t>
                     <figure title="Literal Header Field with Incremental Indexing -
                         Indexed Name">
-                        <artwork type="inline">
+                        <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 | 0 |      Index (6+)       |
-+---+---+---+-------------------+
-|       Value Length (8+)       |
-+-------------------------------+
+| 0 | 1 |      Index (6+)       |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
 | Value String (Length octets)  |
 +-------------------------------+
-</artwork>
+]]></artwork>
                     </figure>
                     <figure title="Literal Header Field with Incremental Indexing -
                         New Name">
-                        <artwork type="inline">
+                        <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 | 0 |           0           |
-+---+---+---+-------------------+
-|       Name Length (8+)        |
-+-------------------------------+
+| 0 | 1 |           0           |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
 |  Name String (Length octets)  |
-+-------------------------------+
-|       Value Length (8+)       |
-+-------------------------------+
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
 | Value String (Length octets)  |
 +-------------------------------+
-</artwork>
+]]></artwork>
                     </figure>
                     <t>
-                        This representation starts with the '00' 2-bit
+                        This representation starts with the '01' 2-bit
                         pattern.
                     </t>
                     <t>
@@ -998,7 +835,7 @@ Else
                         of a (name, value) pair stored in the Header Table or
                         Static Table, the header field name can be represented
                         using the index of that entry. In this case, the index
-                        of the entry, index (which is strictly greater than 0),
+                        of the entry (which is strictly greater than 0)
                         is represented as an integer with a 6-bit prefix (see
                         <xref target="integer.representation"/>).
                     </t>
@@ -1015,52 +852,309 @@ Else
                             target="string.literal.representation" />.
                     </t>
                 </section>
-           </section>
+ 
+                <section title="Literal Header Field without Indexing"
+                    anchor="literal.header.without.indexing">
+                    <t>
+                        A literal header field without indexing causes the
+                        emission of a header field without altering the header
+                        table.
+                    </t>
+                    <figure title="Literal Header Field without Indexing - Indexed Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 0 |  Index (4+)   |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <figure title="Literal Header Field without Indexing - New Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 0 |       0       |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
+|  Name String (Length octets)  |
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <t>
+                        The literal header field without indexing
+                        representation starts with the '0000' 4-bit pattern.
+                    </t>
+                    <t>
+                        If the header field name matches the header field name
+                        of a (name, value) pair stored in the Header Table or
+                        Static Table, the header field name can be represented
+                        using the index of that entry. In this case, the index
+                        of the entry (which is strictly greater than 0)
+                        is represented as an integer with a 4-bit prefix (see
+                        <xref target="integer.representation"/>).
+                    </t>
+                    <t>
+                        Otherwise, the header field name is represented as a
+                        literal. The value 0 is represented on 4 bits followed
+                        by the header field name (see <xref
+                            target="string.literal.representation" />).
+                    </t>
+                    <t>
+                        The header field name representation is followed by
+                        the header field value represented as a literal string
+                        as described in <xref
+                            target="string.literal.representation" />.
+                    </t>
+                </section>
+           
+                <section title="Literal Header Field never Indexed"
+                    anchor="literal.header.never.indexed">
+                    <t>
+                        A literal header field never indexed causes the
+                        emission of a header field without altering the header
+                        table.
+                    </t>
+                    <figure title="Literal Header Field never Indexed - Indexed Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 1 |  Index (4+)   |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <figure title="Literal Header Field never Indexed - New Name">
+                        <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 1 |       0       |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
+|  Name String (Length octets)  |
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+]]></artwork>
+                    </figure>
+                    <t>
+                        The literal header field never indexed
+                        representation starts with the '0001' 4-bit pattern.
+                    </t>
+                    <t>
+                        When a header field is represented as a literal header
+                        field never indexed, it MUST always be encoded
+                        with this same representation. In particular, when a
+                        peer sends a header field that it received represented
+                        as a literal header field never indexed, it MUST use
+                        the same representation to forward this header field.
+                    </t>
+                    <t>
+                        This representation is intended for protecting header
+                        field values that are not to be put at risk by
+                        compressing them (see <xref
+                            target="compression.based.attacks"/> for more
+                        details).
+                    </t>
+                    <t>
+                        The encoding of the representation is the same as for
+                        the literal header field without indexing
+                        representation (see <xref
+                            target="literal.header.without.indexing"/>).
+                    </t>
+                </section>
+            </section>
+
+            <section title="Encoding Context Update"
+                anchor="encoding.context.update">
+                <t>
+                    An encoding context update causes the immediate application of a
+                    change to the encoding context.
+                </t>
+                <figure title="Context Update">
+                    <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 | F |      ...      |
++---+---------------------------+
+]]></artwork>
+                </figure>
+                <t>
+                    An encoding context update starts with the '001' 3-bit
+                    pattern.
+                </t>
+                <t>
+                    It is followed by a flag specifying the type of the
+                    change, and by any data necessary to describe the change
+                    itself.
+                </t>
+                <figure title="Reference Set Emptying">
+                    <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 | 1 |       0       |
++---+---------------------------+
+]]></artwork>
+                </figure>
+                <t>
+                    The flag bit being set to '1' signals that the reference
+                    set is emptied. The remaining bits are set to '0'.
+                </t>
+                <figure title="Maximum Header Table Size Change">
+                    <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 | 0 | Max size (4+) |
++---+---------------------------+
+]]></artwork>
+                </figure>
+                <t>
+                    The flag bit being set to '0' signals that a change to the
+                    maximum size of the header table. This new maximum size
+                    MUST be lower than or equal to the value of the HTTP/2
+                    setting SETTINGS_HEADER_TABLE_SIZE (see <xref
+                        target="HTTP2"/>).
+                </t>
+                <t>
+                    The new maximum size is encoded as an integer with a 4-bit
+                    prefix (see <xref target="integer.representation"/>).
+                </t>
+                <t>
+                    Change in the maximum size of the header table can trigger
+                    entry evictions (see <xref target="entry.eviction"/>).
+                </t>
+            </section>
         </section>
 
         <section anchor="Security" title="Security Considerations">
+            <section title="Compression-based Attacks"
+                anchor="compression.based.attacks">
+                <t>
+                    Compression can create a weak point allowing an attacker
+                    to recover secret data. For example, the CRIME attack (see
+                    <xref target="CRIME"/>) took advantage of the DEFLATE
+                    mechanism (see <xref target="DEFLATE"/>) of SPDY (see
+                    <xref target="SPDY"/>) to efficiently probe the
+                    compression context. The full-text compression mechanism
+                    of DEFLATE allowed the attacker to learn some information
+                    from each failed attempt at guessing the secret.
+                </t>
+                <t>
+                    For this reason, HPACK provides only limited compression
+                    mechanisms in the form of an indexing table and of a
+                    static Huffman encoding.
+                </t>
+                <t>
+                    The indexing table can still provide information to an
+                    attacker that would be able to probe the compression
+                    context. However, this information is limited to the
+                    knowledge of whether the attacker's guess is correct or
+                    not.
+                </t>
+                <t>
+                    Still, an attacker could take advantage of this limited
+                    information for breaking low-entropy secrets using a
+                    brute-force attack. A server usually has some protections
+                    against such brute-force attack. Here, the attack would
+                    target the client, where it would be harder to detect. The
+                    attack would be even more dangerous if the attacker is
+                    able to prevent the traffic generated by its brute-force
+                    attack from reaching the server.
+                </t>
+                <t>
+                    To offer some protection against such type of attacks,
+                    HPACK enables an endpoint to indicate that a header field
+                    must never be compressed, across any hop up to the other
+                    endpoint (see <xref
+                        target="literal.header.never.indexed"/>). An endpoint
+                    MUST use this feature to prevent the compression of any
+                    header field whose value contains a secret which could be
+                    put at risk by a brute-force attack.
+                </t>
+                <t>
+                    For optimal processing, a sensitive value (for example a
+                    cookie) needs to have an entropy high enough to not be
+                    endangered by a brute-force attack, in order to take
+                    advantage of HPACK indexing.
+                </t>
+                <t>
+                    There is currently no known threat taking advantage of the
+                    use of a fixed Huffman encoding. A study has shown that
+                    using a fixed Huffman encoding table created an
+                    information leakage, however this same study concluded
+                    that an attacker could not take advantage of this
+                    information leakage to recover any meaningful amount of
+                    information (see <xref target="PETAL"/>).
+                </t>
+            </section>
+
+            <section title="Memory Consumption">
+                <t>
+                    An attacker can try to cause an endpoint to exhaust its
+                    memory. HPACK is designed to limit both the peak and state
+                    amounts of memory allocated by an endpoint.
+                </t>
+                <t>
+                    The amount of memory used by the compressor state is
+                    limited by the value of the HTTP/2 setting
+                    SETTINGS_HEADER_TABLE_SIZE. This limitation takes into
+                    account both the size of the data stored in the header
+                    table, and the overhead required by the table structure
+                    itself.
+                </t>
+                <t>
+                    For the decoding side, an endpoint can limit the amount of
+                    state memory used by setting an appropriate value for the
+                    setting SETTINGS_HEADER_TABLE_SIZE. For the encoding side,
+                    the endpoint can limit the amount of state memory it uses
+                    by defining a header table maximum size lower than the
+                    value of setting SETTINGS_HEADER_TABLE_SIZE defined by its
+                    peer (see <xref target="encoding.context.update"/>).
+                </t>
+                <t>
+                    The amount of temporary memory consumed is linked to the
+                    set of header fields emitted or received. However, this
+                    amount of temporary memory can be limited by processing
+                    these header fields in a streaming manner.
+                </t>
+            </section>
+
+            <section title="Implementation Limits">
+                <t>
+                    An implementation of HPACK needs to ensure that large
+                    values for integers, long encoding for integers, or long
+                    string literal do not create security weaknesses.
+                </t>
+                <t>
+                    An implementation has to set a limit for the values it
+                    accepts for integers, as well as for the encoded length
+                    (see <xref target="integer.representation"/>).  In the
+                    same way, it has to set a limit to the length it accepts
+                    for string literals (see <xref
+                        target="string.literal.representation"/>).
+                </t>
+            </section>
+
+        </section>
+
+        <section title="Acknowledgements">
             <t>
-                This compressor exists to solve security issues present in
-                stream compressors such as DEFLATE whereby the compression
-                context can be efficiently probed to reveal secrets.
-                A conformant implementation of this specification should be
-                fairly safe against that kind of attack, as the reaping of any
-                information from the compression context requires more work than
-                guessing and verifying the plain text data directly with the
-                server.  As with any secret, however, the longer the length
-                of the secret, the more difficult the secret is to guess. It
-                is inadvisable to have short cookies that are relied upon to
-                remain secret for any duration of time.
-            </t>
-            <t>
-                A proper security-conscious implementation will also need to
-                prevent timing attacks by ensuring that the amount of time it
-                takes to do string comparisons is always a function of the
-                total length of the strings, and not a function of the number
-                of matched characters.
-            </t>
-            <t>
-                A decoder needs to ensure that larger values or encodings of
-                integers do not permit exploitation.  Decoders MUST limit the
-                size of integers, both in value and encoded length, that it
-                accepts (see <xref target="integer.representation"/>).
-            </t>
-            <t>
-                Another common security problem is when the remote endpoint
-                successfully causes the local endpoint to exhaust its memory.
-                This compressor attempts to deal with the most obvious ways
-                that this could occur by limiting both the peak and the
-                steady-state amount of memory consumed in the compressor
-                state, by providing ways for the application to consume/flush
-                the emitted header fields in small chunks, and by considering
-                overhead in the state size calculation.  Implementors must
-                still be careful in the creation of APIs to an implementation
-                of this compressor by ensuring that header field keys and
-                values are either emitted as a stream, or that the compression
-                implementation have a limit on the maximum size of a key or
-                value. Failure to implement these kinds of safeguards may
-                still result in a scenario where the local endpoint exhausts
-                its memory.
+                This document includes substantial editorial contributions
+                from the following individuals: Mike Bishop, Jeff Pinner,
+                Julian Reschke, Martin Thomson.
             </t>
         </section>
     </middle>
@@ -1069,7 +1163,7 @@ Else
         <references title="Normative References">
             <reference anchor="HTTP2">
                 <front>
-                    <title>Hypertext Transfer Protocol version 2.0</title>
+                    <title>Hypertext Transfer Protocol version 2</title>
                     <author initials="M." surname="Belshe" fullname="Mike Belshe">
                         <organization>Twist</organization>
                     </author>
@@ -1077,14 +1171,11 @@ Else
                         <organization>Google</organization>
                     </author>
                     <author initials="M." surname="Thomson" fullname="Martin Thomson" role="editor">
-                        <organization>Microsoft</organization>
+                        <organization>Mozilla</organization>
                     </author>
-                    <author initials="A." surname="Melnikov" fullname="Alexey Melnikov" role="editor">
-                        <organization>Isode Ltd</organization>
-                    </author>
-                    <date month="November" year="2013"/>
+                    <date month="February" year="2014"/>
                 </front>
-                <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-08"/>
+                <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-10"/>
             </reference>
 
             <reference anchor="HTTP-p1">
@@ -1099,11 +1190,11 @@ Else
                   <organization abbrev="greenbytes">greenbytes GmbH</organization>
                   <address><email>julian.reschke@greenbytes.de</email></address>
                 </author>
-                <date month="November" year="2013" />
+                <date month="February" year="2014" />
               </front>
-              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-25" />
-              <x:source href="refs/draft-ietf-httpbis-p1-messaging-25.xml"
-                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/25/p1-messaging"/>
+              <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p1-messaging-26" />
+              <x:source href="refs/draft-ietf-httpbis-p1-messaging-26.xml"
+                        basename="https://svn.tools.ietf.org/svn/wg/httpbis/draft-ietf-httpbis/26/p1-messaging"/>
             </reference>
 <!--
             <reference anchor="HTTP-p2">
@@ -1213,9 +1304,19 @@ Else
                 </front>
                 <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
             </reference>
+            <reference anchor="DEFLATE">
+                <front>
+                    <title>DEFLATE Compressed Data Format Specification version 1.3</title>
+                    <author initials="P." surname="Deutsch" fullname="L. Peter Deutsch">
+                        <organization>Aladdin Enterprises</organization>
+                    </author>
+                    <date month="May" year="1996"/>
+                </front>
+                <seriesInfo name="RFC" value="1951"/>
+            </reference>
             <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit#slide=id.g1eb6c1b5_3_6">
                 <front>
-                    <title>The Crime Attack</title>
+                    <title>The CRIME Attack</title>
                     <author initials="J." surname="Rizzo" fullname="Juliano Rizzo"></author>
                     <author initials="T." surname="Duong" fullname="Thai Duong"></author>
                     <date month="September" year="2012"/>
@@ -1256,15 +1357,76 @@ Else
                 </front>
                 <seriesInfo name="Communications of the ACM" value="Volume 7 Issue 3, pp. 166-169"/>
             </reference>
+
+            <reference anchor="PETAL" target="http://www.pdl.cmu.edu/PDL-FTP/associated/CMU-PDL-13-106.pdf">
+                <front>
+                    <title>PETAL: Preset Encoding Table Information
+                        Leakage</title>
+                    <author surname="Tan" initials="J." fullname="Jiaqi Tan"/>
+                    <author surname="Nahata" initials="J."
+                        fullname="Jayvardhan Nahata"/>
+                    <date month="April" year="2013"/>
+                </front>
+            </reference>
         </references>
 
 
         <section title="Change Log (to be removed by RFC Editor before publication">
+            <section title="Since draft-ietf-httpbis-header-compression-07"
+                anchor="changes.since.draft-ietf-httpbis-header-compression-07">
+                <t><list style="symbols">
+                    <t>
+                        Removed old text on index value of 0.
+                    </t>
+                    <t>
+                        Added clarification for signalling of maximum table
+                        size after a SETTINGS_HEADER_TABLE_SIZE update.
+                    </t>
+                </list></t>
+            </section>
+            <section title="Since draft-ietf-httpbis-header-compression-06"
+                anchor="changes.since.draft-ietf-httpbis-header-compression-06">
+                <t><list style="symbols">
+                    <t>
+                        Updated format to include literal headers that must
+                        never be compressed.
+                    </t>
+                    <t>
+                        Updated security considerations.
+                    </t>
+                    <t>
+                        Moved integer encoding examples to the appendix.
+                    </t>
+                    <t>
+                        Updated Huffman table.
+                    </t>
+                    <t>
+                        Updated static header table (adding and removing
+                        status values).
+                    </t>
+                    <t>
+                        Updated examples.
+                    </t>
+                </list></t>
+            </section>
             <section title="Since draft-ietf-httpbis-header-compression-05"
                 anchor="changes.since.draft-ietf-httpbis-header-compression-05">
                 <t><list style="symbols">
                     <t>
-                        None yet.
+                        Regenerated examples.
+                    </t>
+                    <t>
+                        Only one Huffman table for requests and responses.
+                    </t>
+                    <t>
+                        Added maximum size for header table, independent of
+                        SETTINGS_HEADER_TABLE_SIZE.
+                    </t>
+                    <t>
+                        Added pseudo-code for integer decoding.
+                    </t>
+                    <t>
+                        Improved examples (removing unnecessary removals).
                     </t>
                 </list></t>
             </section>
@@ -1365,7 +1527,7 @@ Else
                     </list>
                 </t>
             </section>
-            <section title="Since draft-ietf-httpbis-header-compression-01">
+            <section title="Since draft-ietf-httpbis-header-compression-00">
                 <t>
                     <list>
                         <t>Fixed bug/omission in integer representation algorithm.</t>
@@ -1388,32 +1550,18 @@ Else
             <t>
                 The static table consists of an unchangeable ordered list of
                 (name, value) pairs. The first entry in the table is always
-                represented by the index len(header table)+1, and the last entry
+                represented by the index len(header table) + 1, and the last entry
                 in the table is represented by the index len(header
-                table)+len(static table).
+                table) + len(static table).
             </t>
-            <t>
-                <cref>
-                    The ordering of these tables is currently arbitrary.
-                    The tables in this section should be updated and ordered
-                    such that the table entries with the smallest indices are
-                    those which, based on a statistical analysis of the
-                    frequency of use weighted by size, achieve the largest
-                    decrease in octets transmitted subject to HTTP 2.0 header
-                    field rules (like removal of some header fields). This set
-                    of header fields is currently very likely incomplete, and
-                    should be made complete.
-                </cref>
-                <vspace blankLines="0"/>
-            </t>
-
             <t>
                 The following table lists the pre-defined header fields that
-                make-up the static header table.
+                make-up the static table.
             </t>
             <texttable title="Static Table Entries"
                 anchor="static.table.entries">
-                <!-- An easy way to renumber these in vim:
+                <!-- An easy way to renumber these in vim, with mark a and b
+                     delimiting the table entries:
                       :let @a=1 | 'a,'bs/>[0-9 ][0-9 ]*</\='>'.(@a+setreg('a',@a+1)).'<'/
                     -->
                     <ttcol>Index</ttcol>
@@ -1428,58 +1576,59 @@ Else
                     <c>6</c><c>:scheme</c><c>http</c>
                     <c>7</c><c>:scheme</c><c>https</c>
                     <c>8</c><c>:status</c><c>200</c>
-                    <c>9</c><c>:status</c><c>500</c>
-                    <c>10</c><c>:status</c><c>404</c>
-                    <c>11</c><c>:status</c><c>403</c>
+                    <c>9</c><c>:status</c><c>204</c>
+                    <c>10</c><c>:status</c><c>206</c>
+                    <c>11</c><c>:status</c><c>304</c>
                     <c>12</c><c>:status</c><c>400</c>
-                    <c>13</c><c>:status</c><c>401</c>
-                    <c>14</c><c>accept-charset</c><c></c>
-                    <c>15</c><c>accept-encoding</c><c></c>
-                    <c>16</c><c>accept-language</c><c></c>
-                    <c>17</c><c>accept-ranges</c><c></c>
-                    <c>18</c><c>accept</c><c></c>
-                    <c>19</c><c>access-control-allow-origin</c><c></c>
-                    <c>20</c><c>age</c><c></c>
-                    <c>21</c><c>allow</c><c></c>
-                    <c>22</c><c>authorization</c><c></c>
-                    <c>23</c><c>cache-control</c><c></c>
-                    <c>24</c><c>content-disposition</c><c></c>
-                    <c>25</c><c>content-encoding</c><c></c>
-                    <c>26</c><c>content-language</c><c></c>
-                    <c>27</c><c>content-length</c><c></c>
-                    <c>28</c><c>content-location</c><c></c>
-                    <c>29</c><c>content-range</c><c></c>
-                    <c>30</c><c>content-type</c><c></c>
-                    <c>31</c><c>cookie</c><c></c>
-                    <c>32</c><c>date</c><c></c>
-                    <c>33</c><c>etag</c><c></c>
-                    <c>34</c><c>expect</c><c></c>
-                    <c>35</c><c>expires</c><c></c>
-                    <c>36</c><c>from</c><c></c>
-                    <c>37</c><c>host</c><c></c>
-                    <c>38</c><c>if-match</c><c></c>
-                    <c>39</c><c>if-modified-since</c><c></c>
-                    <c>40</c><c>if-none-match</c><c></c>
-                    <c>41</c><c>if-range</c><c></c>
-                    <c>42</c><c>if-unmodified-since</c><c></c>
-                    <c>43</c><c>last-modified</c><c></c>
-                    <c>44</c><c>link</c><c></c>
-                    <c>45</c><c>location</c><c></c>
-                    <c>46</c><c>max-forwards</c><c></c>
-                    <c>47</c><c>proxy-authenticate</c><c></c>
-                    <c>48</c><c>proxy-authorization</c><c></c>
-                    <c>49</c><c>range</c><c></c>
-                    <c>50</c><c>referer</c><c></c>
-                    <c>51</c><c>refresh</c><c></c>
-                    <c>52</c><c>retry-after</c><c></c>
-                    <c>53</c><c>server</c><c></c>
-                    <c>54</c><c>set-cookie</c><c></c>
-                    <c>55</c><c>strict-transport-security</c><c></c>
-                    <c>56</c><c>transfer-encoding</c><c></c>
-                    <c>57</c><c>user-agent</c><c></c>
-                    <c>58</c><c>vary</c><c></c>
-                    <c>59</c><c>via</c><c></c>
-                    <c>60</c><c>www-authenticate</c><c></c>
+                    <c>13</c><c>:status</c><c>404</c>
+                    <c>14</c><c>:status</c><c>500</c>
+                    <c>15</c><c>accept-charset</c><c></c>
+                    <c>16</c><c>accept-encoding</c><c></c>
+                    <c>17</c><c>accept-language</c><c></c>
+                    <c>18</c><c>accept-ranges</c><c></c>
+                    <c>19</c><c>accept</c><c></c>
+                    <c>20</c><c>access-control-allow-origin</c><c></c>
+                    <c>21</c><c>age</c><c></c>
+                    <c>22</c><c>allow</c><c></c>
+                    <c>23</c><c>authorization</c><c></c>
+                    <c>24</c><c>cache-control</c><c></c>
+                    <c>25</c><c>content-disposition</c><c></c>
+                    <c>26</c><c>content-encoding</c><c></c>
+                    <c>27</c><c>content-language</c><c></c>
+                    <c>28</c><c>content-length</c><c></c>
+                    <c>29</c><c>content-location</c><c></c>
+                    <c>30</c><c>content-range</c><c></c>
+                    <c>31</c><c>content-type</c><c></c>
+                    <c>32</c><c>cookie</c><c></c>
+                    <c>33</c><c>date</c><c></c>
+                    <c>34</c><c>etag</c><c></c>
+                    <c>35</c><c>expect</c><c></c>
+                    <c>36</c><c>expires</c><c></c>
+                    <c>37</c><c>from</c><c></c>
+                    <c>38</c><c>host</c><c></c>
+                    <c>39</c><c>if-match</c><c></c>
+                    <c>40</c><c>if-modified-since</c><c></c>
+                    <c>41</c><c>if-none-match</c><c></c>
+                    <c>42</c><c>if-range</c><c></c>
+                    <c>43</c><c>if-unmodified-since</c><c></c>
+                    <c>44</c><c>last-modified</c><c></c>
+                    <c>45</c><c>link</c><c></c>
+                    <c>46</c><c>location</c><c></c>
+                    <c>47</c><c>max-forwards</c><c></c>
+                    <c>48</c><c>proxy-authenticate</c><c></c>
+                    <c>49</c><c>proxy-authorization</c><c></c>
+                    <c>50</c><c>range</c><c></c>
+                    <c>51</c><c>referer</c><c></c>
+                    <c>52</c><c>refresh</c><c></c>
+                    <c>53</c><c>retry-after</c><c></c>
+                    <c>54</c><c>server</c><c></c>
+                    <c>55</c><c>set-cookie</c><c></c>
+                    <c>56</c><c>strict-transport-security</c><c></c>
+                    <c>57</c><c>transfer-encoding</c><c></c>
+                    <c>58</c><c>user-agent</c><c></c>
+                    <c>59</c><c>vary</c><c></c>
+                    <c>60</c><c>via</c><c></c>
+                    <c>61</c><c>www-authenticate</c><c></c>
                 </texttable>
             <t>
                 The table give the index of each entry in the static table.
@@ -1489,574 +1638,437 @@ Else
             </t>
         </section>
 
-        <section title="Huffman Codes For Requests" anchor="request.huffman.codes">
+        <section title="Huffman Codes" anchor="huffman.codes">
             <t>
-                The following Huffman codes are used when encoding string
-                literals in the client to server direction.
+                The following codes are used when encoding string
+                literals with an Huffman coding (see <xref
+                    target="string.literal.representation"/>).
             </t>
             <t>
-                <cref>
-                    This table may need to be regenerated.
-                </cref>
-                <figure>
-                    <artwork><![CDATA[
-             aligned                                  aligned
-              to                            len        to     len
-              MSB                            in        LSB     in
-       sym    as bits                       bits      as hex  bits
-      (  0) |11111111|11111111|11110111|010 [27]      7ffffba [27]
-      (  1) |11111111|11111111|11110111|011 [27]      7ffffbb [27]
-      (  2) |11111111|11111111|11110111|100 [27]      7ffffbc [27]
-      (  3) |11111111|11111111|11110111|101 [27]      7ffffbd [27]
-      (  4) |11111111|11111111|11110111|110 [27]      7ffffbe [27]
-      (  5) |11111111|11111111|11110111|111 [27]      7ffffbf [27]
-      (  6) |11111111|11111111|11111000|000 [27]      7ffffc0 [27]
-      (  7) |11111111|11111111|11111000|001 [27]      7ffffc1 [27]
-      (  8) |11111111|11111111|11111000|010 [27]      7ffffc2 [27]
-      (  9) |11111111|11111111|11111000|011 [27]      7ffffc3 [27]
-      ( 10) |11111111|11111111|11111000|100 [27]      7ffffc4 [27]
-      ( 11) |11111111|11111111|11111000|101 [27]      7ffffc5 [27]
-      ( 12) |11111111|11111111|11111000|110 [27]      7ffffc6 [27]
-      ( 13) |11111111|11111111|11111000|111 [27]      7ffffc7 [27]
-      ( 14) |11111111|11111111|11111001|000 [27]      7ffffc8 [27]
-      ( 15) |11111111|11111111|11111001|001 [27]      7ffffc9 [27]
-      ( 16) |11111111|11111111|11111001|010 [27]      7ffffca [27]
-      ( 17) |11111111|11111111|11111001|011 [27]      7ffffcb [27]
-      ( 18) |11111111|11111111|11111001|100 [27]      7ffffcc [27]
-      ( 19) |11111111|11111111|11111001|101 [27]      7ffffcd [27]
-      ( 20) |11111111|11111111|11111001|110 [27]      7ffffce [27]
-      ( 21) |11111111|11111111|11111001|111 [27]      7ffffcf [27]
-      ( 22) |11111111|11111111|11111010|000 [27]      7ffffd0 [27]
-      ( 23) |11111111|11111111|11111010|001 [27]      7ffffd1 [27]
-      ( 24) |11111111|11111111|11111010|010 [27]      7ffffd2 [27]
-      ( 25) |11111111|11111111|11111010|011 [27]      7ffffd3 [27]
-      ( 26) |11111111|11111111|11111010|100 [27]      7ffffd4 [27]
-      ( 27) |11111111|11111111|11111010|101 [27]      7ffffd5 [27]
-      ( 28) |11111111|11111111|11111010|110 [27]      7ffffd6 [27]
-      ( 29) |11111111|11111111|11111010|111 [27]      7ffffd7 [27]
-      ( 30) |11111111|11111111|11111011|000 [27]      7ffffd8 [27]
-      ( 31) |11111111|11111111|11111011|001 [27]      7ffffd9 [27]
-  ' ' ( 32) |11101000| [8]                                  e8 [8]
-  '!' ( 33) |11111111|1100 [12]                           ffc [12]
-  '"' ( 34) |11111111|111010 [14]                        3ffa [14]
-  '#' ( 35) |11111111|1111100 [15]                       7ffc [15]
-  '$' ( 36) |11111111|1111101 [15]                       7ffd [15]
-  '%' ( 37) |100100 [6]                                     24 [6]
-  '&' ( 38) |1101110 [7]                                    6e [7]
-  ''' ( 39) |11111111|1111110 [15]                       7ffe [15]
-  '(' ( 40) |11111111|010 [11]                            7fa [11]
-  ')' ( 41) |11111111|011 [11]                            7fb [11]
-  '*' ( 42) |11111110|10 [10]                             3fa [10]
-  '+' ( 43) |11111111|100 [11]                            7fc [11]
-  ',' ( 44) |11101001| [8]                                  e9 [8]
-  '-' ( 45) |100101 [6]                                     25 [6]
-  '.' ( 46) |00100 [5]                                       4 [5]
-  '/' ( 47) |0000 [4]                                        0 [4]
-  '0' ( 48) |00101 [5]                                       5 [5]
-  '1' ( 49) |00110 [5]                                       6 [5]
-  '2' ( 50) |00111 [5]                                       7 [5]
-  '3' ( 51) |100110 [6]                                     26 [6]
-  '4' ( 52) |100111 [6]                                     27 [6]
-  '5' ( 53) |101000 [6]                                     28 [6]
-  '6' ( 54) |101001 [6]                                     29 [6]
-  '7' ( 55) |101010 [6]                                     2a [6]
-  '8' ( 56) |101011 [6]                                     2b [6]
-  '9' ( 57) |101100 [6]                                     2c [6]
-  ':' ( 58) |11110110|0 [9]                                1ec [9]
-  ';' ( 59) |11101010| [8]                                  ea [8]
-  '<' ( 60) |11111111|11111111|10 [18]                  3fffe [18]
-  '=' ( 61) |101101 [6]                                     2d [6]
-  '>' ( 62) |11111111|11111110|0 [17]                   1fffc [17]
-  '?' ( 63) |11110110|1 [9]                                1ed [9]
-  '@' ( 64) |11111111|111011 [14]                        3ffb [14]
-  'A' ( 65) |1101111 [7]                                    6f [7]
-  'B' ( 66) |11101011| [8]                                  eb [8]
-  'C' ( 67) |11101100| [8]                                  ec [8]
-  'D' ( 68) |11101101| [8]                                  ed [8]
-  'E' ( 69) |11101110| [8]                                  ee [8]
-  'F' ( 70) |1110000 [7]                                    70 [7]
-  'G' ( 71) |11110111|0 [9]                                1ee [9]
-  'H' ( 72) |11110111|1 [9]                                1ef [9]
-  'I' ( 73) |11111000|0 [9]                                1f0 [9]
-  'J' ( 74) |11111000|1 [9]                                1f1 [9]
-  'K' ( 75) |11111110|11 [10]                             3fb [10]
-  'L' ( 76) |11111001|0 [9]                                1f2 [9]
-  'M' ( 77) |11101111| [8]                                  ef [8]
-  'N' ( 78) |11111001|1 [9]                                1f3 [9]
-  'O' ( 79) |11111010|0 [9]                                1f4 [9]
-  'P' ( 80) |11111010|1 [9]                                1f5 [9]
-  'Q' ( 81) |11111011|0 [9]                                1f6 [9]
-  'R' ( 82) |11111011|1 [9]                                1f7 [9]
-  'S' ( 83) |11110000| [8]                                  f0 [8]
-  'T' ( 84) |11110001| [8]                                  f1 [8]
-  'U' ( 85) |11111100|0 [9]                                1f8 [9]
-  'V' ( 86) |11111100|1 [9]                                1f9 [9]
-  'W' ( 87) |11111101|0 [9]                                1fa [9]
-  'X' ( 88) |11111101|1 [9]                                1fb [9]
-  'Y' ( 89) |11111110|0 [9]                                1fc [9]
-  'Z' ( 90) |11111111|00 [10]                             3fc [10]
-  '[' ( 91) |11111111|111100 [14]                        3ffc [14]
-  '\' ( 92) |11111111|11111111|11111011|010 [27]      7ffffda [27]
-  ']' ( 93) |11111111|11100 [13]                         1ffc [13]
-  '^' ( 94) |11111111|111101 [14]                        3ffd [14]
-  '_' ( 95) |101110 [6]                                     2e [6]
-  '`' ( 96) |11111111|11111111|110 [19]                 7fffe [19]
-  'a' ( 97) |01000 [5]                                       8 [5]
-  'b' ( 98) |101111 [6]                                     2f [6]
-  'c' ( 99) |01001 [5]                                       9 [5]
-  'd' (100) |110000 [6]                                     30 [6]
-  'e' (101) |0001 [4]                                        1 [4]
-  'f' (102) |110001 [6]                                     31 [6]
-  'g' (103) |110010 [6]                                     32 [6]
-  'h' (104) |110011 [6]                                     33 [6]
-  'i' (105) |01010 [5]                                       a [5]
-  'j' (106) |1110001 [7]                                    71 [7]
-  'k' (107) |1110010 [7]                                    72 [7]
-  'l' (108) |01011 [5]                                       b [5]
-  'm' (109) |110100 [6]                                     34 [6]
-  'n' (110) |01100 [5]                                       c [5]
-  'o' (111) |01101 [5]                                       d [5]
-  'p' (112) |01110 [5]                                       e [5]
-  'q' (113) |11110010| [8]                                  f2 [8]
-  'r' (114) |01111 [5]                                       f [5]
-  's' (115) |10000 [5]                                      10 [5]
-  't' (116) |10001 [5]                                      11 [5]
-  'u' (117) |110101 [6]                                     35 [6]
-  'v' (118) |1110011 [7]                                    73 [7]
-  'w' (119) |110110 [6]                                     36 [6]
-  'x' (120) |11110011| [8]                                  f3 [8]
-  'y' (121) |11110100| [8]                                  f4 [8]
-  'z' (122) |11110101| [8]                                  f5 [8]
-  '{' (123) |11111111|11111110|1 [17]                   1fffd [17]
-  '|' (124) |11111111|101 [11]                            7fd [11]
-  '}' (125) |11111111|11111111|0 [17]                   1fffe [17]
-  '~' (126) |11111111|1101 [12]                           ffd [12]
-      (127) |11111111|11111111|11111011|011 [27]      7ffffdb [27]
-      (128) |11111111|11111111|11111011|100 [27]      7ffffdc [27]
-      (129) |11111111|11111111|11111011|101 [27]      7ffffdd [27]
-      (130) |11111111|11111111|11111011|110 [27]      7ffffde [27]
-      (131) |11111111|11111111|11111011|111 [27]      7ffffdf [27]
-      (132) |11111111|11111111|11111100|000 [27]      7ffffe0 [27]
-      (133) |11111111|11111111|11111100|001 [27]      7ffffe1 [27]
-      (134) |11111111|11111111|11111100|010 [27]      7ffffe2 [27]
-      (135) |11111111|11111111|11111100|011 [27]      7ffffe3 [27]
-      (136) |11111111|11111111|11111100|100 [27]      7ffffe4 [27]
-      (137) |11111111|11111111|11111100|101 [27]      7ffffe5 [27]
-      (138) |11111111|11111111|11111100|110 [27]      7ffffe6 [27]
-      (139) |11111111|11111111|11111100|111 [27]      7ffffe7 [27]
-      (140) |11111111|11111111|11111101|000 [27]      7ffffe8 [27]
-      (141) |11111111|11111111|11111101|001 [27]      7ffffe9 [27]
-      (142) |11111111|11111111|11111101|010 [27]      7ffffea [27]
-      (143) |11111111|11111111|11111101|011 [27]      7ffffeb [27]
-      (144) |11111111|11111111|11111101|100 [27]      7ffffec [27]
-      (145) |11111111|11111111|11111101|101 [27]      7ffffed [27]
-      (146) |11111111|11111111|11111101|110 [27]      7ffffee [27]
-      (147) |11111111|11111111|11111101|111 [27]      7ffffef [27]
-      (148) |11111111|11111111|11111110|000 [27]      7fffff0 [27]
-      (149) |11111111|11111111|11111110|001 [27]      7fffff1 [27]
-      (150) |11111111|11111111|11111110|010 [27]      7fffff2 [27]
-      (151) |11111111|11111111|11111110|011 [27]      7fffff3 [27]
-      (152) |11111111|11111111|11111110|100 [27]      7fffff4 [27]
-      (153) |11111111|11111111|11111110|101 [27]      7fffff5 [27]
-      (154) |11111111|11111111|11111110|110 [27]      7fffff6 [27]
-      (155) |11111111|11111111|11111110|111 [27]      7fffff7 [27]
-      (156) |11111111|11111111|11111111|000 [27]      7fffff8 [27]
-      (157) |11111111|11111111|11111111|001 [27]      7fffff9 [27]
-      (158) |11111111|11111111|11111111|010 [27]      7fffffa [27]
-      (159) |11111111|11111111|11111111|011 [27]      7fffffb [27]
-      (160) |11111111|11111111|11111111|100 [27]      7fffffc [27]
-      (161) |11111111|11111111|11111111|101 [27]      7fffffd [27]
-      (162) |11111111|11111111|11111111|110 [27]      7fffffe [27]
-      (163) |11111111|11111111|11111111|111 [27]      7ffffff [27]
-      (164) |11111111|11111111|11100000|00 [26]       3ffff80 [26]
-      (165) |11111111|11111111|11100000|01 [26]       3ffff81 [26]
-      (166) |11111111|11111111|11100000|10 [26]       3ffff82 [26]
-      (167) |11111111|11111111|11100000|11 [26]       3ffff83 [26]
-      (168) |11111111|11111111|11100001|00 [26]       3ffff84 [26]
-      (169) |11111111|11111111|11100001|01 [26]       3ffff85 [26]
-      (170) |11111111|11111111|11100001|10 [26]       3ffff86 [26]
-      (171) |11111111|11111111|11100001|11 [26]       3ffff87 [26]
-      (172) |11111111|11111111|11100010|00 [26]       3ffff88 [26]
-      (173) |11111111|11111111|11100010|01 [26]       3ffff89 [26]
-      (174) |11111111|11111111|11100010|10 [26]       3ffff8a [26]
-      (175) |11111111|11111111|11100010|11 [26]       3ffff8b [26]
-      (176) |11111111|11111111|11100011|00 [26]       3ffff8c [26]
-      (177) |11111111|11111111|11100011|01 [26]       3ffff8d [26]
-      (178) |11111111|11111111|11100011|10 [26]       3ffff8e [26]
-      (179) |11111111|11111111|11100011|11 [26]       3ffff8f [26]
-      (180) |11111111|11111111|11100100|00 [26]       3ffff90 [26]
-      (181) |11111111|11111111|11100100|01 [26]       3ffff91 [26]
-      (182) |11111111|11111111|11100100|10 [26]       3ffff92 [26]
-      (183) |11111111|11111111|11100100|11 [26]       3ffff93 [26]
-      (184) |11111111|11111111|11100101|00 [26]       3ffff94 [26]
-      (185) |11111111|11111111|11100101|01 [26]       3ffff95 [26]
-      (186) |11111111|11111111|11100101|10 [26]       3ffff96 [26]
-      (187) |11111111|11111111|11100101|11 [26]       3ffff97 [26]
-      (188) |11111111|11111111|11100110|00 [26]       3ffff98 [26]
-      (189) |11111111|11111111|11100110|01 [26]       3ffff99 [26]
-      (190) |11111111|11111111|11100110|10 [26]       3ffff9a [26]
-      (191) |11111111|11111111|11100110|11 [26]       3ffff9b [26]
-      (192) |11111111|11111111|11100111|00 [26]       3ffff9c [26]
-      (193) |11111111|11111111|11100111|01 [26]       3ffff9d [26]
-      (194) |11111111|11111111|11100111|10 [26]       3ffff9e [26]
-      (195) |11111111|11111111|11100111|11 [26]       3ffff9f [26]
-      (196) |11111111|11111111|11101000|00 [26]       3ffffa0 [26]
-      (197) |11111111|11111111|11101000|01 [26]       3ffffa1 [26]
-      (198) |11111111|11111111|11101000|10 [26]       3ffffa2 [26]
-      (199) |11111111|11111111|11101000|11 [26]       3ffffa3 [26]
-      (200) |11111111|11111111|11101001|00 [26]       3ffffa4 [26]
-      (201) |11111111|11111111|11101001|01 [26]       3ffffa5 [26]
-      (202) |11111111|11111111|11101001|10 [26]       3ffffa6 [26]
-      (203) |11111111|11111111|11101001|11 [26]       3ffffa7 [26]
-      (204) |11111111|11111111|11101010|00 [26]       3ffffa8 [26]
-      (205) |11111111|11111111|11101010|01 [26]       3ffffa9 [26]
-      (206) |11111111|11111111|11101010|10 [26]       3ffffaa [26]
-      (207) |11111111|11111111|11101010|11 [26]       3ffffab [26]
-      (208) |11111111|11111111|11101011|00 [26]       3ffffac [26]
-      (209) |11111111|11111111|11101011|01 [26]       3ffffad [26]
-      (210) |11111111|11111111|11101011|10 [26]       3ffffae [26]
-      (211) |11111111|11111111|11101011|11 [26]       3ffffaf [26]
-      (212) |11111111|11111111|11101100|00 [26]       3ffffb0 [26]
-      (213) |11111111|11111111|11101100|01 [26]       3ffffb1 [26]
-      (214) |11111111|11111111|11101100|10 [26]       3ffffb2 [26]
-      (215) |11111111|11111111|11101100|11 [26]       3ffffb3 [26]
-      (216) |11111111|11111111|11101101|00 [26]       3ffffb4 [26]
-      (217) |11111111|11111111|11101101|01 [26]       3ffffb5 [26]
-      (218) |11111111|11111111|11101101|10 [26]       3ffffb6 [26]
-      (219) |11111111|11111111|11101101|11 [26]       3ffffb7 [26]
-      (220) |11111111|11111111|11101110|00 [26]       3ffffb8 [26]
-      (221) |11111111|11111111|11101110|01 [26]       3ffffb9 [26]
-      (222) |11111111|11111111|11101110|10 [26]       3ffffba [26]
-      (223) |11111111|11111111|11101110|11 [26]       3ffffbb [26]
-      (224) |11111111|11111111|11101111|00 [26]       3ffffbc [26]
-      (225) |11111111|11111111|11101111|01 [26]       3ffffbd [26]
-      (226) |11111111|11111111|11101111|10 [26]       3ffffbe [26]
-      (227) |11111111|11111111|11101111|11 [26]       3ffffbf [26]
-      (228) |11111111|11111111|11110000|00 [26]       3ffffc0 [26]
-      (229) |11111111|11111111|11110000|01 [26]       3ffffc1 [26]
-      (230) |11111111|11111111|11110000|10 [26]       3ffffc2 [26]
-      (231) |11111111|11111111|11110000|11 [26]       3ffffc3 [26]
-      (232) |11111111|11111111|11110001|00 [26]       3ffffc4 [26]
-      (233) |11111111|11111111|11110001|01 [26]       3ffffc5 [26]
-      (234) |11111111|11111111|11110001|10 [26]       3ffffc6 [26]
-      (235) |11111111|11111111|11110001|11 [26]       3ffffc7 [26]
-      (236) |11111111|11111111|11110010|00 [26]       3ffffc8 [26]
-      (237) |11111111|11111111|11110010|01 [26]       3ffffc9 [26]
-      (238) |11111111|11111111|11110010|10 [26]       3ffffca [26]
-      (239) |11111111|11111111|11110010|11 [26]       3ffffcb [26]
-      (240) |11111111|11111111|11110011|00 [26]       3ffffcc [26]
-      (241) |11111111|11111111|11110011|01 [26]       3ffffcd [26]
-      (242) |11111111|11111111|11110011|10 [26]       3ffffce [26]
-      (243) |11111111|11111111|11110011|11 [26]       3ffffcf [26]
-      (244) |11111111|11111111|11110100|00 [26]       3ffffd0 [26]
-      (245) |11111111|11111111|11110100|01 [26]       3ffffd1 [26]
-      (246) |11111111|11111111|11110100|10 [26]       3ffffd2 [26]
-      (247) |11111111|11111111|11110100|11 [26]       3ffffd3 [26]
-      (248) |11111111|11111111|11110101|00 [26]       3ffffd4 [26]
-      (249) |11111111|11111111|11110101|01 [26]       3ffffd5 [26]
-      (250) |11111111|11111111|11110101|10 [26]       3ffffd6 [26]
-      (251) |11111111|11111111|11110101|11 [26]       3ffffd7 [26]
-      (252) |11111111|11111111|11110110|00 [26]       3ffffd8 [26]
-      (253) |11111111|11111111|11110110|01 [26]       3ffffd9 [26]
-      (254) |11111111|11111111|11110110|10 [26]       3ffffda [26]
-      (255) |11111111|11111111|11110110|11 [26]       3ffffdb [26]
-  EOS (256) |11111111|11111111|11110111|00 [26]       3ffffdc [26]
-            ]]>
-                    </artwork>
-                </figure>
-            </t>
-        </section>
-        <section title="Huffman Codes for Responses" anchor="response.huffman.codes">
-            <t>
-                The following Huffman codes are used when encoding string
-                literals in the server to client direction. These codes apply
-                for both responses to client requests and for push-promises.
+                Each row in the table specifies one Huffman code:
+                <list style="hanging">
+                    <t hangText="sym:">
+                        The symbol to be represented. It is the decimal value
+                        of an octet, possibly prepended with its ASCII
+                        representation. A specific symbol, "EOS", is used to
+                        indicate the end of a string literal.
+                    </t>
+                    <t hangText="code as bits:">
+                        The Huffman code for the symbol represented as a
+                        base-2 integer.
+                    </t>
+                    <t hangText="code as hex:">
+                        The Huffman code for the symbol, represented as a
+                        hexadecimal integer, aligned on the least significant
+                        bit.
+                    </t>
+                    <t hangText="len:">
+                        The number of bits for the Huffman code of the symbol.
+                    </t>
+                </list>
             </t>
             <t>
-                <cref>
-                    This table may need to be regenerated.
-                </cref>
+                As an example, the Huffman code for the symbol 48
+                (corresponding to the ASCII character "0") consists in the 5
+                bits "0", "0", "1", "0", "1". This corresponds to the value 5
+                encoded on 5 bits.
             </t>
             <t>
                 <figure>
                     <artwork><![CDATA[
-             aligned                                  aligned
-              to                           len         to     len
-              MSB                           in         LSB     in
-       sym    as bits                      bits       as hex  bits
-      (  0) |11111111|11111111|11011110|0 [25]        1ffffbc [25]
-      (  1) |11111111|11111111|11011110|1 [25]        1ffffbd [25]
-      (  2) |11111111|11111111|11011111|0 [25]        1ffffbe [25]
-      (  3) |11111111|11111111|11011111|1 [25]        1ffffbf [25]
-      (  4) |11111111|11111111|11100000|0 [25]        1ffffc0 [25]
-      (  5) |11111111|11111111|11100000|1 [25]        1ffffc1 [25]
-      (  6) |11111111|11111111|11100001|0 [25]        1ffffc2 [25]
-      (  7) |11111111|11111111|11100001|1 [25]        1ffffc3 [25]
-      (  8) |11111111|11111111|11100010|0 [25]        1ffffc4 [25]
-      (  9) |11111111|11111111|11100010|1 [25]        1ffffc5 [25]
-      ( 10) |11111111|11111111|11100011|0 [25]        1ffffc6 [25]
-      ( 11) |11111111|11111111|11100011|1 [25]        1ffffc7 [25]
-      ( 12) |11111111|11111111|11100100|0 [25]        1ffffc8 [25]
-      ( 13) |11111111|11111111|11100100|1 [25]        1ffffc9 [25]
-      ( 14) |11111111|11111111|11100101|0 [25]        1ffffca [25]
-      ( 15) |11111111|11111111|11100101|1 [25]        1ffffcb [25]
-      ( 16) |11111111|11111111|11100110|0 [25]        1ffffcc [25]
-      ( 17) |11111111|11111111|11100110|1 [25]        1ffffcd [25]
-      ( 18) |11111111|11111111|11100111|0 [25]        1ffffce [25]
-      ( 19) |11111111|11111111|11100111|1 [25]        1ffffcf [25]
-      ( 20) |11111111|11111111|11101000|0 [25]        1ffffd0 [25]
-      ( 21) |11111111|11111111|11101000|1 [25]        1ffffd1 [25]
-      ( 22) |11111111|11111111|11101001|0 [25]        1ffffd2 [25]
-      ( 23) |11111111|11111111|11101001|1 [25]        1ffffd3 [25]
-      ( 24) |11111111|11111111|11101010|0 [25]        1ffffd4 [25]
-      ( 25) |11111111|11111111|11101010|1 [25]        1ffffd5 [25]
-      ( 26) |11111111|11111111|11101011|0 [25]        1ffffd6 [25]
-      ( 27) |11111111|11111111|11101011|1 [25]        1ffffd7 [25]
-      ( 28) |11111111|11111111|11101100|0 [25]        1ffffd8 [25]
-      ( 29) |11111111|11111111|11101100|1 [25]        1ffffd9 [25]
-      ( 30) |11111111|11111111|11101101|0 [25]        1ffffda [25]
-      ( 31) |11111111|11111111|11101101|1 [25]        1ffffdb [25]
-  ' ' ( 32) |0000 [4]                                        0 [4]
-  '!' ( 33) |11111111|1010 [12]                           ffa [12]
-  '"' ( 34) |1101010 [7]                                    6a [7]
-  '#' ( 35) |11111111|11010 [13]                         1ffa [13]
-  '$' ( 36) |11111111|111100 [14]                        3ffc [14]
-  '%' ( 37) |11110110|0 [9]                                1ec [9]
-  '&' ( 38) |11111110|00 [10]                             3f8 [10]
-  ''' ( 39) |11111111|11011 [13]                         1ffb [13]
-  '(' ( 40) |11110110|1 [9]                                1ed [9]
-  ')' ( 41) |11110111|0 [9]                                1ee [9]
-  '*' ( 42) |11111111|1011 [12]                           ffb [12]
-  '+' ( 43) |11111111|010 [11]                            7fa [11]
-  ',' ( 44) |100010 [6]                                     22 [6]
-  '-' ( 45) |100011 [6]                                     23 [6]
-  '.' ( 46) |100100 [6]                                     24 [6]
-  '/' ( 47) |1101011 [7]                                    6b [7]
-  '0' ( 48) |0001 [4]                                        1 [4]
-  '1' ( 49) |0010 [4]                                        2 [4]
-  '2' ( 50) |0011 [4]                                        3 [4]
-  '3' ( 51) |01000 [5]                                       8 [5]
-  '4' ( 52) |01001 [5]                                       9 [5]
-  '5' ( 53) |01010 [5]                                       a [5]
-  '6' ( 54) |100101 [6]                                     25 [6]
-  '7' ( 55) |100110 [6]                                     26 [6]
-  '8' ( 56) |01011 [5]                                       b [5]
-  '9' ( 57) |01100 [5]                                       c [5]
-  ':' ( 58) |01101 [5]                                       d [5]
-  ';' ( 59) |11110111|1 [9]                                1ef [9]
-  '<' ( 60) |11111111|11111010| [16]                     fffa [16]
-  '=' ( 61) |1101100 [7]                                    6c [7]
-  '>' ( 62) |11111111|11100 [13]                         1ffc [13]
-  '?' ( 63) |11111111|1100 [12]                           ffc [12]
-  '@' ( 64) |11111111|11111011| [16]                     fffb [16]
-  'A' ( 65) |1101101 [7]                                    6d [7]
-  'B' ( 66) |11101010| [8]                                  ea [8]
-  'C' ( 67) |11101011| [8]                                  eb [8]
-  'D' ( 68) |11101100| [8]                                  ec [8]
-  'E' ( 69) |11101101| [8]                                  ed [8]
-  'F' ( 70) |11101110| [8]                                  ee [8]
-  'G' ( 71) |100111 [6]                                     27 [6]
-  'H' ( 72) |11111000|0 [9]                                1f0 [9]
-  'I' ( 73) |11101111| [8]                                  ef [8]
-  'J' ( 74) |11110000| [8]                                  f0 [8]
-  'K' ( 75) |11111110|01 [10]                             3f9 [10]
-  'L' ( 76) |11111000|1 [9]                                1f1 [9]
-  'M' ( 77) |101000 [6]                                     28 [6]
-  'N' ( 78) |11110001| [8]                                  f1 [8]
-  'O' ( 79) |11110010| [8]                                  f2 [8]
-  'P' ( 80) |11111001|0 [9]                                1f2 [9]
-  'Q' ( 81) |11111110|10 [10]                             3fa [10]
-  'R' ( 82) |11111001|1 [9]                                1f3 [9]
-  'S' ( 83) |101001 [6]                                     29 [6]
-  'T' ( 84) |01110 [5]                                       e [5]
-  'U' ( 85) |11111010|0 [9]                                1f4 [9]
-  'V' ( 86) |11111010|1 [9]                                1f5 [9]
-  'W' ( 87) |11110011| [8]                                  f3 [8]
-  'X' ( 88) |11111110|11 [10]                             3fb [10]
-  'Y' ( 89) |11111011|0 [9]                                1f6 [9]
-  'Z' ( 90) |11111111|00 [10]                             3fc [10]
-  '[' ( 91) |11111111|011 [11]                            7fb [11]
-  '\' ( 92) |11111111|11101 [13]                         1ffd [13]
-  ']' ( 93) |11111111|100 [11]                            7fc [11]
-  '^' ( 94) |11111111|1111100 [15]                       7ffc [15]
-  '_' ( 95) |11111011|1 [9]                                1f7 [9]
-  '`' ( 96) |11111111|11111111|0 [17]                   1fffe [17]
-  'a' ( 97) |01111 [5]                                       f [5]
-  'b' ( 98) |1101110 [7]                                    6e [7]
-  'c' ( 99) |101010 [6]                                     2a [6]
-  'd' (100) |101011 [6]                                     2b [6]
-  'e' (101) |10000 [5]                                      10 [5]
-  'f' (102) |1101111 [7]                                    6f [7]
-  'g' (103) |1110000 [7]                                    70 [7]
-  'h' (104) |1110001 [7]                                    71 [7]
-  'i' (105) |101100 [6]                                     2c [6]
-  'j' (106) |11111100|0 [9]                                1f8 [9]
-  'k' (107) |11111100|1 [9]                                1f9 [9]
-  'l' (108) |1110010 [7]                                    72 [7]
-  'm' (109) |101101 [6]                                     2d [6]
-  'n' (110) |101110 [6]                                     2e [6]
-  'o' (111) |101111 [6]                                     2f [6]
-  'p' (112) |110000 [6]                                     30 [6]
-  'q' (113) |11111101|0 [9]                                1fa [9]
-  'r' (114) |110001 [6]                                     31 [6]
-  's' (115) |110010 [6]                                     32 [6]
-  't' (116) |110011 [6]                                     33 [6]
-  'u' (117) |110100 [6]                                     34 [6]
-  'v' (118) |1110011 [7]                                    73 [7]
-  'w' (119) |11110100| [8]                                  f4 [8]
-  'x' (120) |1110100 [7]                                    74 [7]
-  'y' (121) |11110101| [8]                                  f5 [8]
-  'z' (122) |11111101|1 [9]                                1fb [9]
-  '{' (123) |11111111|11111100| [16]                     fffc [16]
-  '|' (124) |11111111|111101 [14]                        3ffd [14]
-  '}' (125) |11111111|11111101| [16]                     fffd [16]
-  '~' (126) |11111111|11111110| [16]                     fffe [16]
-      (127) |11111111|11111111|11101110|0 [25]        1ffffdc [25]
-      (128) |11111111|11111111|11101110|1 [25]        1ffffdd [25]
-      (129) |11111111|11111111|11101111|0 [25]        1ffffde [25]
-      (130) |11111111|11111111|11101111|1 [25]        1ffffdf [25]
-      (131) |11111111|11111111|11110000|0 [25]        1ffffe0 [25]
-      (132) |11111111|11111111|11110000|1 [25]        1ffffe1 [25]
-      (133) |11111111|11111111|11110001|0 [25]        1ffffe2 [25]
-      (134) |11111111|11111111|11110001|1 [25]        1ffffe3 [25]
-      (135) |11111111|11111111|11110010|0 [25]        1ffffe4 [25]
-      (136) |11111111|11111111|11110010|1 [25]        1ffffe5 [25]
-      (137) |11111111|11111111|11110011|0 [25]        1ffffe6 [25]
-      (138) |11111111|11111111|11110011|1 [25]        1ffffe7 [25]
-      (139) |11111111|11111111|11110100|0 [25]        1ffffe8 [25]
-      (140) |11111111|11111111|11110100|1 [25]        1ffffe9 [25]
-      (141) |11111111|11111111|11110101|0 [25]        1ffffea [25]
-      (142) |11111111|11111111|11110101|1 [25]        1ffffeb [25]
-      (143) |11111111|11111111|11110110|0 [25]        1ffffec [25]
-      (144) |11111111|11111111|11110110|1 [25]        1ffffed [25]
-      (145) |11111111|11111111|11110111|0 [25]        1ffffee [25]
-      (146) |11111111|11111111|11110111|1 [25]        1ffffef [25]
-      (147) |11111111|11111111|11111000|0 [25]        1fffff0 [25]
-      (148) |11111111|11111111|11111000|1 [25]        1fffff1 [25]
-      (149) |11111111|11111111|11111001|0 [25]        1fffff2 [25]
-      (150) |11111111|11111111|11111001|1 [25]        1fffff3 [25]
-      (151) |11111111|11111111|11111010|0 [25]        1fffff4 [25]
-      (152) |11111111|11111111|11111010|1 [25]        1fffff5 [25]
-      (153) |11111111|11111111|11111011|0 [25]        1fffff6 [25]
-      (154) |11111111|11111111|11111011|1 [25]        1fffff7 [25]
-      (155) |11111111|11111111|11111100|0 [25]        1fffff8 [25]
-      (156) |11111111|11111111|11111100|1 [25]        1fffff9 [25]
-      (157) |11111111|11111111|11111101|0 [25]        1fffffa [25]
-      (158) |11111111|11111111|11111101|1 [25]        1fffffb [25]
-      (159) |11111111|11111111|11111110|0 [25]        1fffffc [25]
-      (160) |11111111|11111111|11111110|1 [25]        1fffffd [25]
-      (161) |11111111|11111111|11111111|0 [25]        1fffffe [25]
-      (162) |11111111|11111111|11111111|1 [25]        1ffffff [25]
-      (163) |11111111|11111111|10000000| [24]          ffff80 [24]
-      (164) |11111111|11111111|10000001| [24]          ffff81 [24]
-      (165) |11111111|11111111|10000010| [24]          ffff82 [24]
-      (166) |11111111|11111111|10000011| [24]          ffff83 [24]
-      (167) |11111111|11111111|10000100| [24]          ffff84 [24]
-      (168) |11111111|11111111|10000101| [24]          ffff85 [24]
-      (169) |11111111|11111111|10000110| [24]          ffff86 [24]
-      (170) |11111111|11111111|10000111| [24]          ffff87 [24]
-      (171) |11111111|11111111|10001000| [24]          ffff88 [24]
-      (172) |11111111|11111111|10001001| [24]          ffff89 [24]
-      (173) |11111111|11111111|10001010| [24]          ffff8a [24]
-      (174) |11111111|11111111|10001011| [24]          ffff8b [24]
-      (175) |11111111|11111111|10001100| [24]          ffff8c [24]
-      (176) |11111111|11111111|10001101| [24]          ffff8d [24]
-      (177) |11111111|11111111|10001110| [24]          ffff8e [24]
-      (178) |11111111|11111111|10001111| [24]          ffff8f [24]
-      (179) |11111111|11111111|10010000| [24]          ffff90 [24]
-      (180) |11111111|11111111|10010001| [24]          ffff91 [24]
-      (181) |11111111|11111111|10010010| [24]          ffff92 [24]
-      (182) |11111111|11111111|10010011| [24]          ffff93 [24]
-      (183) |11111111|11111111|10010100| [24]          ffff94 [24]
-      (184) |11111111|11111111|10010101| [24]          ffff95 [24]
-      (185) |11111111|11111111|10010110| [24]          ffff96 [24]
-      (186) |11111111|11111111|10010111| [24]          ffff97 [24]
-      (187) |11111111|11111111|10011000| [24]          ffff98 [24]
-      (188) |11111111|11111111|10011001| [24]          ffff99 [24]
-      (189) |11111111|11111111|10011010| [24]          ffff9a [24]
-      (190) |11111111|11111111|10011011| [24]          ffff9b [24]
-      (191) |11111111|11111111|10011100| [24]          ffff9c [24]
-      (192) |11111111|11111111|10011101| [24]          ffff9d [24]
-      (193) |11111111|11111111|10011110| [24]          ffff9e [24]
-      (194) |11111111|11111111|10011111| [24]          ffff9f [24]
-      (195) |11111111|11111111|10100000| [24]          ffffa0 [24]
-      (196) |11111111|11111111|10100001| [24]          ffffa1 [24]
-      (197) |11111111|11111111|10100010| [24]          ffffa2 [24]
-      (198) |11111111|11111111|10100011| [24]          ffffa3 [24]
-      (199) |11111111|11111111|10100100| [24]          ffffa4 [24]
-      (200) |11111111|11111111|10100101| [24]          ffffa5 [24]
-      (201) |11111111|11111111|10100110| [24]          ffffa6 [24]
-      (202) |11111111|11111111|10100111| [24]          ffffa7 [24]
-      (203) |11111111|11111111|10101000| [24]          ffffa8 [24]
-      (204) |11111111|11111111|10101001| [24]          ffffa9 [24]
-      (205) |11111111|11111111|10101010| [24]          ffffaa [24]
-      (206) |11111111|11111111|10101011| [24]          ffffab [24]
-      (207) |11111111|11111111|10101100| [24]          ffffac [24]
-      (208) |11111111|11111111|10101101| [24]          ffffad [24]
-      (209) |11111111|11111111|10101110| [24]          ffffae [24]
-      (210) |11111111|11111111|10101111| [24]          ffffaf [24]
-      (211) |11111111|11111111|10110000| [24]          ffffb0 [24]
-      (212) |11111111|11111111|10110001| [24]          ffffb1 [24]
-      (213) |11111111|11111111|10110010| [24]          ffffb2 [24]
-      (214) |11111111|11111111|10110011| [24]          ffffb3 [24]
-      (215) |11111111|11111111|10110100| [24]          ffffb4 [24]
-      (216) |11111111|11111111|10110101| [24]          ffffb5 [24]
-      (217) |11111111|11111111|10110110| [24]          ffffb6 [24]
-      (218) |11111111|11111111|10110111| [24]          ffffb7 [24]
-      (219) |11111111|11111111|10111000| [24]          ffffb8 [24]
-      (220) |11111111|11111111|10111001| [24]          ffffb9 [24]
-      (221) |11111111|11111111|10111010| [24]          ffffba [24]
-      (222) |11111111|11111111|10111011| [24]          ffffbb [24]
-      (223) |11111111|11111111|10111100| [24]          ffffbc [24]
-      (224) |11111111|11111111|10111101| [24]          ffffbd [24]
-      (225) |11111111|11111111|10111110| [24]          ffffbe [24]
-      (226) |11111111|11111111|10111111| [24]          ffffbf [24]
-      (227) |11111111|11111111|11000000| [24]          ffffc0 [24]
-      (228) |11111111|11111111|11000001| [24]          ffffc1 [24]
-      (229) |11111111|11111111|11000010| [24]          ffffc2 [24]
-      (230) |11111111|11111111|11000011| [24]          ffffc3 [24]
-      (231) |11111111|11111111|11000100| [24]          ffffc4 [24]
-      (232) |11111111|11111111|11000101| [24]          ffffc5 [24]
-      (233) |11111111|11111111|11000110| [24]          ffffc6 [24]
-      (234) |11111111|11111111|11000111| [24]          ffffc7 [24]
-      (235) |11111111|11111111|11001000| [24]          ffffc8 [24]
-      (236) |11111111|11111111|11001001| [24]          ffffc9 [24]
-      (237) |11111111|11111111|11001010| [24]          ffffca [24]
-      (238) |11111111|11111111|11001011| [24]          ffffcb [24]
-      (239) |11111111|11111111|11001100| [24]          ffffcc [24]
-      (240) |11111111|11111111|11001101| [24]          ffffcd [24]
-      (241) |11111111|11111111|11001110| [24]          ffffce [24]
-      (242) |11111111|11111111|11001111| [24]          ffffcf [24]
-      (243) |11111111|11111111|11010000| [24]          ffffd0 [24]
-      (244) |11111111|11111111|11010001| [24]          ffffd1 [24]
-      (245) |11111111|11111111|11010010| [24]          ffffd2 [24]
-      (246) |11111111|11111111|11010011| [24]          ffffd3 [24]
-      (247) |11111111|11111111|11010100| [24]          ffffd4 [24]
-      (248) |11111111|11111111|11010101| [24]          ffffd5 [24]
-      (249) |11111111|11111111|11010110| [24]          ffffd6 [24]
-      (250) |11111111|11111111|11010111| [24]          ffffd7 [24]
-      (251) |11111111|11111111|11011000| [24]          ffffd8 [24]
-      (252) |11111111|11111111|11011001| [24]          ffffd9 [24]
-      (253) |11111111|11111111|11011010| [24]          ffffda [24]
-      (254) |11111111|11111111|11011011| [24]          ffffdb [24]
-      (255) |11111111|11111111|11011100| [24]          ffffdc [24]
-  EOS (256) |11111111|11111111|11011101| [24]          ffffdd [24]
-            ]]>
-                    </artwork>
+                                            code        
+                    code as bits           as hex   len 
+     sym           aligned to MSB          aligned   in 
+                                           to LSB   bits
+    (  0)  |11111111|11111111|11101110|10  3ffffba  [26]
+    (  1)  |11111111|11111111|11101110|11  3ffffbb  [26]
+    (  2)  |11111111|11111111|11101111|00  3ffffbc  [26]
+    (  3)  |11111111|11111111|11101111|01  3ffffbd  [26]
+    (  4)  |11111111|11111111|11101111|10  3ffffbe  [26]
+    (  5)  |11111111|11111111|11101111|11  3ffffbf  [26]
+    (  6)  |11111111|11111111|11110000|00  3ffffc0  [26]
+    (  7)  |11111111|11111111|11110000|01  3ffffc1  [26]
+    (  8)  |11111111|11111111|11110000|10  3ffffc2  [26]
+    (  9)  |11111111|11111111|11110000|11  3ffffc3  [26]
+    ( 10)  |11111111|11111111|11110001|00  3ffffc4  [26]
+    ( 11)  |11111111|11111111|11110001|01  3ffffc5  [26]
+    ( 12)  |11111111|11111111|11110001|10  3ffffc6  [26]
+    ( 13)  |11111111|11111111|11110001|11  3ffffc7  [26]
+    ( 14)  |11111111|11111111|11110010|00  3ffffc8  [26]
+    ( 15)  |11111111|11111111|11110010|01  3ffffc9  [26]
+    ( 16)  |11111111|11111111|11110010|10  3ffffca  [26]
+    ( 17)  |11111111|11111111|11110010|11  3ffffcb  [26]
+    ( 18)  |11111111|11111111|11110011|00  3ffffcc  [26]
+    ( 19)  |11111111|11111111|11110011|01  3ffffcd  [26]
+    ( 20)  |11111111|11111111|11110011|10  3ffffce  [26]
+    ( 21)  |11111111|11111111|11110011|11  3ffffcf  [26]
+    ( 22)  |11111111|11111111|11110100|00  3ffffd0  [26]
+    ( 23)  |11111111|11111111|11110100|01  3ffffd1  [26]
+    ( 24)  |11111111|11111111|11110100|10  3ffffd2  [26]
+    ( 25)  |11111111|11111111|11110100|11  3ffffd3  [26]
+    ( 26)  |11111111|11111111|11110101|00  3ffffd4  [26]
+    ( 27)  |11111111|11111111|11110101|01  3ffffd5  [26]
+    ( 28)  |11111111|11111111|11110101|10  3ffffd6  [26]
+    ( 29)  |11111111|11111111|11110101|11  3ffffd7  [26]
+    ( 30)  |11111111|11111111|11110110|00  3ffffd8  [26]
+    ( 31)  |11111111|11111111|11110110|01  3ffffd9  [26]
+' ' ( 32)  |00110                                6  [ 5]
+'!' ( 33)  |11111111|11100                    1ffc  [13]
+'"' ( 34)  |11111000|0                         1f0  [ 9]
+'#' ( 35)  |11111111|111100                   3ffc  [14]
+'$' ( 36)  |11111111|1111100                  7ffc  [15]
+'%' ( 37)  |011110                              1e  [ 6]
+'&' ( 38)  |1100100                             64  [ 7]
+''' ( 39)  |11111111|11101                    1ffd  [13]
+'(' ( 40)  |11111110|10                        3fa  [10]
+')' ( 41)  |11111000|1                         1f1  [ 9]
+'*' ( 42)  |11111110|11                        3fb  [10]
+'+' ( 43)  |11111111|00                        3fc  [10]
+',' ( 44)  |1100101                             65  [ 7]
+'-' ( 45)  |1100110                             66  [ 7]
+'.' ( 46)  |011111                              1f  [ 6]
+'/' ( 47)  |00111                                7  [ 5]
+'0' ( 48)  |0000                                 0  [ 4]
+'1' ( 49)  |0001                                 1  [ 4]
+'2' ( 50)  |0010                                 2  [ 4]
+'3' ( 51)  |01000                                8  [ 5]
+'4' ( 52)  |100000                              20  [ 6]
+'5' ( 53)  |100001                              21  [ 6]
+'6' ( 54)  |100010                              22  [ 6]
+'7' ( 55)  |100011                              23  [ 6]
+'8' ( 56)  |100100                              24  [ 6]
+'9' ( 57)  |100101                              25  [ 6]
+':' ( 58)  |100110                              26  [ 6]
+';' ( 59)  |11101100|                           ec  [ 8]
+'<' ( 60)  |11111111|11111110|0              1fffc  [17]
+'=' ( 61)  |100111                              27  [ 6]
+'>' ( 62)  |11111111|1111101                  7ffd  [15]
+'?' ( 63)  |11111111|01                        3fd  [10]
+'@' ( 64)  |11111111|1111110                  7ffe  [15]
+'A' ( 65)  |1100111                             67  [ 7]
+'B' ( 66)  |11101101|                           ed  [ 8]
+'C' ( 67)  |11101110|                           ee  [ 8]
+'D' ( 68)  |1101000                             68  [ 7]
+'E' ( 69)  |11101111|                           ef  [ 8]
+'F' ( 70)  |1101001                             69  [ 7]
+'G' ( 71)  |1101010                             6a  [ 7]
+'H' ( 72)  |11111001|0                         1f2  [ 9]
+'I' ( 73)  |11110000|                           f0  [ 8]
+'J' ( 74)  |11111001|1                         1f3  [ 9]
+'K' ( 75)  |11111010|0                         1f4  [ 9]
+'L' ( 76)  |11111010|1                         1f5  [ 9]
+'M' ( 77)  |1101011                             6b  [ 7]
+'N' ( 78)  |1101100                             6c  [ 7]
+'O' ( 79)  |11110001|                           f1  [ 8]
+'P' ( 80)  |11110010|                           f2  [ 8]
+'Q' ( 81)  |11111011|0                         1f6  [ 9]
+'R' ( 82)  |11111011|1                         1f7  [ 9]
+'S' ( 83)  |1101101                             6d  [ 7]
+'T' ( 84)  |101000                              28  [ 6]
+'U' ( 85)  |11110011|                           f3  [ 8]
+'V' ( 86)  |11111100|0                         1f8  [ 9]
+'W' ( 87)  |11111100|1                         1f9  [ 9]
+'X' ( 88)  |11110100|                           f4  [ 8]
+'Y' ( 89)  |11111101|0                         1fa  [ 9]
+'Z' ( 90)  |11111101|1                         1fb  [ 9]
+'[' ( 91)  |11111111|100                       7fc  [11]
+'\' ( 92)  |11111111|11111111|11110110|10  3ffffda  [26]
+']' ( 93)  |11111111|101                       7fd  [11]
+'^' ( 94)  |11111111|111101                   3ffd  [14]
+'_' ( 95)  |1101110                             6e  [ 7]
+'`' ( 96)  |11111111|11111111|10             3fffe  [18]
+'a' ( 97)  |01001                                9  [ 5]
+'b' ( 98)  |1101111                             6f  [ 7]
+'c' ( 99)  |01010                                a  [ 5]
+'d' (100)  |101001                              29  [ 6]
+'e' (101)  |01011                                b  [ 5]
+'f' (102)  |1110000                             70  [ 7]
+'g' (103)  |101010                              2a  [ 6]
+'h' (104)  |101011                              2b  [ 6]
+'i' (105)  |01100                                c  [ 5]
+'j' (106)  |11110101|                           f5  [ 8]
+'k' (107)  |11110110|                           f6  [ 8]
+'l' (108)  |101100                              2c  [ 6]
+'m' (109)  |101101                              2d  [ 6]
+'n' (110)  |101110                              2e  [ 6]
+'o' (111)  |01101                                d  [ 5]
+'p' (112)  |101111                              2f  [ 6]
+'q' (113)  |11111110|0                         1fc  [ 9]
+'r' (114)  |110000                              30  [ 6]
+'s' (115)  |110001                              31  [ 6]
+'t' (116)  |01110                                e  [ 5]
+'u' (117)  |1110001                             71  [ 7]
+'v' (118)  |1110010                             72  [ 7]
+'w' (119)  |1110011                             73  [ 7]
+'x' (120)  |1110100                             74  [ 7]
+'y' (121)  |1110101                             75  [ 7]
+'z' (122)  |11110111|                           f7  [ 8]
+'{' (123)  |11111111|11111110|1              1fffd  [17]
+'|' (124)  |11111111|1100                      ffc  [12]
+'}' (125)  |11111111|11111111|0              1fffe  [17]
+'~' (126)  |11111111|1101                      ffd  [12]
+    (127)  |11111111|11111111|11110110|11  3ffffdb  [26]
+    (128)  |11111111|11111111|11110111|00  3ffffdc  [26]
+    (129)  |11111111|11111111|11110111|01  3ffffdd  [26]
+    (130)  |11111111|11111111|11110111|10  3ffffde  [26]
+    (131)  |11111111|11111111|11110111|11  3ffffdf  [26]
+    (132)  |11111111|11111111|11111000|00  3ffffe0  [26]
+    (133)  |11111111|11111111|11111000|01  3ffffe1  [26]
+    (134)  |11111111|11111111|11111000|10  3ffffe2  [26]
+    (135)  |11111111|11111111|11111000|11  3ffffe3  [26]
+    (136)  |11111111|11111111|11111001|00  3ffffe4  [26]
+    (137)  |11111111|11111111|11111001|01  3ffffe5  [26]
+    (138)  |11111111|11111111|11111001|10  3ffffe6  [26]
+    (139)  |11111111|11111111|11111001|11  3ffffe7  [26]
+    (140)  |11111111|11111111|11111010|00  3ffffe8  [26]
+    (141)  |11111111|11111111|11111010|01  3ffffe9  [26]
+    (142)  |11111111|11111111|11111010|10  3ffffea  [26]
+    (143)  |11111111|11111111|11111010|11  3ffffeb  [26]
+    (144)  |11111111|11111111|11111011|00  3ffffec  [26]
+    (145)  |11111111|11111111|11111011|01  3ffffed  [26]
+    (146)  |11111111|11111111|11111011|10  3ffffee  [26]
+    (147)  |11111111|11111111|11111011|11  3ffffef  [26]
+    (148)  |11111111|11111111|11111100|00  3fffff0  [26]
+    (149)  |11111111|11111111|11111100|01  3fffff1  [26]
+    (150)  |11111111|11111111|11111100|10  3fffff2  [26]
+    (151)  |11111111|11111111|11111100|11  3fffff3  [26]
+    (152)  |11111111|11111111|11111101|00  3fffff4  [26]
+    (153)  |11111111|11111111|11111101|01  3fffff5  [26]
+    (154)  |11111111|11111111|11111101|10  3fffff6  [26]
+    (155)  |11111111|11111111|11111101|11  3fffff7  [26]
+    (156)  |11111111|11111111|11111110|00  3fffff8  [26]
+    (157)  |11111111|11111111|11111110|01  3fffff9  [26]
+    (158)  |11111111|11111111|11111110|10  3fffffa  [26]
+    (159)  |11111111|11111111|11111110|11  3fffffb  [26]
+    (160)  |11111111|11111111|11111111|00  3fffffc  [26]
+    (161)  |11111111|11111111|11111111|01  3fffffd  [26]
+    (162)  |11111111|11111111|11111111|10  3fffffe  [26]
+    (163)  |11111111|11111111|11111111|11  3ffffff  [26]
+    (164)  |11111111|11111111|11000000|0   1ffff80  [25]
+    (165)  |11111111|11111111|11000000|1   1ffff81  [25]
+    (166)  |11111111|11111111|11000001|0   1ffff82  [25]
+    (167)  |11111111|11111111|11000001|1   1ffff83  [25]
+    (168)  |11111111|11111111|11000010|0   1ffff84  [25]
+    (169)  |11111111|11111111|11000010|1   1ffff85  [25]
+    (170)  |11111111|11111111|11000011|0   1ffff86  [25]
+    (171)  |11111111|11111111|11000011|1   1ffff87  [25]
+    (172)  |11111111|11111111|11000100|0   1ffff88  [25]
+    (173)  |11111111|11111111|11000100|1   1ffff89  [25]
+    (174)  |11111111|11111111|11000101|0   1ffff8a  [25]
+    (175)  |11111111|11111111|11000101|1   1ffff8b  [25]
+    (176)  |11111111|11111111|11000110|0   1ffff8c  [25]
+    (177)  |11111111|11111111|11000110|1   1ffff8d  [25]
+    (178)  |11111111|11111111|11000111|0   1ffff8e  [25]
+    (179)  |11111111|11111111|11000111|1   1ffff8f  [25]
+    (180)  |11111111|11111111|11001000|0   1ffff90  [25]
+    (181)  |11111111|11111111|11001000|1   1ffff91  [25]
+    (182)  |11111111|11111111|11001001|0   1ffff92  [25]
+    (183)  |11111111|11111111|11001001|1   1ffff93  [25]
+    (184)  |11111111|11111111|11001010|0   1ffff94  [25]
+    (185)  |11111111|11111111|11001010|1   1ffff95  [25]
+    (186)  |11111111|11111111|11001011|0   1ffff96  [25]
+    (187)  |11111111|11111111|11001011|1   1ffff97  [25]
+    (188)  |11111111|11111111|11001100|0   1ffff98  [25]
+    (189)  |11111111|11111111|11001100|1   1ffff99  [25]
+    (190)  |11111111|11111111|11001101|0   1ffff9a  [25]
+    (191)  |11111111|11111111|11001101|1   1ffff9b  [25]
+    (192)  |11111111|11111111|11001110|0   1ffff9c  [25]
+    (193)  |11111111|11111111|11001110|1   1ffff9d  [25]
+    (194)  |11111111|11111111|11001111|0   1ffff9e  [25]
+    (195)  |11111111|11111111|11001111|1   1ffff9f  [25]
+    (196)  |11111111|11111111|11010000|0   1ffffa0  [25]
+    (197)  |11111111|11111111|11010000|1   1ffffa1  [25]
+    (198)  |11111111|11111111|11010001|0   1ffffa2  [25]
+    (199)  |11111111|11111111|11010001|1   1ffffa3  [25]
+    (200)  |11111111|11111111|11010010|0   1ffffa4  [25]
+    (201)  |11111111|11111111|11010010|1   1ffffa5  [25]
+    (202)  |11111111|11111111|11010011|0   1ffffa6  [25]
+    (203)  |11111111|11111111|11010011|1   1ffffa7  [25]
+    (204)  |11111111|11111111|11010100|0   1ffffa8  [25]
+    (205)  |11111111|11111111|11010100|1   1ffffa9  [25]
+    (206)  |11111111|11111111|11010101|0   1ffffaa  [25]
+    (207)  |11111111|11111111|11010101|1   1ffffab  [25]
+    (208)  |11111111|11111111|11010110|0   1ffffac  [25]
+    (209)  |11111111|11111111|11010110|1   1ffffad  [25]
+    (210)  |11111111|11111111|11010111|0   1ffffae  [25]
+    (211)  |11111111|11111111|11010111|1   1ffffaf  [25]
+    (212)  |11111111|11111111|11011000|0   1ffffb0  [25]
+    (213)  |11111111|11111111|11011000|1   1ffffb1  [25]
+    (214)  |11111111|11111111|11011001|0   1ffffb2  [25]
+    (215)  |11111111|11111111|11011001|1   1ffffb3  [25]
+    (216)  |11111111|11111111|11011010|0   1ffffb4  [25]
+    (217)  |11111111|11111111|11011010|1   1ffffb5  [25]
+    (218)  |11111111|11111111|11011011|0   1ffffb6  [25]
+    (219)  |11111111|11111111|11011011|1   1ffffb7  [25]
+    (220)  |11111111|11111111|11011100|0   1ffffb8  [25]
+    (221)  |11111111|11111111|11011100|1   1ffffb9  [25]
+    (222)  |11111111|11111111|11011101|0   1ffffba  [25]
+    (223)  |11111111|11111111|11011101|1   1ffffbb  [25]
+    (224)  |11111111|11111111|11011110|0   1ffffbc  [25]
+    (225)  |11111111|11111111|11011110|1   1ffffbd  [25]
+    (226)  |11111111|11111111|11011111|0   1ffffbe  [25]
+    (227)  |11111111|11111111|11011111|1   1ffffbf  [25]
+    (228)  |11111111|11111111|11100000|0   1ffffc0  [25]
+    (229)  |11111111|11111111|11100000|1   1ffffc1  [25]
+    (230)  |11111111|11111111|11100001|0   1ffffc2  [25]
+    (231)  |11111111|11111111|11100001|1   1ffffc3  [25]
+    (232)  |11111111|11111111|11100010|0   1ffffc4  [25]
+    (233)  |11111111|11111111|11100010|1   1ffffc5  [25]
+    (234)  |11111111|11111111|11100011|0   1ffffc6  [25]
+    (235)  |11111111|11111111|11100011|1   1ffffc7  [25]
+    (236)  |11111111|11111111|11100100|0   1ffffc8  [25]
+    (237)  |11111111|11111111|11100100|1   1ffffc9  [25]
+    (238)  |11111111|11111111|11100101|0   1ffffca  [25]
+    (239)  |11111111|11111111|11100101|1   1ffffcb  [25]
+    (240)  |11111111|11111111|11100110|0   1ffffcc  [25]
+    (241)  |11111111|11111111|11100110|1   1ffffcd  [25]
+    (242)  |11111111|11111111|11100111|0   1ffffce  [25]
+    (243)  |11111111|11111111|11100111|1   1ffffcf  [25]
+    (244)  |11111111|11111111|11101000|0   1ffffd0  [25]
+    (245)  |11111111|11111111|11101000|1   1ffffd1  [25]
+    (246)  |11111111|11111111|11101001|0   1ffffd2  [25]
+    (247)  |11111111|11111111|11101001|1   1ffffd3  [25]
+    (248)  |11111111|11111111|11101010|0   1ffffd4  [25]
+    (249)  |11111111|11111111|11101010|1   1ffffd5  [25]
+    (250)  |11111111|11111111|11101011|0   1ffffd6  [25]
+    (251)  |11111111|11111111|11101011|1   1ffffd7  [25]
+    (252)  |11111111|11111111|11101100|0   1ffffd8  [25]
+    (253)  |11111111|11111111|11101100|1   1ffffd9  [25]
+    (254)  |11111111|11111111|11101101|0   1ffffda  [25]
+    (255)  |11111111|11111111|11101101|1   1ffffdb  [25]
+EOS (256)  |11111111|11111111|11101110|0   1ffffdc  [25]
+]]></artwork>
                 </figure>
             </t>
         </section>
 
+
         <section title="Examples" anchor="examples">
             <t>
-                A number of examples are worked through here, for both
-                requests and responses, and with and without Huffman coding.
+                A number of examples are worked through here, covering integer
+                encoding, header field representation, and the encoding of
+                whole sets of header fields, for both requests and responses,
+                and with and without Huffman coding.
             </t>
-<!-- stex -->
+
+            <section title="Integer Representation Examples"
+                anchor="integer.representation.examples">
+                <t>
+                    This section shows the representation of integer values in
+                    details (see <xref target="integer.representation"/>).
+                </t>
+                <section title="Example 1: Encoding 10 using a 5-bit prefix"
+                    anchor="integer.representation.example1">
+                    <t>
+                        The value 10 is to be encoded with a 5-bit prefix.
+                        <list style="symbols">
+                            <t>
+                                10 is less than 31 (2<x:sup>5</x:sup> -
+                                1) and is represented using the 5-bit
+                                prefix.
+                            </t>
+                        </list>
+                    </t>
+                    <figure>
+                        <artwork><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 0 | 1 | 0 | 1 | 0 |   10 stored on 5 bits
++---+---+---+---+---+---+---+---+
+]]></artwork>
+                    </figure>
+                </section>
+
+                <section title="Example 2: Encoding 1337 using a 5-bit prefix"
+                    anchor="integer.representation.example2">
+                    <t>
+                        The value I=1337 is to be encoded with a 5-bit
+                        prefix.
+                        <list>
+                            <t>
+                                1337 is greater than 31 (2<x:sup>5</x:sup> -
+                                1).
+                            </t>
+                            <t>
+                                <list>
+                                    <t>The 5-bit prefix is filled with its
+                                        max value (31).</t>
+                                </list>
+                            </t>
+                            <t>I = 1337 - (2<x:sup>5</x:sup> - 1) =
+                                1306.</t>
+                            <t>
+                                <list>
+                                    <t>I (1306) is greater than or equal
+                                        to 128, the while loop body
+                                        executes:</t>
+                                    <t>
+                                        <list>
+                                            <t>I % 128 == 26</t>
+                                            <t>26 + 128 == 154</t>
+                                            <t>154 is encoded in 8 bits as:
+                                                10011010</t>
+                                            <t>I is set to 10 (1306 / 128 ==
+                                                10)</t>
+                                            <t>I is no longer greater than
+                                                or equal to 128, the while
+                                                loop terminates.</t>
+                                        </list>
+                                    </t>
+                                    <t>
+                                        I, now 10, is encoded on 8 bits
+                                        as: 00001010.
+                                    </t>
+                                </list>
+                            </t>
+
+                            <t>The process ends.</t>
+                        </list>
+
+                    </t>
+                    <figure>
+                        <artwork><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 1 | 1 | 1 | 1 | 1 |  Prefix = 31, I = 1306
+| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |  1306>=128, encode(154), I=1306/128
+| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |  10<128, encode(10), done
++---+---+---+---+---+---+---+---+
+]]></artwork>
+                    </figure>
+                </section>
+
+                <section title="Example 3: Encoding 42 starting at an
+                    octet-boundary"
+                    anchor="integer.representation.example3">
+                    <t>
+                        The value 42 is to be encoded starting at an
+                        octet-boundary. This implies that a 8-bit prefix is
+                        used.
+                        <list style="symbols">
+                            <t>
+                                42 is less than 255 (2<x:sup>8</x:sup> -
+                                1) and is represented using the 8-bit
+                                prefix.
+                            </t>
+                        </list>
+                    </t>
+                    <figure>
+                        <artwork><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |   42 stored on 8 bits
++---+---+---+---+---+---+---+---+
+]]></artwork>
+                    </figure>
+                </section>
+            </section>
+
+<!-- example-start -->
 <section title="Header Field Representation Examples"
     anchor="header.field.representation.examples">
     <t>
-        This section show several independent representation examples.
+        This section shows several independent representation examples.
     </t>
     <section title="Literal Header Field with Indexing">
         <t>
@@ -2076,7 +2088,7 @@ Else
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[000a 6375 7374 6f6d 2d6b 6579 0d63 7573 | ..custom-key.cus
+<![CDATA[400a 6375 7374 6f6d 2d6b 6579 0d63 7573 | @.custom-key.cus
 746f 6d2d 6865 6164 6572                | tom-header]]></artwork>
             </figure>
         </t>
@@ -2084,7 +2096,7 @@ Else
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[00                                      | == Literal indexed ==
+<![CDATA[40                                      | == Literal indexed ==
 0a                                      |   Literal name (len = 10)
 6375 7374 6f6d 2d6b 6579                | custom-key
 0d                                      |   Literal value (len = 13)
@@ -2128,14 +2140,14 @@ Else
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[440c 2f73 616d 706c 652f 7061 7468      | D./sample/path]]></artwork>
+<![CDATA[040c 2f73 616d 706c 652f 7061 7468      | ../sample/path]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[44                                      | == Literal not indexed ==
+<![CDATA[04                                      | == Literal not indexed ==
                                         |   Indexed name (idx = 4)
                                         |     :path
 0c                                      |   Literal value (len = 12)
@@ -2207,8 +2219,9 @@ the header table.
     <section title="Indexed Header Field from Static Table">
         <t>
             The header field representation uses an indexed header field, from
-the static table. In this example, the SETTINGS_HEADER_TABLE_SIZE is set to 0,
-therefore, the entry is not copied into the header table.
+the static table. In this example, the HTTP/2 setting
+SETTINGS_HEADER_TABLE_SIZE is set to 0, therefore, the entry is not copied
+into the header table.
         </t>
         <t>
             <figure>
@@ -2273,7 +2286,7 @@ to HTTP requests, on the same connection.
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8287 8604 0f77 7777 2e65 7861 6d70 6c65 | .....www.example
+<![CDATA[8287 8644 0f77 7777 2e65 7861 6d70 6c65 | ...D.www.example
 2e63 6f6d                               | .com]]></artwork>
             </figure>
         </t>
@@ -2290,7 +2303,7 @@ to HTTP requests, on the same connection.
 86                                      | == Indexed - Add ==
                                         |   idx = 6
                                         | -> :path: /
-04                                      | == Literal indexed ==
+44                                      | == Literal indexed ==
                                         |   Indexed name (idx = 4)
                                         |     :authority
 0f                                      |   Literal value (len = 15)
@@ -2351,15 +2364,15 @@ cache-control: no-cache]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[1b08 6e6f 2d63 6163 6865                | ..no-cache]]></artwork>
+<![CDATA[5c08 6e6f 2d63 6163 6865                | \.no-cache]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[1b                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 27)
+<![CDATA[5c                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 28)
                                         |     cache-control
 08                                      |   Literal value (len = 8)
 6e6f 2d63 6163 6865                     | no-cache
@@ -2423,7 +2436,7 @@ custom-key: custom-value]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8085 8c8b 8400 0a63 7573 746f 6d2d 6b65 | .......custom-ke
+<![CDATA[3085 8c8b 8440 0a63 7573 746f 6d2d 6b65 | 0....@.custom-ke
 790c 6375 7374 6f6d 2d76 616c 7565      | y.custom-value]]></artwork>
             </figure>
         </t>
@@ -2431,8 +2444,9 @@ custom-key: custom-value]]></artwork>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[80                                      | == Empty reference set ==
+<![CDATA[30                                      | == Empty reference set ==
                                         |   idx = 0
+                                        |   flag = 1
 85                                      | == Indexed - Add ==
                                         |   idx = 5
                                         | -> :method: GET
@@ -2446,7 +2460,7 @@ custom-key: custom-value]]></artwork>
                                         |   idx = 4
                                         | -> :authority: www.example\
                                         |   .com
-00                                      | == Literal indexed ==
+40                                      | == Literal indexed ==
 0a                                      |   Literal name (len = 10)
 6375 7374 6f6d 2d6b 6579                | custom-key
 0c                                      |   Literal value (len = 12)
@@ -2508,7 +2522,8 @@ using Huffman encoding for the literal values.
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8287 8604 8bdb 6d88 3e68 d1cb 1225 ba7f | ......m..h...%..]]></artwork>
+<![CDATA[8287 8644 8ce7 cf9b ebe8 9b6f b16f a9b6 | ...D.......o.o..
+ff                                      | .]]></artwork>
             </figure>
         </t>
         <t>
@@ -2524,12 +2539,12 @@ using Huffman encoding for the literal values.
 86                                      | == Indexed - Add ==
                                         |   idx = 6
                                         | -> :path: /
-04                                      | == Literal indexed ==
+44                                      | == Literal indexed ==
                                         |   Indexed name (idx = 4)
                                         |     :authority
-8b                                      |   Literal value (len = 15)
+8c                                      |   Literal value (len = 15)
                                         |     Huffman encoded:
-db6d 883e 68d1 cb12 25ba 7f             | .m..h...%..
+e7cf 9beb e89b 6fb1 6fa9 b6ff           | ......o.o...
                                         |     Decoded:
                                         | www.example.com
                                         | -> :authority: www.example\
@@ -2588,19 +2603,19 @@ cache-control: no-cache]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[1b86 6365 4a13 98ff                     | ..ceJ...]]></artwork>
+<![CDATA[5c86 b9b9 9495 56bf                     | \.....V.]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[1b                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 27)
+<![CDATA[5c                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 28)
                                         |     cache-control
 86                                      |   Literal value (len = 8)
                                         |     Huffman encoded:
-6365 4a13 98ff                          | ceJ...
+b9b9 9495 56bf                          | ....V.
                                         |     Decoded:
                                         | no-cache
                                         | -> cache-control: no-cache]]></artwork>
@@ -2663,16 +2678,17 @@ custom-key: custom-value]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8085 8c8b 8400 884e b08b 7497 90fa 7f89 | .......N..t.....
-4eb0 8b74 979a 17a8 ff                  | N..t.....]]></artwork>
+<![CDATA[3085 8c8b 8440 8857 1c5c db73 7b2f af89 | 0....@.W.\.s{/..
+571c 5cdb 7372 4d9c 57                  | W.\.srM.W]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[80                                      | == Empty reference set ==
+<![CDATA[30                                      | == Empty reference set ==
                                         |   idx = 0
+                                        |   flag = 1
 85                                      | == Indexed - Add ==
                                         |   idx = 5
                                         | -> :method: GET
@@ -2686,15 +2702,15 @@ custom-key: custom-value]]></artwork>
                                         |   idx = 4
                                         | -> :authority: www.example\
                                         |   .com
-00                                      | == Literal indexed ==
+40                                      | == Literal indexed ==
 88                                      |   Literal name (len = 10)
                                         |     Huffman encoded:
-4eb0 8b74 9790 fa7f                     | N..t....
+571c 5cdb 737b 2faf                     | W.\.s{/.
                                         |     Decoded:
                                         | custom-key
 89                                      |   Literal value (len = 12)
                                         |     Huffman encoded:
-4eb0 8b74 979a 17a8 ff                  | N..t.....
+571c 5cdb 7372 4d9c 57                  | W.\.srM.W
                                         |     Decoded:
                                         | custom-value
                                         | -> custom-key: custom-valu\
@@ -2734,8 +2750,9 @@ custom-key: custom-value]]></artwork>
     anchor="response.examples.without.huffman">
     <t>
         This section shows several consecutive header sets, corresponding
-to HTTP responses, on the same connection. SETTINGS_HEADER_TABLE_SIZE is set
-to the value of 256 octets, causing some evictions to occur.
+to HTTP responses, on the same connection. The HTTP/2 setting
+SETTINGS_HEADER_TABLE_SIZE is set to the value of 256 octets, causing some
+evictions to occur.
     </t>
     <section title="First response">
         <t>
@@ -2755,9 +2772,9 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[0803 3330 3218 0770 7269 7661 7465 221d | ..302..private".
+<![CDATA[4803 3330 3259 0770 7269 7661 7465 631d | H.302Y.privatec.
 4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
-2032 303a 3133 3a32 3120 474d 5430 1768 |  20:13:21 GMT0.h
+2032 303a 3133 3a32 3120 474d 5471 1768 |  20:13:21 GMTq.h
 7474 7073 3a2f 2f77 7777 2e65 7861 6d70 | ttps://www.examp
 6c65 2e63 6f6d                          | le.com]]></artwork>
             </figure>
@@ -2766,28 +2783,28 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[08                                      | == Literal indexed ==
+<![CDATA[48                                      | == Literal indexed ==
                                         |   Indexed name (idx = 8)
                                         |     :status
 03                                      |   Literal value (len = 3)
 3330 32                                 | 302
                                         | -> :status: 302
-18                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 24)
+59                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 25)
                                         |     cache-control
 07                                      |   Literal value (len = 7)
 7072 6976 6174 65                       | private
                                         | -> cache-control: private
-22                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 34)
+63                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 35)
                                         |     date
 1d                                      |   Literal value (len = 29)
 4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
 2032 303a 3133 3a32 3120 474d 54        |  20:13:21 GMT
                                         | -> date: Mon, 21 Oct 2013 \
                                         |   20:13:21 GMT
-30                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 48)
+71                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 49)
                                         |     location
 17                                      |   Literal value (len = 23)
 6874 7470 733a 2f2f 7777 772e 6578 616d | https://www.exam
@@ -2821,9 +2838,12 @@ location: https://www.example.com]]></artwork>
 
     <section title="Second response">
         <t>
-            The (":status", "302") header field is evicted from the header table
-to free space to allow adding the (":status", "200") header field to be
-copied from the static table into the header table.
+            The (":status", "302") header field is evicted from the header
+table to free space to allow adding the (":status", "200") header
+field, copied from the static table into the header table.
+The (":status", "302") header field doesn't need to be
+removed from the reference set as it is evicted from the header
+table.
         </t>
         <t>
             <figure>
@@ -2849,17 +2869,14 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[848c                                    | ..]]></artwork>
+<![CDATA[8c                                      | .]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[84                                      | == Indexed - Remove ==
-                                        |   idx = 4
-                                        | -> :status: 302
-8c                                      | == Indexed - Add ==
+<![CDATA[8c                                      | == Indexed - Add ==
                                         |   idx = 12
                                         | - evict: :status: 302
                                         | -> :status: 200]]></artwork>
@@ -2922,30 +2939,26 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8384 8403 1d4d 6f6e 2c20 3231 204f 6374 | .....Mon, 21 Oct
-2032 3031 3320 3230 3a31 333a 3232 2047 |  2013 20:13:22 G
-4d54 1d04 677a 6970 8484 8383 3a38 666f | MT..gzip....:8fo
-6f3d 4153 444a 4b48 514b 425a 584f 5157 | o=ASDJKHQKBZXOQW
-454f 5049 5541 5851 5745 4f49 553b 206d | EOPIUAXQWEOIU; m
-6178 2d61 6765 3d33 3630 303b 2076 6572 | ax-age=3600; ver
-7369 6f6e 3d31                          | sion=1]]></artwork>
+<![CDATA[8484 431d 4d6f 6e2c 2032 3120 4f63 7420 | ..C.Mon, 21 Oct 
+3230 3133 2032 303a 3133 3a32 3220 474d | 2013 20:13:22 GM
+545e 0467 7a69 7084 8483 837b 3866 6f6f | T^.gzip....{8foo
+3d41 5344 4a4b 4851 4b42 5a58 4f51 5745 | =ASDJKHQKBZXOQWE
+4f50 4955 4158 5157 454f 4955 3b20 6d61 | OPIUAXQWEOIU; ma
+782d 6167 653d 3336 3030 3b20 7665 7273 | x-age=3600; vers
+696f 6e3d 31                            | ion=1]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[83                                      | == Indexed - Remove ==
-                                        |   idx = 3
-                                        | -> date: Mon, 21 Oct 2013 \
-                                        |   20:13:21 GMT
-84                                      | == Indexed - Remove ==
+<![CDATA[84                                      | == Indexed - Remove ==
                                         |   idx = 4
                                         | -> cache-control: private
 84                                      | == Indexed - Add ==
                                         |   idx = 4
                                         | -> cache-control: private
-03                                      | == Literal indexed ==
+43                                      | == Literal indexed ==
                                         |   Indexed name (idx = 3)
                                         |     date
 1d                                      |   Literal value (len = 29)
@@ -2955,8 +2968,8 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
                                         |   ivate
                                         | -> date: Mon, 21 Oct 2013 \
                                         |   20:13:22 GMT
-1d                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 29)
+5e                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 30)
                                         |     content-encoding
 04                                      |   Literal value (len = 4)
 677a 6970                               | gzip
@@ -2977,8 +2990,8 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
 83                                      | == Indexed - Add ==
                                         |   idx = 3
                                         | -> :status: 200
-3a                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 58)
+7b                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 59)
                                         |     set-cookie
 38                                      |   Literal value (len = 56)
 666f 6f3d 4153 444a 4b48 514b 425a 584f | foo=ASDJKHQKBZXO
@@ -3023,9 +3036,10 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
     anchor="response.examples.with.huffman">
     <t>
         This section shows the same examples as the previous section, but
-using Huffman encoding for the literal values. The eviction mechanism uses the
-length of the decoded literal values, so the same evictions occurs as in the
-previous section.
+using Huffman encoding for the literal values. The HTTP/2 setting
+SETTINGS_HEADER_TABLE_SIZE is set to the value of 256 octets, causing some
+evictions to occur. The eviction mechanism uses the length of the decoded
+literal values, so the same evictions occurs as in the previous section.
     </t>
     <section title="First response">
         <t>
@@ -3045,53 +3059,53 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[0882 409f 1886 c31b 39bf 387f 2292 a2fb | ..@.....9.8."...
-a203 20f2 ab30 3124 018b 490d 3209 e877 | .. ..01$..I.2..w
-3093 e39e 7864 dd7a fd3d 3d24 8747 db87 | 0...xd.z.==$.G..
-2849 55f6 ff                            | (IU..]]></artwork>
+<![CDATA[4882 4017 5985 bf06 724b 9763 93d6 dbb2 | H.@.Y...rK.c....
+9884 de2a 7188 0506 2098 5131 09b5 6ba3 | ...*q... .Q1..k.
+7191 adce bf19 8e7e 7cf9 bebe 89b6 fb16 | q.......|.......
+fa9b 6f                                 | ..o]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[08                                      | == Literal indexed ==
+<![CDATA[48                                      | == Literal indexed ==
                                         |   Indexed name (idx = 8)
                                         |     :status
 82                                      |   Literal value (len = 3)
                                         |     Huffman encoded:
-409f                                    | @.
+4017                                    | @.
                                         |     Decoded:
                                         | 302
                                         | -> :status: 302
-18                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 24)
+59                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 25)
                                         |     cache-control
-86                                      |   Literal value (len = 7)
+85                                      |   Literal value (len = 7)
                                         |     Huffman encoded:
-c31b 39bf 387f                          | ..9.8.
+bf06 724b 97                            | ..rK.
                                         |     Decoded:
                                         | private
                                         | -> cache-control: private
-22                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 34)
+63                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 35)
                                         |     date
-92                                      |   Literal value (len = 29)
+93                                      |   Literal value (len = 29)
                                         |     Huffman encoded:
-a2fb a203 20f2 ab30 3124 018b 490d 3209 | .... ..01$..I.2.
-e877                                    | .w
+d6db b298 84de 2a71 8805 0620 9851 3109 | ......*q... .Q1.
+b56b a3                                 | .k.
                                         |     Decoded:
                                         | Mon, 21 Oct 2013 20:13:21 \
                                         | GMT
                                         | -> date: Mon, 21 Oct 2013 \
                                         |   20:13:21 GMT
-30                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 48)
+71                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 49)
                                         |     location
-93                                      |   Literal value (len = 23)
+91                                      |   Literal value (len = 23)
                                         |     Huffman encoded:
-e39e 7864 dd7a fd3d 3d24 8747 db87 2849 | ..xd.z.==$.G..(I
-55f6 ff                                 | U..
+adce bf19 8e7e 7cf9 bebe 89b6 fb16 fa9b | ......|.........
+6f                                      | o
                                         |     Decoded:
                                         | https://www.example.com
                                         | -> location: https://www.e\
@@ -3123,9 +3137,12 @@ location: https://www.example.com]]></artwork>
 
     <section title="Second response">
         <t>
-            The (":status", "302") header field is evicted from the header table
-to free space to allow adding the (":status", "200") header field to be
-copied from the static table into the header table.
+            The (":status", "302") header field is evicted from the header
+table to free space to allow adding the (":status", "200") header
+field, copied from the static table into the header table.
+The (":status", "302") header field doesn't need to be
+removed from the reference set as it is evicted from the header
+table.
         </t>
         <t>
             <figure>
@@ -3151,17 +3168,14 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[848c                                    | ..]]></artwork>
+<![CDATA[8c                                      | .]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[84                                      | == Indexed - Remove ==
-                                        |   idx = 4
-                                        | -> :status: 302
-8c                                      | == Indexed - Add ==
+<![CDATA[8c                                      | == Indexed - Add ==
                                         |   idx = 12
                                         | - evict: :status: 302
                                         | -> :status: 200]]></artwork>
@@ -3224,35 +3238,31 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8384 8403 92a2 fba2 0320 f2ab 3031 2401 | ......... ..01$.
-8b49 0d33 09e8 771d 84e1 fbb3 0f84 8483 | .I.3..w.........
-833a b3df 7dfb 36d3 d9e1 fcfc 3faf e7ab | .:..}.6.....?...
-fcfe fcbf af3e df2f 977f d36f f7fd 79f6 | ......./...o..y.
-f977 fd3d e16b fa46 fe10 d889 447d e1ce | .w.=.k.F....D}..
-18e5 65f7 6c2f                          | ..e.l/]]></artwork>
+<![CDATA[8484 4393 d6db b298 84de 2a71 8805 0620 | ..C.......*q... 
+9851 3111 b56b a35e 84ab dd97 ff84 8483 | .Q1..k.^........
+837b b1e0 d6cf 9f6e 8f9f d3e5 f6fa 76fe | .{.....n......v.
+fd3c 7edf 9eff 1f2f 0f3c fe9f 6fcf 7f8f | ......./....o...
+879f 61ad 4f4c c9a9 73a2 200e c372 5e18 | ..a.OL..s. ..r^.
+b1b7 4e3f                               | ..N?]]></artwork>
             </figure>
         </t>
         <t>
             <figure>
                 <preamble>Decoding process:</preamble>
                 <artwork>
-<![CDATA[83                                      | == Indexed - Remove ==
-                                        |   idx = 3
-                                        | -> date: Mon, 21 Oct 2013 \
-                                        |   20:13:21 GMT
-84                                      | == Indexed - Remove ==
+<![CDATA[84                                      | == Indexed - Remove ==
                                         |   idx = 4
                                         | -> cache-control: private
 84                                      | == Indexed - Add ==
                                         |   idx = 4
                                         | -> cache-control: private
-03                                      | == Literal indexed ==
+43                                      | == Literal indexed ==
                                         |   Indexed name (idx = 3)
                                         |     date
-92                                      |   Literal value (len = 29)
+93                                      |   Literal value (len = 29)
                                         |     Huffman encoded:
-a2fb a203 20f2 ab30 3124 018b 490d 3309 | .... ..01$..I.3.
-e877                                    | .w
+d6db b298 84de 2a71 8805 0620 9851 3111 | ......*q... .Q1.
+b56b a3                                 | .k.
                                         |     Decoded:
                                         | Mon, 21 Oct 2013 20:13:22 \
                                         | GMT
@@ -3260,12 +3270,12 @@ e877                                    | .w
                                         |   ivate
                                         | -> date: Mon, 21 Oct 2013 \
                                         |   20:13:22 GMT
-1d                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 29)
+5e                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 30)
                                         |     content-encoding
 84                                      |   Literal value (len = 4)
                                         |     Huffman encoded:
-e1fb b30f                               | ....
+abdd 97ff                               | ....
                                         |     Decoded:
                                         | gzip
                                         | - evict: date: Mon, 21 Oct\
@@ -3285,15 +3295,15 @@ e1fb b30f                               | ....
 83                                      | == Indexed - Add ==
                                         |   idx = 3
                                         | -> :status: 200
-3a                                      | == Literal indexed ==
-                                        |   Indexed name (idx = 58)
+7b                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 59)
                                         |     set-cookie
-b3                                      |   Literal value (len = 56)
+b1                                      |   Literal value (len = 56)
                                         |     Huffman encoded:
-df7d fb36 d3d9 e1fc fc3f afe7 abfc fefc | .}.6.....?......
-bfaf 3edf 2f97 7fd3 6ff7 fd79 f6f9 77fd | ..../...o..y..w.
-3de1 6bfa 46fe 10d8 8944 7de1 ce18 e565 | =.k.F....D}....e
-f76c 2f                                 | .l/
+e0d6 cf9f 6e8f 9fd3 e5f6 fa76 fefd 3c7e | ....n......v....
+df9e ff1f 2f0f 3cfe 9f6f cf7f 8f87 9f61 | ..../....o.....a
+ad4f 4cc9 a973 a220 0ec3 725e 18b1 b74e | .OL..s. ..r^...N
+3f                                      | ?
                                         |     Decoded:
                                         | foo=ASDJKHQKBZXOQWEOPIUAXQ\
                                         | WEOIU; max-age=3600; versi\
@@ -3332,7 +3342,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
     </section>
 
 </section>
-<!-- endex -->
+<!-- example-end -->
         </section>
     </back>
 </rfc>
