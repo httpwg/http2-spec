@@ -551,34 +551,46 @@ HTTP2-Settings    = token68
 
       <section anchor="FrameHeader" title="Frame Format">
         <t>
-          All frames begin with an 8-octet header followed by a payload of between 0 and 16,383
-          octets.
+          All frames begin with an 8-octet header followed by a payload and padding of between
+          0 and 16,383 octets.
         </t>
         <figure title="Frame Header">
           <artwork type="inline"><![CDATA[
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | R |     Length (14)           |   Type (8)    |   Flags (8)   |
+ |H|L|      Length (14)          |   Type (8)    |   Flags (8)   |
  +-+-+-----------+---------------+-------------------------------+
- |R|                 Stream Identifier (31)                      |
+ |R|                  Stream Identifier (31)                     |
  +-+-------------------------------------------------------------+
- |                   Frame Payload (0...)                      ...
+ | Pad High? (8) |  Pad Low? (8) |
+ +---------------+---------------+-------------------------------+
+ |                       Frame Payload (*)                     ...
+ +---------------------------------------------------------------+
+ |                          Padding (*)                        ...
  +---------------------------------------------------------------+
 ]]></artwork>
         </figure>
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
-            <x:lt hangText="R:">
+            <x:lt hangText="H:">
               <t>
-                A reserved 2-bit field.  The semantics of these bits are undefined and the bits MUST
-                remain unset (0) when sending and MUST be ignored when receiving.
+                A 1-bit field indicating that the Pad High field is present.  This bit MUST NOT be set
+                unless the L bit is also set.  Endpoints that receive a frame with the H bit set and
+                the L bit unset (0) must treat this as a <xref
+                target="ConnectionErrorHandler">connection error</xref> of type
+                <x:ref>PROTOCOL_ERROR</x:ref>.
+              </t>
+            </x:lt>
+            <x:lt hangText="L:">
+              <t>
+                A 1-bit field indicating that the Pad Low field is present.
               </t>
             </x:lt>
             <x:lt hangText="Length:">
               <t>
-                The length of the frame payload expressed as an unsigned 14-bit integer. The 8 octets
+                The length of the frame expressed as an unsigned 14-bit integer. The 8 octets
                 of the frame header are not included in this value.
               </t>
             </x:lt>
@@ -614,6 +626,26 @@ HTTP2-Settings    = token68
                 an individual stream.
               </t>
             </x:lt>
+            <x:lt hangText = "Pad High:">
+              <t>
+                An 8-bit field containing the amount of padding in units of 256 octets.  This field
+                is optional and is only present if the H bit is set.  This field, in
+                combination with Pad Low, determines how much padding there is on a frame.
+              </t>
+            </x:lt>
+            <x:lt hangText = "Pad Low:">
+              <t>
+                An 8-bit field containing the amount of padding in units of single octets.  This
+                field is optional and is only present if the L bit is set.  This field, in
+                combination with Pad High, determines how much padding there is on a frame.
+              </t>
+            </x:lt>
+            <x:lt hangText = "Padding:">
+              <t>
+                Padding octets contain no application semantic value.  Padding octets MUST be
+                set to zero when sending and ignored when receiving.
+              </t>
+            </x:lt>
           </list>
         </t>
         <t>
@@ -629,9 +661,27 @@ HTTP2-Settings    = token68
           processing frames up to this maximum size.
         </t>
         <t>
+          The total number of padding octets is determined by multiplying the value of the Pad
+          High field by 256 and adding the value of the Pad Low field.  Both Pad High and Pad Low
+          fields assume a value of zero if absent.  If the length of the padding is greater than
+          the length of the remainder of the frame payload, the recipient MUST treat this as a
+          <xref target="ConnectionErrorHandler">connection error</xref> of type
+          <x:ref>FRAME_SIZE_ERROR</x:ref>.
+          <list style="hanging">
+            <t hangText="Note:">
+              A frame can be increased in size by one octet by including a Pad Low field with a
+              value of zero.
+            </t>
+          </list>
+        </t>
+        <t>
+          Use of padding is a security feature; as such, its use demands some care, see <xref
+          target="padding"/>.
+        </t>
+        <t>
           Certain frame types, such as <x:ref>PING</x:ref> (see <xref target="PING"/>), impose
-          additional limits on the amount of payload data allowed.  Likewise, additional size limits
-          can be set by specific application uses (see <xref target="HttpExtra" />).
+          additional limits on the amount of payload data or padding allowed.  Likewise, additional
+          size limits can be set by specific application uses (see <xref target="HttpExtra" />).
         </t>
         <t>
           If a frame size exceeds any defined limit, or is too small to contain mandatory frame
@@ -1469,43 +1519,6 @@ B   C              / \
             DATA frames MAY also contain arbitrary padding.  Padding can be added to DATA frames to
             hide the size of messages.
           </t>
-          <figure title="DATA Frame Payload">
-            <artwork type="inline"><![CDATA[
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) |  Pad Low? (8) |
- +---------------+---------------+-------------------------------+
- |                            Data (*)                         ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
- +---------------------------------------------------------------+
-]]></artwork>
-          </figure>
-          <t>
-            The DATA frame contains the following fields:
-            <list style="hanging">
-              <t hangText="Pad High:">
-                An 8-bit field containing an amount of padding in units of 256 octets.  This field
-                is optional and is only present if the PAD_HIGH flag is set.  This field, in
-                combination with Pad Low, determines how much padding there is on a frame.
-              </t>
-              <t hangText="Pad Low:">
-                An 8-bit field containing an amount of padding in units of single octets.  This
-                field is optional and is only present if the PAD_LOW flag is set.  This field, in
-                combination with Pad High, determines how much padding there is on a frame.
-              </t>
-              <t hangText="Data:">
-                Application data.  The amount of data is the remainder of the frame payload after
-                subtracting the length of the other fields that are present.
-              </t>
-              <t hangText="Padding:">
-                Padding octets that contain no application semantic value.  Padding octets MUST be
-                set to zero when sending and ignored when receiving.
-              </t>
-            </list>
-          </t>
-
           <t>
             The DATA frame defines the following flags:
             <list style="hanging">
@@ -1519,16 +1532,6 @@ B   C              / \
                 Intermediaries MUST NOT coalesce frames across a segment boundary and MUST preserve
                 segment boundaries when forwarding frames.
               </t>
-              <t hangText="PAD_LOW (0x08):">
-                Bit 4 being set indicates that the Pad Low field is present.
-              </t>
-              <t hangText="PAD_HIGH (0x10):">
-                Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT be
-                set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
-                PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
-              </t>
             </list>
           </t>
           <t>
@@ -1539,28 +1542,11 @@ B   C              / \
           </t>
           <t>
             DATA frames are subject to flow control and can only be sent when a stream is in the
-            "open" or "half closed (remote)" states. Padding is included in flow control.  If
-            a DATA frame is received whose stream is not in "open" or "half closed (local)" state,
-            the recipient MUST respond with a <xref target="StreamErrorHandler">stream error</xref>
-            of type <x:ref>STREAM_CLOSED</x:ref>.
-          </t>
-          <t>
-            The total number of padding octets is determined by multiplying the value of the Pad
-            High field by 256 and adding the value of the Pad Low field.  Both Pad High and Pad Low
-            fields assume a value of zero if absent.  If the length of the padding is greater than
-            the length of the remainder of the frame payload, the recipient MUST treat this as a
-            <xref target="ConnectionErrorHandler">connection error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
-            <list style="hanging">
-              <t hangText="Note:">
-                A frame can be increased in size by one octet by including a Pad Low field with a
-                value of zero.
-              </t>
-            </list>
-          </t>
-          <t>
-            Use of padding is a security feature; as such, its use demands some care, see <xref
-            target="padding"/>.
+            "open" or "half closed (remote)" states. Padding (including the Pad Low and Pad High
+            fields, if present) is included in flow control.  If a DATA frame is received whose
+            stream is not in "open" or "half closed (local)" state, the recipient MUST respond
+            with a <xref target="StreamErrorHandler">stream error</xref> of type
+            <x:ref>STREAM_CLOSED</x:ref>.
           </t>
         </section>
 
@@ -1575,8 +1561,6 @@ B   C              / \
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) |  Pad Low? (8) |
- +-+-------------+---------------+-------------------------------+
  |R|              Priority Group Identifier? (31)                |
  +-+-------------+-----------------------------------------------+
  |  Weight? (8)  |
@@ -1585,19 +1569,11 @@ B   C              / \
  +-+-------------------------------------------------------------+
  |                   Header Block Fragment (*)                 ...
  +---------------------------------------------------------------+
- |                           Padding (*)                       ...
- +---------------------------------------------------------------+
 ]]></artwork>
           </figure>
           <t>
             The HEADERS frame payload has the following fields:
             <list style="hanging">
-              <t hangText="Pad High:">
-                Padding size high bits.  This field is only present if the PAD_HIGH flag is set.
-              </t>
-              <t hangText="Pad Low:">
-                Padding size low bits.  This field is only present if the PAD_LOW flag is set.
-              </t>
               <t hangText="R:">
                 A single reserved bit.  This field is optional and is only present if the
                 PRIORITY_GROUP flag is set.
@@ -1624,9 +1600,6 @@ B   C              / \
               </t>
               <t hangText="Header Block Fragment:">
                 A <xref target="HeaderBlock">header block fragment</xref>.
-              </t>
-              <t hangText="Padding:">
-                Padding octets.
               </t>
             </list>
           </t>
@@ -1664,20 +1637,6 @@ B   C              / \
                   A HEADERS frame without the END_HEADERS flag set MUST be followed by a
                   <x:ref>CONTINUATION</x:ref> frame for the same stream.  A receiver MUST treat the
                   receipt of any other type of frame or a frame on a different stream as a <xref
-                  target="ConnectionErrorHandler">connection error</xref> of type
-                  <x:ref>PROTOCOL_ERROR</x:ref>.
-                </t>
-              </x:lt>
-              <x:lt hangText="PAD_LOW (0x8):">
-                <t>
-                  Bit 4 being set indicates that the Pad Low field is present.
-                </t>
-              </x:lt>
-              <x:lt hangText="PAD_HIGH (0x10):">
-                <t>
-                  Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT
-                  be set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
-                  PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
                   target="ConnectionErrorHandler">connection error</xref> of type
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
@@ -1723,8 +1682,7 @@ B   C              / \
           </t>
 
           <t>
-            The HEADERS frame includes optional padding.  Padding fields and flags are identical to
-            those defined for <xref target="DATA">DATA frames</xref>.
+            HEADERS frames MAY contain arbitrary padding.
           </t>
         </section>
 
@@ -1801,12 +1759,14 @@ B   C              / \
             treated as a <xref target="StreamErrorHandler">stream error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
-         <t>
+
+          <t>
             The PRIORITY frame is associated with an existing stream. If a PRIORITY frame is
             received with a stream identifier of 0x0, the recipient MUST respond with a <xref
             target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
+
           <t>
             The PRIORITY frame can be sent on a stream in any of the "reserved (remote)", "open",
             "half-closed (local)", or "half closed (remote)" states, though it cannot be sent
@@ -1815,6 +1775,13 @@ B   C              / \
             completed, which would cause it to have no effect.  For a stream that is in the "half
             closed (remote)" state, this frame can only affect processing of the stream and not
             frame transmission.
+          </t>
+
+          <t>
+            PRIORITY frames MUST NOT contain any padding.  If a PRIORITY frame is received with
+            the L bit set, the recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
         </section>
 
@@ -1864,6 +1831,13 @@ B   C              / \
           <t>
             RST_STREAM frames MUST NOT be sent for a stream in the "idle" state.  If a RST_STREAM
             frame identifying an idle stream is received, the recipient MUST treat this as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
+          </t>
+
+          <t>
+            RST_STREAM frames MUST NOT contain any padding.  If a RST_STREAM frame is received with
+            the L bit set, the recipient MUST respond with a <xref
             target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
@@ -1923,6 +1897,12 @@ B   C              / \
             The SETTINGS frame affects connection state.  A badly formed or incomplete SETTINGS
             frame MUST be treated as a <xref target="ConnectionErrorHandler">connection error</xref>
             of type <x:ref>PROTOCOL_ERROR</x:ref>.
+          </t>
+          <t>
+            SETTINGS frames MUST NOT contain any padding.  If a SETTINGS frame is received with
+            the L bit set, the recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
           <section title="SETTINGS Format" anchor="SettingFormat">
@@ -2055,25 +2035,15 @@ B   C              / \
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) | Pad Low? (8)  |
- +-+-------------+---------------+-------------------------------+
  |R|                  Promised Stream ID (31)                    |
  +-+-----------------------------+-------------------------------+
  |                   Header Block Fragment (*)                 ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
  +---------------------------------------------------------------+
 ]]></artwork>
           </figure>
           <t>
             The PUSH_PROMISE frame payload has the following fields:
             <list style="hanging">
-              <t hangText="Pad High:">
-                Padding size high bits.  This field is only present if the PAD_HIGH flag is set.
-              </t>
-              <t hangText="Pad Low:">
-                Padding size low bits.  This field is only present if the PAD_LOW flag is set.
-              </t>
               <t hangText="R:">
                 A single reserved bit.
               </t>
@@ -2086,9 +2056,6 @@ B   C              / \
               <t hangText="Header Block Fragment:">
                 A <xref target="HeaderBlock">header block fragment</xref> containing request header
                 fields.
-              </t>
-              <t hangText="Padding:">
-                Padding octets.
               </t>
             </list>
           </t>
@@ -2106,20 +2073,6 @@ B   C              / \
                   A PUSH_PROMISE frame without the END_HEADERS flag set MUST be followed by a
                   CONTINUATION frame for the same stream.  A receiver MUST treat the receipt of any
                   other type of frame or a frame on a different stream as a <xref
-                  target="ConnectionErrorHandler">connection error</xref> of type
-                  <x:ref>PROTOCOL_ERROR</x:ref>.
-                </t>
-              </x:lt>
-              <x:lt hangText="PAD_LOW (0x8):">
-                <t>
-                  Bit 4 being set indicates that the Pad Low field is present.
-                </t>
-              </x:lt>
-              <x:lt hangText="PAD_HIGH (0x10):">
-                <t>
-                  Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT
-                  be set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
-                  PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
                   target="ConnectionErrorHandler">connection error</xref> of type
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
@@ -2173,8 +2126,7 @@ B   C              / \
           </t>
 
           <t>
-            The PUSH_PROMISE frame includes optional padding.  Padding fields and flags are
-            identical to those defined for <xref target="DATA">DATA frames</xref>.
+            PUSH_PROMISE frames MAY contain arbitrary padding.
           </t>
         </section>
 
@@ -2226,6 +2178,12 @@ B   C              / \
             Receipt of a PING frame with a length field value other than 8 MUST be treated as a
             <xref target="ConnectionErrorHandler">connection error</xref> of type
             <x:ref>FRAME_SIZE_ERROR</x:ref>.
+          </t>
+          <t>
+            PING frames MUST NOT contain any padding.  If a PING frame is received with
+            the L bit set, the recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
         </section>
@@ -2338,6 +2296,12 @@ B   C              / \
             persistently stored debug data MUST have adequate safeguards to prevent unauthorized
             access.
           </t>
+          <t>
+            GOAWAY frames MUST NOT contain any padding.  If a GOAWAY frame is received with
+            the L bit set, the recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
+          </t>
         </section>
 
         <section anchor="WINDOW_UPDATE" title="WINDOW_UPDATE">
@@ -2400,6 +2364,12 @@ B   C              / \
             even if the frame is in error.  Since the sender counts the frame toward the flow
             control window, if the receiver does not, the flow control window at sender and receiver
             can become different.
+          </t>
+          <t>
+            WINDOW_UPDATE frames MUST NOT contain any padding.  If a WINDOW_UPDATE frame is received with
+            the L bit set, the recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
           <section title="The Flow Control Window">
@@ -2531,28 +2501,15 @@ B   C              / \
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) | Pad Low? (8)  |
- +---------------+---------------+-------------------------------+
  |                   Header Block Fragment (*)                 ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
  +---------------------------------------------------------------+
 ]]></artwork>
           </figure>
           <t>
             The CONTINUATION frame payload has the following fields:
             <list style="hanging">
-              <t hangText="Pad High:">
-                Padding size high bits.  This field is only present if the PAD_HIGH flag is set.
-              </t>
-              <t hangText="Pad Low:">
-                Padding size low bits.  This field is only present if the PAD_LOW flag is set.
-              </t>
               <t hangText="Header Block Fragment:">
                 A <xref target="HeaderBlock">header block fragment</xref>.
-              </t>
-              <t hangText="Padding:">
-                Padding octets.
               </t>
             </list>
           </t>
@@ -2569,20 +2526,6 @@ B   C              / \
                   If the END_HEADERS bit is not set, this frame MUST be followed by another
                   CONTINUATION frame.  A receiver MUST treat the receipt of any other type of frame
                   or a frame on a different stream as a <xref
-                  target="ConnectionErrorHandler">connection error</xref> of type
-                  <x:ref>PROTOCOL_ERROR</x:ref>.
-                </t>
-              </x:lt>
-              <x:lt hangText="PAD_LOW (0x8):">
-                <t>
-                  Bit 4 being set indicates that the Pad Low field is present.
-                </t>
-              </x:lt>
-              <x:lt hangText="PAD_HIGH (0x10):">
-                <t>
-                  Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT
-                  be set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
-                  PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
                   target="ConnectionErrorHandler">connection error</xref> of type
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
@@ -2615,8 +2558,7 @@ B   C              / \
           </t>
 
           <t>
-            The CONTINUATION frame includes optional padding.  Padding fields and flags are
-            identical to those defined for <xref target="DATA">DATA frames</xref>.
+            The CONTINUATION frame may include padding.
           </t>
         </section>
 
@@ -2716,6 +2658,13 @@ B   C              / \
             The ALTSVC frame is processed hop-by-hop.  An intermediary MUST NOT forward ALTSVC
             frames, though it can use the information contained in ALTSVC frames in forming new
             ALTSVC frames to send to its own clients.
+          </t>
+
+          <t>
+            ALTSVC frames MUST NOT contain any padding.  If an ALTSVC frame is received with
+            the L bit set, the recipient MUST respond with a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
         </section>
     </section>
