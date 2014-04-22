@@ -1171,14 +1171,10 @@ HTTP2-Settings    = token68
           sending.
         </t>
         <t>
-          Each stream is prioritized into a group.  Each group is identified using an identifier
-          that is selected by the client.  Each group is assigned a relative weight, a number that
+          Stream can be prioritized by marking them as dependent on the completion of other streams
+          (<xref target="pri-depend"/>). Each dependency is assigned a relative weight, a number that
           is used to determine the relative proportion of available resources that are assigned to
-          that group.
-        </t>
-        <t>
-          Within a priority group, streams can also be marked as being dependent on the completion
-          of other streams.
+          that dependency.
         </t>
         <t>
           Explicitly setting the priority for a stream is input to a prioritization process.  It
@@ -1192,43 +1188,17 @@ HTTP2-Settings    = token68
           frame.  Providing prioritization information is optional, so default values are used if no
           explicit indicator is provided (<xref target="pri-default"/>).
         </t>
-        <t>
-          Explicit prioritization information can be provided for a stream to either allocate the
-          stream to a priority group (<xref target="pri-group"/>), or to create a dependency on
-          another stream (<xref target="pri-depend"/>).
-        </t>
-
-        <section title="Priority Groups and Weighting" anchor="pri-group">
-          <t>
-            All streams are assigned a priority group.  Each priority group is allocated a 31-bit
-            identifier and an integer weight between 1 to 256 (inclusive).
-          </t>
-          <t>
-            Specifying a priority group and weight for a stream causes the stream to be assigned to
-            the identified priority group and for the weight for the group to be changed to the new
-            value.
-          </t>
-          <t>
-            Resources are divided proportionally between priority groups based on their weight.  For
-            example, a priority group with weight 4 ideally receives one third of the resources
-            allocated to a stream with weight 12.
-          </t>
-        </section>
 
         <section title="Stream Dependencies" anchor="pri-depend">
           <t>
             Each stream can be given an explicit dependency on another stream.  Including a
             dependency expresses a preference to allocate resources to the identified stream rather
-            than to the dependent stream.
+            than to the dependent stream. Each dependency is allocated an integer weight between
+            1 to 256 (inclusive).
           </t>
           <t>
-            A stream that is dependent on another stream becomes part of the priority group of the
-            stream it depends on. It belongs to the same dependency tree as the stream it depends
-            on.
-          </t>
-          <t>
-            A stream that is assigned directly to a priority group is not dependent on any other
-            stream. It is the root of a dependency tree inside its priority group.
+            The connection is the root of the dependency tree. A stream that is not dependent on any
+            other stream is given a stream dependency of 0x0 to signify the connection.
           </t>
           <!--  <t>
             Stream dependencies form a tree.  Instead, streams that depend on another stream
@@ -1266,19 +1236,15 @@ B   C              / \
 ]]></artwork>
           </figure>
           <t>
-            Streams are ordered into several dependency trees within their priority group. Each
-            dependency tree within a priority group SHOULD be allocated the same amount of
-            resources.
-          </t>
-          <t>
-            Inside a dependency tree, a dependent stream SHOULD only be allocated resources if the
+            Inside the dependency tree, a dependent stream SHOULD only be allocated resources if the
             streams that it depends on are either closed, or it is not possible to make progress on
             them.
           </t>
           <t>
-            Streams with the same dependencies SHOULD be allocated the same amount of resources.
-            Thus, if streams B and C depend on stream A, and if no progress can be made on A,
-            streams B and C are given an equal share of resources.
+            Streams with the same dependencies SHOULD be allocated resources proportionally based on
+            their weight. Thus, if stream B depends on stream A with weight 4, and C depends on stream A
+            with weight 12, and if no progress can be made on A, stream B ideally receives one third
+            of the resources allocated to stream C.
           </t>
           <t>
             A stream MUST NOT depend on itself.  An endpoint MAY either treat this as a <xref
@@ -1290,22 +1256,19 @@ B   C              / \
         <section title="Reprioritization">
           <t>
             Stream priorities are changed using the <x:ref>PRIORITY</x:ref> frame.  Setting a
-            priority group and weight causes a stream to become part of the identified group, and
-            not dependent on any other stream.  Setting a dependency causes a stream to become
-            dependent on the identified stream, which can cause the reprioritized stream to move to
-            a new priority group.
-          </t>
-          <t>
-            All streams that are dependent on a reprioritized stream move with it. Setting a
-            dependency with the exclusive flag for a reprioritized stream moves all the dependencies
-            of the stream it depends on to become dependencies of the reprioritized stream.
+            dependency causes a stream to become dependent on the identified stream. All streams
+            that are dependent on a reprioritized stream move with it. Setting a dependency with
+            the exclusive flag for a reprioritized stream moves all the dependencies of the stream
+            it depends on to become dependencies of the reprioritized stream.
           </t>
         </section>
 
         <section title="Prioritization State Management">
           <t>
             When a stream is closed, its dependencies can be moved to become dependent on the stream
-            the closed stream depends on, if any, or to become new dependency tree roots otherwise.
+            the closed stream depends on, if any, or to become dependent on the connection otherwise.
+            The weights of new dependencies SHOULD be assigned by distributing the weight of the
+            dependency of the closed stream proportionally based on the weights of its dependencies.
           </t>
           <t>
             It is possible for a stream to become closed while prioritization information that
@@ -1333,32 +1296,19 @@ B   C              / \
           </t>
           <t>
             An endpoint receiving a <x:ref>PRIORITY</x:ref> frame that changes the priority of a
-            closed stream SHOULD alter the weight of the priority group, or the dependencies
-            of the streams that depend on it, if it has retained enough state to do so.
-          </t>
-          <t>
-            Priority group information is part of the priority state of a stream.  Priority groups
-            that contain only closed streams can be assigned a weight of zero.
-          </t>
-          <t>
-            The number of priority groups cannot exceed the number of non-closed streams.  This
-            includes streams in the "reserved" state.  Priority state size for peer-initiated
-            streams is limited by the value of <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.
-            Reserved streams do not count toward the concurrent stream limit of either peer, but
-            only the endpoint that creates the reservation needs to maintain priority information.
-            Thus, the total amount of priority state for non-closed streams can be limited by an
-            endpoint.
+            closed stream SHOULD alter the dependencies of the streams that depend on it, if it has
+            retained enough state to do so.
           </t>
         </section>
 
         <section title="Default Priorities" anchor="pri-default">
           <t>
-            Providing priority information is optional.  Streams are assigned to a priority group
-            with an identifier equal to the stream identifier and a weight of 16.
+            Providing priority information is optional.  Streams are assigned a dependency on the
+            connection with a weight of 16.
           </t>
           <t>
             <xref target="PushResources">Pushed streams</xref> initially depend on their associated
-            stream.
+            stream with a weight of 16.
           </t>
         </section>
       </section>
@@ -1577,12 +1527,10 @@ B   C              / \
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  | Pad High? (8) |  Pad Low? (8) |
  +-+-------------+---------------+-------------------------------+
- |R|              Priority Group Identifier? (31)                |
+ |E|                 Stream Dependency? (31)                     |
  +-+-------------+-----------------------------------------------+
  |  Weight? (8)  |
  +-+-------------+-----------------------------------------------+
- |E|                 Stream Dependency? (31)                     |
- +-+-------------------------------------------------------------+
  |                   Header Block Fragment (*)                 ...
  +---------------------------------------------------------------+
  |                           Padding (*)                       ...
@@ -1598,29 +1546,20 @@ B   C              / \
               <t hangText="Pad Low:">
                 Padding size low bits.  This field is only present if the PAD_LOW flag is set.
               </t>
-              <t hangText="R:">
-                A single reserved bit.  This field is optional and is only present if the
-                PRIORITY_GROUP flag is set.
-              </t>
-              <t hangText="Priority Group Identifier:">
-                A 31-bit identifier for a priority group, see <xref target="StreamPriority"/>.  This
-                field is optional and is only present if the PRIORITY_GROUP flag is set.
-              </t>
-              <t hangText="Weight:">
-                An 8-bit weight for the identified priority group, see <xref
-                target="StreamPriority"/>.  Add one to the value to obtain a weight between 1 and 256.
-                This field is optional and is only present if the
-                PRIORITY_GROUP flag is set.
-              </t>
               <t hangText="E:">
                 A single bit flag indicates that the stream dependency is exclusive, see <xref
                   target="StreamPriority"/>.  This field is optional and is only present if the
-                PRIORITY_DEPENDENCY flag is set.
+                PRIORITY flag is set.
               </t>
               <t hangText="Stream Dependency:">
                 A 31-bit stream identifier for the stream that this stream depends on, see <xref
                   target="StreamPriority"/>.  This field is optional and is only present if the
-                PRIORITY_DEPENDENCY flag is set.
+                PRIORITY flag is set.
+              </t>
+              <t hangText="Weight:">
+                An 8-bit weight for the identified stream dependency, see <xref
+                target="StreamPriority"/>.  Add one to the value to obtain a weight between 1 and 256.
+                This field is optional and is only present if the PRIORITY flag is set.
               </t>
               <t hangText="Header Block Fragment:">
                 A <xref target="HeaderBlock">header block fragment</xref>.
@@ -1682,16 +1621,10 @@ B   C              / \
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
               </x:lt>
-              <x:lt hangText="PRIORITY_GROUP (0x20):">
+              <x:lt hangText="PRIORITY (0x20):">
                 <t>
-                  Bit 6 being set indicates that the Priority Group Identifier and Weight fields are
-                  present; see <xref target="StreamPriority"/>.
-                </t>
-              </x:lt>
-              <x:lt hangText="PRIORITY_DEPENDENCY (0x40):">
-                <t>
-                  Bit 7 being set indicates that the Exclusive Flag (E) and Stream
-                  Dependency fields are present; see <xref target="StreamPriority"/>.
+                  Bit 6 being set indicates that the Exclusive Flag (E), Stream Dependency, and Weight
+                  fields are present; see <xref target="StreamPriority"/>.
                 </t>
               </x:lt>
             </list>
@@ -1711,13 +1644,6 @@ B   C              / \
           </t>
 
           <t>
-            A HEADERS frame MUST NOT have both the PRIORITY_GROUP and PRIORITY_DEPENDENCY flags set.
-            Receipt of a HEADERS frame with both these flags set MUST be treated as a <xref
-            target="StreamErrorHandler">stream error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
-          </t>
-
-          <t>
             The HEADERS frame changes the connection state as described in <xref
             target="HeaderBlock" />.
           </t>
@@ -1732,76 +1658,42 @@ B   C              / \
           <t>
             The PRIORITY frame (type=0x2) specifies the <xref target="StreamPriority">sender-advised
             priority of a stream</xref>.  It can be sent at any time for an existing stream. This
-            enables reprioritisation of existing streams.
+            enables reprioritization of existing streams.
           </t>
           <figure title="PRIORITY Frame Payload">
             <artwork type="inline"><![CDATA[
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |R|             Priority Group Identifier? (31)                 |
+ |E|                  Stream Dependency (31)                     |
  +-+-------------+-----------------------------------------------+
- |  Weight? (8)  |
- +-+-------------+-----------------------------------------------+
- |E|                 Stream Dependency? (31)                     |
- +-+-------------------------------------------------------------+
+ |   Weight (8)  |
+ +-+-------------+
 ]]></artwork>
           </figure>
           <t>
             The payload of a PRIORITY frame contains the following fields:
             <list style="hanging">
-              <t hangText="R:">
-                A single reserved bit.  This field is optional and is only present if the
-                PRIORITY_GROUP flag is set.
-              </t>
-              <t hangText="Priority Group Identifier:">
-                A 31-bit identifier for a priority group, see <xref target="StreamPriority"/>.  This
-                field is optional and is only present if the PRIORITY_GROUP flag is set.
-              </t>
-              <t hangText="Weight:">
-                An 8-bit weight for the identified priority group, see <xref
-                target="StreamPriority"/>.  Add one to the value to obtain a weight between 1 and 256.
-                This field is optional and is only present if the
-                PRIORITY_GROUP flag is set.
-              </t>
               <t hangText="E:">
                 A single bit flag indicates that the stream dependency is exclusive, see <xref
-                  target="StreamPriority"/>.  This field is optional and is only present if the
-                PRIORITY_DEPENDENCY flag is set.
+                  target="StreamPriority"/>.
               </t>
               <t hangText="Stream Dependency:">
                 A 31-bit stream identifier for the stream that this stream depends on, see <xref
-                  target="StreamPriority"/>.  This field is optional and is only present if
-                the PRIORITY_DEPENDENCY flag is set.
+                  target="StreamPriority"/>.
+              </t>
+              <t hangText="Weight:">
+                An 8-bit weight for the identified stream dependency, see <xref
+                target="StreamPriority"/>.  Add one to the value to obtain a weight between 1 and 256.
               </t>
             </list>
           </t>
 
           <t>
-            The PRIORITY frame defines the following flags:
-            <list style="hanging">
-              <x:lt hangText="PRIORITY_GROUP (0x20):">
-                <t>
-                  Bit 6 being set indicates that the Priority Group Identifier and Weight fields are
-                  present; see <xref target="StreamPriority"/>.
-                </t>
-              </x:lt>
-              <x:lt hangText="PRIORITY_DEPENDENCY (0x40):">
-                <t>
-                  Bit 7 being set indicates that the Exclusive Flag (E) and Stream
-                  Dependency fields are present; see <xref target="StreamPriority"/>.
-                </t>
-              </x:lt>
-            </list>
+            The PRIORITY frame does not define any flags.
           </t>
 
           <t>
-            A PRIORITY frame MUST have exactly one of the PRIORITY_GROUP and PRIORITY_DEPENDENCY
-            flags set.  Receipt of a PRIORITY frame with either none or both these flags set MUST be
-            treated as a <xref target="StreamErrorHandler">stream error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
-          </t>
-         <t>
             The PRIORITY frame is associated with an existing stream. If a PRIORITY frame is
             received with a stream identifier of 0x0, the recipient MUST respond with a <xref
             target="ConnectionErrorHandler">connection error</xref> of type
