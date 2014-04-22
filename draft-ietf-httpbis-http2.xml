@@ -2250,15 +2250,6 @@ B   C              / \
           connection without sending GOAWAY for misbehaving peers.
         </t>
 
-        <t>
-          After sending a GOAWAY frame, the sender can discard frames for new streams.  However, any
-          frames that alter connection state cannot be completely ignored.  For instance,
-          <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames
-          MUST be minimally processed to ensure the state maintained for header compression is
-          consistent (see <xref target="HeaderBlock"/>); similarly DATA frames MUST be counted
-          toward the connection flow control window.
-        </t>
-
         <figure title="GOAWAY Payload Format">
           <artwork type="inline"><![CDATA[
  0                   1                   2                   3
@@ -2285,16 +2276,16 @@ B   C              / \
           The last stream identifier in the GOAWAY frame contains the highest numbered stream
           identifier for which the sender of the GOAWAY frame has received frames and might have
           taken some action on.  All streams up to and including the identified stream might have
-          been processed in some way.  The last stream identifier is set to 0 if no streams were
+          been processed in some way.  The last stream identifier can be set to 0 if no streams were
           processed.
           <list>
             <t>
-              Note: In this case, "processed" means that some data from the stream was passed to
+              Note: In this context, "processed" means that some data from the stream was passed to
               some higher layer of software that might have taken some action as a result.
             </t>
           </list>
           If a connection terminates without a GOAWAY frame, this value is effectively the highest
-          stream identifier.
+          possible stream identifier.
         </t>
         <t>
           On streams with lower or equal numbered identifiers that were not closed completely prior
@@ -2310,14 +2301,23 @@ B   C              / \
           all in-progress streams complete.
         </t>
         <t>
-          The last stream ID MUST be 0 if no streams were acted upon.
+          An endpoint MAY send multiple GOAWAY frames if circumstances change.  For instance, an
+          endpoint that sends GOAWAY with <x:ref>NO_ERROR</x:ref> during graceful shutdown could
+          subsequently encounter an condition that requires immediate termination of the connection.
+          The last stream identifier from the last GOAWAY frame received applies.
         </t>
+
         <t>
-          If an endpoint maintains the connection and continues to exchange frames, ignored frames
-          MUST be counted toward <xref target="FlowControl">flow control limits</xref> or update
-          <xref target="HeaderBlock">header compression state</xref>. Otherwise, flow control or
-          header compression state can become unsynchronized.
+          After sending a GOAWAY frame, the sender can discard frames for streams with identifiers
+          higher than the identified last stream.  However, any frames that alter connection state
+          cannot be completely ignored.  For instance, <x:ref>HEADERS</x:ref>,
+          <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames MUST be minimally
+          processed to ensure the state maintained for header compression is consistent (see <xref
+          target="HeaderBlock"/>); similarly DATA frames MUST be counted toward the connection flow
+          control window.  Failure to process these frames can cause flow control or header
+          compression state to become unsynchronized.
         </t>
+
         <t>
           The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
           contains the reason for closing the connection.
