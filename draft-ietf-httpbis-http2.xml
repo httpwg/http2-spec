@@ -1519,6 +1519,10 @@ HTTP2-Settings    = token68
               target="ConnectionErrorHandler">connection error</xref> of type
               <x:ref>PROTOCOL_ERROR</x:ref>.
             </t>
+            <t hangText="COMPRESSED (0x20):">
+              Bit 6 being set indicates that the data in the frame has been compressed with GZIP
+              compression (<xref target="RFC1952"/>).
+            </t>
           </list>
         </t>
         <t>
@@ -1526,6 +1530,18 @@ HTTP2-Settings    = token68
           identifier field is 0x0, the recipient MUST respond with a <xref
           target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
+        </t>
+        <t>
+          Data frames are optionally compressed using <xref target="GZIP">GZip compression</xref>.
+          Each frame is individually compressed; the state of the compressor is reset for each
+          frame.
+        </t>
+        <t>
+          An endpoint MUST NOT send a DATA frame with the COMPRESSED flag set unless the
+          <x:ref>SETTINGS_COMPRESS_DATA</x:ref> setting is enabled, that is, set to 1.  An
+          endpoint that has not enabled DATA frame compression MUST treat the receipt of a DATA
+          frame with the COMPRESSED flag set as a <xref target="ConnectionErrorHandler">connection
+          error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
         <t>
           DATA frames are subject to flow control and can only be sent when a stream is in the
@@ -1931,6 +1947,20 @@ HTTP2-Settings    = token68
                   Values above the maximum flow control window size of 2<x:sup>31</x:sup> - 1 MUST
                   be treated as a <xref target="ConnectionErrorHandler">connection error</xref> of
                   type <x:ref>FLOW_CONTROL_ERROR</x:ref>.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_COMPRESS_DATA (5):" anchor="SETTINGS_COMPRESS_DATA">
+                <t>
+                  This setting is used to enable GZip compression of <x:ref>DATA</x:ref> frames.
+                </t>
+                <t>
+                  A value of 1 indicates that <x:ref>DATA</x:ref> frames MAY be compressed.  A value
+                  of 0 indicates that compression is not permitted.  The initial value is 0.
+                </t>
+                <t>
+                  Values other than 0 or 1 are invalid.  An endpoint MUST treat the receipt of any
+                  other value as a <xref target="ConnectionErrorHandler">connection error</xref> of
+                  type <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
               </x:lt>
             </list>
@@ -3241,7 +3271,15 @@ HTTP2-Settings    = token68
             A request or response that includes an entity body can include a <spanx
             style="verb">content-length</spanx> header field.  A request or response is also
             malformed if the value of a <spanx style="verb">content-length</spanx> header field does
-            not equal the sum of the <x:ref>DATA</x:ref> frame payload lengths that form the body.
+            not equal the sum of the uncompressed <x:ref>DATA</x:ref> frame payload lengths that
+            form the body.
+            <list style="hanging">
+              <t hangText="Note:">
+                The <spanx style="verb">Content-Length</spanx> header field is set to the length of
+                an entity body.  Compression of <x:ref>DATA</x:ref> frames is a function of HTTP/2
+                that does not alter entities.
+              </t>
+            </list>
           </t>
           <t>
             Intermediaries that process HTTP requests or responses (i.e., all intermediaries other
@@ -3767,6 +3805,13 @@ HTTP2-Settings    = token68
           cannot be reliably determined.
         </t>
         <t>
+          Intermediaries MUST NOT alter the compression of <x:ref>DATA</x:ref> frames unless
+          additional information is available that allows the intermediary to identify the source of
+          data.  In particular, frames that are not compressed cannot be compressed, and frames that
+          are separately compressed cannot be merged into a single frame.  Compressed frames MAY be
+          decompressed or split into multiple frames.
+        </t>
+        <t>
           Further considerations regarding the compression of header fields are described in <xref
           target="COMPRESSION"/>.
         </t>
@@ -4007,6 +4052,37 @@ HTTP2-Settings    = token68
         </front>
         <seriesInfo name="STD" value="7" />
         <seriesInfo name="RFC" value="793" />
+      </reference>
+
+      <reference anchor="GZIP">
+        <front>
+          <title>GZIP file format specification version 4.3</title>
+          <author initials="P." surname="Deutsch" fullname="L. Peter Deutsch">
+            <organization>Aladdin Enterprises</organization>
+            <address><email>ghost@aladdin.com</email></address>
+          </author>
+          <author initials="J-L." surname="Gailly" fullname="Jean-Loup Gailly">
+            <address><email>gzip@prep.ai.mit.edu</email></address>
+          </author>
+          <author initials="M." surname="Adler" fullname="Mark Adler">
+            <address><email>madler@alumni.caltech.edu</email></address>
+          </author>
+          <author initials="L.P." surname="Deutsch" fullname="L. Peter Deutsch">
+            <address><email>ghost@aladdin.com</email></address>
+          </author>
+          <author initials="G." surname="Randers-Pehrson" fullname="Glenn Randers-Pehrson">
+            <address><email>randeg@alumni.rpi.edu</email></address>
+          </author>
+          <date month="May" year="1996"/>
+        </front>
+        <seriesInfo name="RFC" value="1952"/>
+        <!--<annotation>
+          RFC 1952 is an Informational RFC, thus it might be less stable than
+          this specification. On the other hand, this downward reference was
+          present since the publication of <xref target="RFC2068" x:fmt="none">RFC 2068</xref> in 1997,
+          therefore it is unlikely to cause problems in practice. See also
+          <xref target="BCP97"/>.
+        </annotation>-->
       </reference>
 
       <reference anchor="RFC2119">
@@ -4393,6 +4469,9 @@ HTTP2-Settings    = token68
          </t>
          <t>
            Simplified priority scheme.
+         </t>
+         <t>
+           Added <x:ref>DATA</x:ref> per-frame GZip compression.
          </t>
        </section>
        <section title="Since draft-ietf-httpbis-http2-10" anchor="changes.since.draft-ietf-httpbis-http2-10">
