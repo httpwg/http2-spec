@@ -1305,13 +1305,32 @@ HTTP2-Settings    = token68
             means that if a stream in that set closes or becomes blocked, any spare capacity
             allocated to a stream is distributed to the immediate neighbors of the stream.  However,
             if the common dependency is removed from the tree, those streams share resources with
-            streams at the next highest level.  For example, assume streams A and B share a
-            dependency, and C and D both depend on A.  Prior to the removal of A, if stream A and D
-            are unable to proceed, then C receives all the resources dedicated to A.  If A is
-            removed from the tree, the weight of A is divided equally between D and E, which results
-            in stream C receiving a reduced proportion of resources (one third, rather than one
-            half).
+            streams at the next highest level.
           </t>
+          <figure title="Example of Prioritization Information Loss">
+            <preamble>
+              For example, assume streams A and B share a dependency, and streams C and D both
+              depend on stream A, all dependency having the default weight.  Prior to the removal of
+              stream A, streams A and B receive the same share of resources. If streams A and D are
+              unable to proceed, then stream C receives all the resources dedicated to stream A.  If
+              stream A is removed from the tree, the weight of stream A is divided equally between
+              streams C and D. If stream D is unable to proceed, its share of resource is split
+              between streams B and C: B receives an increased share of resources, while stream C
+              receives a decreased share of resources.
+            </preamble>
+            <artwork type="inline"><![CDATA[
+          ?                      
+         / \                           ?
+       16   16                        /|\
+       /     \     Removal of A      / | \
+     (A)      B        ===>         8  8  16
+     / \     1/2                   /   |   \
+   16   16                        /    |    \
+   /     \                       C    (D)    B
+  C      (D)                    3/8         5/8
+ 1/2
+]]></artwork>
+          </figure>
           <t>
             It is possible for a stream to become closed while prioritization information that
             creates a dependency on that stream is in transit.  If a stream identified in a
