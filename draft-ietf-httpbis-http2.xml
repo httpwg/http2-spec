@@ -1205,8 +1205,12 @@ HTTP2-Settings    = token68
             0x0.
           </t>
           <t>
+            A stream that depends on another stream is a dependent stream.  The stream upon which a
+            stream is dependent is a depedency parent, or parent stream.
+          </t>
+          <t>
             When assigning a dependency on another stream, by default, the stream is added as a new
-            dependency of the stream it depends on. For example, if streams B and C are dependent on
+            dependency of the parent stream. For example, if streams B and C are dependent on
             stream A, and if stream D is created with a dependency on stream A, this results in a
             dependency order of A followed by B, C, and D.
           </t>
@@ -1219,10 +1223,10 @@ HTTP2-Settings    = token68
           </figure>
           <t>
             An exclusive flag allows for the insertion of a new level of dependencies.  The
-            exclusive flag causes the stream to become the sole dependency of the stream it depends
-            on, causing other dependencies to become dependencies of the stream.  In the previous
-            example, if stream D is created with an exclusive dependency on stream A, this results
-            in a dependency order of A followed by D followed by B and C.
+            exclusive flag causes the stream to become the sole dependency of its parent stream,
+            causing other dependencies to become dependent on the prioritized stream.  In the
+            previous example, if stream D is created with an exclusive dependency on stream A, this
+            results in D becoming the dependency parent of B and C.
           </t>
           <figure title="Example of Exclusive Dependency Creation">
             <artwork type="inline"><![CDATA[
@@ -1234,49 +1238,50 @@ HTTP2-Settings    = token68
 ]]></artwork>
           </figure>
           <t>
-            Inside the dependency tree, a dependent stream SHOULD only be allocated resources if the
-            streams that it depends on are either closed, or it is not possible to make progress on
-            them.
+            Inside the dependency tree, a dependent stream SHOULD only be allocated resources if all
+            of the streams that it depends on (the chain of parent streams up to 0x0) are either
+            closed, or it is not possible to make progress on them.
+          </t>
+          <t>
+            A stream cannot depend on itself.  An endpoint MAY either treat this as a <xref
+            target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>,
+            or assign <xref target="pri-default">default priority values</xref> to the stream.
           </t>
         </section>
 
         <section title="Dependency Weighting">
           <t>
-            Each dependency is allocated an integer weight between 1 to 256 (inclusive).
+            All dependent streams are allocated an integer weight between 1 to 256 (inclusive).
           </t>
           <t>
-            Streams with the same dependencies SHOULD be allocated resources proportionally based on
-            their weight.  Thus, if stream B depends on stream A with weight 4, and C depends on
-            stream A with weight 12, and if no progress can be made on A, stream B ideally receives
-            one third of the resources allocated to stream C.
-          </t>
-          <t>
-            A stream MUST NOT depend on itself.  An endpoint MAY either treat this as a <xref
-            target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>,
-            or assign <xref target="pri-default">default priority values</xref> to the stream.
+            Streams with the same parent SHOULD be allocated resources proportionally based on their
+            weight.  Thus, if stream B depends on stream A with weight 4, and C depends on stream A
+            with weight 12, and if no progress can be made on A, stream B ideally receives one third
+            of the resources allocated to stream C.
           </t>
         </section>
 
         <section title="Reprioritization">
           <t>
             Stream priorities are changed using the <x:ref>PRIORITY</x:ref> frame.  Setting a
-            dependency causes a stream to become dependent on the identified stream.
+            dependency causes a stream to become dependent on the identified parent stream.
           </t>
           <t>
-            All streams that are dependent on a reprioritized stream move with it. Setting a
-            dependency with the exclusive flag for a reprioritized stream moves all the dependencies
-            of the stream it depends on to become dependencies of the reprioritized stream.
+            Dependent streams move with their parent stream if the parent is reprioritized.  Setting
+            a dependency with the exclusive flag for a reprioritized stream moves all the
+            dependencies of the new parent stream to become dependent on the reprioritized stream.
           </t>
           <t>
             If a stream is made dependent on one of its own dependencies, the formerly dependent
-            stream is first moved to be dependent on the reprioritized stream's previous dependency,
-            retaining its weight.
+            stream is first moved to be dependent on the reprioritized stream's previous parent.
+            The moved dependency retains its weight.
           </t>
           <figure title="Example of Dependency Reordering">
             <preamble>
               For example, for an original dependency tree where B and C depend on A, D and E depend
-              on C, and F depends on D; if A is made dependent on D, then D takes the place of A
-              with A dependent on D and all other dependency relationships staying the same.
+              on C, and F depends on D.  If A is made dependent on D, then D takes the place of A.
+              All other dependency relationships either stay the same, except for F, which becomes
+              dependent on A if the reprioritization is exclusive.
             </preamble>
             <artwork type="inline"><![CDATA[
     ?                ?                ?                 ?
@@ -1287,7 +1292,7 @@ HTTP2-Settings    = token68
      / \                 |             / \             /|\
     D   E                E            B   C           B C F
     |                                     |             |
-    F                                     E             F
+    F                                     E             E
                (intermediate)   (non-exclusive)    (exclusive)
 ]]></artwork>
           </figure>
@@ -1296,21 +1301,21 @@ HTTP2-Settings    = token68
         <section title="Prioritization State Management">
           <t>
             When a stream is removed from the dependency tree, its dependencies can be moved to
-            become dependent on the stream the closed stream depends on.  The weights of new
-            dependencies SHOULD be assigned by distributing the weight of the dependency of the
-            closed stream proportionally based on the weights of its dependencies.
+            become dependent on the parent of the closed stream.  The weights of new dependencies
+            are recalculated by distributing the weight of the dependency of the closed stream
+            proportionally based on the weights of its dependencies.
           </t>
           <t>
             Streams that are removed from the dependency tree cause some prioritization information
-            to be lost.  Resources are shared between streams that depend on the same stream, which
+            to be lost.  Resources are shared between streams with the same parent stream, which
             means that if a stream in that set closes or becomes blocked, any spare capacity
             allocated to a stream is distributed to the immediate neighbors of the stream.  However,
             if the common dependency is removed from the tree, those streams share resources with
             streams at the next highest level.
           </t>
           <t>
-            For example, assume streams A and B share a dependency, and streams C and D both depend
-            on stream A. Prior to the removal of stream A, if streams A and D are unable to proceed,
+            For example, assume streams A and B share a parent, and streams C and D both depend on
+            stream A. Prior to the removal of stream A, if streams A and D are unable to proceed,
             then stream C receives all the resources dedicated to stream A.  If stream A is removed
             from the tree, the weight of stream A is divided between streams C and D.  If stream D
             is still unable to proceed, this results in stream C receiving a reduced proportion of
@@ -1320,10 +1325,9 @@ HTTP2-Settings    = token68
           <t>
             It is possible for a stream to become closed while prioritization information that
             creates a dependency on that stream is in transit.  If a stream identified in a
-            dependency has been closed and any associated priority information destroyed then the
-            dependent stream is instead assigned a default priority.  This potentially creates
-            suboptimal prioritization, since the stream can be given an effective priority that is
-            higher than expressed by a peer.
+            dependency has had any associated priority information destroyed, then the dependent
+            stream is instead assigned a default priority.  This potentially creates suboptimal
+            prioritization, since the stream could be given a priority that is higher than intended.
           </t>
           <t>
             To avoid these problems, endpoints SHOULD maintain prioritization state for closed
@@ -1353,9 +1357,9 @@ HTTP2-Settings    = token68
 
         <section title="Default Priorities" anchor="pri-default">
           <t>
-            Providing priority information is optional.  Streams are assigned a dependency on stream
-            0x0.  <xref target="PushResources">Pushed streams</xref> initially depend on their associated
-            stream.  In both cases, streams are assigned a default weight of 16.
+            Providing priority information is optional.  Streams are assigned a default dependency
+            on stream 0x0.  <xref target="PushResources">Pushed streams</xref> initially depend on
+            their associated stream.  In both cases, streams are assigned a default weight of 16.
           </t>
         </section>
       </section>
@@ -2101,8 +2105,8 @@ HTTP2-Settings    = token68
         </t>
 
         <t>
-          Promised streams are not required to be used in order promised.  The PUSH_PROMISE only
-          reserves stream identifiers for later use.
+          Promised streams are not required to be used in the order they are promised.  The
+          PUSH_PROMISE only reserves stream identifiers for later use.
         </t>
 
         <t>
