@@ -250,6 +250,16 @@
   </xsl:call-template>
 </xsl:param>
 
+<!-- extension for inserting RFC metadata -->
+
+<xsl:param name="xml2rfc-ext-insert-metadata">
+  <xsl:call-template name="parse-pis">
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="attr" select="'insert-metadata'"/>
+    <xsl:with-param name="default" select="'no'"/>
+  </xsl:call-template>
+</xsl:param>
+
 <!-- extension for excluding DCMI properties in meta tag (RFC2731) -->
 
 <xsl:param name="xml2rfc-ext-support-rfc2731">
@@ -296,6 +306,7 @@
   <xsl:call-template name="parse-pis">
     <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
     <xsl:with-param name="attr" select="'authors-section'"/>
+    <xsl:with-param name="default" select="'end'"/>
   </xsl:call-template>
 </xsl:param>
 
@@ -1012,7 +1023,7 @@
   </xsl:if>
 
   <!-- next, add information about the document's authors -->
-  <xsl:if test="$xml2rfc-ext-authors-section!='end'">
+  <xsl:if test="$xml2rfc-ext-authors-section='before-appendices'">
     <xsl:call-template name="insertAuthors" />
   </xsl:if>
 
@@ -1078,9 +1089,18 @@
   </xsl:variable>
   <div id="{$anch}" />
   <xsl:apply-templates />
-  <xsl:if test="(@title!='' or @anchor!='') and not(@suppress-title='true')">
+  <xsl:if test="(@title!='') or (@anchor!='' and not(@suppress-title='true'))">
     <xsl:variable name="n"><xsl:call-template name="get-figure-number"/></xsl:variable>
-    <p class="figure">Figure <xsl:value-of select="$n"/><xsl:if test="@title!=''">: <xsl:value-of select="@title" /></xsl:if></p>
+    <p class="figure">
+      <xsl:if test="not(starts-with($n,'u'))">
+        <xsl:text>Figure </xsl:text>
+        <xsl:value-of select="$n"/>
+        <xsl:if test="@title!=''">: </xsl:if>
+      </xsl:if>
+      <xsl:if test="@title!=''">
+        <xsl:value-of select="@title" />
+      </xsl:if>
+    </p>
   </xsl:if>
 </xsl:template>
 
@@ -2031,7 +2051,7 @@
       <title>
         <xsl:apply-templates select="front/title" mode="get-text-content" />
       </title>
-      <xsl:call-template name="insertScript" />
+      <xsl:call-template name="insertScripts" />
       <xsl:call-template name="insertCss" />
       <!-- <link rel="alternate stylesheet" type="text/css" media="screen" title="Plain (typewriter)" href="rfc2629tty.css" /> -->
 
@@ -2144,8 +2164,11 @@
 
     </head>
     <body>
-      <xsl:if test="/rfc/x:feedback">
-        <xsl:attribute name="onload">init();</xsl:attribute>
+      <xsl:if test="/rfc/x:feedback or ($xml2rfc-ext-insert-metadata='yes' and /rfc/@number)">
+        <xsl:attribute name="onload">
+          <xsl:if test="$xml2rfc-ext-insert-metadata='yes' and /rfc/@number">getMeta(<xsl:value-of select="/rfc/@number"/>,"rfc.meta");</xsl:if>
+          <xsl:if test="/rfc/x:feedback">initFeedback();</xsl:if>
+        </xsl:attribute>
       </xsl:if>
 
       <!-- insert diagnostics -->
@@ -2290,6 +2313,9 @@
     </xsl:choose>
   </xsl:variable>
 
+  <xsl:if test="$xml2rfc-ext-insert-metadata='yes' and $rfcno!='' and @anchor='rfc.status'">
+    <div id="rfc.meta" style="float: right; border: 1px solid black; margin: 2em; padding: 1em; display: none;"></div>
+  </xsl:if>
   <div>
     <xsl:if test="@anchor">
       <xsl:call-template name="check-anchor"/>
@@ -3551,12 +3577,12 @@
 </xsl:template>
 
 <!-- optional scripts -->
-<xsl:template name="insertScript">
+<xsl:template name="insertScripts">
 <xsl:if test="/rfc/x:feedback">
 <script>
 var buttonsAdded = false;
 
-function init() {
+function initFeedback() {
   var fb = document.createElement("div");
   fb.className = "feedback noprint";
   fb.setAttribute("onclick", "feedback();");
@@ -3640,6 +3666,131 @@ function toggleButton(node) {
     }
   }
 }</script>
+</xsl:if>
+<xsl:if test="$xml2rfc-ext-insert-metadata='yes' and $rfcno!=''">
+<script>
+function getMeta(rfcno, container) {
+
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "http://tools.ietf.org/draft/rfc" + rfcno + "/state.xml", true);
+  xhr.onload = function (e) {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        var doc = xhr.responseXML;
+        var info = getChildByName(doc.documentElement, "info");
+  
+        var cont = document.getElementById(container);
+        // empty the container
+        while (cont.firstChild) {
+          cont.removeChild(myNode.firstChild);
+        }      
+  
+        var c = getChildByName(info, "stdstatus");
+        if (c !== null) {
+          var bld = newElementWithText("b", c.textContent);
+          cont.appendChild(bld);
+        }
+  
+        c = getChildByName(info, "updatedby");
+        if (c !== null) {
+          cont.appendChild(newElement("br"));
+          cont.appendChild(newText("Updated by: "));
+          appendRfcLinks(cont, c.textContent);
+        }
+  
+        c = getChildByName(info, "obsoletedby");
+        if (c !== null) {
+          cont.appendChild(newElement("br"));
+          cont.appendChild(newText("Obsoleted by: "));
+          appendRfcLinks(cont, c.textContent);
+        }
+        
+        insertErrata(rfcno, cont);
+  
+        cont.style.display = "block";
+      } else {
+        console.error(xhr.statusText);
+      }
+    }
+  };
+  xhr.onerror = function (e) {
+    console.error(xhr.status + " " + xhr.statusText);
+  };
+  xhr.send(null);
+}
+
+function insertErrata(rfcno, container) {
+  var xhr = new XMLHttpRequest();
+  xhr.open("GET", "http://greenbytes.de/tech/webdav/rfcerrata.raw", true);
+  xhr.onload = function (e) {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 200) {
+        var t = "\n" + xhr.responseText + "\n";
+        if (t.indexOf(rfcno) >= 0) {
+          container.appendChild(newElement("br"));
+          var link = newElementWithText("a", "errata");
+          link.setAttribute("href", "http://www.rfc-editor.org/errata_search.php?rfc=" + rfcno);
+          var errata = newElementWithText("i", "This document has ");
+          errata.appendChild(link);
+          errata.appendChild(newText("."));
+          container.appendChild(errata);
+        }
+      } else {
+        console.error(xhr.statusText);
+      }
+    }
+  };
+  xhr.onerror = function (e) {
+    console.error(xhr.status + " " + xhr.statusText);
+  };
+  xhr.send(null);
+}
+
+// DOM helpers
+function newElement(name) {
+  return document.createElement(name);
+}
+function newElementWithText(name, txt) {
+  var e = document.createElement(name);
+  e.appendChild(newText(txt));
+  return e;
+}
+function newText(text) {
+  return document.createTextNode(text);
+}
+
+function getChildByName(parent, name) {
+  if (parent === null) {
+    return null;
+  }
+  else {
+    for (var c = parent.firstChild; c !== null; c = c.nextSibling) {
+      if (name == c.nodeName) {
+        return c;
+      }
+    }
+    return null;
+  }
+}
+
+function appendRfcLinks(parent, text) {
+  var updates = text.split(",");
+  for (var i = 0; i &lt; updates.length; i++) {
+    var rfc = updates[i].trim();
+    if (rfc.substring(0, 3) == "rfc") {
+      var link = newElement("a");
+      link.setAttribute("href", "http://tools.ietf.org/html/" + rfc);
+      link.appendChild(newText(rfc.substring(3)));
+      parent.appendChild(link);
+    } else {
+      parent.appendChild(newText(rfc));
+    }
+    if (i != updates.length - 1) {
+      parent.appendChild(newText(", "));
+    }
+  }
+}
+</script>
 </xsl:if>
 </xsl:template>
 
@@ -5124,9 +5275,14 @@ dd, li, p {
   <xsl:param name="oldtitle" />
   <xsl:param name="waschanged" />
 
+  <xsl:variable name="depth">
+    <!-- count the dots -->
+    <xsl:value-of select="string-length(translate($number,'.ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890&#167;','.'))"/>
+  </xsl:variable>
+  
   <!-- handle tocdepth parameter -->
   <xsl:choose>
-    <xsl:when test="($tocparam='' or $tocparam='default') and string-length(translate($number,'.ABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890&#167;','.')) &gt;= $parsedTocDepth">
+    <xsl:when test="(not($tocparam) or $tocparam='' or $tocparam='default') and $depth >= $parsedTocDepth">
       <!-- dropped entry because excluded -->
       <xsl:attribute name="class">excluded</xsl:attribute>
     </xsl:when>
@@ -5179,7 +5335,7 @@ dd, li, p {
     </li>
   </xsl:if>
 
-  <xsl:if test="$xml2rfc-ext-authors-section!='end'">
+  <xsl:if test="$xml2rfc-ext-authors-section='before-appendices'">
     <xsl:apply-templates select="/rfc/front" mode="toc" />
   </xsl:if>
   <xsl:apply-templates select="back/*[not(self::references)]" mode="toc" />
@@ -6599,9 +6755,18 @@ dd, li, p {
     </xsl:variable>
 
     <table class="{$style}" cellpadding="3" cellspacing="0">
-      <xsl:if test="(@title!='' or @anchor!='') and not(@suppress-title='true')">
+      <xsl:if test="(@title!='') or (@anchor!='' and not(@suppress-title='true'))">
         <xsl:variable name="n"><xsl:call-template name="get-table-number"/></xsl:variable>
-        <caption>Table <xsl:value-of select="$n"/><xsl:if test="@title!=''">: <xsl:value-of select="@title" /></xsl:if></caption>
+        <caption>
+          <xsl:if test="not(starts-with($n,'u'))">
+            <xsl:text>Table </xsl:text>
+            <xsl:value-of select="$n"/>
+            <xsl:if test="@title!=''">: </xsl:if>
+          </xsl:if>
+          <xsl:if test="@title!=''">
+            <xsl:value-of select="@title" />
+          </xsl:if>
+        </caption>
       </xsl:if>
 
       <xsl:if test="ttcol!=''">
@@ -6884,11 +7049,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.624 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.624 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.629 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.629 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2014/03/28 12:53:01 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2014/03/28 12:53:01 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2014/04/17 09:22:01 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2014/04/17 09:22:01 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
@@ -6989,12 +7154,12 @@ dd, li, p {
 
 <xsl:template name="get-table-number">
   <xsl:choose>
-    <xsl:when test="@title!='' or @anchor!=''">
-      <xsl:number level="any" count="texttable[@title!='' or @anchor!='']" />
+    <xsl:when test="@anchor!=''">
+      <xsl:number level="any" count="texttable[@anchor!='']" />
     </xsl:when>
     <xsl:otherwise>
       <xsl:text>u.</xsl:text>
-      <xsl:number level="any" count="texttable[not(@title!='' or @anchor!='')]" />
+      <xsl:number level="any" count="texttable[not(@anchor) or @anchor='']" />
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -7007,12 +7172,12 @@ dd, li, p {
 
 <xsl:template name="get-figure-number">
   <xsl:choose>
-    <xsl:when test="@title!='' or @anchor!=''">
-      <xsl:number level="any" count="figure[@title!='' or @anchor!='']" />
+    <xsl:when test="@anchor!=''">
+      <xsl:number level="any" count="figure[@anchor!='']" />
     </xsl:when>
     <xsl:otherwise>
       <xsl:text>u.</xsl:text>
-      <xsl:number level="any" count="figure[not(@title!='' or @anchor!='')]" />
+      <xsl:number level="any" count="figure[not(@anchor) or @anchor='']" />
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
