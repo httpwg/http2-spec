@@ -302,8 +302,9 @@
    connection.
 </t>
 <t>
-   When a client uses an alternate service, it &MUST; emit the Service header field
-   (<xref target="service"/>) on every request using that alternate service.
+   When a client uses an alternative service, it &MUST; provide an indication to the server of the
+   alternative service it has used (<xref target="indicator"/>).  This feedback allows the server to
+   avoid sending unnecessary or circular alternative service signals.
 </t>
 <t>
    The client is not required to block requests; the origin's connection can be
@@ -462,36 +463,32 @@ Alt-Svc: h2c=8000; ma=60
 </section>
 </section>
 
-<section title="The Service HTTP Header Field" anchor="service">
+<section title="Indicating Alternative Service Use" anchor="indicator">
 <t>
-   The Service HTTP header field is used in requests to indicate the identity of the
-   alternate service in use, just as the Host header field identifies the host and port
-   of the origin.
-</t>
-<figure>
-<artwork type="abnf2616">
-Service = uri-host [ ":" port ]
-</artwork>
-</figure>
-<t>
-   Service is intended to allow alternate services to detect loops, differentiate
-   traffic for purposes of load balancing, and generally to ensure that it is
-   possible to identify the intended destination of traffic, since introducing
-   this information after a protocol is in use has proven to be problematic.
+   When using alternative services, a client &MUST; provide an indication of what service it is
+   using.  This indication allows alternative services to detect loops, differentiate traffic
+   for purposes of load balancing, and generally to ensure that it is possible to identify the
+   intended destination of traffic, since introducing this information after a protocol is in
+   use has proven to be problematic.
 </t>
 <t>
-   When using an Alternate Service, clients &MUST; include a Service header in all
-   requests.
+   The Alt-Svc HTTP header field can be included in requests to indicate the identity of the
+   alternative service that is in use, just as the Host header field identifies the host and
+   port of the origin.
 </t>
 <figure>
   <preamble>For example:</preamble>
   <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
 GET /thing
 Host: origin.example.com
-Service: alternate.example.net
+Alt-Svc: http/1.1=alternative.example.net
 User-Agent: Example/1.0
 </artwork>
 </figure>
+
+<t>
+   When using <xref target="HTTP2">HTTP/2</xref>, clients SHOULD instead send an ALTSVC frame.
+</t>
 </section>
 
 <section title="The 421 Not Authoritative HTTP Status Code" anchor="status">
@@ -530,23 +527,6 @@ User-Agent: Example/1.0
 <t>
   <list style="symbols">
     <t>Header Field Name: Alt-Svc</t>
-    <t>Application Protocol: http</t>
-    <t>Status: standard</t>
-    <t>Author/Change Controller: IETF</t>
-    <t>Specification Document: [this document]</t>
-    <t>Related Information: </t>
-  </list>
-</t>
-</section>
-
-<section title="The Service Message Header Field" anchor="the-service-message-header-field" >
-<t>
-   This document registers Alt-Svc in the Permanent Message Header Registry
-   <xref target="RFC3864"/>.
-</t>
-<t>
-  <list style="symbols">
-    <t>Header Field Name: Service</t>
     <t>Application Protocol: http</t>
     <t>Status: standard</t>
     <t>Author/Change Controller: IETF</t>
@@ -657,7 +637,7 @@ User-Agent: Example/1.0
 </t>
 <t>
   The Alt-Svc header field was influenced by the design of the
-  Alternative-Protocol header field in SPDY.
+  Alternate-Protocol header field in SPDY.
 </t>
 </section>
 
