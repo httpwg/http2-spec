@@ -2,7 +2,7 @@
 title: Opportunistic Encryption for HTTP URIs
 abbrev: Opportunistic HTTP Encryption
 docname: draft-nottingham-http2-encryption-03
-date: 2013
+date: 2014
 category: std
 
 ipr: trust200902
@@ -32,12 +32,10 @@ normative:
   RFC5246:
   I-D.ietf-httpbis-http2:
   I-D.ietf-httpbis-alt-svc:
-  I-D.ietf-tls-applayerprotoneg:
   I-D.ietf-httpbis-p6-cache:
   I-D.ietf-websec-key-pinning:
 
 informative:
-  I-D.ietf-httpbis-p1-messaging:
   firesheep:
     target: http://codebutler.com/firesheep/
     title: Firesheep
@@ -64,7 +62,6 @@ informative:
   I-D.mbelshe-httpbis-spdy:
   RFC2804:
   RFC3365:
-  RFC6246:
   RFC6454:
   RFC6973:
 
@@ -88,7 +85,7 @@ that some deployments find supporting TLS difficult. Therefore, this document
 describes a usage model whereby sites that serve "http" URIs over TLS are not
 required to support strong server authentication.
 
-A mechanism for limiting the potential for active attack is described in {{#http-tls}}. This
+A mechanism for limiting the potential for active attack is described in {{http-tls}}. This
 provides clients with additional protection against active attack for a period
 after successfully connecting to a server using TLS.  This does not offer the
 same level of protection as afforded to "https" URIs, but increases the
@@ -272,7 +269,7 @@ device").
 
 A downgrade attack against the negotiation for TLS is possible.  With the
 `HTTP-TLS` header field, this is limited to occasions where clients have no
-prior information (see {{#privacy}}), or when persisted commitments have
+prior information (see {{privacy}}), or when persisted commitments have
 expired.
 
 For example, because the `Alt-Svc` header field {{I-D.ietf-httpbis-alt-svc}}
