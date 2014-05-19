@@ -351,16 +351,6 @@ at IETF87.
 
 # Frequently Asked Questions
 
-## Will this make encryption mandatory in HTTP/2?
-
-Not in the sense that this proposal would have it required (with a MUST) in the
-specification.
-
-What might happen, however, is that some browser implementers will take the
-flexibility that this approach grants and decide to not negotiate for HTTP/2
-without one of the encryption profiles. That means that servers would need to
-implement one of the encryption-enabling profiles to interoperate using HTTP/2
-for HTTP URIs.
 
 ## No certificate checks? Really?
 
