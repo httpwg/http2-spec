@@ -2819,9 +2819,9 @@ HTTP2-Settings    = token68
           An HTTP message (request or response) consists of:
           <list style="numbers">
             <t>
-              one <x:ref>HEADERS</x:ref> frame, followed by zero or more
-              <x:ref>CONTINUATION</x:ref> frames (containing the message headers; see <xref
-              target="HTTP-p1" x:fmt="," x:rel="#header.fields"/>), and
+              one <x:ref>HEADERS</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref>
+              frames (containing the message headers; see <xref target="HTTP-p1" x:fmt=","
+              x:rel="#header.fields"/>), and
             </t>
             <t>
               zero or more <x:ref>DATA</x:ref> frames (containing the message payload; see <xref
@@ -2829,8 +2829,8 @@ HTTP2-Settings    = token68
             </t>
             <t>
               optionally, one <x:ref>HEADERS</x:ref> frame, followed by zero or more
-              <x:ref>CONTINUATION</x:ref> frames (containing the trailer-part, if present; see
-              <xref target="HTTP-p1" x:fmt="," x:rel="#chunked.trailer.part"/>).
+              <x:ref>CONTINUATION</x:ref> frames (containing the trailer-part, if present; see <xref
+              target="HTTP-p1" x:fmt="," x:rel="#chunked.trailer.part"/>).
             </t>
           </list>
           The last frame in the sequence bears an END_STREAM flag, though a <x:ref>HEADERS</x:ref>
@@ -2843,8 +2843,8 @@ HTTP2-Settings    = token68
           <x:ref>CONTINUATION</x:ref> frames.
         </t>
         <t>
-          Otherwise, frames MAY be interspersed on the stream between these frames, but those
-          frames do not carry HTTP semantics. In particular, <x:ref>HEADERS</x:ref> frames (and any
+          Otherwise, frames MAY be interspersed on the stream between these frames, but those frames
+          do not carry HTTP semantics. In particular, <x:ref>HEADERS</x:ref> frames (and any
           <x:ref>CONTINUATION</x:ref> frames that follow) other than the first and optional last
           frames in this sequence do not carry HTTP semantics.
         </t>
@@ -2924,270 +2924,273 @@ HTTP2-Settings    = token68
               </t>
             </list>
           </t>
-
         </section>
 
-      <section anchor="HttpHeaders" title="HTTP Header Fields">
-        <t>
-          HTTP header fields carry information as a series of key-value pairs. For a listing of
-          registered HTTP headers, see the Message Header Field Registry maintained at
-          <eref target="http://www.iana.org/assignments/message-headers"/>.
-        </t>
-        <t>
-          While HTTP/1.x used the message start-line (see <xref target="HTTP-p1" x:fmt=","
-                x:rel="#start.line"/>) to convey the target URI and method of
-          the request, and the status code for the response, HTTP/2 uses special pseudo-headers
-          beginning with ":" for these tasks.
-        </t>
-        <t>
-          Just as in HTTP/1.x, header field names are strings of ASCII characters that are compared
-          in a case-insensitive fashion. However, header field names MUST be converted to lowercase
-          prior to their encoding in HTTP/2. A request or response containing uppercase header
-          field names MUST be treated as <xref target="malformed">malformed</xref>.
-        </t>
-        <t>
-          HTTP/2 does not use the Connection header field to indicate "hop-by-hop" header fields;
-          in this protocol, connection-specific metadata is conveyed by other means. As such, a
-          HTTP/2 message containing Connection MUST be treated as <xref
-          target="malformed">malformed</xref>.
-        </t>
-        <t>
-          This means that an intermediary transforming an HTTP/1.x message to
-          HTTP/2 will need to remove any header fields nominated by the Connection header field,
-          along with the Connection header field itself. Such intermediaries SHOULD also remove
-          other connection-specific header fields, such as Keep-Alive, Proxy-Connection,
-          Transfer-Encoding and Upgrade, even if they are not nominated by Connection.
-        </t>
-        <t>
-          One exception to this is the TE header field, which MAY be present in an HTTP/2 request,
-          but when it is MUST NOT contain any value other than "trailers".
-        </t>
-        <t>
-          <list style="hanging">
-            <t hangText="Note:">
-              HTTP/2 purposefully does not support upgrade to another protocol.  The
-              handshake methods described in <xref target="starting"/> are believed sufficient to
-              negotiate the use of alternative protocols.
-            </t>
-          </list>
-        </t>
-
-        <section anchor="HttpRequest" title="Request Header Fields">
+        <section anchor="HttpHeaders" title="HTTP Header Fields">
           <t>
-            HTTP/2 defines a number of header fields starting with a colon ':' character that carry
-            information about the request target:
-            <list style="symbols">
-              <x:lt>
-                <t>
-                  The <spanx style="verb">:method</spanx> header field includes the HTTP method
-                  (<xref target="HTTP-p2" x:fmt="," x:rel="#methods"/>).
-                </t>
-              </x:lt>
-              <x:lt>
-                <t>
-                  The <spanx style="verb">:scheme</spanx> header field includes the scheme portion
-                  of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
-                </t>
-                <t>
-                  <spanx style="verb">:scheme</spanx> is not restricted to <spanx
-                  style="verb">http</spanx> and <spanx style="verb">https</spanx> schemed URIs.  A
-                  proxy or gateway can translate requests for non-HTTP schemes, enabling the use of
-                  HTTP to interact with non-HTTP services.
-                </t>
-              </x:lt>
-              <x:lt>
-                <t>
-                  The <spanx style="verb">:authority</spanx> header field includes the authority
-                  portion of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).  The
-                  authority MUST NOT include the deprecated <spanx style="verb">userinfo</spanx>
-                  subcomponent for <spanx style="verb">http</spanx> or <spanx
-                  style="verb">https</spanx> schemed URIs.
-                </t>
-                <t>
-                  To ensure that the HTTP/1.1 request line can be reproduced accurately, this
-                  header field MUST be omitted when translating from an HTTP/1.1 request that has a
-                  request target in origin or asterisk form (see <xref target="HTTP-p1" x:fmt=","
-                  x:rel="#request-target"/>). Clients that generate HTTP/2 requests directly SHOULD
-                  instead omit the <spanx style="verb">Host</spanx> header field. An intermediary
-                  that converts an HTTP/2 request to HTTP/1.1 MUST create a <spanx
-                  style="verb">Host</spanx> header field if one is not present in a request by
-                  copying the value of the <spanx style="verb">:authority</spanx> header field.
-                </t>
-              </x:lt>
-              <x:lt>
-                <t>
-                  The <spanx style="verb">:path</spanx> header field includes the path and query
-                  parts of the target URI (the <spanx style="verb">path-absolute</spanx> production
-                  from <xref target="RFC3986"/> and optionally a '?' character followed by the
-                  <spanx style="verb">query</spanx> production, see <xref target="RFC3986" x:fmt=","
-                  x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  This field
-                  MUST NOT be empty; URIs that do not contain a path component MUST include a value
-                  of '/', unless the request is an OPTIONS request in asterisk form, in which case
-                  the <spanx style="verb">:path</spanx> header field MUST include '*'.
-                </t>
-              </x:lt>
-            </list>
-            All HTTP/2 requests MUST include exactly one valid value for the <spanx
-            style="verb">:method</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
-            style="verb">:path</spanx> header fields, unless this is a <xref
-            target="CONNECT">CONNECT request</xref>.  An HTTP request that omits mandatory header
-            fields is <xref target="malformed">malformed</xref>.
+            HTTP header fields carry information as a series of key-value pairs. For a listing of
+            registered HTTP headers, see the Message Header Field Registry maintained at <eref
+            target="http://www.iana.org/assignments/message-headers"/>.
           </t>
           <t>
-            Header field names that start with a colon are only valid in the HTTP/2 context.  These
-            are not HTTP header fields.  Implementations MUST NOT generate header fields that start
-            with a colon, but they MUST ignore any header field that starts with a colon.  In
-            particular, header fields with names starting with a colon MUST NOT be exposed as HTTP
-            header fields.
+            While HTTP/1.x used the message start-line (see <xref target="HTTP-p1" x:fmt=","
+            x:rel="#start.line"/>) to convey the target URI and method of the request, and the
+            status code for the response, HTTP/2 uses special pseudo-headers beginning with ":" for
+            these tasks.
           </t>
           <t>
-            HTTP/2 does not define a way to carry the version identifier that is included in the
-            HTTP/1.1 request line.
+            Just as in HTTP/1.x, header field names are strings of ASCII characters that are
+            compared in a case-insensitive fashion. However, header field names MUST be converted to
+            lowercase prior to their encoding in HTTP/2. A request or response containing uppercase
+            header field names MUST be treated as <xref target="malformed">malformed</xref>.
           </t>
-        </section>
-
-        <section anchor="HttpResponse" title="Response Header Fields">
           <t>
-            A single <spanx style="verb">:status</spanx> header field is defined that carries the
-            HTTP status code field (see <xref target="HTTP-p2" x:fmt="," x:rel="#status.codes"/>).
-            This header field MUST be included in all responses, otherwise the response is <xref
+            HTTP/2 does not use the Connection header field to indicate "hop-by-hop" header fields;
+            in this protocol, connection-specific metadata is conveyed by other means. As such, a
+            HTTP/2 message containing Connection MUST be treated as <xref
             target="malformed">malformed</xref>.
           </t>
           <t>
-            HTTP/2 does not define a way to carry the version or reason phrase that is included in
-            an HTTP/1.1 status line.
-          </t>
-        </section>
-
-        <section anchor="HeaderOrdering" title="Header Field Ordering">
-          <t>
-            <xref target="COMPRESSION">HTTP Header Compression</xref> does not preserve the order of
-            header fields, because the relative order of header fields with different names is not
-            important.  However, the same header field can be repeated to form a
-            list (see <xref target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), where the relative
-            order of header field values is significant. This repetition can occur either as a
-            single header field with a comma-separated list of values, or as several header fields
-            with a single value, or any combination thereof. Therefore, in the latter case, ordering
-            needs to be preserved before compression takes place.
+            This means that an intermediary transforming an HTTP/1.x message to
+            HTTP/2 will need to remove any header fields nominated by the Connection header field,
+            along with the Connection header field itself. Such intermediaries SHOULD also remove
+            other connection-specific header fields, such as Keep-Alive, Proxy-Connection,
+            Transfer-Encoding and Upgrade, even if they are not nominated by Connection.
           </t>
           <t>
-            To preserve the order of multiple occurrences of a header field with the same name, its
-            ordered values are concatenated into a single value using a zero-valued octet (0x0) to
-            delimit them.
+            One exception to this is the TE header field, which MAY be present in an HTTP/2 request,
+            but when it is MUST NOT contain any value other than "trailers".
           </t>
           <t>
-            After decompression, header fields that have values containing zero octets (0x0) MUST be
-            split into multiple header fields before being processed.
-          </t>
-          <t>For example, the following HTTP/1.x header block:</t>
-          <figure>
-            <artwork type="inline"><![CDATA[
-              Content-Type: text/html
-              Cache-Control: max-age=60, private
-              Cache-Control: must-revalidate
-]]></artwork></figure>
-          <t>
-            contains three Cache-Control directives; two in the first Cache-Control header field,
-            and the last one in the second Cache-Control field. Before compression, they would need
-            to be converted to a form similar to this (with 0x0 represented as "\0"):
-          </t>
-          <figure>
-            <artwork type="inline"><![CDATA[
-              cache-control: max-age=60, private\0must-revalidate
-              content-type: text/html
-]]></artwork></figure>
-          <t>
-            Note here that the ordering between Content-Type and Cache-Control is not preserved, but
-            the relative ordering of the Cache-Control directives -- as well as the fact that the
-            first two were comma-separated, while the last was on a different line -- is.
-          </t>
-          <t>
-            Header fields containing multiple values MUST be concatenated into a single value unless
-            the ordering of that header field is known to be insignificant.
-          </t>
-          <t>
-            The special case of <spanx style="verb">set-cookie</spanx> - which does not form a
-            comma-separated list, but can have multiple values - does not depend on ordering.  The
-            <spanx style="verb">set-cookie</spanx> header field MAY be encoded as multiple header
-            field values, or as a single concatenated value.
-          </t>
-        </section>
-
-        <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
-          <t>
-            The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
-            redundant data.
-          </t>
-          <t>
-            The Cookie header field uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
-            This header field doesn't follow the list construction rules in HTTP (see <xref
-            target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), which prevents cookie-pairs from
-            being separated into different name-value pairs.  This can significantly reduce
-            compression efficiency as individual cookie-pairs are updated.
-          </t>
-          <t>
-            To allow for better compression efficiency, the Cookie header field MAY be split into
-            separate header fields, each with one or more cookie-pairs.  If there are multiple
-            Cookie header fields after decompression, these MUST be concatenated into a single octet
-            string using the two octet delimiter of 0x3B, 0x20 (the ASCII string "; ").
-          </t>
-          <t>
-            The Cookie header field MAY be split using a zero octet (0x0), as defined in <xref
-            target="HeaderOrdering"/>.  When decoding, zero octets MUST be replaced with the cookie
-            delimiter ("; ").
-          </t>
-        </section>
-
-        <section anchor="malformed" title="Malformed Messages">
-          <t>
-            A malformed request or response is one that uses a valid sequence of HTTP/2 frames, but
-            is otherwise invalid due to the presence of prohibited header fields, the absence of
-            mandatory header fields, or the inclusion of uppercase header field names.
-          </t>
-          <t>
-            A request or response that includes an entity body can include a <spanx
-            style="verb">content-length</spanx> header field.  A request or response is also
-            malformed if the value of a <spanx style="verb">content-length</spanx> header field does
-            not equal the sum of the uncompressed <x:ref>DATA</x:ref> frame payload lengths that
-            form the body.
             <list style="hanging">
               <t hangText="Note:">
-                The <spanx style="verb">Content-Length</spanx> header field is set to the length of
-                an entity body.  Compression of <x:ref>DATA</x:ref> frames is a function of HTTP/2
-                that does not alter entities.
+                HTTP/2 purposefully does not support upgrade to another protocol.  The
+                handshake methods described in <xref target="starting"/> are believed sufficient to
+                negotiate the use of alternative protocols.
               </t>
             </list>
           </t>
-          <t>
-            Intermediaries that process HTTP requests or responses (i.e., all intermediaries other
-            than those acting as tunnels) MUST NOT forward a malformed request or response.
-          </t>
-          <t>
-            Implementations that detect malformed requests or responses need to ensure that the
-            stream ends.  For malformed requests, a server MAY send an HTTP response prior to
-            closing or resetting the stream.  Clients MUST NOT accept a malformed response. Note
-            that these requirements are intended to protect against several types of common attacks
-            against HTTP; they are deliberately strict, because being permissive can expose
-            implementations to these vulnerabilites.
-          </t>
+
+          <section anchor="HttpRequest" title="Request Header Fields">
+            <t>
+              HTTP/2 defines a number of header fields starting with a colon ':' character that carry
+              information about the request target:
+              <list style="symbols">
+                <x:lt>
+                  <t>
+                    The <spanx style="verb">:method</spanx> header field includes the HTTP method
+                    (<xref target="HTTP-p2" x:fmt="," x:rel="#methods"/>).
+                  </t>
+                </x:lt>
+                <x:lt>
+                  <t>
+                    The <spanx style="verb">:scheme</spanx> header field includes the scheme portion
+                    of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
+                  </t>
+                  <t>
+                    <spanx style="verb">:scheme</spanx> is not restricted to <spanx
+                    style="verb">http</spanx> and <spanx style="verb">https</spanx> schemed URIs.  A
+                    proxy or gateway can translate requests for non-HTTP schemes, enabling the use of
+                    HTTP to interact with non-HTTP services.
+                  </t>
+                </x:lt>
+                <x:lt>
+                  <t>
+                    The <spanx style="verb">:authority</spanx> header field includes the authority
+                    portion of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).  The
+                    authority MUST NOT include the deprecated <spanx style="verb">userinfo</spanx>
+                    subcomponent for <spanx style="verb">http</spanx> or <spanx
+                    style="verb">https</spanx> schemed URIs.
+                  </t>
+                  <t>
+                    To ensure that the HTTP/1.1 request line can be reproduced accurately, this
+                    header field MUST be omitted when translating from an HTTP/1.1 request that has a
+                    request target in origin or asterisk form (see <xref target="HTTP-p1" x:fmt=","
+                    x:rel="#request-target"/>). Clients that generate HTTP/2 requests directly SHOULD
+                    instead omit the <spanx style="verb">Host</spanx> header field. An intermediary
+                    that converts an HTTP/2 request to HTTP/1.1 MUST create a <spanx
+                    style="verb">Host</spanx> header field if one is not present in a request by
+                    copying the value of the <spanx style="verb">:authority</spanx> header field.
+                  </t>
+                </x:lt>
+                <x:lt>
+                  <t>
+                    The <spanx style="verb">:path</spanx> header field includes the path and query
+                    parts of the target URI (the <spanx style="verb">path-absolute</spanx> production
+                    from <xref target="RFC3986"/> and optionally a '?' character followed by the
+                    <spanx style="verb">query</spanx> production, see <xref target="RFC3986" x:fmt=","
+                    x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  This field
+                    MUST NOT be empty; URIs that do not contain a path component MUST include a value
+                    of '/', unless the request is an OPTIONS request in asterisk form, in which case
+                    the <spanx style="verb">:path</spanx> header field MUST include '*'.
+                  </t>
+                </x:lt>
+              </list>
+              All HTTP/2 requests MUST include exactly one valid value for the <spanx
+              style="verb">:method</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
+              style="verb">:path</spanx> header fields, unless this is a <xref
+              target="CONNECT">CONNECT request</xref>.  An HTTP request that omits mandatory header
+              fields is <xref target="malformed">malformed</xref>.
+            </t>
+            <t>
+              Header field names that start with a colon are only valid in the HTTP/2 context.  These
+              are not HTTP header fields.  Implementations MUST NOT generate header fields that start
+              with a colon, but they MUST ignore any header field that starts with a colon.  In
+              particular, header fields with names starting with a colon MUST NOT be exposed as HTTP
+              header fields.
+            </t>
+            <t>
+              HTTP/2 does not define a way to carry the version identifier that is included in the
+              HTTP/1.1 request line.
+            </t>
+          </section>
+
+          <section anchor="HttpResponse" title="Response Header Fields">
+            <t>
+              A single <spanx style="verb">:status</spanx> header field is defined that carries the
+              HTTP status code field (see <xref target="HTTP-p2" x:fmt="," x:rel="#status.codes"/>).
+              This header field MUST be included in all responses, otherwise the response is <xref
+              target="malformed">malformed</xref>.
+            </t>
+            <t>
+              HTTP/2 does not define a way to carry the version or reason phrase that is included in
+              an HTTP/1.1 status line.
+            </t>
+          </section>
+
+          <section anchor="HeaderOrdering" title="Header Field Ordering">
+            <t>
+              <xref target="COMPRESSION">HTTP Header Compression</xref> does not preserve the order
+              of header fields, because the relative order of header fields with different names is
+              not important.  However, the same header field can be repeated to form a list (see
+              <xref target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), where the relative order of
+              header field values is significant. This repetition can occur either as a single
+              header field with a comma-separated list of values, or as several header fields with a
+              single value, or any combination thereof. Therefore, in the latter case, ordering
+              needs to be preserved before compression takes place.
+            </t>
+            <t>
+              To preserve the order of multiple occurrences of a header field with the same name,
+              its ordered values are concatenated into a single value using a zero-valued octet
+              (0x0) to delimit them.
+            </t>
+            <t>
+              After decompression, header fields that have values containing zero octets (0x0) MUST
+              be split into multiple header fields before being processed.
+            </t>
+            <t>
+              For example, the following HTTP/1.x header block:
+            </t>
+            <figure>
+              <artwork type="inline"><![CDATA[
+  Content-Type: text/html
+  Cache-Control: max-age=60, private
+  Cache-Control: must-revalidate
+]]></artwork>
+            </figure>
+            <t>
+              contains three Cache-Control directives; two in the first Cache-Control header field,
+              and the last one in the second Cache-Control field. Before compression, they would
+              need to be converted to a form similar to this (with 0x0 represented as "\0"):
+            </t>
+            <figure>
+              <artwork type="inline"><![CDATA[
+  cache-control = max-age=60, private\0must-revalidate
+  content-type = text/html
+]]></artwork>
+            </figure>
+            <t>
+              Note here that the ordering between Content-Type and Cache-Control is not preserved,
+              but the relative ordering of the Cache-Control directives -- as well as the fact that
+              the first two were comma-separated, while the last was on a different line -- is.
+            </t>
+            <t>
+              Header fields containing multiple values MUST be concatenated into a single value
+              unless the ordering of that header field is known to be insignificant.
+            </t>
+            <t>
+              The special case of <spanx style="verb">set-cookie</spanx> - which does not form a
+              comma-separated list, but can have multiple values - does not depend on ordering.  The
+              <spanx style="verb">set-cookie</spanx> header field MAY be encoded as multiple header
+              field values, or as a single concatenated value.
+            </t>
+          </section>
+
+          <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
+            <t>
+              The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
+              redundant data.
+            </t>
+            <t>
+              The Cookie header field uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
+              This header field doesn't follow the list construction rules in HTTP (see <xref
+              target="HTTP-p1" x:fmt="," x:rel="#field.order"/>), which prevents cookie-pairs from
+              being separated into different name-value pairs.  This can significantly reduce
+              compression efficiency as individual cookie-pairs are updated.
+            </t>
+            <t>
+              To allow for better compression efficiency, the Cookie header field MAY be split into
+              separate header fields, each with one or more cookie-pairs.  If there are multiple
+              Cookie header fields after decompression, these MUST be concatenated into a single octet
+              string using the two octet delimiter of 0x3B, 0x20 (the ASCII string "; ").
+            </t>
+            <t>
+              The Cookie header field MAY be split using a zero octet (0x0), as defined in <xref
+              target="HeaderOrdering"/>.  When decoding, zero octets MUST be replaced with the cookie
+              delimiter ("; ").
+            </t>
+          </section>
+
+          <section anchor="malformed" title="Malformed Messages">
+            <t>
+              A malformed request or response is one that uses a valid sequence of HTTP/2 frames, but
+              is otherwise invalid due to the presence of prohibited header fields, the absence of
+              mandatory header fields, or the inclusion of uppercase header field names.
+            </t>
+            <t>
+              A request or response that includes an entity body can include a <spanx
+              style="verb">content-length</spanx> header field.  A request or response is also
+              malformed if the value of a <spanx style="verb">content-length</spanx> header field does
+              not equal the sum of the uncompressed <x:ref>DATA</x:ref> frame payload lengths that
+              form the body.
+              <list style="hanging">
+                <t hangText="Note:">
+                  The <spanx style="verb">Content-Length</spanx> header field is set to the length of
+                  an entity body.  Compression of <x:ref>DATA</x:ref> frames is a function of HTTP/2
+                  that does not alter entities.
+                </t>
+              </list>
+            </t>
+            <t>
+              Intermediaries that process HTTP requests or responses (i.e., all intermediaries other
+              than those acting as tunnels) MUST NOT forward a malformed request or response.
+            </t>
+            <t>
+              Implementations that detect malformed requests or responses need to ensure that the
+              stream ends.  For malformed requests, a server MAY send an HTTP response prior to
+              closing or resetting the stream.  Clients MUST NOT accept a malformed response. Note
+              that these requirements are intended to protect against several types of common attacks
+              against HTTP; they are deliberately strict, because being permissive can expose
+              implementations to these vulnerabilities.
+            </t>
+          </section>
         </section>
-      </section>
 
-      <section title="Examples">
-        <t>
-          This section shows HTTP/1.1 requests and responses, with illustrations of equivalent
-          HTTP/2 requests and responses.
-        </t>
-        <t>
-          An HTTP GET request includes request header fields and no body and is therefore
-          transmitted as a single <x:ref>HEADERS</x:ref> frame, followed by zero or more
-          <x:ref>CONTINUATION</x:ref> frames containing the serialized block of request header
-          fields.  The <x:ref>HEADERS</x:ref> frame in the following has both the END_HEADERS and
-          END_STREAM flags set; no <x:ref>CONTINUATION</x:ref> frames are sent:
-        </t>
+        <section title="Examples">
+          <t>
+            This section shows HTTP/1.1 requests and responses, with illustrations of equivalent
+            HTTP/2 requests and responses.
+          </t>
+          <t>
+            An HTTP GET request includes request header fields and no body and is therefore
+            transmitted as a single <x:ref>HEADERS</x:ref> frame, followed by zero or more
+            <x:ref>CONTINUATION</x:ref> frames containing the serialized block of request header
+            fields.  The <x:ref>HEADERS</x:ref> frame in the following has both the END_HEADERS and
+            END_STREAM flags set; no <x:ref>CONTINUATION</x:ref> frames are sent:
+          </t>
 
-        <figure>
-          <artwork type="inline"><![CDATA[
+          <figure>
+            <artwork type="inline"><![CDATA[
   GET /resource HTTP/1.1           HEADERS
   Host: example.org          ==>     + END_STREAM
   Accept: image/jpeg                 + END_HEADERS
@@ -3197,36 +3200,37 @@ HTTP2-Settings    = token68
                                        host = example.org
                                        accept = image/jpeg
 ]]></artwork>
-        </figure>
+          </figure>
 
-        <t>
-          Similarly, a response that includes only response header fields is transmitted as a
-          <x:ref>HEADERS</x:ref> frame (again, followed by zero or more <x:ref>CONTINUATION</x:ref>
-          frames) containing the serialized block of response header fields.
-        </t>
+          <t>
+            Similarly, a response that includes only response header fields is transmitted as a
+            <x:ref>HEADERS</x:ref> frame (again, followed by zero or more
+            <x:ref>CONTINUATION</x:ref> frames) containing the serialized block of response header
+            fields.
+          </t>
 
-        <figure>
-          <artwork type="inline"><![CDATA[
+          <figure>
+            <artwork type="inline"><![CDATA[
   HTTP/1.1 304 Not Modified        HEADERS
   ETag: "xyzzy"              ==>     + END_STREAM
   Expires: Thu, 23 Jan ...           + END_HEADERS
                                        :status = 304
-                                       etag: "xyzzy"
-                                       expires: Thu, 23 Jan ...
+                                       etag = "xyzzy"
+                                       expires = Thu, 23 Jan ...
 ]]></artwork>
-        </figure>
+          </figure>
 
-        <t>
-          An HTTP POST request that includes request header fields and payload data is transmitted
-          as one <x:ref>HEADERS</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref>
-          frames containing the request header fields, followed by one or more <x:ref>DATA</x:ref>
-          frames, with the last <x:ref>CONTINUATION</x:ref> (or <x:ref>HEADERS</x:ref>) frame having
-          the END_HEADERS flag set and the final <x:ref>DATA</x:ref> frame having the END_STREAM
-          flag set:
-        </t>
+          <t>
+            An HTTP POST request that includes request header fields and payload data is transmitted
+            as one <x:ref>HEADERS</x:ref> frame, followed by zero or more
+            <x:ref>CONTINUATION</x:ref> frames containing the request header fields, followed by one
+            or more <x:ref>DATA</x:ref> frames, with the last <x:ref>CONTINUATION</x:ref> (or
+            <x:ref>HEADERS</x:ref>) frame having the END_HEADERS flag set and the final
+            <x:ref>DATA</x:ref> frame having the END_STREAM flag set:
+          </t>
 
-        <figure>
-          <artwork type="inline"><![CDATA[
+          <figure>
+            <artwork type="inline"><![CDATA[
   POST /resource HTTP/1.1          HEADERS
   Host: example.org          ==>     - END_STREAM
   Content-Type: image/jpeg           - END_HEADERS
@@ -3244,22 +3248,22 @@ HTTP2-Settings    = token68
                                      + END_STREAM
                                    {binary data}
 ]]></artwork>
-          <postamble>
-            Note that data contributing to any given header field could be spread between header
-            block fragments.  The allocation of header fields to frames in this example is
-            illustrative only.
-          </postamble>
-        </figure>
+            <postamble>
+              Note that data contributing to any given header field could be spread between header
+              block fragments.  The allocation of header fields to frames in this example is
+              illustrative only.
+            </postamble>
+          </figure>
 
-        <t>
-          A response that includes header fields and payload data is transmitted as a
-          <x:ref>HEADERS</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref> frames,
-          followed by one or more <x:ref>DATA</x:ref> frames, with the last <x:ref>DATA</x:ref>
-          frame in the sequence having the END_STREAM flag set:
-        </t>
+          <t>
+            A response that includes header fields and payload data is transmitted as a
+            <x:ref>HEADERS</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref>
+            frames, followed by one or more <x:ref>DATA</x:ref> frames, with the last
+            <x:ref>DATA</x:ref> frame in the sequence having the END_STREAM flag set:
+          </t>
 
-        <figure>
-          <artwork type="inline"><![CDATA[
+          <figure>
+            <artwork type="inline"><![CDATA[
   HTTP/1.1 200 OK                  HEADERS
   Content-Type: image/jpeg   ==>     - END_STREAM
   Content-Length: 123                + END_HEADERS
@@ -3271,24 +3275,24 @@ HTTP2-Settings    = token68
                                      + END_STREAM
                                    {binary data}
 ]]></artwork>
-        </figure>
+          </figure>
 
-        <t>
-          Trailing header fields are sent as a header block after both the request or response
-          header block and all the <x:ref>DATA</x:ref> frames have been sent.  The
-          <x:ref>HEADERS</x:ref> frame starting the trailers header block has the END_STREAM flag
-          set.
-        </t>
+          <t>
+            Trailing header fields are sent as a header block after both the request or response
+            header block and all the <x:ref>DATA</x:ref> frames have been sent.  The
+            <x:ref>HEADERS</x:ref> frame starting the trailers header block has the END_STREAM flag
+            set.
+          </t>
 
-        <figure>
-          <artwork type="inline"><![CDATA[
+          <figure>
+            <artwork type="inline"><![CDATA[
   HTTP/1.1 200 OK                  HEADERS
   Content-Type: image/jpeg   ==>     - END_STREAM
   Transfer-Encoding: chunked         + END_HEADERS
-  Trailer: Foo                         :status        = 200
+  Trailer: Foo                         :status = 200
                                        content-length = 123
-  123                                  content-type   = image/jpeg
-  {binary data}                        trailer        = Foo
+  123                                  content-type = image/jpeg
+  {binary data}                        trailer = Foo
   0
   Foo: bar                         DATA
                                      - END_STREAM
@@ -3297,12 +3301,12 @@ HTTP2-Settings    = token68
                                    HEADERS
                                      + END_STREAM
                                      + END_HEADERS
-                                       foo: bar
+                                       foo = bar
 ]]></artwork>
-        </figure>
-      </section>
+          </figure>
+        </section>
 
-      <section anchor="Reliability" title="Request Reliability Mechanisms in HTTP/2">
+        <section anchor="Reliability" title="Request Reliability Mechanisms in HTTP/2">
           <t>
             In HTTP/1.1, an HTTP client is unable to retry a non-idempotent request when an error
             occurs, because there is no means to determine the nature of the error.  It is possible
@@ -3349,16 +3353,16 @@ HTTP2-Settings    = token68
 
       <section anchor="PushResources" title="Server Push">
         <t>
-          HTTP/2 enables a server to pre-emptively send (or "push") one or more associated
-          responses to a client in response to a single request. This feature becomes particularly
-          helpful when the server knows the client will need to have those responses available in
-          order to fully process the response to the original request.
+          HTTP/2 enables a server to pre-emptively send (or "push") one or more associated responses
+          to a client in response to a single request. This feature becomes particularly helpful
+          when the server knows the client will need to have those responses available in order to
+          fully process the response to the original request.
         </t>
 
         <t>
-          Pushing additional responses is optional, and is negotiated between individual
-          endpoints.  The <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting can be set to 0 to indicate
-          that server push is disabled.
+          Pushing additional responses is optional, and is negotiated between individual endpoints.
+          The <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting can be set to 0 to indicate that server
+          push is disabled.
         </t>
         <t>
           Because pushing responses is effectively hop-by-hop, an intermediary could receive pushed
@@ -3370,10 +3374,10 @@ HTTP2-Settings    = token68
         <t>
           A client cannot push. Thus, servers MUST treat the receipt of a
           <x:ref>PUSH_PROMISE</x:ref> frame as a <xref target="ConnectionErrorHandler">connection
-          error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>. Clients MUST reject any attempt to change the
-          <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting to a value other than "0" by treating the
-          message as a <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>PROTOCOL_ERROR</x:ref>.
+          error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>. Clients MUST reject any attempt to
+          change the <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting to a value other than "0" by
+          treating the message as a <xref target="ConnectionErrorHandler">connection error</xref> of
+          type <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
         <t>
           A server can only push responses that are cacheable (see <xref target="HTTP-p6" x:fmt=","
@@ -3404,13 +3408,12 @@ HTTP2-Settings    = token68
           <t>
             The header fields in <x:ref>PUSH_PROMISE</x:ref> and any subsequent
             <x:ref>CONTINUATION</x:ref> frames MUST be a valid and complete set of <xref
-                target="HttpRequest">request header fields</xref>.  The server MUST include a
-            method in the <spanx style="verb">:method</spanx> header field that is safe and
-            cacheable.  If a client receives a <x:ref>PUSH_PROMISE</x:ref> that does not include a
-            complete and valid set of header fields, or the <spanx style="verb">:method</spanx>
-            header field identifies a method that is not safe, it MUST respond with a <xref
-                target="StreamErrorHandler">stream error</xref> of type
-            <x:ref>PROTOCOL_ERROR</x:ref>.
+            target="HttpRequest">request header fields</xref>.  The server MUST include a method in
+            the <spanx style="verb">:method</spanx> header field that is safe and cacheable.  If a
+            client receives a <x:ref>PUSH_PROMISE</x:ref> that does not include a complete and valid
+            set of header fields, or the <spanx style="verb">:method</spanx> header field identifies
+            a method that is not safe, it MUST respond with a <xref
+            target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
 
           <t>
@@ -3424,9 +3427,9 @@ HTTP2-Settings    = token68
             to multiple image files, and the server chooses to push those additional images to the
             client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the
             image links ensures that the client is able to see the promises before discovering
-            embedded links. Similarly, if the server pushes responses referenced by the header
-            block (for instance, in Link header fields), sending the push promises before sending
-            the header block ensures that clients do not request them.
+            embedded links. Similarly, if the server pushes responses referenced by the header block
+            (for instance, in Link header fields), sending the push promises before sending the
+            header block ensures that clients do not request them.
           </t>
 
           <t>
@@ -3444,10 +3447,10 @@ HTTP2-Settings    = token68
           <t>
             After sending the <x:ref>PUSH_PROMISE</x:ref> frame, the server can begin delivering the
             pushed response as a <xref target="HttpResponse">response</xref> on a server-initiated
-            stream that uses the promised stream identifier.  The server uses this stream to transmit
-            an HTTP response, using the same sequence of frames as defined in <xref
-            target="HttpSequence"/>.  This stream becomes <xref target="StreamStates">"half closed" to
-            the client</xref> after the initial <x:ref>HEADERS</x:ref> frame is sent.
+            stream that uses the promised stream identifier.  The server uses this stream to
+            transmit an HTTP response, using the same sequence of frames as defined in <xref
+            target="HttpSequence"/>.  This stream becomes <xref target="StreamStates">"half closed"
+            to the client</xref> after the initial <x:ref>HEADERS</x:ref> frame is sent.
           </t>
 
           <t>
@@ -3474,9 +3477,9 @@ HTTP2-Settings    = token68
 
           <t>
             Clients receiving a pushed response MUST validate that the server is authorized to
-            provide the response, see <xref target="authority"/>.  For example, a server that
-            offers a certificate for only the <spanx style="verb">example.com</spanx> DNS-ID or
-            Common Name is not permitted to push a response for <spanx
+            provide the response, see <xref target="authority"/>.  For example, a server that offers
+            a certificate for only the <spanx style="verb">example.com</spanx> DNS-ID or Common Name
+            is not permitted to push a response for <spanx
             style="verb">https://www.example.org/doc</spanx>.
           </t>
         </section>
@@ -3491,24 +3494,24 @@ HTTP2-Settings    = token68
           server for the purposes of interacting with <spanx style="verb">https</spanx> resources.
         </t>
         <t>
-          In HTTP/2, the CONNECT method is used to establish a tunnel over a single HTTP/2 stream
-          to a remote host, for similar purposes. The HTTP header field mapping works as mostly as
+          In HTTP/2, the CONNECT method is used to establish a tunnel over a single HTTP/2 stream to
+          a remote host, for similar purposes. The HTTP header field mapping works as mostly as
           defined in <xref target="HttpRequest">Request Header Fields</xref>, with a few
           differences. Specifically:
           <list style="symbols">
-              <t>
-                The <spanx style="verb">:method</spanx> header field is set to <spanx
-                style="verb">CONNECT</spanx>.
-              </t>
-              <t>
-                The <spanx style="verb">:scheme</spanx> and <spanx style="verb">:path</spanx> header
-                fields MUST be omitted.
-              </t>
-              <t>
-                The <spanx style="verb">:authority</spanx> header field contains the host and port
-                to connect to (equivalent to the authority-form of the request-target of CONNECT
-                requests, see <xref target="HTTP-p1" x:fmt="," x:rel="#request-target"/>).
-              </t>
+            <t>
+              The <spanx style="verb">:method</spanx> header field is set to <spanx
+              style="verb">CONNECT</spanx>.
+            </t>
+            <t>
+              The <spanx style="verb">:scheme</spanx> and <spanx style="verb">:path</spanx> header
+              fields MUST be omitted.
+            </t>
+            <t>
+              The <spanx style="verb">:authority</spanx> header field contains the host and port to
+              connect to (equivalent to the authority-form of the request-target of CONNECT
+              requests, see <xref target="HTTP-p1" x:fmt="," x:rel="#request-target"/>).
+            </t>
           </list>
         </t>
         <t>
