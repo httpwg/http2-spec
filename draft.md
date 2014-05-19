@@ -36,30 +36,6 @@ normative:
   I-D.ietf-websec-key-pinning:
 
 informative:
-  firesheep:
-    target: http://codebutler.com/firesheep/
-    title: Firesheep
-    author:
-      ins: E. Butler
-      name: Eric Butler
-    date: 2010
-  streetview:
-    target: http://www.wired.com/threatlevel/2012/05/google-wifi-fcc-investigation/
-    title: The Anatomy of Google's Wi-Fi Sniffing Debacle
-    author:
-      ins: D. Kravets
-      name: David Kravets
-      organization: Wired
-    date: 2012
-  xkeyscore:
-    target: http://www.theguardian.com/world/2013/jul/31/nsa-top-secret-program-online-data
-    title: NSA tool collects 'nearly everything a user does on the internet'
-    author:
-      ins: G. Greenwald
-      name: Glenn Greenwald
-      organization: The Guardian
-    date: 2013
-  I-D.mbelshe-httpbis-spdy:
   RFC2804:
   RFC3365:
   RFC6454:
@@ -303,50 +279,6 @@ Thanks to Patrick McManus, Eliot Lear, Stephen Farrell, Guy Podjarny, Stephen
 Ludin, Erik Nygren, Paul Hoffman, Adam Langley, Eric Rescorla and Richard Barnes
 for their feedback and suggestions.
 
-
-# Recent History and Background
-
-One of the design goals for SPDY {{I-D.mbelshe-httpbis-spdy}} was increasing
-the use of encryption on the Web, achieved by only supporting the protocol over
-a connection protected by TLS {{RFC5246}}.
-
-This was done, in part, because sensitive information -- including not only
-login credentials, but also personally identifying information (PII) and even
-patterns of access -- are increasingly prevalent on the Web, being evident in
-potentially every HTTP request made.
-
-Attacks such as FireSheep {{firesheep}} showed how easy it is to gather such
-information when it is sent in the clear, and incidents such as Google's
-collection of unencrypted data by its StreetView Cars {{streetview}} further
-illustrated the risks.
-
-In adopting SPDY as the basis of HTTP/2 {{I-D.ietf-httpbis-http2}}, the HTTPbis
-Working Group agreed not to make TLS mandatory to implement (MtI) or mandatory
-to use (MtU) in our charter, despite an IETF policy to prefer the "best
-security available" {{RFC3365}}.
-
-There were a variety of reasons for this, but most significantly, HTTP is used
-for much more than the traditional browsing case, and encryption is not needed
-for all of these uses. Making encryption MtU or MtI was seen as unlikely to
-succeed because of the wide deployment of HTTP URIs.
-
-However, since making that decision, there have been developments that
-have caused the Working Group to discuss these issues again:
-
-1. Active contributors to some browser implementations have stated that their
-products will not use HTTP/2 over unencrypted connections. If this eventuates,
-it will prevent wide deployment of the new protocol (i.e., it couldn't be used
-with those products for HTTP URIs; only HTTPS URIs).
-
-2. It has been reported that surveillance of HTTP traffic takes place on a broad
-scale {{xkeyscore}}. While the IETF does not take a formal, moral position on
-wiretapping, we do have a strongly held belief "that both commercial development
-of the Internet and adequate privacy for its users against illegal intrusion
-requires the wide availability of strong cryptographic technology"
-{{RFC2804}}. This requirement for privacy is further reinforced by {{RFC6973}}.
-
-As a result, we decided to revisit the issue of how encryption is used in HTTP/2
-at IETF87.
 
 
 # Frequently Asked Questions
