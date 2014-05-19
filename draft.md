@@ -75,7 +75,7 @@ This describes how "http" URIs can be resolved using Transport Layer Security
 
 # Introduction
 
-This document describes a use of the "alternate services" layer described in
+This document describes a use of the "alternative services" layer described in
 {{I-D.ietf-httpbis-alt-svc}} to decouple the URI scheme from the use and
 configuration of underlying encryption, allowing a "http" URI to be upgraded to
 use TLS opportunistically.
