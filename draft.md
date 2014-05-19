@@ -108,19 +108,19 @@ expired alternative services information could make a similar request in paralle
 contact an alternative service, to minimize the delays that might be incurred by failing to contact
 the alternative service.
 
-# Server Authentication
+# Server Authentication {#auth}
 
 There are no existing expectations with respect to cryptographically strong server authentication
 when it comes to resolving HTTP URIs. Establishing it, as described in {{RFC2818}}, creates a
 number of operational challenges. For these reasons, server authentication is not mandatory for
 HTTP URIs when using the mechanism described in this specification.
 
-When connecting to an alternative service for an "http" URI, clients MUST NOT perform the server
-authentication procedure described in Section 3.1 of {{RFC2818}}. The server certificate, if one is
-proffered by the alternative service, MUST NOT be checked for validity, expiration, issuance by a
-trusted certificate authority or matched against the name in the URI. Therefore, the alternative
-service MAY provide any certificate, or even select TLS cipher suites that do not include
-authentication.
+When connecting to an alternative service for an "http" URI, clients are required to perform the
+server authentication procedure described in Section 3.1 of {{RFC2818}}. The server certificate, if
+one is proffered by the alternative service, is not necessarily checked for validity, expiration,
+issuance by a trusted certificate authority or matched against the name in the URI. Therefore, the
+alternative service MAY provide any certificate, or even select TLS cipher suites that do not
+include authentication.
 
 A client MAY perform additional checks on the certificate that it is offered (if the server does
 not select an unauthenticated TLS cipher suite). For instance, a client could examine the
@@ -173,9 +173,9 @@ requests, within a bounded period; clients can then rely upon availability of TL
 associated origin, and take appropriate steps (e.g., failing) when the server cannot be contacted
 safely.
 
-One drawback with this approach is that servers can only make this commitment if they are strongly
-authenticated. Otherwise, server impersonation could be used to create a persistent denial of
-service.
+One drawback with this approach is that clients need to strongly authenticate the origin server
+to act upon such a commitment; otherwise, an attacker impersonating the origin could create a
+persistent denial of service.
 
 
 ## The HTTP-TLS Header Field
