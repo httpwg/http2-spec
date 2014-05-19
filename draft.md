@@ -40,6 +40,7 @@ informative:
   RFC3365:
   RFC6454:
   RFC6973:
+  RFC7258:
 
 
 --- abstract
@@ -51,13 +52,14 @@ pervasive monitoring attacks.
 
 # Introduction
 
-This document describes a use of the "alternative services" layer described in
-{{I-D.ietf-httpbis-alt-svc}} to decouple the "https" URI scheme from the use and configuration of
-underlying encryption, allowing a "http" URI to be accessed using TLS {{RFC5246}} opportunistically.
+This document describes a use of HTTP Alternative Services {{I-D.ietf-httpbis-alt-svc}} to decouple
+the URI scheme from the use and configuration of underlying encryption, allowing a "http"
+URI to be accessed using TLS {{RFC5246}} opportunistically.
 
-"https" URIs requires acquiring and configuring a valid certificate, which means that some
-deployments find supporting TLS difficult. Therefore, this document describes a usage model whereby
-sites can serve "http" URIs over TLS without being required to support strong server authentication.
+Currently, "https" URIs requires acquiring and configuring a valid certificate, which means that
+some deployments find supporting TLS difficult. Therefore, this document describes a usage model
+whereby sites can serve "http" URIs over TLS without being required to support strong server
+authentication.
 
 A mechanism for limiting the potential for active attacks is described in {{http-tls}}. This
 provides clients with additional protection against them for a period after successfully connecting
@@ -67,11 +69,8 @@ URIs, but increases the likelihood that an active attack be detected.
 
 ## Goals and Non-Goals
 
-The immediate goal is to make the use of HTTP more robust in the face of passive monitoring.
-
-Such passive attacks are often opportunistic; they rely on sensitive information being available in
-the clear. Furthermore, they are often broad, where all available data is collected en masse, being
-analyzed separately for relevant information.
+The immediate goal is to make the use of HTTP more robust in the face of pervasive passive
+monitoring {{RFC7258}}.
 
 A secondary goal is to limit the potential for active attacks. It is not intended to offer the same
 level of protection as afforded to "https" URIs, but instead to increase the likelihood that an
