@@ -44,8 +44,8 @@ informative:
 
 --- abstract
 
-This describes how "http" URIs can be resolved using Transport Layer Security
-(TLS).
+This describes how "http" URIs can be accessed using Transport Layer Security
+(TLS) to mitigate pervasive monitoring attacks.
 
 --- middle
 
@@ -53,8 +53,7 @@ This describes how "http" URIs can be resolved using Transport Layer Security
 
 This document describes a use of the "alternative services" layer described in
 {{I-D.ietf-httpbis-alt-svc}} to decouple the "https" URI scheme from the use and
-configuration of underlying encryption, allowing a "http" URI to be upgraded to
-use TLS {{RFC5246}} opportunistically.
+configuration of underlying encryption, allowing a "http" URI to be accessed using TLS {{RFC5246}} opportunistically.
 
 "https" URIs requires acquiring and configuring a valid certificate, which means
 that some deployments find supporting TLS difficult. Therefore, this document
