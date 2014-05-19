@@ -76,17 +76,17 @@ This describes how "http" URIs can be resolved using Transport Layer Security
 # Introduction
 
 This document describes a use of the "alternative services" layer described in
-{{I-D.ietf-httpbis-alt-svc}} to decouple the URI scheme from the use and
+{{I-D.ietf-httpbis-alt-svc}} to decouple the "https" URI scheme from the use and
 configuration of underlying encryption, allowing a "http" URI to be upgraded to
-use TLS opportunistically.
+use TLS {{RFC5246}} opportunistically.
 
-Using TLS requires acquiring and configuring a valid certificate, which means
+"https" URIs requires acquiring and configuring a valid certificate, which means
 that some deployments find supporting TLS difficult. Therefore, this document
-describes a usage model whereby sites that serve "http" URIs over TLS are not
+describes a usage model whereby sites can serve "http" URIs over TLS without being
 required to support strong server authentication.
 
-A mechanism for limiting the potential for active attack is described in {{http-tls}}. This
-provides clients with additional protection against active attack for a period
+A mechanism for limiting the potential for active attacks is described in {{http-tls}}. This
+provides clients with additional protection against them for a period
 after successfully connecting to a server using TLS.  This does not offer the
 same level of protection as afforded to "https" URIs, but increases the
 likelihood that an active attack be detected.
