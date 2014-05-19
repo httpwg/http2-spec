@@ -268,25 +268,5 @@ Paul Hoffman, Adam Langley, Eric Rescorla and Richard Barnes for their feedback 
 
 
 
-# Frequently Asked Questions
 
-
-## No certificate checks? Really?
-
-Since TLS isn't in use for any "http" URIs today, there is no net loss of security, and we gain
-some privacy from passive attacks.
-
-This makes TLS significantly simpler to deploy for servers; they are able to use a self-signed
-certificate.
-
-With the `HTTP-TLS` header field, we are able to gain a measure of protection.
-
-
-## Why do this if a downgrade attack is so easy?
-
-There are many attack scenarios (e.g., third parties in coffee shops) where active attacks are not
-feasible, or much more difficult.
-
-Additionally, active attacks can often be detected, because they change protocol interactions; as
-such, they bring a risk of discovery.
 
