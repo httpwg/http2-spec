@@ -89,8 +89,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 An origin server that supports the resolution of HTTP URIs can indicate support for this
 specification by providing an alternative service advertisement {{I-D.ietf-httpbis-alt-svc}} for a
-protocol identifier that uses TLS, such as "h2" {{I-D.ietf-httpbis-http2}}, or "https/1.1"
-{{RFC2818}}.
+protocol identifier that uses TLS, such as "h2" {{I-D.ietf-httpbis-http2}}.
 
 A client that receives such an advertisement MAY direct future requests for the associated origin
 to the identified service (as specified by {{I-D.ietf-httpbis-alt-svc}}).
@@ -146,7 +145,7 @@ Connections that are established without any means of server authentication (for
 purely anonymous TLS cipher suites), cannot be used for "https" URIs.
 
 
-# Persisting Use of TLS {#http-tls}
+# Requiring Use of TLS {#http-tls}
 
 Editors' Note: this is a very rough take on an approach that would provide a limited form of
 protection against downgrade attack. It's unclear at this point whether the additional effort (and
@@ -161,25 +160,29 @@ man-in-the-middle attacks.
 - A client that is willing to use cleartext to resolve the resource will do so if access to any
 TLS-enabled alternative services is blocked at the network layer.
 
-Given that the primary goal of this specification is to prevent passive attacks, these are of less
-concern than they might otherwise be. However, a modest form of protection against these attacks
-can be provided for clients on return visits to a server.
+Given that the primary goal of this specification is to prevent passive attacks, these are not
+critical failings (especially considering the alternative - HTTP over cleartext). However, a modest
+form of protection against active attacks can be provided for clients on subsequent connections.
 
-This is acheived when a server makes a commitment to providing service over TLS for future
-requests, within a bounded period; clients can then rely upon availability of TLS for the
-associated origin, and take appropriate steps (e.g., failing) when the server cannot be contacted
-safely.
+When an alternate service is able to commit to providing service for a particular origin over TLS
+for a bounded period of time, clients can choose to rely upon its avilability, failing when it
+cannot be contacted. Effectively, this makes the alternative service "sticky" in the client.
 
-One drawback with this approach is that clients need to strongly authenticate the origin server
-to act upon such a commitment; otherwise, an attacker impersonating the origin could create a
-persistent denial of service.
+One drawback with this approach is that clients need to strongly authenticate the alternative
+service to act upon such a commitment; otherwise, an attacker could create a persistent denial of
+service.
 
 
 ## The HTTP-TLS Header Field
 
-A server makes this commitment by sending a `HTTP-TLS` header field:
+A alternative service can make this commitment by sending a `HTTP-TLS` header field:
 
     HTTP-TLS     = 1#parameter
+
+When it appears in a HTTP response from a strongly authenticated alternative service, this header
+field indicates that the availability of the origin through TLS-protected alternative services is
+"sticky", and that the client MUST NOT fall back to cleartext protocols while this information is
+considered fresh.
 
 For example:
 
@@ -190,16 +193,16 @@ For example:
     Date: Thu, 1 May 2014 16:20:09 GMT
     HTTP-TLS: ma=3600
 
-A client that has has not authenticated the server MAY do so when it sees a `HTTP-TLS` header
-field. The server is authenticated as described in Section 3.1 of {{RFC2818}}, noting the
-additional requirements in {{I-D.ietf-httpbis-alt-svc}}. If server authentication is successful,
-the client can persistently store a record that the requested origin {{RFC6454}} can be retrieved
-over TLS.
+Note that the commitment is not bound to a particular alternative service; clients SHOULD use
+other alternative services that they become aware of, as long as the requirements regarding
+authentication and avoidance of cleartext protocols are met.
 
+When this header field appears in a response, clients MUST strongly authenticate the alternative
+service, as described in Section 3.1 of {{RFC2818}}, noting the additional requirements in
+{{I-D.ietf-httpbis-alt-svc}}. The header field MUST be ignored if strong authentication fails.
 
 Persisted information expires after a period determined by the value of the "ma" parameter. See
 Section 4.2.3 of {{I-D.ietf-httpbis-p6-cache}} for details of determining response age.
-
 
     ma-parameter     = delta-seconds
 
