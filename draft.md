@@ -88,19 +88,19 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 {{RFC2119}}.
 
 
-# Using HTTP over TLS
+# Using HTTP URIs over TLS
 
-A server that supports the resolution of HTTP URIs can provide an alternative service advertisement
-{{I-D.ietf-httpbis-alt-svc}} for a protocol that uses TLS, such as "h2" {{I-D.ietf-httpbis-http2}},
-or "http/1.1" {{RFC2818}}.
+An origin server that supports the resolution of HTTP URIs can indicate support for this
+specification by providing an alternative service advertisement {{I-D.ietf-httpbis-alt-svc}} for a
+protocol identifier that uses TLS, such as "h2" {{I-D.ietf-httpbis-http2}}, or "https/1.1"
+{{RFC2818}}.
 
-A client that sees this alternative service advertisement can direct future requests for the
-associated origin to the identified service.
+A client that receives such an advertisement MAY direct future requests for the associated origin
+to the identified service (as specified by {{I-D.ietf-httpbis-alt-svc}}).
 
-A client that places the importance of passive protections over performance might choose to send no
-further requests over cleartext connections if it detects the alternative service advertisement. If
-the alternative service cannot be successfully connected, the client might resume its use of the
-cleartext connection.
+A client that places the importance of passive protections over performance might choose to withold
+requests until an encrypted connection is available. However, if such a connection cannot be
+successfully established, the client MAY resume its use of the cleartext connection.
 
 A client can also explicitly probe for an alternative service advertisement by sending a request
 that bears little or no sensitive information, such as one with the OPTIONS method. Clients with
@@ -110,24 +110,26 @@ the alternative service.
 
 # Server Authentication
 
-There are no expectations with respect to security when it comes to resolving HTTP URIs. Server
-authentication, as described in {{RFC2818}}, creates a number of operational challenges. For these
-reasons, server authentication is not mandatory for HTTP URIs.
+There are no existing expectations with respect to cryptographically strong server authentication
+when it comes to resolving HTTP URIs. Establishing it, as described in {{RFC2818}}, creates a
+number of operational challenges. For these reasons, server authentication is not mandatory for
+HTTP URIs when using the mechanism described in this specification.
 
-When connecting to a service, clients do not perform the server authentication procedure described
-in Section 3.1 of {{RFC2818}}. The server certificate, if one is proffered, is not checked for
-validity, expiration, issuance by a trusted certificate authority or matched against the name in
-the URI. A server is therefore able to provide any certificate, or even select TLS cipher suites
-that do not include authentication.
+When connecting to an alternative service for an "http" URI, clients MUST NOT perform the server
+authentication procedure described in Section 3.1 of {{RFC2818}}. The server certificate, if one is
+proffered by the alternative service, MUST NOT be checked for validity, expiration, issuance by a
+trusted certificate authority or matched against the name in the URI. Therefore, the alternative
+service MAY provide any certificate, or even select TLS cipher suites that do not include
+authentication.
 
 A client MAY perform additional checks on the certificate that it is offered (if the server does
 not select an unauthenticated TLS cipher suite). For instance, a client could examine the
 certificate to see if it has changed over time.
 
 In order to retain the authority properties of "http" URIs, and as stipulated by
-{{I-D.ietf-httpbis-alt-svc}}, clients MUST NOT use alternative services that identify a different
-host, unless the alternative service indication is authenticated. This is not currently possible
-for "http" URIs on cleartext transports.
+{{I-D.ietf-httpbis-alt-svc}}, clients MUST NOT use alternative services that identify a host other
+than that of the origin, unless the alternative service indication itself is strongly
+authenticated. This is not currently possible for "http" URIs on cleartext transports.
 
 
 # Interaction with "https" URIs
