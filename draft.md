@@ -149,13 +149,14 @@ Connections that are established without any means of server authentication (for
 purely anonymous TLS cipher suites), cannot be used for "https" URIs.
 
 
-# Persisting use of TLS {#http-tls}
+# Persisting Use of TLS {#http-tls}
 
-Note: this is a very rough take on an approach that would provide a limited form of protection
-against downgrade attack. It's unclear at this point whether the additional effort (and modest
-operational cost), is worthwhile.
+Editors' Note: this is a very rough take on an approach that would provide a limited form of
+protection against downgrade attack. It's unclear at this point whether the additional effort (and
+modest operational cost) is worthwhile.
 
-Two factors ensure that active attacks are trivial to mount:
+The mechanism described in this specification is trival to mount an active attack against, for two
+reasons:
 
 - A client that doesn't perform authentication an easy victim of server impersonation, through
 man-in-the-middle attacks.
@@ -163,14 +164,16 @@ man-in-the-middle attacks.
 - A client that is willing to use cleartext to resolve the resource will do so if access to any
 TLS-enabled alternative services is blocked at the network layer.
 
-Given that the primary goal of this work is to prevent passive attacks, these are of less concern
-than they might otherwise be, but a modest form of protection against these attacks can be provided
-for clients on return visits to a server.
+Given that the primary goal of this specification is to prevent passive attacks, these are of less
+concern than they might otherwise be. However, a modest form of protection against these attacks
+can be provided for clients on return visits to a server.
 
-A server can make a commitment to providing service over TLS in future requests. This allows
-clients to detect an active attack and fail requests when the server cannot be contacted using TLS.
+This is acheived when a server makes a commitment to providing service over TLS for future
+requests, within a bounded period; clients can then rely upon availability of TLS for the
+associated origin, and take appropriate steps (e.g., failing) when the server cannot be contacted
+safely.
 
-The drawback with this approach is that servers can only make this commitment if they are strong
+One drawback with this approach is that servers can only make this commitment if they are strongly
 authenticated. Otherwise, server impersonation could be used to create a persistent denial of
 service.
 
