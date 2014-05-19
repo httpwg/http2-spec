@@ -1,20 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/xsl" href="../Tools/rfc2629xslt/rfc2629.xslt" ?>
-<!DOCTYPE rfc SYSTEM "../Tools/rfc2629xslt/rfc2629.dtd">
+  <?xml-stylesheet type="text/xsl" href="rfc2629.xslt" ?>
+
+<!DOCTYPE rfc SYSTEM "rfc2629.dtd" [
+]>
+
 <rfc ipr="trust200902" docName="draft-nottingham-http2-encryption-03" category="std">
-  <?rfc toc="yes"?>
-  <?rfc tocindent="yes"?>
-  <?rfc sortrefs="yes"?>
-  <?rfc symrefs="yes"?>
-  <?rfc strict="yes"?>
-  <?rfc compact="yes"?>
-  <?rfc comments="yes"?>
-  <?rfc inline="yes"?>
+
+<?rfc toc="yes"?>
+<?rfc tocindent="yes"?>
+<?rfc sortrefs="yes"?>
+<?rfc symrefs="yes"?>
+<?rfc strict="yes"?>
+<?rfc compact="yes"?>
+<?rfc comments="yes"?>
+<?rfc inline="yes"?>
+
   <front>
     <title abbrev="Opportunistic HTTP Encryption">Opportunistic Encryption for HTTP URIs</title>
+
     <author initials="M." surname="Nottingham" fullname="Mark Nottingham">
-      <organization/>
+      <organization></organization>
       <address>
+        
+        
         <email>mnot@mnot.net</email>
         <uri>http://www.mnot.net/</uri>
       </address>
@@ -22,560 +30,576 @@
     <author initials="M." surname="Thomson" fullname="Martin Thomson">
       <organization>Mozilla</organization>
       <address>
+        
+        
         <email>martin.thomson@gmail.com</email>
+        
       </address>
     </author>
+
     <date year="2014"/>
+
     <area>General</area>
+    
     <keyword>Internet-Draft</keyword>
+
     <abstract>
-      <t>This describes how “http” URIs can be resolved using Transport Layer Security
-(TLS).</t>
+
+
+<t>This describes how “http” URIs can be accessed using Transport Layer Security (TLS) to mitigate
+pervasive monitoring attacks.</t>
+
+
+
     </abstract>
+
+
   </front>
+
   <middle>
-    <section anchor="introduction" title="Introduction">
-      <t>This document describes a use of the “alternate services” layer described in
-<xref target="I-D.ietf-httpbis-alt-svc"/> to decouple the URI scheme from the use and
-configuration of underlying encryption, allowing a “http” URI to be upgraded to
-use TLS opportunistically.</t>
-      <t>Using TLS requires acquiring and configuring a valid certificate, which means
-that some deployments find supporting TLS difficult. Therefore, this document
-describes a usage model whereby sites that serve “http” URIs over TLS are not
-required to support strong server authentication.</t>
-      <t>A mechanism for limiting the potential for active attack is described in <xref target="http-tls"/>. This
-provides clients with additional protection against active attack for a period
-after successfully connecting to a server using TLS.  This does not offer the
-same level of protection as afforded to “https” URIs, but increases the
-likelihood that an active attack be detected.</t>
-      <section anchor="goals-and-non-goals" title="Goals and Non-Goals">
-        <t>The immediate goal is to make the use of HTTP more robust in the face of passive
-monitoring.</t>
-        <t>Such passive attacks are often opportunistic; they rely on sensitive
-information being available in the clear. Furthermore, they are often broad,
-where all available data is collected en masse, being analyzed separately for
-relevant information.</t>
-        <t>A mechanism for limiting the potential for active attack is described. This
-provides clients with additional protection against active attack for a period
-after successfully connecting to a server using TLS.  This does not offer the
-same level of protection as afforded to “https” URIs, but increases the
-likelihood that an active attack be detected.</t>
-        <t>A secondary, but significant, goal is to provide for ease of implementation,
-deployment and operation.  This mechanism should have a minimal impact upon
-performance.</t>
-      </section>
-      <section anchor="notational-conventions" title="Notational Conventions">
-        <t>The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”,
-“SHOULD”, “SHOULD NOT”, “RECOMMENDED”, “MAY”, and “OPTIONAL” in this
-document are to be interpreted as described in <xref target="RFC2119"/>.</t>
-      </section>
-    </section>
-    <section anchor="using-http-over-tls" title="Using HTTP over TLS">
-      <t>A server that supports the resolution of HTTP URIs can provide an alternative
-service advertisement <xref target="I-D.ietf-httpbis-alt-svc"/> for a protocol that uses TLS,
-such as “h2” <xref target="I-D.ietf-httpbis-http2"/>, or “http/1.1” <xref target="RFC2818"/>.</t>
-      <t>A client that sees this alternative service advertisement can direct future
-requests for the associated origin to the identified service.</t>
-      <t>A client that places the importance of passive protections over performance
-might choose to send no further requests over cleartext connections if it
-detects the alternative service advertisement.  If the alternative service
-cannot be successfully connected, the client might resume its use of the
-cleartext connection.</t>
-      <t>A client can also explicitly probe for an alternative service advertisement by
-sending a request that bears little or no sensitive information, such as one
-with the OPTIONS method.  Clients with expired alternative services information
-could make a similar request in parallel to an attempt to contact an alternative
-service, to minimize the delays that might be incurred by failing to contact the
-alternative service.</t>
-    </section>
-    <section anchor="server-authentication" title="Server Authentication">
-      <t>There are no expectations with respect to security when it comes to resolving
-HTTP URIs.  Server authentication, as described in <xref target="RFC2818"/>, creates a number
-of operational challenges.  For these reasons, server authentication is not
-mandatory for HTTP URIs.</t>
-      <t>When connecting to a service, clients do not perform the server authentication
-procedure described in Section 3.1 of <xref target="RFC2818"/>.  The server certificate, if
-one is proffered, is not checked for validity, expiration, issuance by a trusted
-certificate authority or matched against the name in the URI.  A server is
-therefore able to provide any certificate, or even select TLS cipher suites that
-do not include authentication.</t>
-      <t>A client MAY perform additional checks on the certificate that it is offered (if
-the server does not select an unauthenticated TLS cipher suite).  For instance,
-a client could examine the certificate to see if it has changed over time.</t>
-      <t>In order to retain the authority properties of “http” URIs, and as stipulated by
-<xref target="I-D.ietf-httpbis-alt-svc"/>, clients MUST NOT use alternative services that
-identify a different host, unless the alternative service indication is
-authenticated.  This is not currently possible for “http” URIs on cleartext
-transports.</t>
-    </section>
-    <section anchor="interaction-with-https-uris" title="Interaction with “https” URIs">
-      <t>A service that is discovered to support “http” URIs might concurrently support
-“https” URIs.  HTTP/2 permits the sending of requests for multiple origins (see
-<xref target="RFC6454"/>) on the one connection.  When using alternative services, both HTTP
-and HTTPS URIs might be sent on the same connection.</t>
-      <t>HTTPS URIs rely on server authentication.  Therefore, if a connection is
-initially created without authenticating the server, requests for HTTPS
-resources cannot be sent over that connection until the server certificate is
-successfully authenticated.  Section 3.1 of <xref target="RFC2818"/> describes the basic
-mechanism, though the authentication considerations in
-<xref target="I-D.ietf-httpbis-alt-svc"/> could also apply.</t>
-      <t>Connections that are established without any means of server authentication (for
-instance, the purely anonymous TLS cipher suites), cannot be used for “https”
-URIs.</t>
-    </section>
-    <section anchor="http-tls" title="Persisting use of TLS">
-      <t>Note: this is a very rough take on an approach that would provide a limited form
-of protection against downgrade attack.  It’s unclear at this point whether the
-additional effort (and modest operational cost), is worthwhile.</t>
-      <t>Two factors ensure that active attacks are trivial to mount:</t>
-      <t>
-        <list style="symbols">
-          <t>A client that doesn’t perform authentication an easy victim of server
-impersonation, through man-in-the-middle attacks.</t>
-          <t>A client that is willing to use cleartext to resolve the resource will do so
-if access to any TLS-enabled alternative services is blocked at the network
-layer.</t>
-        </list>
-      </t>
-      <t>Given that the primary goal of this work is to prevent passive attacks, these
-are of less concern than they might otherwise be, but a modest form of
-protection against these attacks can be provided for clients on return visits to
-a server.</t>
-      <t>A server can make a commitment to providing service over TLS in future requests.
-This allows clients to detect an active attack and fail requests when the server
-cannot be contacted using TLS.</t>
-      <t>The drawback with this approach is that servers can only make this commitment if
-they are strong authenticated. Otherwise, server impersonation could be used to
-create a persistent denial of service.</t>
-      <section anchor="the-http-tls-header-field" title="The HTTP-TLS Header Field">
-        <t>A server makes this commitment by sending a <spanx style="verb">HTTP-TLS</spanx> header field:</t>
-        <figure>
-          <artwork><![CDATA[
+
+
+<section anchor="introduction" title="Introduction">
+
+<t>This document describes a use of HTTP Alternative Services <xref target="I-D.ietf-httpbis-alt-svc"/> to decouple
+the URI scheme from the use and configuration of underlying encryption, allowing a “http”
+URI to be accessed using TLS <xref target="RFC5246"/> opportunistically.</t>
+
+<t>Currently, “https” URIs requires acquiring and configuring a valid certificate, which means that
+some deployments find supporting TLS difficult. Therefore, this document describes a usage model
+whereby sites can serve “http” URIs over TLS without being required to support strong server
+authentication.</t>
+
+<t>A mechanism for limiting the potential for active attacks is described in <xref target="http-tls"/>. This
+provides clients with additional protection against them for a period after successfully connecting
+to a server using TLS. This does not offer the same level of protection as afforded to “https”
+URIs, but increases the likelihood that an active attack be detected.</t>
+
+<section anchor="goals-and-non-goals" title="Goals and Non-Goals">
+
+<t>The immediate goal is to make the use of HTTP more robust in the face of pervasive passive
+monitoring <xref target="RFC7258"/>.</t>
+
+<t>A secondary goal is to limit the potential for active attacks. It is not intended to offer the same
+level of protection as afforded to “https” URIs, but instead to increase the likelihood that an
+active attack can be detected.</t>
+
+<t>A final (but significant) goal is to provide for ease of implementation, deployment and operation.
+This mechanism should have a minimal impact upon performance, and should not require extensive
+administrative effort to configure.</t>
+
+</section>
+<section anchor="notational-conventions" title="Notational Conventions">
+
+<t>The key words “MUST”, “MUST NOT”, “REQUIRED”, “SHALL”, “SHALL NOT”, “SHOULD”, “SHOULD NOT”,
+“RECOMMENDED”, “MAY”, and “OPTIONAL” in this document are to be interpreted as described in
+<xref target="RFC2119"/>.</t>
+
+</section>
+</section>
+<section anchor="using-http-uris-over-tls" title="Using HTTP URIs over TLS">
+
+<t>An origin server that supports the resolution of HTTP URIs can indicate support for this
+specification by providing an alternative service advertisement <xref target="I-D.ietf-httpbis-alt-svc"/> for a
+protocol identifier that uses TLS, such as “h2” <xref target="I-D.ietf-httpbis-http2"/>, or “https/1.1”
+<xref target="RFC2818"/>.</t>
+
+<t>A client that receives such an advertisement MAY direct future requests for the associated origin
+to the identified service (as specified by <xref target="I-D.ietf-httpbis-alt-svc"/>).</t>
+
+<t>A client that places the importance of passive protections over performance might choose to withold
+requests until an encrypted connection is available. However, if such a connection cannot be
+successfully established, the client MAY resume its use of the cleartext connection.</t>
+
+<t>A client can also explicitly probe for an alternative service advertisement by sending a request
+that bears little or no sensitive information, such as one with the OPTIONS method. Clients with
+expired alternative services information could make a similar request in parallel to an attempt to
+contact an alternative service, to minimize the delays that might be incurred by failing to contact
+the alternative service.</t>
+
+</section>
+<section anchor="auth" title="Server Authentication">
+
+<t>There are no existing expectations with respect to cryptographically strong server authentication
+when it comes to resolving HTTP URIs. Establishing it, as described in <xref target="RFC2818"/>, creates a
+number of operational challenges. For these reasons, server authentication is not mandatory for
+HTTP URIs when using the mechanism described in this specification.</t>
+
+<t>When connecting to an alternative service for an “http” URI, clients are required to perform the
+server authentication procedure described in Section 3.1 of <xref target="RFC2818"/>. The server certificate, if
+one is proffered by the alternative service, is not necessarily checked for validity, expiration,
+issuance by a trusted certificate authority or matched against the name in the URI. Therefore, the
+alternative service MAY provide any certificate, or even select TLS cipher suites that do not
+include authentication.</t>
+
+<t>A client MAY perform additional checks on the certificate that it is offered (if the server does
+not select an unauthenticated TLS cipher suite). For instance, a client could examine the
+certificate to see if it has changed over time.</t>
+
+<t>In order to retain the authority properties of “http” URIs, and as stipulated by
+<xref target="I-D.ietf-httpbis-alt-svc"/>, clients MUST NOT use alternative services that identify a host other
+than that of the origin, unless the alternative service indication itself is strongly
+authenticated. This is not currently possible for “http” URIs on cleartext transports.</t>
+
+</section>
+<section anchor="interaction-with-https-uris" title="Interaction with “https” URIs">
+
+<t>An alternative service that is discovered to support “http” URIs might concurrently support “https”
+URIs, because HTTP/2 permits the sending of requests for multiple origins (see <xref target="RFC6454"/>) on the
+one connection. Therefore, when using alternative services, both HTTP and HTTPS URIs might be sent
+on the same connection.</t>
+
+<t>“https” URIs rely on server authentication. Therefore, if a connection is initially created without
+authenticating the server, requests for “https” resources cannot be sent over that connection until
+the server certificate is successfully authenticated. Section 3.1 of <xref target="RFC2818"/> describes the
+basic mechanism, though the authentication considerations in <xref target="I-D.ietf-httpbis-alt-svc"/> could
+also apply.</t>
+
+<t>Connections that are established without any means of server authentication (for instance, the
+purely anonymous TLS cipher suites), cannot be used for “https” URIs.</t>
+
+</section>
+<section anchor="http-tls" title="Persisting Use of TLS">
+
+<t>Editors’ Note: this is a very rough take on an approach that would provide a limited form of
+protection against downgrade attack. It’s unclear at this point whether the additional effort (and
+modest operational cost) is worthwhile.</t>
+
+<t>The mechanism described in this specification is trival to mount an active attack against, for two
+reasons:</t>
+
+<t><list style='symbols'>
+  <t>A client that doesn’t perform authentication an easy victim of server impersonation, through
+man-in-the-middle attacks.</t>
+  <t>A client that is willing to use cleartext to resolve the resource will do so if access to any
+TLS-enabled alternative services is blocked at the network layer.</t>
+</list></t>
+
+<t>Given that the primary goal of this specification is to prevent passive attacks, these are of less
+concern than they might otherwise be. However, a modest form of protection against these attacks
+can be provided for clients on return visits to a server.</t>
+
+<t>This is acheived when a server makes a commitment to providing service over TLS for future
+requests, within a bounded period; clients can then rely upon availability of TLS for the
+associated origin, and take appropriate steps (e.g., failing) when the server cannot be contacted
+safely.</t>
+
+<t>One drawback with this approach is that clients need to strongly authenticate the origin server
+to act upon such a commitment; otherwise, an attacker impersonating the origin could create a
+persistent denial of service.</t>
+
+<section anchor="the-http-tls-header-field" title="The HTTP-TLS Header Field">
+
+<t>A server makes this commitment by sending a <spanx style='verb'>HTTP-TLS</spanx> header field:</t>
+
+<figure><artwork><![CDATA[
 HTTP-TLS     = 1#parameter
-]]></artwork>
-        </figure>
-        <t>For example:</t>
-        <figure>
-          <artwork><![CDATA[
+]]></artwork></figure>
+
+<t>For example:</t>
+
+<figure><artwork><![CDATA[
 HTTP/1.1 200 OK
 Content-Type: text/html
 Cache-Control: 600
 Age: 30
 Date: Thu, 1 May 2014 16:20:09 GMT
 HTTP-TLS: ma=3600
-]]></artwork>
-        </figure>
-        <t>A client that has has not authenticated the server MAY do so when it sees a
-<spanx style="verb">HTTP-TLS</spanx> header field.  The server is authenticated as described in Section
-3.1 of <xref target="RFC2818"/>, noting the additional requirements in
-<xref target="I-D.ietf-httpbis-alt-svc"/>.  If server authentication is successful, the
-client can persistently store a record that the requested origin <xref target="RFC6454"/> can
-be retrieved over TLS.</t>
-        <t>Persisted information expires after a period determined by the value of the “ma”
-parameter.  See Section 4.2.3 of <xref target="I-D.ietf-httpbis-p6-cache"/> for details of
-determining response age.</t>
-        <figure>
-          <artwork><![CDATA[
+]]></artwork></figure>
+
+<t>A client that has has not authenticated the server MAY do so when it sees a <spanx style='verb'>HTTP-TLS</spanx> header
+field. The server is authenticated as described in Section 3.1 of <xref target="RFC2818"/>, noting the
+additional requirements in <xref target="I-D.ietf-httpbis-alt-svc"/>. If server authentication is successful,
+the client can persistently store a record that the requested origin <xref target="RFC6454"/> can be retrieved
+over TLS.</t>
+
+<t>Persisted information expires after a period determined by the value of the “ma” parameter. See
+Section 4.2.3 of <xref target="I-D.ietf-httpbis-p6-cache"/> for details of determining response age.</t>
+
+<figure><artwork><![CDATA[
 ma-parameter     = delta-seconds
-]]></artwork>
-        </figure>
-        <t>Requests for an origin that has a persisted, unexpired value for <spanx style="verb">HTTP-TLS</spanx> MUST
-fail if they cannot be made over an authenticated TLS connection.</t>
-      </section>
-      <section anchor="operational-considerations" title="Operational Considerations">
-        <t>To avoid situations where a persisted value of <spanx style="verb">HTTP-TLS</spanx> causes a client to be
-unable to contact a site, clients SHOULD limit the time that a value is
-persisted for a given origin.  A hard limit might be set to a month.  A lower
-limit might be appropriate for initial observations of <spanx style="verb">HTTP-TLS</spanx>; the certainty
-that a site has set a correct value - and the corresponding limit on persistence
-- can increase as the value is seen more over time.</t>
-        <t>Once a server has indicated that it will support authenticated TLS, a client MAY
-use key pinning <xref target="I-D.ietf-websec-key-pinning"/> or any other mechanism that
-would otherwise be restricted to use with HTTPS URIs, provided that the
-mechanism can be restricted to a single HTTP origin.</t>
-      </section>
-    </section>
-    <section anchor="security-considerations" title="Security Considerations">
-      <section anchor="indicators" title="Indicators">
-        <t>User Agents MUST NOT provide any special security indicia when an “http”
-resource is acquired using TLS.  In particular, indicators that might suggest
-the same level of security as “https” MUST NOT be used (e.g., using a “lock
-device”).</t>
-      </section>
-      <section anchor="downgrade" title="Downgrade Attacks">
-        <t>A downgrade attack against the negotiation for TLS is possible.  With the
-<spanx style="verb">HTTP-TLS</spanx> header field, this is limited to occasions where clients have no
-prior information (see <xref target="privacy"/>), or when persisted commitments have
-expired.</t>
-        <t>For example, because the <spanx style="verb">Alt-Svc</spanx> header field <xref target="I-D.ietf-httpbis-alt-svc"/>
-likely appears in an unauthenticated and unencrypted channel, it is subject to
-downgrade by network attackers.  In its simplest form, an attacker that wants
-the connection to remain in the clear need only strip the <spanx style="verb">Alt-Svc</spanx> header field
-from responses.</t>
-        <t>As long as a client is willing to use cleartext TCP to contact a server, these
-attacks are possible.  The <spanx style="verb">HTTP-TLS</spanx> header field provides an imperfect
-mechanism for establishing a commitment.  The advantage is that this only works
-if a previous connection is established where an active attacker was not
-present.  A continuously present active attacker can either prevent the client
-from ever using TLS, or offer a self-signed certificate.  This would prevent the
-client from ever seeing the <spanx style="verb">HTTP-TLS</spanx> header field, or if the header field is
-seen, from successfully validating and persisting it.</t>
-      </section>
-      <section anchor="privacy" title="Privacy Considerations">
-        <t>Clients that persist state for origins can be tracked over time based on their
-use of this information.  Persisted information can be cleared to reduce the
-ability of servers to track clients.  A browser client MUST clear persisted all
-alternative service information when clearing other origin-based state (i.e.,
-cookies).</t>
-      </section>
-    </section>
+]]></artwork></figure>
+
+<t>Requests for an origin that has a persisted, unexpired value for <spanx style='verb'>HTTP-TLS</spanx> MUST fail if they
+cannot be made over an authenticated TLS connection.</t>
+
+</section>
+<section anchor="operational-considerations" title="Operational Considerations">
+
+<t>To avoid situations where a persisted value of <spanx style='verb'>HTTP-TLS</spanx> causes a client to be unable to contact a
+site, clients SHOULD limit the time that a value is persisted for a given origin. A hard limit
+might be set to a month. A lower limit might be appropriate for initial observations of <spanx style='verb'>HTTP-TLS</spanx>;
+the certainty that a site has set a correct value - and the corresponding limit on persistence -
+can increase as the value is seen more over time.</t>
+
+<t>Once a server has indicated that it will support authenticated TLS, a client MAY use key pinning
+<xref target="I-D.ietf-websec-key-pinning"/> or any other mechanism that would otherwise be restricted to use
+with HTTPS URIs, provided that the mechanism can be restricted to a single HTTP origin.</t>
+
+</section>
+</section>
+<section anchor="security-considerations" title="Security Considerations">
+
+<section anchor="security-indicators" title="Security Indicators">
+
+<t>User Agents MUST NOT provide any special security indicia when an “http” resource is acquired using
+TLS. In particular, indicators that might suggest the same level of security as “https” MUST NOT be
+used (e.g., using a “lock device”).</t>
+
+</section>
+<section anchor="downgrade" title="Downgrade Attacks">
+
+<t>A downgrade attack against the negotiation for TLS is possible. With the <spanx style='verb'>HTTP-TLS</spanx> header field,
+this is limited to occasions where clients have no prior information (see <xref target="privacy"/>), or when
+persisted commitments have expired.</t>
+
+<t>For example, because the <spanx style='verb'>Alt-Svc</spanx> header field <xref target="I-D.ietf-httpbis-alt-svc"/> likely appears in an
+unauthenticated and unencrypted channel, it is subject to downgrade by network attackers. In its
+simplest form, an attacker that wants the connection to remain in the clear need only strip the
+<spanx style='verb'>Alt-Svc</spanx> header field from responses.</t>
+
+<t>As long as a client is willing to use cleartext TCP to contact a server, these attacks are
+possible. The <spanx style='verb'>HTTP-TLS</spanx> header field provides an imperfect mechanism for establishing a
+commitment. The advantage is that this only works if a previous connection is established where an
+active attacker was not present. A continuously present active attacker can either prevent the
+client from ever using TLS, or offer a self-signed certificate. This would prevent the client from
+ever seeing the <spanx style='verb'>HTTP-TLS</spanx> header field, or if the header field is seen, from successfully
+validating and persisting it.</t>
+
+</section>
+<section anchor="privacy" title="Privacy Considerations">
+
+<t>Clients that persist state for origins can be tracked over time based on their use of this
+information. Persisted information can be cleared to reduce the ability of servers to track
+clients. A browser client MUST clear persisted all alternative service information when clearing
+other origin-based state (i.e., cookies).</t>
+
+</section>
+</section>
+
+
   </middle>
+
   <back>
-    <references title="Normative References">
-      <reference anchor="RFC2119">
-        <front>
-          <title abbrev="RFC Key Words">Key words for use in RFCs to Indicate Requirement Levels</title>
-          <author initials="S." surname="Bradner" fullname="Scott Bradner">
-            <organization>Harvard University</organization>
-            <address>
-              <postal>
-                <street>1350 Mass. Ave.</street>
-                <street>Cambridge</street>
-                <street>MA 02138</street>
-              </postal>
-              <phone>- +1 617 495 3864</phone>
-              <email>sob@harvard.edu</email>
-            </address>
-          </author>
-          <date year="1997" month="March"/>
-          <area>General</area>
-          <keyword>keyword</keyword>
-          <abstract>
-            <t>
+
+    <references title='Normative References'>
+
+
+
+
+
+<reference anchor='RFC2119'>
+
+<front>
+<title abbrev='RFC Key Words'>Key words for use in RFCs to Indicate Requirement Levels</title>
+<author initials='S.' surname='Bradner' fullname='Scott Bradner'>
+<organization>Harvard University</organization>
+<address>
+<postal>
+<street>1350 Mass. Ave.</street>
+<street>Cambridge</street>
+<street>MA 02138</street></postal>
+<phone>- +1 617 495 3864</phone>
+<email>sob@harvard.edu</email></address></author>
+<date year='1997' month='March' />
+<area>General</area>
+<keyword>keyword</keyword>
+<abstract>
+<t>
    In many standards track documents several words are used to signify
    the requirements in the specification.  These words are often
    capitalized.  This document defines these words as they should be
    interpreted in IETF documents.  Authors who follow these guidelines
    should incorporate this phrase near the beginning of their document:
 
-<list><t>
+<list>
+<t>
       The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
       NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and
       "OPTIONAL" in this document are to be interpreted as described in
       RFC 2119.
 </t></list></t>
-            <t>
+<t>
    Note that the force of these words is modified by the requirement
    level of the document in which they are used.
-</t>
-          </abstract>
-        </front>
-        <seriesInfo name="BCP" value="14"/>
-        <seriesInfo name="RFC" value="2119"/>
-        <format type="TXT" octets="4723" target="http://www.rfc-editor.org/rfc/rfc2119.txt"/>
-        <format type="HTML" octets="17970" target="http://xml.resource.org/public/rfc/html/rfc2119.html"/>
-        <format type="XML" octets="5777" target="http://xml.resource.org/public/rfc/xml/rfc2119.xml"/>
-      </reference>
-      <reference anchor="RFC2818">
-        <front>
-          <title>HTTP Over TLS</title>
-          <author initials="E." surname="Rescorla" fullname="E. Rescorla">
-            <organization/>
-          </author>
-          <date year="2000" month="May"/>
-          <abstract>
-            <t>This memo describes how to use Transport Layer Security (TLS) to secure Hypertext Transfer Protocol (HTTP) connections over the Internet.  This memo provides information for the Internet community.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="RFC" value="2818"/>
-        <format type="TXT" octets="15170" target="http://www.rfc-editor.org/rfc/rfc2818.txt"/>
-      </reference>
-      <reference anchor="RFC5246">
-        <front>
-          <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
-          <author initials="T." surname="Dierks" fullname="T. Dierks">
-            <organization/>
-          </author>
-          <author initials="E." surname="Rescorla" fullname="E. Rescorla">
-            <organization/>
-          </author>
-          <date year="2008" month="August"/>
-          <abstract>
-            <t>This document specifies Version 1.2 of the Transport Layer Security (TLS) protocol.  The TLS protocol provides communications security over the Internet.  The protocol allows client/server applications to communicate in a way that is designed to prevent eavesdropping, tampering, or message forgery. [STANDARDS-TRACK]</t>
-          </abstract>
-        </front>
-        <seriesInfo name="RFC" value="5246"/>
-        <format type="TXT" octets="222395" target="http://www.rfc-editor.org/rfc/rfc5246.txt"/>
-      </reference>
-      <reference anchor="I-D.ietf-httpbis-http2">
-        <front>
-          <title>Hypertext Transfer Protocol version 2</title>
-          <author initials="M" surname="Belshe" fullname="Mike Belshe">
-            <organization/>
-          </author>
-          <author initials="R" surname="Peon" fullname="Roberto Peon">
-            <organization/>
-          </author>
-          <author initials="M" surname="Thomson" fullname="Martin Thomson">
-            <organization/>
-          </author>
-          <date month="April" day="23" year="2014"/>
-          <abstract>
-            <t>This specification describes an optimized expression of the syntax of the Hypertext Transfer Protocol (HTTP).  HTTP/2 enables a more efficient use of network resources and a reduced perception of latency by introducing header field compression and allowing multiple concurrent messages on the same connection.  It also introduces unsolicited push of representations from servers to clients.  This document is an alternative to, but does not obsolete, the HTTP/1.1 message syntax.  HTTP's existing semantics remain unchanged.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-12"/>
-        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-http2-12.txt"/>
-      </reference>
-      <reference anchor="I-D.ietf-httpbis-alt-svc">
-        <front>
-          <title>HTTP Alternative Services</title>
-          <author initials="m" surname="mnot" fullname="mnot">
-            <organization/>
-          </author>
-          <author initials="P" surname="McManus" fullname="Patrick McManus">
-            <organization/>
-          </author>
-          <author initials="J" surname="Reschke" fullname="Julian Reschke">
-            <organization/>
-          </author>
-          <date month="April" day="1" year="2014"/>
-          <abstract>
-            <t>This document specifies "alternative services" for HTTP, which allow an origin's resources to be authoritatively available at a separate network location, possibly accessed with a different protocol configuration.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-alt-svc-01"/>
-        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-alt-svc-01.txt"/>
-      </reference>
-      <reference anchor="I-D.ietf-httpbis-p6-cache">
-        <front>
-          <title>Hypertext Transfer Protocol (HTTP/1.1): Caching</title>
-          <author initials="R" surname="Fielding" fullname="Roy Fielding">
-            <organization/>
-          </author>
-          <author initials="m" surname="mnot" fullname="mnot">
-            <organization/>
-          </author>
-          <author initials="J" surname="Reschke" fullname="Julian Reschke">
-            <organization/>
-          </author>
-          <date month="February" day="6" year="2014"/>
-          <abstract>
-            <t>The Hypertext Transfer Protocol (HTTP) is a stateless application- level protocol for distributed, collaborative, hypertext information systems.  This document defines HTTP caches and the associated header fields that control cache behavior or indicate cacheable response messages.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-p6-cache-26"/>
-        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p6-cache-26.txt"/>
-      </reference>
-      <reference anchor="I-D.ietf-websec-key-pinning">
-        <front>
-          <title>Public Key Pinning Extension for HTTP</title>
-          <author initials="C" surname="Evans" fullname="Chris Evans">
-            <organization/>
-          </author>
-          <author initials="C" surname="Palmer" fullname="Chris Palmer">
-            <organization/>
-          </author>
-          <author initials="R" surname="Sleevi" fullname="Ryan Sleevi">
-            <organization/>
-          </author>
-          <date month="May" day="13" year="2014"/>
-          <abstract>
-            <t>This memo describes an extension to the HTTP protocol allowing web host operators to instruct user agents (UAs) to remember ("pin") the hosts' cryptographic identities for a given period of time.  During that time, UAs will require that the host present a certificate chain including at least one Subject Public Key Info structure whose fingerprint matches one of the pinned fingerprints for that host.  By effectively reducing the number of authorities who can authenticate the domain during the lifetime of the pin, pinning may reduce the incidence of man-in-the-middle attacks due to compromised Certification Authorities.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-websec-key-pinning-13"/>
-        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-ietf-websec-key-pinning-13.txt"/>
-      </reference>
+</t></abstract></front>
+
+<seriesInfo name='BCP' value='14' />
+<seriesInfo name='RFC' value='2119' />
+<format type='TXT' octets='4723' target='http://www.rfc-editor.org/rfc/rfc2119.txt' />
+<format type='HTML' octets='17970' target='http://xml.resource.org/public/rfc/html/rfc2119.html' />
+<format type='XML' octets='5777' target='http://xml.resource.org/public/rfc/xml/rfc2119.xml' />
+</reference>
+
+
+
+<reference anchor='RFC2818'>
+
+<front>
+<title>HTTP Over TLS</title>
+<author initials='E.' surname='Rescorla' fullname='E. Rescorla'>
+<organization /></author>
+<date year='2000' month='May' />
+<abstract>
+<t>This memo describes how to use Transport Layer Security (TLS) to secure Hypertext Transfer Protocol (HTTP) connections over the Internet.  This memo provides information for the Internet community.</t></abstract></front>
+
+<seriesInfo name='RFC' value='2818' />
+<format type='TXT' octets='15170' target='http://www.rfc-editor.org/rfc/rfc2818.txt' />
+</reference>
+
+
+
+<reference anchor='RFC5246'>
+
+<front>
+<title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
+<author initials='T.' surname='Dierks' fullname='T. Dierks'>
+<organization /></author>
+<author initials='E.' surname='Rescorla' fullname='E. Rescorla'>
+<organization /></author>
+<date year='2008' month='August' />
+<abstract>
+<t>This document specifies Version 1.2 of the Transport Layer Security (TLS) protocol.  The TLS protocol provides communications security over the Internet.  The protocol allows client/server applications to communicate in a way that is designed to prevent eavesdropping, tampering, or message forgery. [STANDARDS-TRACK]</t></abstract></front>
+
+<seriesInfo name='RFC' value='5246' />
+<format type='TXT' octets='222395' target='http://www.rfc-editor.org/rfc/rfc5246.txt' />
+</reference>
+
+
+
+<reference anchor='I-D.ietf-httpbis-http2'>
+<front>
+<title>Hypertext Transfer Protocol version 2</title>
+
+<author initials='M' surname='Belshe' fullname='Mike Belshe'>
+    <organization />
+</author>
+
+<author initials='R' surname='Peon' fullname='Roberto Peon'>
+    <organization />
+</author>
+
+<author initials='M' surname='Thomson' fullname='Martin Thomson'>
+    <organization />
+</author>
+
+<date month='April' day='23' year='2014' />
+
+<abstract><t>This specification describes an optimized expression of the syntax of the Hypertext Transfer Protocol (HTTP).  HTTP/2 enables a more efficient use of network resources and a reduced perception of latency by introducing header field compression and allowing multiple concurrent messages on the same connection.  It also introduces unsolicited push of representations from servers to clients.  This document is an alternative to, but does not obsolete, the HTTP/1.1 message syntax.  HTTP's existing semantics remain unchanged.</t></abstract>
+
+</front>
+
+<seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-http2-12' />
+<format type='TXT'
+        target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-http2-12.txt' />
+</reference>
+
+
+
+<reference anchor='I-D.ietf-httpbis-alt-svc'>
+<front>
+<title>HTTP Alternative Services</title>
+
+<author initials='M' surname='Nottingham' fullname='Mark Nottingham'>
+    <organization />
+</author>
+
+<author initials='P' surname='McManus' fullname='Patrick McManus'>
+    <organization />
+</author>
+
+<author initials='J' surname='Reschke' fullname='Julian Reschke'>
+    <organization />
+</author>
+
+<date month='April' day='1' year='2014' />
+
+<abstract><t>This document specifies "alternative services" for HTTP, which allow an origin's resources to be authoritatively available at a separate network location, possibly accessed with a different protocol configuration.</t></abstract>
+
+</front>
+
+<seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-alt-svc-01' />
+<format type='TXT'
+        target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-alt-svc-01.txt' />
+</reference>
+
+
+
+<reference anchor='I-D.ietf-httpbis-p6-cache'>
+<front>
+<title>Hypertext Transfer Protocol (HTTP/1.1): Caching</title>
+
+<author initials='R' surname='Fielding' fullname='Roy Fielding'>
+    <organization />
+</author>
+
+<author initials='M' surname='Nottingham' fullname='Mark Nottingham'>
+    <organization />
+</author>
+
+<author initials='J' surname='Reschke' fullname='Julian Reschke'>
+    <organization />
+</author>
+
+<date month='February' day='6' year='2014' />
+
+<abstract><t>The Hypertext Transfer Protocol (HTTP) is a stateless application- level protocol for distributed, collaborative, hypertext information systems.  This document defines HTTP caches and the associated header fields that control cache behavior or indicate cacheable response messages.</t></abstract>
+
+</front>
+
+<seriesInfo name='Internet-Draft' value='draft-ietf-httpbis-p6-cache-26' />
+<format type='TXT'
+        target='http://www.ietf.org/internet-drafts/draft-ietf-httpbis-p6-cache-26.txt' />
+</reference>
+
+
+
+<reference anchor='I-D.ietf-websec-key-pinning'>
+<front>
+<title>Public Key Pinning Extension for HTTP</title>
+
+<author initials='C' surname='Evans' fullname='Chris Evans'>
+    <organization />
+</author>
+
+<author initials='C' surname='Palmer' fullname='Chris Palmer'>
+    <organization />
+</author>
+
+<author initials='R' surname='Sleevi' fullname='Ryan Sleevi'>
+    <organization />
+</author>
+
+<date month='May' day='13' year='2014' />
+
+<abstract><t>This memo describes an extension to the HTTP protocol allowing web host operators to instruct user agents (UAs) to remember ("pin") the hosts' cryptographic identities for a given period of time.  During that time, UAs will require that the host present a certificate chain including at least one Subject Public Key Info structure whose fingerprint matches one of the pinned fingerprints for that host.  By effectively reducing the number of authorities who can authenticate the domain during the lifetime of the pin, pinning may reduce the incidence of man-in-the-middle attacks due to compromised Certification Authorities.</t></abstract>
+
+</front>
+
+<seriesInfo name='Internet-Draft' value='draft-ietf-websec-key-pinning-13' />
+<format type='TXT'
+        target='http://www.ietf.org/internet-drafts/draft-ietf-websec-key-pinning-13.txt' />
+</reference>
+
+
+
+
     </references>
-    <references title="Informative References">
-      <reference anchor="firesheep" target="http://codebutler.com/firesheep/">
-        <front>
-          <title>Firesheep</title>
-          <author initials="E." surname="Butler" fullname="Eric Butler">
-            <organization/>
-          </author>
-          <date year="2010"/>
-        </front>
-      </reference>
-      <reference anchor="streetview" target="http://www.wired.com/threatlevel/2012/05/google-wifi-fcc-investigation/">
-        <front>
-          <title>The Anatomy of Google's Wi-Fi Sniffing Debacle</title>
-          <author initials="D." surname="Kravets" fullname="David Kravets">
-            <organization>Wired</organization>
-          </author>
-          <date year="2012"/>
-        </front>
-      </reference>
-      <reference anchor="xkeyscore" target="http://www.theguardian.com/world/2013/jul/31/nsa-top-secret-program-online-data">
-        <front>
-          <title>NSA tool collects 'nearly everything a user does on the internet'</title>
-          <author initials="G." surname="Greenwald" fullname="Glenn Greenwald">
-            <organization>The Guardian</organization>
-          </author>
-          <date year="2013"/>
-        </front>
-      </reference>
-      <reference anchor="I-D.mbelshe-httpbis-spdy">
-        <front>
-          <title>SPDY Protocol</title>
-          <author initials="M" surname="Belshe" fullname="Mike Belshe">
-            <organization/>
-          </author>
-          <author initials="R" surname="Peon" fullname="Roberto Peon">
-            <organization/>
-          </author>
-          <date month="February" day="23" year="2012"/>
-          <abstract>
-            <t>This document describes SPDY, a protocol designed for low-latency transport of content over the World Wide Web. SPDY introduces two layers of protocol.  The lower layer is a general purpose framing layer which can be used atop a reliable transport (likely TCP) for multiplexed, prioritized, and compressed data communication of many concurrent streams.  The upper layer of the protocol provides HTTP- like RFC2616 [RFC2616] semantics for compatibility with existing HTTP application servers.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
-        <format type="TXT" target="http://www.ietf.org/internet-drafts/draft-mbelshe-httpbis-spdy-00.txt"/>
-      </reference>
-      <reference anchor="RFC2804">
-        <front>
-          <title>IETF Policy on Wiretapping</title>
-          <author>
-            <organization>IAB</organization>
-          </author>
-          <author>
-            <organization>IESG</organization>
-          </author>
-          <date year="2000" month="May"/>
-          <abstract>
-            <t>This document describes the position that the Internet Engineering Task Force (IETF) has taken regarding the inclusion into IETF standards-track documents of functionality designed to facilitate wiretapping.  This memo explains what the IETF thinks the question means, why its answer is "no", and what that answer means.  This memo provides information for the Internet community.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="RFC" value="2804"/>
-        <format type="TXT" octets="18934" target="http://www.rfc-editor.org/rfc/rfc2804.txt"/>
-      </reference>
-      <reference anchor="RFC3365">
-        <front>
-          <title>Strong Security Requirements for Internet Engineering Task Force Standard Protocols</title>
-          <author initials="J." surname="Schiller" fullname="J. Schiller">
-            <organization/>
-          </author>
-          <date year="2002" month="August"/>
-        </front>
-        <seriesInfo name="BCP" value="61"/>
-        <seriesInfo name="RFC" value="3365"/>
-        <format type="TXT" octets="16411" target="http://www.rfc-editor.org/rfc/rfc3365.txt"/>
-      </reference>
-      <reference anchor="RFC6454">
-        <front>
-          <title>The Web Origin Concept</title>
-          <author initials="A." surname="Barth" fullname="A. Barth">
-            <organization/>
-          </author>
-          <date year="2011" month="December"/>
-          <abstract>
-            <t>This document defines the concept of an "origin", which is often used as the scope of authority or privilege by user agents.  Typically, user agents isolate content retrieved from different origins to prevent malicious web site operators from interfering with the operation of benign web sites.  In addition to outlining the principles that underlie the concept of origin, this document details how to determine the origin of a URI and how to serialize an origin into a string.  It also defines an HTTP header field, named "Origin", that indicates which origins are associated with an HTTP request. [STANDARDS-TRACK]</t>
-          </abstract>
-        </front>
-        <seriesInfo name="RFC" value="6454"/>
-        <format type="TXT" octets="41363" target="http://www.rfc-editor.org/rfc/rfc6454.txt"/>
-      </reference>
-      <reference anchor="RFC6973">
-        <front>
-          <title>Privacy Considerations for Internet Protocols</title>
-          <author initials="A." surname="Cooper" fullname="A. Cooper">
-            <organization/>
-          </author>
-          <author initials="H." surname="Tschofenig" fullname="H. Tschofenig">
-            <organization/>
-          </author>
-          <author initials="B." surname="Aboba" fullname="B. Aboba">
-            <organization/>
-          </author>
-          <author initials="J." surname="Peterson" fullname="J. Peterson">
-            <organization/>
-          </author>
-          <author initials="J." surname="Morris" fullname="J. Morris">
-            <organization/>
-          </author>
-          <author initials="M." surname="Hansen" fullname="M. Hansen">
-            <organization/>
-          </author>
-          <author initials="R." surname="Smith" fullname="R. Smith">
-            <organization/>
-          </author>
-          <date year="2013" month="July"/>
-          <abstract>
-            <t>This document offers guidance for developing privacy considerations for inclusion in protocol specifications.  It aims to make designers, implementers, and users of Internet protocols aware of privacy-related design choices.  It suggests that whether any individual RFC warrants a specific privacy considerations section will depend on the document's content.</t>
-          </abstract>
-        </front>
-        <seriesInfo name="RFC" value="6973"/>
-        <format type="TXT" octets="89198" target="http://www.rfc-editor.org/rfc/rfc6973.txt"/>
-      </reference>
+
+    <references title='Informative References'>
+
+
+
+
+
+<reference anchor='RFC2804'>
+
+<front>
+<title>IETF Policy on Wiretapping</title>
+<author>
+<organization>IAB</organization></author>
+<author>
+<organization>IESG</organization></author>
+<date year='2000' month='May' />
+<abstract>
+<t>This document describes the position that the Internet Engineering Task Force (IETF) has taken regarding the inclusion into IETF standards-track documents of functionality designed to facilitate wiretapping.  This memo explains what the IETF thinks the question means, why its answer is "no", and what that answer means.  This memo provides information for the Internet community.</t></abstract></front>
+
+<seriesInfo name='RFC' value='2804' />
+<format type='TXT' octets='18934' target='http://www.rfc-editor.org/rfc/rfc2804.txt' />
+</reference>
+
+
+
+<reference anchor='RFC3365'>
+
+<front>
+<title>Strong Security Requirements for Internet Engineering Task Force Standard Protocols</title>
+<author initials='J.' surname='Schiller' fullname='J. Schiller'>
+<organization /></author>
+<date year='2002' month='August' /></front>
+
+<seriesInfo name='BCP' value='61' />
+<seriesInfo name='RFC' value='3365' />
+<format type='TXT' octets='16411' target='http://www.rfc-editor.org/rfc/rfc3365.txt' />
+</reference>
+
+
+
+<reference anchor='RFC6454'>
+
+<front>
+<title>The Web Origin Concept</title>
+<author initials='A.' surname='Barth' fullname='A. Barth'>
+<organization /></author>
+<date year='2011' month='December' />
+<abstract>
+<t>This document defines the concept of an "origin", which is often used as the scope of authority or privilege by user agents.  Typically, user agents isolate content retrieved from different origins to prevent malicious web site operators from interfering with the operation of benign web sites.  In addition to outlining the principles that underlie the concept of origin, this document details how to determine the origin of a URI and how to serialize an origin into a string.  It also defines an HTTP header field, named "Origin", that indicates which origins are associated with an HTTP request. [STANDARDS-TRACK]</t></abstract></front>
+
+<seriesInfo name='RFC' value='6454' />
+<format type='TXT' octets='41363' target='http://www.rfc-editor.org/rfc/rfc6454.txt' />
+</reference>
+
+
+
+<reference anchor='RFC6973'>
+
+<front>
+<title>Privacy Considerations for Internet Protocols</title>
+<author initials='A.' surname='Cooper' fullname='A. Cooper'>
+<organization /></author>
+<author initials='H.' surname='Tschofenig' fullname='H. Tschofenig'>
+<organization /></author>
+<author initials='B.' surname='Aboba' fullname='B. Aboba'>
+<organization /></author>
+<author initials='J.' surname='Peterson' fullname='J. Peterson'>
+<organization /></author>
+<author initials='J.' surname='Morris' fullname='J. Morris'>
+<organization /></author>
+<author initials='M.' surname='Hansen' fullname='M. Hansen'>
+<organization /></author>
+<author initials='R.' surname='Smith' fullname='R. Smith'>
+<organization /></author>
+<date year='2013' month='July' />
+<abstract>
+<t>This document offers guidance for developing privacy considerations for inclusion in protocol specifications.  It aims to make designers, implementers, and users of Internet protocols aware of privacy-related design choices.  It suggests that whether any individual RFC warrants a specific privacy considerations section will depend on the document's content.</t></abstract></front>
+
+<seriesInfo name='RFC' value='6973' />
+<format type='TXT' octets='89198' target='http://www.rfc-editor.org/rfc/rfc6973.txt' />
+</reference>
+
+
+
+<reference anchor='RFC7258'>
+
+<front>
+<title>Pervasive Monitoring Is an Attack</title>
+<author initials='S.' surname='Farrell' fullname='S. Farrell'>
+<organization /></author>
+<author initials='H.' surname='Tschofenig' fullname='H. Tschofenig'>
+<organization /></author>
+<date year='2014' month='May' />
+<abstract>
+<t>Pervasive monitoring is a technical attack that should be mitigated in the design of IETF protocols, where possible.</t></abstract></front>
+
+<seriesInfo name='BCP' value='188' />
+<seriesInfo name='RFC' value='7258' />
+<format type='TXT' octets='13396' target='http://www.rfc-editor.org/rfc/rfc7258.txt' />
+</reference>
+
+
+
+
     </references>
-    <section anchor="acknowledgements" title="Acknowledgements">
-      <t>Thanks to Patrick McManus, Eliot Lear, Stephen Farrell, Guy Podjarny, Stephen
-Ludin, Erik Nygren, Paul Hoffman, Adam Langley, Eric Rescorla and Richard Barnes
-for their feedback and suggestions.</t>
-    </section>
-    <section anchor="recent-history-and-background" title="Recent History and Background">
-      <t>One of the design goals for SPDY <xref target="I-D.mbelshe-httpbis-spdy"/> was increasing
-the use of encryption on the Web, achieved by only supporting the protocol over
-a connection protected by TLS <xref target="RFC5246"/>.</t>
-      <t>This was done, in part, because sensitive information – including not only
-login credentials, but also personally identifying information (PII) and even
-patterns of access – are increasingly prevalent on the Web, being evident in
-potentially every HTTP request made.</t>
-      <t>Attacks such as FireSheep <xref target="firesheep"/> showed how easy it is to gather such
-information when it is sent in the clear, and incidents such as Google’s
-collection of unencrypted data by its StreetView Cars <xref target="streetview"/> further
-illustrated the risks.</t>
-      <t>In adopting SPDY as the basis of HTTP/2 <xref target="I-D.ietf-httpbis-http2"/>, the HTTPbis
-Working Group agreed not to make TLS mandatory to implement (MtI) or mandatory
-to use (MtU) in our charter, despite an IETF policy to prefer the “best
-security available” <xref target="RFC3365"/>.</t>
-      <t>There were a variety of reasons for this, but most significantly, HTTP is used
-for much more than the traditional browsing case, and encryption is not needed
-for all of these uses. Making encryption MtU or MtI was seen as unlikely to
-succeed because of the wide deployment of HTTP URIs.</t>
-      <t>However, since making that decision, there have been developments that
-have caused the Working Group to discuss these issues again:</t>
-      <t>
-        <list style="numbers">
-          <t>Active contributors to some browser implementations have stated that their
-products will not use HTTP/2 over unencrypted connections. If this eventuates,
-it will prevent wide deployment of the new protocol (i.e., it couldn’t be used
-with those products for HTTP URIs; only HTTPS URIs).</t>
-          <t>It has been reported that surveillance of HTTP traffic takes place on a broad
-scale <xref target="xkeyscore"/>. While the IETF does not take a formal, moral position on
-wiretapping, we do have a strongly held belief “that both commercial development
-of the Internet and adequate privacy for its users against illegal intrusion
-requires the wide availability of strong cryptographic technology”
-<xref target="RFC2804"/>. This requirement for privacy is further reinforced by <xref target="RFC6973"/>.</t>
-        </list>
-      </t>
-      <t>As a result, we decided to revisit the issue of how encryption is used in HTTP/2
-at IETF87.</t>
-    </section>
-    <section anchor="frequently-asked-questions" title="Frequently Asked Questions">
-      <section anchor="will-this-make-encryption-mandatory-in-http2" title="Will this make encryption mandatory in HTTP/2?">
-        <t>Not in the sense that this proposal would have it required (with a MUST) in the
-specification.</t>
-        <t>What might happen, however, is that some browser implementers will take the
-flexibility that this approach grants and decide to not negotiate for HTTP/2
-without one of the encryption profiles. That means that servers would need to
-implement one of the encryption-enabling profiles to interoperate using HTTP/2
-for HTTP URIs.</t>
-      </section>
-      <section anchor="no-certificate-checks-really" title="No certificate checks? Really?">
-        <t>Since TLS isn’t in use for any “http” URIs today, there is no net loss of
-security, and we gain some privacy from passive attacks.</t>
-        <t>This makes TLS significantly simpler to deploy for servers; they are able to use
-a self-signed certificate.</t>
-        <t>With the <spanx style="verb">HTTP-TLS</spanx> header field, we are able to gain a measure of protection.</t>
-      </section>
-      <section anchor="why-do-this-if-a-downgrade-attack-is-so-easy" title="Why do this if a downgrade attack is so easy?">
-        <t>There are many attack scenarios (e.g., third parties in coffee shops) where
-active attacks are not feasible, or much more difficult.</t>
-        <t>Additionally, active attacks can often be detected, because they change
-protocol interactions; as such, they bring a risk of discovery.</t>
-      </section>
-    </section>
+
+
+<section anchor="acknowledgements" title="Acknowledgements">
+
+<t>Thanks to Patrick McManus, Eliot Lear, Stephen Farrell, Guy Podjarny, Stephen Ludin, Erik Nygren,
+Paul Hoffman, Adam Langley, Eric Rescorla and Richard Barnes for their feedback and suggestions.</t>
+
+</section>
+
+
   </back>
 </rfc>
+
