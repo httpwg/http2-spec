@@ -226,7 +226,7 @@ with HTTPS URIs, provided that the mechanism can be restricted to a single HTTP 
 
 # Security Considerations
 
-## Indicators
+## Security Indicators
 
 User Agents MUST NOT provide any special security indicia when an "http" resource is acquired using
 TLS. In particular, indicators that might suggest the same level of security as "https" MUST NOT be
