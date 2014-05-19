@@ -101,15 +101,14 @@ information being available in the clear. Furthermore, they are often broad,
 where all available data is collected en masse, being analyzed separately for
 relevant information.
 
-A mechanism for limiting the potential for active attack is described. This
-provides clients with additional protection against active attack for a period
-after successfully connecting to a server using TLS.  This does not offer the
-same level of protection as afforded to "https" URIs, but increases the
-likelihood that an active attack be detected.
+A secondary goal is to limit the potential for active attacks. It is not
+intended to offer the same level of protection as afforded to "https" URIs, but 
+instead to increase the likelihood that an active attack can be detected.
 
-A secondary, but significant, goal is to provide for ease of implementation,
+A final (but significant) goal is to provide for ease of implementation,
 deployment and operation.  This mechanism should have a minimal impact upon
-performance.
+performance, and should not require extensive administrative effort to 
+configure.
 
 ## Notational Conventions
 
