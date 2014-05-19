@@ -36,10 +36,7 @@ normative:
   I-D.ietf-websec-key-pinning:
 
 informative:
-  RFC2804:
-  RFC3365:
   RFC6454:
-  RFC6973:
   RFC7258:
 
 
