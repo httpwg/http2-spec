@@ -134,12 +134,13 @@ authenticated. This is not currently possible for "http" URIs on cleartext trans
 
 # Interaction with "https" URIs
 
-A service that is discovered to support "http" URIs might concurrently support "https" URIs. HTTP/2
-permits the sending of requests for multiple origins (see {{RFC6454}}) on the one connection. When
-using alternative services, both HTTP and HTTPS URIs might be sent on the same connection.
+An alternative service that is discovered to support "http" URIs might concurrently support "https"
+URIs, because HTTP/2 permits the sending of requests for multiple origins (see {{RFC6454}}) on the
+one connection. Therefore, when using alternative services, both HTTP and HTTPS URIs might be sent
+on the same connection.
 
-HTTPS URIs rely on server authentication. Therefore, if a connection is initially created without
-authenticating the server, requests for HTTPS resources cannot be sent over that connection until
+"https" URIs rely on server authentication. Therefore, if a connection is initially created without
+authenticating the server, requests for "https" resources cannot be sent over that connection until
 the server certificate is successfully authenticated. Section 3.1 of {{RFC2818}} describes the
 basic mechanism, though the authentication considerations in {{I-D.ietf-httpbis-alt-svc}} could
 also apply.
