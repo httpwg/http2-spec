@@ -213,10 +213,10 @@ cannot be made over an authenticated TLS connection.
 ## Operational Considerations
 
 To avoid situations where a persisted value of `HTTP-TLS` causes a client to be unable to contact a
-site, clients SHOULD limit the time that a value is persisted for a given origin. A hard limit
-might be set to a month. A lower limit might be appropriate for initial observations of `HTTP-TLS`;
-the certainty that a site has set a correct value - and the corresponding limit on persistence -
-can increase as the value is seen more over time.
+site, clients SHOULD limit the time that a value is persisted for a given origin. A lower limit
+might be appropriate for initial observations of `HTTP-TLS`; the certainty that a site has set a
+correct value - and the corresponding limit on persistence - can increase as the value is seen more
+over time.
 
 Once a server has indicated that it will support authenticated TLS, a client MAY use key pinning
 {{I-D.ietf-websec-key-pinning}} or any other mechanism that would otherwise be restricted to use
@@ -269,8 +269,3 @@ other origin-based state (i.e., cookies).
 
 Thanks to Patrick McManus, Eliot Lear, Stephen Farrell, Guy Podjarny, Stephen Ludin, Erik Nygren,
 Paul Hoffman, Adam Langley, Eric Rescorla and Richard Barnes for their feedback and suggestions.
-
-
-
-
-
