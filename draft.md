@@ -164,7 +164,7 @@ Given that the primary goal of this specification is to prevent passive attacks,
 critical failings (especially considering the alternative - HTTP over cleartext). However, a modest
 form of protection against active attacks can be provided for clients on subsequent connections.
 
-When an alternate service is able to commit to providing service for a particular origin over TLS
+When an alternative service is able to commit to providing service for a particular origin over TLS
 for a bounded period of time, clients can choose to rely upon its avilability, failing when it
 cannot be contacted. Effectively, this makes the alternative service "sticky" in the client.
 
