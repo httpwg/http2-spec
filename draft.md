@@ -258,7 +258,7 @@ validating and persisting it.
 
 Clients that persist state for origins can be tracked over time based on their use of this
 information. Persisted information can be cleared to reduce the ability of servers to track
-clients. A browser client MUST clear persisted all alternative service information when clearing
+clients. Clients MUST clear persisted alternative service information when clearing
 other origin-based state (i.e., cookies).
 
 
