@@ -3748,7 +3748,7 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section title="Denial of Service Considerations">
+      <section anchor="dos" title="Denial of Service Considerations">
         <t>
           An HTTP/2 connection can demand a greater commitment of resources to operate than a
           HTTP/1.1 connection.  The use of header compression and flow control depend on a
@@ -3792,6 +3792,29 @@ HTTP2-Settings    = token68
           target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>ENHANCE_YOUR_CALM</x:ref>.
         </t>
+
+        <section title="Limits on Header Block Size">
+          <t>
+            A large <xref target="HeaderBlock">header block</xref> can cause an implementation to
+            commit a large amount of state.  In servers and intermediaries, header fields that are
+            critical to routing, such as <spanx style="verb">:authority</spanx>, <spanx
+            style="verb">:path</spanx>, and <spanx style="verb">:scheme</spanx> are not guaranteed
+            to be present early in the header block.  In particular, values that are in the
+            reference set cannot be emitted until the header block ends.
+          </t>
+          <t>
+            This can prevent streaming of the header fields to their ultimate destination, and
+            forces the endpoint to buffer the entire header block.  Since there is no hard limit to
+            the size of a header block, an endpoint could be forced to exhaust available memory.
+          </t>
+          <t>
+            An endpoint that receives a larger header block than it is willing to handle MUST treat
+            this as a <xref target="StreamErrorHandler">stream error</xref> of type
+            <x:ref>ENHANCE_YOUR_CALM</x:ref> on the affected stream (which for a
+            <x:ref>PUSH_PROMISE</x:ref> is the promised stream).  The header block MUST be processed
+            to ensure a consistent connection state, unless the connection is closed.
+          </t>
+        </section>
       </section>
 
       <section title="Use of Compression">
