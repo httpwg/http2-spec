@@ -1,7 +1,7 @@
 <!--
     Strip rfc2629.xslt extensions, generating XML input for MTR's xml2rfc
 
-    Copyright (c) 2006-2013, Julian Reschke (julian.reschke@greenbytes.de)
+    Copyright (c) 2006-2014, Julian Reschke (julian.reschke@greenbytes.de)
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -731,6 +731,14 @@
 
 <!-- list formatting -->
 <xsl:template match="list/@x:indent" mode="cleanup"/>
+
+<!-- rewrite to 'hanging' for now -->
+<xsl:template match="list[@style='x:dictionary']" mode="cleanup">
+  <list style="hanging">
+    <xsl:copy-of select="@hangIndent"/>
+    <xsl:apply-templates select="*" mode="cleanup"/>
+  </list>
+</xsl:template>
 
 <!-- referencing extensions -->
 <xsl:template match="iref/@x:for-anchor" mode="cleanup"/>
