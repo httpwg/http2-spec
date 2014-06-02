@@ -920,9 +920,12 @@ HTTP2-Settings    = token68
                 <x:ref>CONTINUATION</x:ref> frames.
               </t>
               <t>
-                A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames
-                in this state.  These frame types might arrive for a short period after a frame
-                bearing the END_STREAM flag is sent.
+                A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> frames in this state, which might
+                arrive for a short period after a frame bearing the END_STREAM flag is sent.
+              </t>
+              <t>
+                <x:ref>PRIORITY</x:ref> frames received in this state are used to reprioritize
+                streams that depend on the current stream..
               </t>
             </x:lt>
 
@@ -962,16 +965,22 @@ HTTP2-Settings    = token68
                 <x:ref>STREAM_CLOSED</x:ref>.
               </t>
               <t>
-                <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref>
-                frames can be received in this state for a short period after a <x:ref>DATA</x:ref>
-                or <x:ref>HEADERS</x:ref> frame containing an END_STREAM flag is sent.  Until the
-                remote peer receives and processes the frame bearing the END_STREAM flag, it might
-                send frames of any of these types.  Endpoints MUST ignore
-                <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or <x:ref>RST_STREAM</x:ref>
-                frames received in this state, though endpoints MAY choose to treat frames that
-                arrive a significant time after sending END_STREAM as a <xref
+                <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>RST_STREAM</x:ref> frames can be received in
+                this state for a short period after a <x:ref>DATA</x:ref> or <x:ref>HEADERS</x:ref>
+                frame containing an END_STREAM flag is sent.  Until the remote peer receives and
+                processes the frame bearing the END_STREAM flag, it might send frames of any of
+                these types.  Endpoints MUST ignore <x:ref>WINDOW_UPDATE</x:ref> or
+                <x:ref>RST_STREAM</x:ref> frames received in this state, though endpoints MAY choose
+                to treat frames that arrive a significant time after sending END_STREAM as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type
                 <x:ref>PROTOCOL_ERROR</x:ref>.
+              </t>
+              <t>
+                <x:ref>PRIORITY</x:ref> frames can be sent on closed streams to prioritize streams
+                that are dependent on the closed stream.  Endpoints MUST either process or ignore
+                <x:ref>PRIORITY</x:ref> frames in this state.  Endpoints SHOULD process the frame,
+                unless the stream has been removed from the dependency tree (see <xref
+                target="priority-gc"/>).
               </t>
               <t>
                 If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame,
@@ -1297,7 +1306,7 @@ HTTP2-Settings    = token68
           </figure>
         </section>
 
-        <section title="Prioritization State Management">
+        <section anchor="priority-gc" title="Prioritization State Management">
           <t>
             When a stream is removed from the dependency tree, its dependencies can be moved to
             become dependent on the parent of the closed stream.  The weights of new dependencies
@@ -1756,8 +1765,8 @@ HTTP2-Settings    = token68
       <section anchor="PRIORITY" title="PRIORITY">
         <t>
           The PRIORITY frame (type=0x2) specifies the <xref target="StreamPriority">sender-advised
-          priority of a stream</xref>.  It can be sent at any time for an existing stream. This
-          enables reprioritization of existing streams.
+          priority of a stream</xref>.  It can be sent at any time for an existing stream, including
+          closed streams.  This enables reprioritization of existing streams.
         </t>
         <figure title="PRIORITY Frame Payload">
           <artwork type="inline"><![CDATA[
@@ -1800,11 +1809,18 @@ HTTP2-Settings    = token68
         </t>
         <t>
           The PRIORITY frame can be sent on a stream in any of the "reserved (remote)", "open",
-          "half closed (local)", or "half closed (remote)" states, though it cannot be sent between
-          consecutive frames that comprise a single <xref target="HeaderBlock">header block</xref>.
-          Note that this frame could arrive after processing or frame sending has completed, which
-          would cause it to have no effect.  For a stream that is in the "half closed (remote)"
-          state, this frame can only affect processing of the stream and not frame transmission.
+          "half closed (local)", "half closed (remote)", or "closed" states, though it cannot be
+          sent between consecutive frames that comprise a single <xref target="HeaderBlock">header
+          block</xref>.  Note that this frame could arrive after processing or frame sending has
+          completed, which would cause it to have no effect on the current stream.  For a stream
+          that is in the "half closed (remote)" or "closed" - state, this frame can only affect
+          processing of the current stream and not frame transmission.
+        </t>
+        <t>
+          The PRIORITY frame is the only frame that can be sent for a closed stream.  This allows
+          for the reprioritization of a group of dependent streams by altering the priority of the
+          parent stream.  However, a PRIORITY frame sent on a closed stream risks being ignored due
+          to the peer having discarded priority state information for that stream.
         </t>
       </section>
 
@@ -4574,6 +4590,9 @@ HTTP2-Settings    = token68
          </t>
          <t>
            Removing Content-Encoding requirements.
+         </t>
+         <t>
+           Permitting the use of <x:ref>PRIORITY</x:ref> after stream close.
          </t>
        </section>
 
