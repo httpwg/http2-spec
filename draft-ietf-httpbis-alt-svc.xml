@@ -124,10 +124,12 @@
   </list>
 </t>
 <t>
-   This specification defines a new concept in HTTP, "Alternative Services", that
-   allows a resource to nominate additional means of interacting with it on the
-   network. It defines a general framework for this in <xref target="alternative"/>, along with
-   a specific mechanism for discovering them using HTTP header fields in <xref target="alt-svc"/>.
+   This specification defines a new concept in HTTP, "Alternative Services",
+   that allows a resource to nominate additional means of interacting with it on
+   the network. It defines a general framework for this in <xref
+   target="alternative"/>, along with specific mechanisms for advertising their
+   existence using <xref target="alt-svc">HTTP header fields</xref> or <xref
+   target="frame">an HTTP/2 frame type</xref>.
 </t>
 <t>
    It also introduces a new status code in <xref target="status"/>, so that origin servers (or
@@ -229,7 +231,9 @@
 </t>
 <t>
    There are many ways that a client could discover the alternative service(s)
-   associated with an origin.
+   associated with an origin.  This document describes two such mechanisms:
+   <xref target="alt-svc">an HTTP header field</xref> and <xref
+   target="frame">an HTTP/2 frame type</xref>.
 </t>
 
 <section title="Host Authentication" anchor="host_auth">
@@ -457,6 +461,103 @@ Alt-Svc: h2c=8000; ma=60
    affect caching of Alt-Svc values.
 </t>
 </section>
+
+<section anchor="frame" title="The ALTSVC Frame">
+<t>
+  The ALTSVC HTTP/2 frame (type=0x?) advertises the availability of an
+  alternative service to an HTTP/2 client.  The ALTSVC frame is a non-critical
+  extension to HTTP/2.  Endpoints that do not support this frame can safely
+  ignore it.
+</t>
+
+<t>
+  An ALTSVC frame on a client-initiated stream indicates that the conveyed
+  alternative service is associated with the origin of that stream.
+</t>
+
+<t>
+  An ALTSVC frame on stream 0 indicates that the conveyed alternative service is
+  associated with the origin contained in the Origin field of the frame. An
+  association with an origin that the client does not consider authoritative for
+  the current connection MUST be ignored.
+</t>
+
+<figure title="ALTSVC Frame Payload">
+  <artwork><![CDATA[
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |                          Max-Age (32)                         |
+ +-------------------------------+---------------+---------------+
+ |            Port (16)          | Proto-Len (8) |
+ +-------------------------------+---------------+---------------+
+ |                        Protocol-ID (*)                        |
+ +---------------+-----------------------------------------------+
+ | Host-Len (8)  |                   Host (*)                  ...
+ +---------------+-----------------------------------------------+
+ |                          Origin? (*)                        ...
+ +---------------------------------------------------------------+
+]]></artwork>
+</figure>
+
+<t>
+  The ALTSVC frame contains the following fields:
+  <list style="hanging">
+    <t hangText="Max-Age:">
+      An unsigned, 32-bit integer indicating the freshness lifetime of the alternative
+      service association, as per <xref target="caching"/>.
+    </t>
+
+    <t hangText="Port:">
+      An unsigned, 16-bit integer indicating the port that the alternative service is
+      available upon.
+    </t>
+
+    <t hangText="Proto-Len:">
+      An unsigned, 8-bit integer indicating the length, in octets, of the Protocol-ID field.
+    </t>
+
+    <t hangText="Protocol-ID:">
+      A sequence of bytes (length determined by <spanx style="verb">Proto-Len</spanx>)
+      containing the ALPN protocol identifier of the alternative service.
+    </t>
+
+    <t hangText="Host-Len:">
+      An unsigned, 8-bit integer indicating the length, in octets, of the Host field.
+    </t>
+
+    <t hangText="Host:">
+      A sequence of characters (length determined by <spanx style="verb">Host-Len</spanx>)
+      containing an ASCII string indicating the host that the alternative service is
+      available upon.  An <xref target="IDNA">internationalized domain name</xref> MUST be
+      expressed using A-labels.
+    </t>
+
+    <t hangText="Origin:">
+      An optional sequence of characters (length determined by subtracting the length of all
+      preceding fields from the frame length) containing the ASCII serialisation of an
+      origin (<xref target="RFC6454"/>, Section 6.2) that the alternate service is
+      applicable to.
+    </t>
+  </list>
+</t>
+
+<t>
+  The ALTSVC frame does not define any flags.
+</t>
+
+<t>
+  The ALTSVC frame is intended for receipt by clients; a server that receives an ALTSVC
+  frame MUST treat it as a <xref target="ConnectionErrorHandler">connection error</xref> of
+  type <x:ref>PROTOCOL_ERROR</x:ref>.
+</t>
+
+<t>
+  The ALTSVC frame is processed hop-by-hop.  An intermediary MUST NOT forward ALTSVC frames,
+  though it can use the information contained in ALTSVC frames in forming new ALTSVC frames
+  to send to its own clients.
+</t>
+</section>
 </section>
 
 <section title="The Service HTTP Header Field" anchor="service">
@@ -531,6 +632,18 @@ Service: alternate.example.net
     <t>Author/Change Controller: IETF</t>
     <t>Specification Document: [this document]</t>
     <t>Related Information: </t>
+  </list>
+</t>
+</section>
+
+<section anchor="alt-svc-frame-registration" title="The ALTSVC HTTP/2 Frame Type">
+<t>
+  This document registers the ALTSVC frame type in the HTTP/2 Frame Types
+  registry <xref target="HTTP2"/>.
+  <list style="hanging">
+    <t hangText="Frame Type:">ALTSVC</t>
+    <t hangText="Code:">[to be assigned]</t>
+    <t hangText="Specification:">[this document]</t>
   </list>
 </t>
 </section>
@@ -653,7 +766,7 @@ Service: alternate.example.net
 </t>
 <t>
   The Alt-Svc header field was influenced by the design of the
-  Alternative-Protocol header field in SPDY.
+  Alternate-Protocol header field in SPDY.
 </t>
 </section>
 
@@ -702,6 +815,18 @@ Service: alternate.example.net
   </front>
   <seriesInfo name="STD" value="68"/>
   <seriesInfo name="RFC" value="5234"/>
+</reference>
+
+<reference anchor="IDNA">
+  <front>
+    <title>
+      Internationalized Domain Names for Applications (IDNA): Definitions and
+      Document Framework
+    </title>
+    <author initials="J." surname="Klensin" fullname="John Klensin"/>
+    <date year="2010" month="August"/>
+  </front>
+  <seriesInfo name="RFC" value="5890"/>
 </reference>
 
 <reference anchor="RFC6066">

@@ -170,11 +170,6 @@
         HTTP requests can be highly redundant, so compression can reduce the size of requests and
         responses significantly.
       </t>
-      <t>
-        HTTP/2 also supports HTTP Alternative Services (see <xref target="ALT-SVC"/>) using the <xref
-        target="ALTSVC">ALTSVC frame type</xref>, to allow servers more control over traffic to
-        them.
-      </t>
 
       <section title="Document Organization">
         <t>
@@ -479,9 +474,7 @@ HTTP2-Settings    = token68
       <section anchor="known-http" title="Starting HTTP/2 with Prior Knowledge">
         <t>
           A client can learn that a particular server supports HTTP/2 by other means.  For example,
-          <xref target="ALT-SVC"/> describes a mechanism for advertising this capability in an HTTP
-          header field; <xref target="ALTSVC">the ALTSVC frame</xref> describes a similar
-          mechanism in HTTP/2.
+          <xref target="ALT-SVC"/> describes a mechanism for advertising this capability.
         </t>
         <t>
           A client MAY immediately send HTTP/2 frames to a server that is known to support HTTP/2,
@@ -2649,104 +2642,6 @@ HTTP2-Settings    = token68
           to those defined for <xref target="DATA">DATA frames</xref>.
         </t>
       </section>
-
-      <section anchor="ALTSVC" title="ALTSVC">
-        <t>
-          The ALTSVC frame (type=0xA) advertises the availability of an alternative service to the
-          client. It can be sent at any time for an existing client-initiated stream or stream 0,
-          and is intended to allow servers to load balance or otherwise segment traffic; see <xref
-          target="ALT-SVC"/> for details (in particular, <xref target="ALT-SVC" x:fmt="sec"
-          x:rel="#switching"/>, which outlines client handling of alternative services).
-        </t>
-
-        <t>
-          An ALTSVC frame on a client-initiated stream indicates that the conveyed alternative
-          service is associated with the origin of that stream.
-        </t>
-
-        <t>
-          An ALTSVC frame on stream 0 indicates that the conveyed alternative service is associated
-          with the origin contained in the Origin field of the frame. An association with an origin
-          that the client does not consider authoritative for the current connection MUST be
-          ignored.
-        </t>
-
-        <figure title="ALTSVC Frame Payload">
-          <artwork><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |                          Max-Age (32)                         |
- +-------------------------------+---------------+---------------+
- |            Port (16)          | Proto-Len (8) |
- +-------------------------------+---------------+---------------+
- |                        Protocol-ID (*)                        |
- +---------------+-----------------------------------------------+
- | Host-Len (8)  |                   Host (*)                  ...
- +---------------+-----------------------------------------------+
- |                          Origin? (*)                        ...
- +---------------------------------------------------------------+
-    ]]></artwork>
-        </figure>
-
-        <t>
-          The ALTSVC frame contains the following fields:
-          <list style="hanging">
-            <t hangText="Max-Age:">
-              An unsigned, 32-bit integer indicating the freshness lifetime of the alternative
-              service association, as per <xref target="ALT-SVC" x:fmt="," x:rel="#caching"/>.
-            </t>
-
-            <t hangText="Port:">
-              An unsigned, 16-bit integer indicating the port that the alternative service is
-              available upon.
-            </t>
-
-            <t hangText="Proto-Len:">
-              An unsigned, 8-bit integer indicating the length, in octets, of the Protocol-ID field.
-            </t>
-
-            <t hangText="Protocol-ID:">
-              A sequence of bytes (length determined by <spanx style="verb">Proto-Len</spanx>)
-              containing the ALPN protocol identifier of the alternative service.
-            </t>
-
-            <t hangText="Host-Len:">
-              An unsigned, 8-bit integer indicating the length, in octets, of the Host field.
-            </t>
-
-            <t hangText="Host:">
-              A sequence of characters (length determined by <spanx style="verb">Host-Len</spanx>)
-              containing an ASCII string indicating the host that the alternative service is
-              available upon.  An <xref target="IDNA">internationalized domain name</xref> MUST be
-              expressed using A-labels.
-            </t>
-
-            <t hangText="Origin:">
-              An optional sequence of characters (length determined by subtracting the length of all
-              preceding fields from the frame length) containing the ASCII serialisation of an
-              origin (<xref target="RFC6454"/>, Section 6.2) that the alternate service is
-              applicable to.
-            </t>
-          </list>
-        </t>
-
-        <t>
-          The ALTSVC frame does not define any flags.
-        </t>
-
-        <t>
-          The ALTSVC frame is intended for receipt by clients; a server that receives an ALTSVC
-          frame MUST treat it as a <xref target="ConnectionErrorHandler">connection error</xref> of
-          type <x:ref>PROTOCOL_ERROR</x:ref>.
-        </t>
-
-        <t>
-          The ALTSVC frame is processed hop-by-hop.  An intermediary MUST NOT forward ALTSVC frames,
-          though it can use the information contained in ALTSVC frames in forming new ALTSVC frames
-          to send to its own clients.
-        </t>
-      </section>
     </section>
 
     <section anchor="ErrorCodes" title="Error Codes">
@@ -3773,9 +3668,7 @@ HTTP2-Settings    = token68
           processing time. This might be done by pointlessly changing SETTINGS parameters, setting
           multiple undefined parameters, or changing the same setting multiple times in the same
           frame.  <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be abused to
-          cause an unnecessary waste of resources.  Similarly, frames from extensions that are not
-          supported could be abused.  A server might erroneously issue <x:ref>ALTSVC</x:ref> frames
-          for origins on which it cannot be authoritative to generate excess work for clients.
+          cause an unnecessary waste of resources.
         </t>
         <t>
           Large numbers of small or empty frames can be abused to cause a peer to expend time
@@ -3989,7 +3882,6 @@ HTTP2-Settings    = token68
           <c>GOAWAY</c><c>0x7</c><c><xref target="GOAWAY"/></c>
           <c>WINDOW_UPDATE</c><c>0x8</c><c><xref target="WINDOW_UPDATE"/></c>
           <c>CONTINUATION</c><c>0x9</c><c><xref target="CONTINUATION"/></c>
-          <c>ALTSVC</c><c>0xa</c><c><xref target="ALTSVC"/></c>
         </texttable>
       </section>
 
@@ -4573,25 +4465,10 @@ HTTP2-Settings    = token68
         </front>
         <seriesInfo name="Internet-Draft" value="draft-sheffer-tls-bcp-02"/>
       </reference>
-
-      <reference anchor="IDNA">
-        <front>
-          <title>
-            Internationalized Domain Names for Applications (IDNA): Definitions and Document
-            Framework
-          </title>
-          <author initials="J." surname="Klensin" fullname="John Klensin"/>
-          <date year="2010" month="August"/>
-        </front>
-        <seriesInfo name="RFC" value="5890"/>
-      </reference>
     </references>
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
        <section title="Since draft-ietf-httpbis-http2-12" anchor="changes.since.draft-ietf-httpbis-http2-12">
-         <t>
-           Removed reserved octet from <x:ref>ALTSVC</x:ref>.
-         </t>
          <t>
            Restored extensibility options.
          </t>
@@ -4600,6 +4477,9 @@ HTTP2-Settings    = token68
          </t>
          <t>
            Permitting the use of <x:ref>PRIORITY</x:ref> after stream close.
+         </t>
+         <t>
+           Removed ALTSVC frame.
          </t>
          <t>
            Removed BLOCKED frame.
