@@ -559,7 +559,7 @@ HTTP2-Settings    = token68
 
       <section anchor="FrameHeader" title="Frame Format">
         <t>
-          All frames begin with an 8-octet header followed by a payload of between 0 and 16,383
+          All frames begin with an 8-octet header followed by a payload of between 0 and 65,535
           octets.
         </t>
         <figure title="Frame Header">
@@ -567,7 +567,7 @@ HTTP2-Settings    = token68
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | R |     Length (14)           |   Type (8)    |   Flags (8)   |
+ |          Length (16)          |   Type (8)    |   Flags (8)   |
  +-+-+-----------+---------------+-------------------------------+
  |R|                 Stream Identifier (31)                      |
  +-+-------------------------------------------------------------+
@@ -578,15 +578,9 @@ HTTP2-Settings    = token68
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
-            <x:lt hangText="R:">
-              <t>
-                A reserved 2-bit field.  The semantics of these bits are undefined and the bits MUST
-                remain unset (0) when sending and MUST be ignored when receiving.
-              </t>
-            </x:lt>
             <x:lt hangText="Length:">
               <t>
-                The length of the frame payload expressed as an unsigned 14-bit integer. The 8 octets
+                The length of the frame payload expressed as an unsigned 16-bit integer. The 8 octets
                 of the frame header are not included in this value.
               </t>
             </x:lt>
@@ -632,14 +626,14 @@ HTTP2-Settings    = token68
       <section anchor="FrameSize" title="Frame Size">
         <t>
           The maximum size of a frame payload varies by frame type. The absolute maximum size of a
-          frame payload is 2<x:sup>14</x:sup>-1 (16,383) octets, meaning that the maximum frame
-          size is 16,391 octets. All implementations SHOULD be capable of receiving and minimally
+          frame payload is 2<x:sup>16</x:sup>-1 (65,535) octets, meaning that the maximum frame
+          size is 65,543 octets. All implementations SHOULD be capable of receiving and minimally
           processing frames up to this maximum size.
         </t>
         <t>
           Certain frame types, such as <x:ref>PING</x:ref> (see <xref target="PING"/>), impose
           additional limits on the amount of payload data allowed.  Likewise, additional size limits
-          can be set by specific application uses (see <xref target="HttpExtra" />).
+          can be set by specific application uses (see <xref target="HttpSizeLimit" />).
         </t>
         <t>
           If a frame size exceeds any defined limit, or is too small to contain mandatory frame
@@ -3652,6 +3646,16 @@ HTTP2-Settings    = token68
           "identity, gzip", however GZIP encoding cannot be suppressed by including ";q=0".
           Intermediaries that perform translation from HTTP/2 to HTTP/1.1 MUST decompress payloads
           unless the request includes an Accept-Encoding value that includes "gzip".
+        </t>
+      </section>
+
+      <section anchor="HttpSizeLimit" title="Frame Size Limits for HTTP">
+        <t>
+          The application data in <x:ref>DATA</x:ref> frames and the header block fragments in
+          <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>, and <x:ref>CONTINUATION</x:ref>
+          frames used for HTTP messages MUST NOT exceed 2<x:sup>14</x:sup>-1 (16,383) octets in
+          length. An endpoint MUST treat the receipt of a larger frame as a
+          <x:ref>FRAME_SIZE_ERROR</x:ref> error (see <xref target="FrameSize"/>).
         </t>
       </section>
     </section>
