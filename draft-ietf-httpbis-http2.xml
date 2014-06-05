@@ -732,7 +732,7 @@ HTTP2-Settings    = token68
           <t>
             The order in which frames are sent on a stream is significant. Recipients process frames
             in the order they are received.  In particular, the order of <x:ref>HEADERS</x:ref>,
-            <x:ref>DATA</x:ref> and <x:ref>EXTENSION</x:ref> frames is semantically significant.
+            and <x:ref>DATA</x:ref> frames is semantically significant.
           </t>
           <t>
             Streams are identified by an integer.  Stream identifiers are assigned to streams by the
@@ -1108,10 +1108,9 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 The frame type determines whether flow control applies to a frame.  Of the frames
-                specified in this document, <x:ref>DATA</x:ref> and <x:ref>EXTENSION</x:ref> frames
-                are subject to flow control; all other frame types do not consume space in the
-                advertised flow control window.  This ensures that important control frames are not
-                blocked by flow control.
+                specified in this document, only <x:ref>DATA</x:ref> frames are subject to flow
+                control; all other frame types do not consume space in the advertised flow control
+                window.  This ensures that important control frames are not blocked by flow control.
               </t>
               <t>
                 Flow control cannot be disabled.
@@ -1449,56 +1448,31 @@ HTTP2-Settings    = token68
         <t>
           HTTP/2 permits extension of the protocol.  Protocol extensions can be used to provide
           additional services or alter any aspect of the protocol, within the limitations described
-          in this section.
+          in this section.  Extensions are effective only within the scope of a single HTTP/2
+          connection.
         </t>
         <t>
-          Extensions are provided for both hop-by-hop uses, where the extension is constrained to
-          the scope of a single HTTP/2 connection; or end-to-end, where the extension data is
-          carried with the stream of <x:ref>HEADERS</x:ref> and <x:ref>DATA</x:ref> that comprise an
-          HTTP request or response.
+          Extensions are permitted to use new <xref target="FrameHeader">frame types</xref>, <xref
+          target="SettingValues">settings</xref>, <xref target="ErrorCodes">error codes</xref>, or
+          any reserved flags or fields in frames.  Implementations MUST ignore unknown or
+          unsupported values in all of these elements.  Implementations MUST also discard unknown
+          frame types.  This means that any of these extension points can be safely used by
+          extensions without prior arrangement or negotiation.
         </t>
-
-        <section title="Hop-By-Hop Extensions">
-          <t>
-            Extensions are permitted to use new <xref target="FrameHeader">frame types</xref>, <xref
-            target="SettingValues">settings</xref>, <xref target="ErrorCodes">error codes</xref>, or
-            any reserved flags or fields in frames.  Implementations MUST ignore unknown or
-            unsupported values in all of these elements.  Implementations MUST also discard unknown
-            frame types.  This means that any of these extension points can be safely used by
-            extensions without prior arrangement or negotiation.
-          </t>
-          <t>
-            However, extensions MUST negotiate any use that could change to the semantics of
-            existing protocol components.  For example, an extension that changes the layout of the
-            <x:ref>HEADERS</x:ref> frame cannot be used until the peer has given a positive signal
-            that this is acceptable.  In this case, it could also be necessary to coordinate when
-            the revised layout comes into effect.
-          </t>
-          <t>
-            This document doesn't mandate a specific method for negotiating the use of an extension,
-            but notes that a <xref target="SettingValues">setting</xref> could be used for that
-            purpose.  If both peers set a value that indicates willingness to use the extension,
-            only then can the extension be used.  If a setting is used for extension negotiation,
-            the initial value MUST be set so that the extension is initially disabled.
-          </t>
-        </section>
-
-        <section title="End-To-End Extensions">
-          <t>
-            A limited end-to-end extension mechanism is provided through the <xref
-            target="EXTENSION">EXTENSION frame</xref>.  <x:ref>EXTENSION</x:ref> frames are
-            forwarded by intermediaries along with the <x:ref>DATA</x:ref> and
-            <x:ref>HEADERS</x:ref> frames that comprise HTTP requests and responses.
-          </t>
-          <t>
-            The <x:ref>EXTENSION</x:ref> frame is intended to be end-to-end, but this cannot be
-            guaranteed when there are multiple hops between the client and origin server.  This
-            frame can only be forwarded where support for extensions of this sort exists.
-            Translation at an intermediary to another protocol or a different HTTP version will
-            likely result in the extension being lost.  Extension data could also be lost as a
-            result of a response being cached.
-          </t>
-        </section>
+        <t>
+          However, extensions MUST negotiate any use that could change to the semantics of
+          existing protocol components.  For example, an extension that changes the layout of the
+          <x:ref>HEADERS</x:ref> frame cannot be used until the peer has given a positive signal
+          that this is acceptable.  In this case, it could also be necessary to coordinate when
+          the revised layout comes into effect.
+        </t>
+        <t>
+          This document doesn't mandate a specific method for negotiating the use of an extension,
+          but notes that a <xref target="SettingValues">setting</xref> could be used for that
+          purpose.  If both peers set a value that indicates willingness to use the extension,
+          only then can the extension be used.  If a setting is used for extension negotiation,
+          the initial value MUST be set so that the extension is initially disabled.
+        </t>
       </section>
     </section>
 
@@ -2778,96 +2752,6 @@ HTTP2-Settings    = token68
           <x:ref>FRAME_SIZE_ERROR</x:ref>.
         </t>
       </section>
-
-      <section anchor="EXTENSION" title="EXTENSION">
-        <t>
-          The EXTENSION frame (type=0xc) carries opaque data for end-to-end protocol extensions.
-        </t>
-        <figure title="EXTENSION Frame Payload">
-          <artwork><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) | Pad Low? (8)  |
- +---------------+---------------+-------------------------------+
- |                        Extension-ID                           |
- +---------------------------------------------------------------+
- |                          Data (*)                           ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
- +---------------------------------------------------------------+
-    ]]></artwork>
-        </figure>
-
-        <t>
-          The EXTENSION frame contains the following fields:
-          <list style="hanging">
-            <t hangText="Extension-ID:">
-              An unsigned, 32-bit integer that uniquely identifies the extension.  Extension
-              identifiers can be registered in the <xref target="iana-extension">HTTP/2 extensions
-              registry</xref>.
-            </t>
-            <t hangText="Data:">
-              Extension data.  The amount of extension data is the remainder of the frame payload
-              after subtracting the length of the other fields that are present.
-            </t>
-            <t hangText="Padding:">
-              Padding octets.
-            </t>
-          </list>
-        </t>
-
-        <t>
-          The EXTENSION frame defines the following flags:
-          <list style="hanging">
-            <t hangText="END_SEGMENT (0x2):">
-              Bit 2 being set indicates that this frame is the last for the current segment.
-              Intermediaries MUST NOT coalesce frames across a segment boundary and MUST preserve
-              segment boundaries when forwarding frames.
-            </t>
-            <t hangText="PAD_LOW (0x8):">
-              Bit 4 being set indicates that the Pad Low field is present.
-            </t>
-            <t hangText="PAD_HIGH (0x10):">
-              Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT be
-              set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with PAD_HIGH
-              set and PAD_LOW cleared MUST treat this as a <xref
-              target="ConnectionErrorHandler">connection error</xref> of type
-              <x:ref>PROTOCOL_ERROR</x:ref>.
-            </t>
-          </list>
-        </t>
-
-        <t>
-          EXTENSION frames MUST be associated with a stream. If an EXTENSION frame is received whose
-          stream identifier field is 0x0, the recipient MUST respond with a <xref
-          target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>PROTOCOL_ERROR</x:ref>.
-        </t>
-        <t>
-          EXTENSION frames are subject to flow control and can only be sent when a stream is in the
-          "open" or "half closed (remote)" states.  This means that it MUST be able to be split into
-          smaller pieces to avoid deadlocks that could result from having a flow control window that
-          is smaller than the frame size.
-        </t>
-        <t>
-          An intermediary that splits an EXTENSION frame MUST ensure that the extension identifier
-          is copied to the new frame.  EXTENSION frames with different extension identifiers MUST
-          NOT be merged.
-        </t>
-        <t>
-          An intermediary that forwards a stream to another HTTP/2 connection directly SHOULD
-          forward EXTENSION frames along with any <x:ref>HEADERS</x:ref> or <x:ref>DATA</x:ref>
-          frames.  The relative order of <x:ref>DATA</x:ref>, <x:ref>HEADERS</x:ref> and EXTENSION
-          frames MUST be preserved, though frames MAY be split as long as the frame permits it.  For
-          instance, <x:ref>DATA</x:ref> frames can be split or merged together as long as the
-          END_SEGMENT flag is respected.
-        </t>
-        <t>
-          The EXTENSION frame includes optional padding.  Padding fields and flags are identical to
-          those defined for <xref target="DATA">DATA frames</xref>.
-        </t>
-      </section>
     </section>
 
     <section anchor="ErrorCodes" title="Error Codes">
@@ -3012,11 +2896,6 @@ HTTP2-Settings    = token68
           A response starts with a <x:ref>HEADERS</x:ref> frame and ends with a frame bearing
           END_STREAM, optionally followed by <x:ref>CONTINUATION</x:ref> frames, which places the
           stream in the "closed" state.
-        </t>
-
-        <t>
-          <x:ref>EXTENSION</x:ref> frames MAY be interspersed with <x:ref>HEADERS</x:ref> and
-          <x:ref>DATA</x:ref> frames, but these frames do not carry HTTP semantics.
         </t>
 
         <section anchor="informational-responses" title="Informational Responses">
@@ -4032,9 +3911,8 @@ HTTP2-Settings    = token68
         (ALPN) Protocol IDs" registry established in <xref target="TLSALPN"/>.
       </t>
       <t>
-        This document establishes a registry for frame types, settings, error codes and extension
-        identifiers.  These new registries are entered into a new "Hypertext Transfer Protocol
-        (HTTP) 2 Parameters" section.
+        This document establishes a registry for frame types, settings, and error codes.  These new
+        registries are entered into a new "Hypertext Transfer Protocol (HTTP) 2 Parameters" section.
       </t>
       <t>
         This document registers the <spanx style="verb">HTTP2-Settings</spanx> header field for
@@ -4111,7 +3989,6 @@ HTTP2-Settings    = token68
           <c>CONTINUATION</c><c>0x9</c><c><xref target="CONTINUATION"/></c>
           <c>ALTSVC</c><c>0xa</c><c><xref target="ALTSVC"/></c>
           <c>BLOCKED</c><c>0xb</c><c><xref target="BLOCKED"/></c>
-          <c>EXTENSION</c><c>0xc</c><c><xref target="EXTENSION"/></c>
         </texttable>
       </section>
 
@@ -4172,30 +4049,6 @@ HTTP2-Settings    = token68
         </t>
         <t>
           An initial set of error code registrations can be found in <xref target="ErrorCodes"/>.
-        </t>
-      </section>
-
-      <section anchor="iana-extension" title="Extension Identifier Registry">
-        <t>
-          This document establishes a registry for HTTP/2 extension identifiers.  The "HTTP/2
-          Extension Identifier" registry manages a 32-bit space.  The "HTTP/2 Extension Identifier"
-          registry operates under the <xref target="RFC5226">"First Come, First Served"
-          policy</xref> for values in the range from 0x0000 to 0xefffffff, with values between and
-          0xf0000000 and 0xffffffff being reserved for experimental use.
-        </t>
-        <t>
-          New registrations are advised to provide the following information:
-          <list style="hanging:">
-            <t hangText="Identifier:">
-              The 32-bit identifier assigned to the setting.
-            </t>
-            <t hangText="Specification:">
-              Optionally, a reference to a specification that describes the use of the extension.
-            </t>
-          </list>
-        </t>
-        <t>
-          This registry is initially empty.
         </t>
       </section>
 
@@ -4729,7 +4582,7 @@ HTTP2-Settings    = token68
            Removed reserved octet from <x:ref>ALTSVC</x:ref>.
          </t>
          <t>
-           Restored extensibility options.  Added <x:ref>EXTENSION</x:ref> frames.
+           Restored extensibility options.
          </t>
        </section>
        <section title="Since draft-ietf-httpbis-http2-11" anchor="changes.since.draft-ietf-httpbis-http2-11">
