@@ -2472,11 +2472,6 @@ HTTP2-Settings    = token68
             completely asynchronous with respect to each other. This property allows a receiver to
             aggressively update the window size kept by the sender to prevent streams from stalling.
           </t>
-          <t>
-            A sender that is unable to send data on a stream due to either flow control window being
-            zero or lower MAY send a <xref target="BLOCKED">BLOCKED frame</xref> in order to inform
-            the receiver of a potential flow control problem.
-          </t>
         </section>
 
         <section anchor="InitialWindowSize" title="Initial Flow Control Window Size">
@@ -2744,42 +2739,6 @@ HTTP2-Settings    = token68
           The ALTSVC frame is processed hop-by-hop.  An intermediary MUST NOT forward ALTSVC frames,
           though it can use the information contained in ALTSVC frames in forming new ALTSVC frames
           to send to its own clients.
-        </t>
-      </section>
-
-      <section anchor="BLOCKED" title="BLOCKED">
-        <t>
-          The BLOCKED frame (type=0xB) indicates that the sender is unable to send data due to a
-          closed flow control window.
-        </t>
-        <t>
-          <cref>The BLOCKED frame is included in this draft version to facilitate experimentation.
-          If the results of the experiment do not provide positive feedback, it could be
-          removed.</cref>
-        </t>
-        <t>
-          The BLOCKED frame is used to provide feedback about the performance of flow control for
-          the purposes of performance tuning and debugging.  The BLOCKED frame can be sent by a peer
-          when flow controlled data cannot be sent due to the connection- or stream-level flow
-          control.  This frame MUST NOT be sent if there are other reasons preventing data from
-          being sent, either a lack of available data, or the underlying transport being blocked.
-        </t>
-        <t>
-          The BLOCKED frame is sent on the stream that is blocked, that is, the stream with a
-          non-positive number of bytes available in the flow control window.  A BLOCKED frame can be
-          sent on stream 0x0 to indicate that connection-level flow control is blocked.
-        </t>
-        <t>
-          An endpoint MUST NOT send any subsequent BLOCKED frames until the affected flow control
-          window becomes positive.  This means that <x:ref>WINDOW_UPDATE</x:ref> frames are received
-          or <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> is increased before more BLOCKED frames can
-          be sent.
-        </t>
-        <t>
-          The BLOCKED frame defines no flags and contains no payload.  A receiver MUST treat the
-          receipt of a BLOCKED frame with a payload as a <xref
-          target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>FRAME_SIZE_ERROR</x:ref>.
         </t>
       </section>
     </section>
@@ -3807,11 +3766,10 @@ HTTP2-Settings    = token68
           The <x:ref>SETTINGS</x:ref> frame can be abused to cause a peer to expend additional
           processing time. This might be done by pointlessly changing SETTINGS parameters, setting
           multiple undefined parameters, or changing the same setting multiple times in the same
-          frame.  <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, <x:ref>BLOCKED</x:ref>
-          frames can be abused to cause an unnecessary waste of resources.  Similarly, frames from
-          extensions that are not supported could be abused.  A server might erroneously issue
-          <x:ref>ALTSVC</x:ref> frames for origins on which it cannot be authoritative to generate
-          excess work for clients.
+          frame.  <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>PRIORITY</x:ref> frames can be abused to
+          cause an unnecessary waste of resources.  Similarly, frames from extensions that are not
+          supported could be abused.  A server might erroneously issue <x:ref>ALTSVC</x:ref> frames
+          for origins on which it cannot be authoritative to generate excess work for clients.
         </t>
         <t>
           Large numbers of small or empty frames can be abused to cause a peer to expend time
@@ -4026,7 +3984,6 @@ HTTP2-Settings    = token68
           <c>WINDOW_UPDATE</c><c>0x8</c><c><xref target="WINDOW_UPDATE"/></c>
           <c>CONTINUATION</c><c>0x9</c><c><xref target="CONTINUATION"/></c>
           <c>ALTSVC</c><c>0xa</c><c><xref target="ALTSVC"/></c>
-          <c>BLOCKED</c><c>0xb</c><c><xref target="BLOCKED"/></c>
         </texttable>
       </section>
 
@@ -4638,11 +4595,14 @@ HTTP2-Settings    = token68
          <t>
            Permitting the use of <x:ref>PRIORITY</x:ref> after stream close.
          </t>
+         <t>
+           Removed BLOCKED frame.
+         </t>
        </section>
 
        <section title="Since draft-ietf-httpbis-http2-11" anchor="changes.since.draft-ietf-httpbis-http2-11">
          <t>
-           Added <x:ref>BLOCKED</x:ref> frame (at risk).
+           Added BLOCKED frame (at risk).
          </t>
          <t>
            Simplified priority scheme.
