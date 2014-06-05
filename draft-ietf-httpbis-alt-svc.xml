@@ -27,7 +27,7 @@
   <!ENTITY mdash "&#8212;">
 ]>
 
-<rfc ipr="trust200902" 
+<rfc ipr="trust200902"
      category="std"
      docName="draft-ietf-httpbis-alt-svc-latest"
      x:maturity-level="proposed"
@@ -302,8 +302,9 @@
    connection.
 </t>
 <t>
-   When a client uses an alternate service, it &MUST; emit the Service header field
-   (<xref target="service"/>) on every request using that alternate service.
+   When a client uses an alternative service, it &MUST; provide an indication to the server of the
+   alternative service it has used (<xref target="indicator"/>).  This feedback allows the server to
+   avoid sending unnecessary or circular alternative service signals.
 </t>
 <t>
    The client is not required to block requests; the origin's connection can be
@@ -346,7 +347,7 @@ protocol-id = token ; percent-encoded ALPN protocol identifier
    additional constraints apply:
    <list style="numbers">
     <t>
-      Octets in the ALPN protocol &MUST-NOT; be percent-encoded if they are valid 
+      Octets in the ALPN protocol &MUST-NOT; be percent-encoded if they are valid
       token characters except "%", and
     </t>
     <t>
@@ -373,11 +374,11 @@ Alt-Svc: http2=8000
   <ttcol>ALPN protocol name</ttcol>
   <ttcol>protocol-id</ttcol>
   <ttcol>Note</ttcol>
-  
+
   <c>http2</c>
   <c>http2</c>
   <c>No escaping needed</c>
-  
+
   <c>w=x:y#z</c>
   <c>w%3Dx%3Ay#z</c>
   <c>"=" and ":" escaped</c>
@@ -462,36 +463,42 @@ Alt-Svc: h2c=8000; ma=60
 </section>
 </section>
 
-<section title="The Service HTTP Header Field" anchor="service">
+<section title="Indicating Alternative Service Use" anchor="indicator">
 <t>
-   The Service HTTP header field is used in requests to indicate the identity of the 
-   alternate service in use, just as the Host header field identifies the host and port
-   of the origin.
-</t>
-<figure>
-<artwork type="abnf2616">
-Service = uri-host [ ":" port ]
-</artwork>
-</figure>
-<t>
-   Service is intended to allow alternate services to detect loops, differentiate
-   traffic for purposes of load balancing, and generally to ensure that it is
-   possible to identify the intended destination of traffic, since introducing
-   this information after a protocol is in use has proven to be problematic.
+   When using alternative services, a client &MUST; provide an indication of what service it is
+   using.  This indication allows alternative services to detect loops, differentiate traffic
+   for purposes of load balancing, and generally to ensure that it is possible to identify the
+   intended destination of traffic, since introducing this information after a protocol is in
+   use has proven to be problematic.
 </t>
 <t>
-   When using an Alternate Service, clients &MUST; include a Service header in all 
-   requests.
+   The Alt-Svc HTTP header field can be included in requests to indicate the identity of the
+   alternative service that is in use, just as the Host header field identifies the host and
+   port of the origin.  The Alt-Svc header field &MUST; be included in every request to an
+   alternative service.
 </t>
 <figure>
   <preamble>For example:</preamble>
   <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
 GET /thing
 Host: origin.example.com
-Service: alternate.example.net
+Alt-Svc: http%2F1.1=alternative.example.net
 User-Agent: Example/1.0
 </artwork>
 </figure>
+
+<t>
+   When using <xref target="HTTP2">HTTP/2</xref>, clients SHOULD instead send an ALTSVC frame.
+   A single ALTSVC frame can be sent for a connection; a new frame is not required for every
+   request.
+</t>
+<t>
+   To reduce the ability of servers to track individual clients over time (see <xref
+   target="tracking"/>), an alternative service indication sent by a client &SHOULD-NOT; include
+   any alternative service information other than the protocol, host and port.  In HTTP/2, the
+   Max-Age field SHOULD be set to zero to avoid this field being used as a means of tracking
+   clients.
+</t>
 </section>
 
 <section title="The 421 Not Authoritative HTTP Status Code" anchor="status">
@@ -530,23 +537,6 @@ User-Agent: Example/1.0
 <t>
   <list style="symbols">
     <t>Header Field Name: Alt-Svc</t>
-    <t>Application Protocol: http</t>
-    <t>Status: standard</t>
-    <t>Author/Change Controller: IETF</t>
-    <t>Specification Document: [this document]</t>
-    <t>Related Information: </t>
-  </list>
-</t>
-</section>
-
-<section title="The Service Message Header Field" anchor="the-service-message-header-field" >
-<t>
-   This document registers Alt-Svc in the Permanent Message Header Registry
-   <xref target="RFC3864"/>.
-</t>
-<t>
-  <list style="symbols">
-    <t>Header Field Name: Service</t>
     <t>Application Protocol: http</t>
     <t>Status: standard</t>
     <t>Author/Change Controller: IETF</t>
@@ -647,6 +637,29 @@ User-Agent: Example/1.0
    (of specifications, implementations and end users) are met.
 </t>
 </section>
+
+<section title="Tracking Clients Using Alternative Services" anchor="tracking">
+<t>
+   The <xref target="indicator">alternative service indicator</xref> provided by clients
+   provides a server the means of correlating requests.  If the alternative service indicator
+   includes a sufficiently unique identifier, requests made to an alternative service can be
+   correlated with the original alternative service advertisement.
+</t>
+<t>
+   To reduce the entropy available for tracking users, the "ma" or "Max-Age" parameter
+   &SHOULD-NOT; be sent by clients.  All other header field parameters included by the server in
+   the original advertisement &SHOULD; also be removed.
+</t>
+<t>
+   These measures do not prevent the use of the domain name or port number for tracking
+   purposes.  Clients that do not wish to be tracked &MAY; choose to ignore alternative service
+   advertisements.
+</t>
+<t>
+   In a browser, any alternative service information &MUST; be removed when origin-specific data
+   is cleared (for instance, when cookies are cleared).
+</t>
+</section>
 </section>
 
 <section title="Acknowledgements" anchor="acknowledgements" >
@@ -656,13 +669,13 @@ User-Agent: Example/1.0
   feedback and suggestions.
 </t>
 <t>
-  The Alt-Svc header field was influenced by the design of the 
-  Alternative-Protocol header field in SPDY.
+  The Alt-Svc header field was influenced by the design of the
+  Alternate-Protocol header field in SPDY.
 </t>
 </section>
 
   </middle>
-  
+
   <back>
 
 <references title="Normative References">
