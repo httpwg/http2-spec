@@ -1515,8 +1515,8 @@ HTTP2-Settings    = token68
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) |  Pad Low? (8) |
- +---------------+---------------+-------------------------------+
+ |Pad Length? (8)|
+ +---------------+-----------------------------------------------+
  |                            Data (*)                         ...
  +---------------------------------------------------------------+
  |                           Padding (*)                       ...
@@ -1526,15 +1526,9 @@ HTTP2-Settings    = token68
         <t>
           The DATA frame contains the following fields:
           <list style="hanging">
-            <t hangText="Pad High:">
-              An 8-bit field containing an amount of padding in units of 256 octets.  This field is
-              optional and is only present if the PAD_HIGH flag is set.  This field, in combination
-              with Pad Low, determines how much padding there is on a frame.
-            </t>
-            <t hangText="Pad Low:">
-              An 8-bit field containing an amount of padding in units of single octets.  This field
-              is optional and is only present if the PAD_LOW flag is set.  This field, in
-              combination with Pad High, determines how much padding there is on a frame.
+            <t hangText="Pad Length:">
+              An 8-bit field containing the length of the frame padding in units of octets.  This
+              field is optional and is only present if the PADDED flag is set.
             </t>
             <t hangText="Data:">
               Application data.  The amount of data is the remainder of the frame payload after
@@ -1560,15 +1554,8 @@ HTTP2-Settings    = token68
               Intermediaries MUST NOT coalesce frames across a segment boundary and MUST preserve
               segment boundaries when forwarding frames.
             </t>
-            <t hangText="PAD_LOW (0x8):">
-              Bit 4 being set indicates that the Pad Low field is present.
-            </t>
-            <t hangText="PAD_HIGH (0x10):">
-              Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT be
-              set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with PAD_HIGH
-              set and PAD_LOW cleared MUST treat this as a <xref
-              target="ConnectionErrorHandler">connection error</xref> of type
-              <x:ref>PROTOCOL_ERROR</x:ref>.
+            <t hangText="PADDED (0x8):">
+              Bit 4 being set indicates that the Pad Length field is present.
             </t>
             <t hangText="COMPRESSED (0x20):">
               Bit 6 being set indicates that the data in the frame has been compressed with GZIP
@@ -1633,8 +1620,8 @@ HTTP2-Settings    = token68
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) |  Pad Low? (8) |
- +-+-------------+---------------+-------------------------------+
+ |Pad Length? (8)|
+ +-+-------------+-----------------------------------------------+
  |E|                 Stream Dependency? (31)                     |
  +-+-------------+-----------------------------------------------+
  |  Weight? (8)  |
@@ -1648,11 +1635,9 @@ HTTP2-Settings    = token68
         <t>
           The HEADERS frame payload has the following fields:
           <list style="hanging">
-            <t hangText="Pad High:">
-              Padding size high bits.  This field is only present if the PAD_HIGH flag is set.
-            </t>
-            <t hangText="Pad Low:">
-              Padding size low bits.  This field is only present if the PAD_LOW flag is set.
+            <t hangText="Pad Length:">
+              An 8-bit field containing the length of the frame padding in units of octets.  This
+              field is optional and is only present if the PADDED flag is set.
             </t>
             <t hangText="E:">
               A single bit flag indicates that the stream dependency is exclusive, see <xref
@@ -1715,18 +1700,9 @@ HTTP2-Settings    = token68
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
-            <x:lt hangText="PAD_LOW (0x8):">
+            <x:lt hangText="PADDED (0x8):">
               <t>
-                Bit 4 being set indicates that the Pad Low field is present.
-              </t>
-            </x:lt>
-            <x:lt hangText="PAD_HIGH (0x10):">
-              <t>
-                Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT be
-                set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
-                PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
+                Bit 4 being set indicates that the Pad Length field is present.
               </t>
             </x:lt>
             <x:lt hangText="PRIORITY (0x20):">
@@ -2071,8 +2047,8 @@ HTTP2-Settings    = token68
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) | Pad Low? (8)  |
- +-+-------------+---------------+-------------------------------+
+ |Pad Length? (8)|
+ +-+-------------+-----------------------------------------------+
  |R|                  Promised Stream ID (31)                    |
  +-+-----------------------------+-------------------------------+
  |                   Header Block Fragment (*)                 ...
@@ -2084,11 +2060,9 @@ HTTP2-Settings    = token68
         <t>
           The PUSH_PROMISE frame payload has the following fields:
           <list style="hanging">
-            <t hangText="Pad High:">
-              Padding size high bits.  This field is only present if the PAD_HIGH flag is set.
-            </t>
-            <t hangText="Pad Low:">
-              Padding size low bits.  This field is only present if the PAD_LOW flag is set.
+            <t hangText="Pad Length:">
+              An 8-bit field containing the length of the frame padding in units of octets.  This
+              field is optional and is only present if the PADDED flag is set.
             </t>
             <t hangText="R:">
               A single reserved bit.
@@ -2126,18 +2100,9 @@ HTTP2-Settings    = token68
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
-            <x:lt hangText="PAD_LOW (0x8):">
+            <x:lt hangText="PADDED (0x8):">
               <t>
-                Bit 4 being set indicates that the Pad Low field is present.
-              </t>
-            </x:lt>
-            <x:lt hangText="PAD_HIGH (0x10):">
-              <t>
-                Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT be
-                set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
-                PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
+                Bit 4 being set indicates that the Pad Length field is present.
               </t>
             </x:lt>
           </list>
@@ -2555,34 +2520,17 @@ HTTP2-Settings    = token68
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | Pad High? (8) | Pad Low? (8)  |
- +---------------+---------------+-------------------------------+
  |                   Header Block Fragment (*)                 ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
  +---------------------------------------------------------------+
 ]]></artwork>
         </figure>
         <t>
-          The CONTINUATION frame payload has the following fields:
-          <list style="hanging">
-            <t hangText="Pad High:">
-              Padding size high bits.  This field is only present if the PAD_HIGH flag is set.
-            </t>
-            <t hangText="Pad Low:">
-              Padding size low bits.  This field is only present if the PAD_LOW flag is set.
-            </t>
-            <t hangText="Header Block Fragment:">
-              A <xref target="HeaderBlock">header block fragment</xref>.
-            </t>
-            <t hangText="Padding:">
-              Padding octets.
-            </t>
-          </list>
+          The CONTINUATION frame payload contains a <xref target="HeaderBlock">header block
+          fragment</xref>.
         </t>
 
         <t>
-          The CONTINUATION frame defines the following flags:
+          The CONTINUATION frame defines the following flag:
           <list style="hanging">
             <x:lt hangText="END_HEADERS (0x4):">
               <t>
@@ -2596,26 +2544,7 @@ HTTP2-Settings    = token68
                 error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
-            <x:lt hangText="PAD_LOW (0x8):">
-              <t>
-                Bit 4 being set indicates that the Pad Low field is present.
-              </t>
-            </x:lt>
-            <x:lt hangText="PAD_HIGH (0x10):">
-              <t>
-                Bit 5 being set indicates that the Pad High field is present.  This bit MUST NOT be
-                set unless the PAD_LOW flag is also set.  Endpoints that receive a frame with
-                PAD_HIGH set and PAD_LOW cleared MUST treat this as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
-              </t>
-            </x:lt>
           </list>
-        </t>
-
-        <t>
-          The payload of a CONTINUATION frame contains a <xref target="HeaderBlock">header block
-          fragment</xref>.
         </t>
 
         <t>
@@ -2635,11 +2564,6 @@ HTTP2-Settings    = token68
           recipient that observes violation of this rule MUST respond with a <xref
           target="ConnectionErrorHandler"> connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
-        </t>
-
-        <t>
-          The CONTINUATION frame includes optional padding.  Padding fields and flags are identical
-          to those defined for <xref target="DATA">DATA frames</xref>.
         </t>
       </section>
     </section>
@@ -3779,8 +3703,10 @@ HTTP2-Settings    = token68
           possible if an attacker can control plaintext.
         </t>
         <t>
-          Intermediaries SHOULD NOT remove padding, though an intermediary MAY remove padding and
-          add differing amounts if the intent is to improve the protections padding affords.
+          Intermediaries SHOULD retain padding for <x:ref>DATA</x:ref> frames, but MAY drop padding
+          for <x:ref>HEADERS</x:ref> and <x:ref>PUSH_PROMISE</x:ref> frames.  A valid reason for an
+          intermediary to change the amount of padding of frames is to improve the protections that
+          padding provides.
         </t>
       </section>
 
@@ -4513,6 +4439,10 @@ HTTP2-Settings    = token68
          </t>
          <t>
            Removed BLOCKED frame.
+         </t>
+         <t>
+           Reducing the maximum padding size to 256 octets; removing padding from
+           <x:ref>CONTINUATION</x:ref> frames.
          </t>
        </section>
 
