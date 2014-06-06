@@ -306,8 +306,9 @@
    connection.
 </t>
 <t>
-   When a client uses an alternate service, it &MUST; emit the Service header field
-   (<xref target="service"/>) on every request using that alternate service.
+   When a client uses an alternate service, it &MUST; emit the Alt-Svc-Used
+   header field (<xref target="indicator"/>) on every request using that alternate
+   service.
 </t>
 <t>
    The client is not required to block requests; the origin's connection can be
@@ -565,33 +566,37 @@ Alt-Svc: h2c=8000; ma=60
 </section>
 </section>
 
-<section title="The Service HTTP Header Field" anchor="service">
+<section title="The Alt-Svc-Used HTTP Header Field" anchor="indicator">
 <t>
-   The Service HTTP header field is used in requests to indicate the identity of the
-   alternate service in use, just as the Host header field identifies the host and port
-   of the origin.
+   The Alt-Svc-Used HTTP header field is used in requests to indicate that an
+   alternate service is in use.
 </t>
 <figure>
 <artwork type="abnf2616">
-Service = uri-host [ ":" port ]
+Alt-Svc-Used     = ("1" / "0") *Alt-Svc-Used-Ext
+Alt-Svc-Used-Ext = OWS ";" OWS token [ "=" ( token / quoted-string ) ]
 </artwork>
+<postamble>
+  The token and quoted-string constructs are defined in <xref target="HTTP-p1"
+  x:rel="#field.components" x:fmt=","/>.
+</postamble>
 </figure>
 <t>
-   Service is intended to allow alternate services to detect loops, differentiate
-   traffic for purposes of load balancing, and generally to ensure that it is
-   possible to identify the intended destination of traffic, since introducing
-   this information after a protocol is in use has proven to be problematic.
+   Alt-Svc-Used is intended to allow alternate services to avoid sending
+   alternative service indications where there is a risk of generating a loops.
+   It also allows a service to identify requests for accounting and load
+   balancing purposes.
 </t>
 <t>
-   When using an Alternate Service, clients &MUST; include a Service header in all
-   requests.
+   When using an alternative service, clients &MUST; include a Alt-Svc-Used
+   header field in all requests.
 </t>
 <figure>
   <preamble>For example:</preamble>
   <artwork type="message/http; msgtype=&#34;request&#34;" x:indent-with="  ">
 GET /thing HTTP/1.1
 Host: origin.example.com
-Service: alternate.example.net
+Alt-Svc-Used: 1
 </artwork>
 </figure>
 </section>
@@ -653,14 +658,14 @@ Service: alternate.example.net
 </t>
 </section>
 
-<section title="The Service Message Header Field" anchor="the-service-message-header-field" >
+<section title="The Alt-Svc-Used Message Header Field" anchor="iana-alt-svc-used" >
 <t>
-   This document registers Alt-Svc in the Permanent Message Header Registry
+   This document registers Alt-Svc-Used in the Permanent Message Header Registry
    <xref target="RFC3864"/>.
 </t>
 <t>
   <list style="symbols">
-    <t>Header Field Name: Service</t>
+    <t>Header Field Name: Alt-Svc-Used</t>
     <t>Application Protocol: http</t>
     <t>Status: standard</t>
     <t>Author/Change Controller: IETF</t>
@@ -764,7 +769,7 @@ Service: alternate.example.net
 
 <section title="Tracking Clients Using Alternative Services" anchor="tracking">
 <t>
-   The <xref target="service">alternative service indicator</xref> provided by clients
+   The <xref target="indicator">alternative service indicator</xref> provided by clients
    provides a server the means of correlating requests.  If the alternative service indicator
    includes a sufficiently unique identifier, requests made to an alternative service can be
    correlated with the original alternative service advertisement.
