@@ -1,5 +1,5 @@
-xml2rfc ?= "/usr/local/bin/xml2rfc"
-saxpath ?= "$(HOME)/java/saxon-8-9-j/saxon8.jar"
+xml2rfc ?= "xml2rfc"
+saxpath ?= "lib/saxon9.jar"
 saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 
 names := http2 header-compression alt-svc
@@ -60,6 +60,9 @@ reduction := lib/clean-for-DTD.xslt
 
 %.xhtml: %.xml ../../rfc2629xslt/rfc2629toXHTML.xslt
 	$(saxon) $< ../../rfc2629xslt/rfc2629toXHTML.xslt > $@
+
+ghpages: $(addsuffix .txt,$(drafts)) $(addsuffix .html,$(drafts))
+	$(MAKE) -v
 
 # backup issues
 issues:
