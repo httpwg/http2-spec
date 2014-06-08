@@ -128,8 +128,8 @@
    that allows a resource to nominate additional means of interacting with it on
    the network. It defines a general framework for this in <xref
    target="alternative"/>, along with specific mechanisms for advertising their
-   existence using <xref target="alt-svc">HTTP header fields</xref> or <xref
-   target="frame">an HTTP/2 frame type</xref>.
+   existence using HTTP header fields (<xref target="alt-svc"/>) or an HTTP/2
+   frame type (<xref target="frame"/>).
 </t>
 <t>
    It also introduces a new status code in <xref target="status"/>, so that origin servers (or
@@ -232,8 +232,8 @@
 <t>
    There are many ways that a client could discover the alternative service(s)
    associated with an origin.  This document describes two such mechanisms:
-   <xref target="alt-svc">an HTTP header field</xref> and <xref
-   target="frame">an HTTP/2 frame type</xref>.
+   an HTTP header field (<xref target="alt-svc"/>) and an HTTP/2 frame type
+   (<xref target="frame"/>).
 </t>
 
 <section title="Host Authentication" anchor="host_auth">
@@ -472,29 +472,30 @@ Alt-Svc: h2c=8000; ma=60
    affect caching of Alt-Svc values.
 </t>
 </section>
+</section>
 
-<section anchor="frame" title="The ALTSVC Frame">
+<section anchor="frame" title="The ALTSVC HTTP/2 Frame">
 <t>
-  The ALTSVC HTTP/2 frame (type=0x?) advertises the availability of an
-  alternative service to an HTTP/2 client.  The ALTSVC frame is a non-critical
-  extension to HTTP/2.  Endpoints that do not support this frame can safely
-  ignore it.
+  The ALTSVC HTTP/2 frame (<xref target="HTTP2" x:fmt="," x:rel="#FramingLayer"/>)
+  advertises the availability of an alternative service to an HTTP/2 client.
+  <cref anchor="frameno">need to assign the number and ref the IANA registry</cref>
 </t>
-
+<t>  
+  The ALTSVC frame is a non-critical extension to HTTP/2.  Endpoints that do
+  not support this frame can safely ignore it.
+</t>
 <t>
   An ALTSVC frame on a client-initiated stream indicates that the conveyed
   alternative service is associated with the origin of that stream.
 </t>
-
 <t>
   An ALTSVC frame on stream 0 indicates that the conveyed alternative service is
   associated with the origin contained in the Origin field of the frame. An
   association with an origin that the client does not consider authoritative for
-  the current connection MUST be ignored.
+  the current connection &MUST; be ignored.
 </t>
-
 <figure title="ALTSVC Frame Payload">
-  <artwork><![CDATA[
+  <artwork type="drawing"><![CDATA[
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -518,56 +519,47 @@ Alt-Svc: h2c=8000; ma=60
       An unsigned, 32-bit integer indicating the freshness lifetime of the alternative
       service association, as per <xref target="caching"/>.
     </t>
-
     <t hangText="Port:">
       An unsigned, 16-bit integer indicating the port that the alternative service is
       available upon.
     </t>
-
     <t hangText="Proto-Len:">
       An unsigned, 8-bit integer indicating the length, in octets, of the Protocol-ID field.
     </t>
-
     <t hangText="Protocol-ID:">
       A sequence of bytes (length determined by <spanx style="verb">Proto-Len</spanx>)
       containing the ALPN protocol identifier of the alternative service.
     </t>
-
     <t hangText="Host-Len:">
-      An unsigned, 8-bit integer indicating the length, in octets, of the Host field.
+      An unsigned, 8-bit integer indicating the length, in octets, of the Host header field.
     </t>
-
     <t hangText="Host:">
       A sequence of characters (length determined by <spanx style="verb">Host-Len</spanx>)
       containing an ASCII string indicating the host that the alternative service is
-      available upon.  An <xref target="IDNA">internationalized domain name</xref> MUST be
-      expressed using A-labels.
+      available upon.  An internationalized domain name &MUST; be
+      expressed using A-labels (<xref target="IDNA" x:fmt="," x:sec="2.3.2.1"/>).
+      <cref>The same applies to the header field, right?</cref>
     </t>
-
     <t hangText="Origin:">
-      An optional sequence of characters (length determined by subtracting the length of all
+      An &OPTIONAL; sequence of characters (length determined by subtracting the length of all
       preceding fields from the frame length) containing the ASCII serialisation of an
-      origin (<xref target="RFC6454"/>, Section 6.2) that the alternate service is
+      origin (<xref target="RFC6454" x:fmt="," x:sec="6.2"/>) that the alternate service is
       applicable to.
     </t>
   </list>
 </t>
-
 <t>
   The ALTSVC frame does not define any flags.
 </t>
-
 <t>
   The ALTSVC frame is intended for receipt by clients; a server that receives an
-  ALTSVC frame MUST treat it as a connection error of type PROTOCOL_ERROR.
+  ALTSVC frame &MUST; treat it as a connection error of type PROTOCOL_ERROR.
 </t>
-
 <t>
-  The ALTSVC frame is processed hop-by-hop.  An intermediary MUST NOT forward ALTSVC frames,
+  The ALTSVC frame is processed hop-by-hop.  An intermediary &MUST-NOT; forward ALTSVC frames,
   though it can use the information contained in ALTSVC frames in forming new ALTSVC frames
   to send to its own clients.
 </t>
-</section>
 </section>
 
 <section title="The Alt-Svc-Used HTTP Header Field" anchor="indicator">
@@ -672,11 +664,11 @@ Alt-Svc-Used: 1
 <section anchor="alt-svc-frame-registration" title="The ALTSVC HTTP/2 Frame Type">
 <t>
   This document registers the ALTSVC frame type in the HTTP/2 Frame Types
-  registry <xref target="HTTP2"/>.
+  registry <xref target="HTTP2"/>.<!-- need to reference -13 with the iana registry ref -->
   <list style="hanging">
     <t hangText="Frame Type:">ALTSVC</t>
     <t hangText="Code:">[to be assigned]</t>
-    <t hangText="Specification:">[this document]</t>
+    <t hangText="Specification:"><xref target="frame"/></t>
   </list>
 </t>
 </section>
@@ -987,6 +979,7 @@ Alt-Svc-Used: 1
     <date month="April" year="2014"/>
   </front>
   <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2-12"/>
+  <x:source href="refs/draft-ietf-httpbis-http2-12.xml"/>
 </reference>
 
 </references>
@@ -1020,6 +1013,9 @@ Alt-Svc-Used: 1
 </t>
 <t>
   Note that ALTSVC frame is preferred to Alt-Svc header field (<eref target="https://github.com/http2/http2-spec/pull/503"/>).
+</t>
+<t>
+  Incorporate ALTSRV frame (<eref target="https://github.com/http2/http2-spec/pull/507"/>).
 </t>
 </section>
 
