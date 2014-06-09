@@ -107,7 +107,7 @@ endif
 ifneq (,$(GH_TOKEN))
 	@git push https://$(GH_TOKEN)@github.com/http2/http2-spec.git gh-pages
 endif
-	-git checkout -qf $(GIT_ORIG_BRANCH) || git checkout -qf $(GIT_ORIG_REV)
+	-git checkout -qf "$(GIT_ORIG_BRANCH)" || git checkout -qf "$(GIT_ORIG_REV)"
 	-rm -rf $(GHPAGES_TMP)
 endif
 
