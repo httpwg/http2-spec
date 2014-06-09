@@ -9,10 +9,14 @@ next_ver := $(foreach draft, $(drafts), -$(shell printf "%.2d" $$((1$(current_ve
 next := $(join $(drafts),$(next_ver))
 
 TARGETS := $(addsuffix .txt,$(drafts)) \
-          $(addsuffix .html,$(drafts))
+	  $(addsuffix .html,$(drafts))
+friendly_names := index compression alt-svc
+FRIENDLY := $(addsuffix .txt,$(friendly_names)) \
+	    $(addsuffix .html,$(friendly_names))
 
 .PHONY: latest submit idnits clean issues $(names) hpack
 .INTERMEDIATE: $(addsuffix .redxml,$(drafts))
+.PRECIOUS: $(TARGETS)
 
 latest: $(TARGETS)
 
@@ -32,6 +36,15 @@ clean:
 	-rm -f $(addsuffix *-[0-9][0-9].xml,$(drafts))
 	-rm -f $(addsuffix *.html,$(drafts))
 
+index.%: draft-ietf-httpbis-http2.%
+	cp -f $< $@
+
+compression.%: draft-ietf-httpbis-header-compression.%
+	cp -f $< $@
+
+alt-svc.%: draft-ietf-httpbis-alt-svc.%
+	cp -f $< $@
+
 define makerule_submit_xml =
 $(1)
 	sed -e"s/$$(basename $$<)-latest/$$(basename $$@)/" $$< > $$@
@@ -48,11 +61,8 @@ $(addsuffix .txt,$(next)): %.txt: %.xml
 stylesheet := lib/myxml2rfc.xslt
 extra_css := lib/style.css
 css_content = $(shell cat $(extra_css))
-%.htmltmp: %.xml $(stylesheet) $(extra_css)
-	$(saxon) $< $(stylesheet) > $@
-
-%.html: %.htmltmp
-	sed -e's~</style>~</style><style tyle="text/css">$(css_content)</style>~' $< > $@
+%.html: %.xml $(stylesheet) $(extra_css)
+	$(saxon) $< $(stylesheet) | sed -e's~</style>~</style><style tyle="text/css">$(css_content)</style>~' > $@
 
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
@@ -61,8 +71,45 @@ reduction := lib/clean-for-DTD.xslt
 %.xhtml: %.xml ../../rfc2629xslt/rfc2629toXHTML.xslt
 	$(saxon) $< ../../rfc2629xslt/rfc2629toXHTML.xslt > $@
 
-ghpages: $(addsuffix .txt,$(drafts)) $(addsuffix .html,$(drafts))
-	$(MAKE) -v
+GHPAGES_TMP := /tmp/ghpages$(shell echo $$$$)
+.TRANSIENT: $(GHPAGES_TMP)
+GIT_ORIG_BRANCH := $(shell git branch | grep '*' | cut -c 3-)
+GIT_ORIG_REV := $(shell git rev-list HEAD~..)
+
+IS_LOCAL := $(if $(TRAVIS),true,)
+ifeq (master,$(TRAVIS_BRANCH))
+IS_MASTER := $(findstring false,$(TRAVIS_PULL_REQUEST))
+else
+IS_MASTER := true
+endif
+
+ghpages: $(FRIENDLY) $(TARGETS)
+ifneq (,$(or $(IS_LOCAL),$(IS_MASTER)))
+	mkdir $(GHPAGES_TMP)
+	cp -f $^ $(GHPAGES_TMP)
+	git clean -qfdX
+	ls;git status
+ifeq (true,$(TRAVIS))
+	git config user.email "ci-bot@example.com"
+	git config user.name "Travis CI Builder"
+	git checkout -q --orphan gh-pages
+	git rm -qr --cached .
+	git clean -qfd
+	ls;git status
+	git pull -qf origin gh-pages --depth=5
+else
+	git checkout gh-pages
+	git pull
+endif
+	mv -f $(GHPAGES_TMP)/* $(CURDIR)
+	git add $^
+	if test `git status -s | wc -l` -gt 0; then git commit -m "Script updating gh-pages."; fi
+ifneq (,$(GH_TOKEN))
+	@git push https://$(GH_TOKEN)@github.com/http2/http2-spec.git gh-pages
+endif
+	-git checkout -qf $(GIT_ORIG_BRANCH) || git checkout -qf $(GIT_ORIG_REV)
+	-rm -rf $(GHPAGES_TMP)
+endif
 
 # backup issues
 issues:
