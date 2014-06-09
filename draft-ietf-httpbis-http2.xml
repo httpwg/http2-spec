@@ -3400,12 +3400,15 @@ HTTP2-Settings    = token68
           the server closes the connection.
         </t>
         <t>
-          Clients SHOULD NOT open more than one HTTP/2 connection to a given destination, where a
-          destination is the IP address and port that is derived from a URI, a selected <xref
-          target="ALT-SVC">alternative service</xref>, or a configured proxy.  A client can create
-          additional connections as replacements, either to replace connections that are near to
-          exhausting the available <xref target="StreamIdentifiers">stream identifier space</xref>,
-          or to replace connections that have encountered <xref
+          Clients SHOULD NOT open more than one HTTP/2 connection to a given host and port pair,
+          where host is derived from a URI, a selected <xref target="ALT-SVC">alternative
+          service</xref>, or a configured proxy.
+        </t>
+        <t>
+          A client can create additional connections as replacements, either to replace connections
+          that are near to exhausting the available <xref target="StreamIdentifiers">stream
+          identifier space</xref>, to refresh the keying material for a TLS connection, or to
+          replace connections that have encountered <xref
           target="ConnectionErrorHandler">errors</xref>.
         </t>
         <t>
@@ -3415,11 +3418,6 @@ HTTP2-Settings    = token68
           configuration.
         </t>
         <t>
-          Clients MAY use a single server connection to send requests for URIs with multiple
-          different authority components as long as the server is <xref
-          target="authority">authoritative</xref>.
-        </t>
-        <t>
           Servers are encouraged to maintain open connections for as long as possible, but are
           permitted to terminate idle connections if necessary.  When either endpoint chooses to
           close the transport-level TCP connection, the terminating endpoint SHOULD first send a
@@ -3427,6 +3425,37 @@ HTTP2-Settings    = token68
           determine whether previously sent frames have been processed and gracefully complete or
           terminate any necessary remaining tasks.
         </t>
+
+        <section title="Connection Reuse">
+          <t>
+            Clients MAY use a single server connection to send requests for URIs with multiple
+            different authority components as long as the server is <xref
+            target="authority">authoritative</xref>.  For <spanx style="verb">http</spanx>
+            resources, this depends on the host having resolved to the same IP address.
+          </t>
+          <t>
+            For <spanx style="verb">https</spanx> resources, connection reuse additionally depends
+            on having a certificate that is valid for the host in the URI.  That is the use of
+            server certificate with multiple <spanx style="verb">subjectAltName</spanx> attributes,
+            or names with wildcards.  For example, a certificate with a <spanx
+            style="verb">subjectAltName</spanx> of <spanx style="verb">*.example.com</spanx> might
+            permit the use of the same connection for <spanx style="verb">a.example.com</spanx> and
+            <spanx style="verb">b.example.com</spanx>.
+          </t>
+          <t>
+            In some deployments, reusing a connection for multiple origins can result in requests
+            being directed to the wrong origin server.  For example, TLS termination might be
+            performed by a middlebox that uses the TLS <xref target="TLS-EXT">Server Name Indication
+            (SNI)</xref> extension to select the an origin server.  This means that it is possible
+            for clients to send confidential information to servers that might not be the intended
+            target for the request, even though the server has valid authentication credentials.
+          </t>
+          <t>
+            A server that does not wish clients to reuse connections can indicate that it is not
+            authoritative for a request by sending a ? response <cref>Waiting on #496 here,
+            again.</cref>.
+          </t>
+        </section>
       </section>
 
       <section title="Use of TLS Features" anchor="TLSUsage">
