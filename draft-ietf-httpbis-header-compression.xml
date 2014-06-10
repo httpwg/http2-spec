@@ -966,8 +966,8 @@ else
                     <t>
                         A literal header field never indexed representation
                         causes the emission of a header field without altering
-                        the header table. It requires intermediaries to use the
-                        same representation for encoding this header field.
+                        the header table.  Intermediaries MUST use the same
+                        representation for encoding this header field.
                     </t>
                     <figure title="Literal Header Field Never Indexed - Indexed Name">
                         <artwork type="inline"><![CDATA[
@@ -1087,54 +1087,202 @@ else
         </section>
 
         <section anchor="Security" title="Security Considerations">
-            <section title="Compression-based Attacks"
+
+            <t>
+                This section describes potential areas of security concern with HPACK:
+                <list style="symbols">
+                    <t>
+                        Use of compression as a length-based oracle for
+                        verifying guesses about secrets that are compressed into
+                        a shared compression context.
+                    </t>
+                    <t>
+                        Denial of service resulting from exhausting processing
+                        or memory capacity at a decompressor.
+                    </t>
+                </list>
+            </t>
+
+            <section title="Probing Header Table State"
                 anchor="compression.based.attacks">
                 <t>
-                    Compression can create a weak point allowing an attacker to
-                    recover secret data. For example, the CRIME attack (see
-                    <xref target="CRIME"/>) took advantage of the DEFLATE
-                    mechanism (see <xref target="DEFLATE"/>) of SPDY (see <xref
-                    target="SPDY"/>) to efficiently probe the compression
-                    context. The full-text compression mechanism of DEFLATE
-                    allowed the attacker to learn some information from each
-                    failed attempt at guessing the secret.
+                    HPACK reduces the length of header field encodings by
+                    exploiting the redundancy inherent in protocols like HTTP.
+                    The ultimate goal of this is to reduce the amount of data
+                    that is required to send HTTP requests or responses.
                 </t>
                 <t>
-                    For this reason, HPACK provides only limited compression
-                    mechanisms in the form of an indexing table and of a static
-                    Huffman encoding.
+                    The header table that HPACK uses can be probed by an
+                    attacker that has the following capabilities: to encode and
+                    transmit header fields; and to observe the length of those
+                    fields as they are encoded.  The allows an attacker to
+                    adaptively modify requests in order to confirm guesses about
+                    the header table state.  If the HPACK encoder compresses a
+                    guess into a shorter length, the attacker can observe the
+                    encoded length and infer that the guess was correct.
                 </t>
                 <t>
-                    The indexing table can still provide information to an
-                    attacker that would be able to probe the compression
-                    context. However, this information is limited to the
-                    knowledge of whether the attacker's guess is correct or not.
+                    This is possible because while TLS provides confidentiality
+                    protection for content, it only provides a limited amount of
+                    protection for the length of that content.
+                    <list style="hanging">
+                        <t hangText="Note:">
+                            Padding schemes only provide limited protection
+                            against an attacker with these capabilities,
+                            potentially only forcing an increased number of
+                            guesses to learn the length associated with a given
+                            guess.  Padding schemes also work directly against
+                            compression by increasing the number of bits that
+                            are transmitted.
+                        </t>
+                    </list>
                 </t>
                 <t>
-                    Still, an attacker could take advantage of this limited
-                    information for breaking low-entropy secrets using a
-                    brute-force attack. A server usually has some protections
-                    against such brute-force attack. Here, the attack would
-                    target the client, where it would be harder to detect. The
-                    attack would be even more dangerous if the attacker is able
-                    to prevent the traffic generated by its brute-force attack
-                    from reaching the server.
+                    Attacks like <xref target="CRIME"/> demonstrated the
+                    existence of these general attacker capabilities.  The
+                    specific attack exploited the fact that <xref
+                    target="DEFLATE"/> removes redundancy based on prefix
+                    matching.  This permitted the attacker to confirm guesses a
+                    character at a time, reducing an exponential-time attack
+                    into a constant time attack.
                 </t>
-                <t>
-                    To offer some protection against such type of attacks, HPACK
-                    enables an endpoint to indicate that a header field must
-                    never be compressed, across any hop up to the other endpoint
-                    (see <xref target="literal.header.never.indexed"/>). An
-                    endpoint MUST use this feature to prevent the compression of
-                    any header field whose value contains a secret which could
-                    be put at risk by a brute-force attack.
-                </t>
-                <t>
-                    For optimal processing, a sensitive value (for example a
-                    cookie) needs to have an entropy high enough to not be
-                    endangered by a brute-force attack, in order to take
-                    advantage of HPACK indexing.
-                </t>
+
+                <section title="Applicability to HPACK and HTTP">
+                    <t>
+                        HPACK mitigates but does not completely prevent attacks
+                        modelled on <xref target="CRIME"/> by forcing a guess to
+                        match an entire header field value, rather than
+                        individual characters.  An attacker can only learn
+                        whether a guess is correct or not, so is reduced to a
+                        brute force guess for the header field values.
+                    </t>
+                    <t>
+                        The viability of recovering specific header field values
+                        therefore depends on the entropy of values.  As a
+                        result, values with high entropy are unlikely to be
+                        recovered successfully.  However, values with low
+                        entropy remain vulnerable.
+                    </t>
+                    <t>
+                        Attacks of this nature are possible any time that two
+                        mutually distrustful entities control requests or
+                        responses that are placed onto a single HTTP/2
+                        connection.  If the shared HPACK compressor permits one
+                        entity to add entries to the header table, and the other
+                        to access those entries, then the state of the table can
+                        be learned.
+                    </t>
+                    <t>
+                        Having requests or responses from mutually distrustful
+                        entities occurs when an intermediary either:
+                        <list style="symbols">
+                            <t>
+                                sends requests from multiple clients on a single
+                                connection toward an origin server, or
+                            </t>
+                            <t>
+                                takes responses from multiple origin servers and
+                                places them on a shared connection toward a
+                                client.
+                            </t>
+                        </list>
+                        Web browsers also need to assume that requests made on
+                        the same connection by different <xref
+                        target="ORIGIN">web origins</xref> are made by mutually
+                        distrustful entities.
+                    </t>
+                    <t>
+                        Assuming no additional constraints, multiplexing in
+                        HTTP/2 enables multiple attempts to guess values from
+                        the header table, up to the concurrency limit imposed by
+                        the peer in the SETTINGS_MAX_CONCURRENT_STREAMS setting.
+                        This depends on the attacker being on the communications
+                        path so that they are able to see and block packets.
+                        Beyond this limit, or for an entirely passive attacker,
+                        attempts to guess header table state can be detected by
+                        a peer.
+                    </t>
+                </section>
+
+                <section title="Mitigation">
+                    <t>
+                        Users of HTTP that require confidentiality for header
+                        fields can use values with entropy sufficient to make
+                        guessing infeasible.  However, this is impractical as a
+                        general solution because it forces all users of HTTP to
+                        take steps to mitigate attacks.  It would impose new
+                        constraints on how HTTP is used.
+                    </t>
+                    <t>
+                        Rather than impose constraints on users of HTTP, an
+                        implementation of HPACK can instead constrain how
+                        compression is applied in order to limit the potential
+                        for header table probing.
+                    </t>
+                    <t>
+                        An ideal solution segregates access to the header table
+                        based on the entity that is constructing header fields.
+                        Header field values that are added to the table are
+                        attributed to an entity, and only the entity that
+                        created an particular value can extract that value.
+                    </t>
+                    <t>
+                        To improve compression performance of this option,
+                        certain entries might be tagged as being public.  For
+                        example, a web browser might make the values of the
+                        Accept-Encoding header field available in all requests.
+                    </t>
+                    <t>
+                        An encoder without good knowledge of the provenance of
+                        header fields might instead introduce a penalty for bad
+                        guesses, such that attempts to guess a header field
+                        value results in all values being removed from
+                        consideration in all future requests, effectively
+                        preventing further guesses.
+                        <list style="hanging">
+                            <t hangText="Note:">
+                                Simply removing values from the header table can
+                                be ineffectual if the attacker has a reliable
+                                way of causing values to be reinstalled.  For
+                                example, a request to load an image in a web
+                                browser typically includes the Cookie header
+                                field (a potentially highly valued target for
+                                this sort of attack), and web sites can easily
+                                force an image to be loaded, thereby refreshing
+                                the entry in the header table.
+                            </t>
+                        </list>
+                    </t>
+                    <t>
+                        This response might be made inversely proportional to
+                        the length of the header field.  Marking as inaccessible
+                        might occur for shorter values more quickly or with
+                        higher probability than for longer values.
+                    </t>
+                    <t>
+                        Implementations might also choose to protect certain
+                        header fields that are known to be highly valued, such
+                        as the Authorization or Cookie header fields, by
+                        disabling or further limiting compression.
+                    </t>
+                </section>
+
+                <section title="Never Indexed Literals">
+                    <t>
+                        Refusing to generate an indexed representation for a
+                        header field is only effective if compression is avoided
+                        on all hops.  The <xref
+                        target="literal.header.never.indexed">never indexed
+                        literal</xref> can be used to signal to intermediaries
+                        that a particular value was intentionally sent as a
+                        literal.  An intermediary MUST NOT re-encode a value
+                        that uses the never indexed literal as an indexed
+                        representation.
+                    </t>
+                </section>
+            </section>
+
+            <section title="Static Huffman Encoding">
                 <t>
                     There is currently no known threat taking advantage of the
                     use of a fixed Huffman encoding. A study has shown that
@@ -1278,6 +1426,14 @@ else
                 </front>
                 <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
             </reference>
+            <reference anchor="ORIGIN">
+                <front>
+                    <title>The Web Origin Concept</title>
+                    <author initials="A." surname="Barth" fullname="Adam Barth"/>
+                    <date month="December" year="2011"/>
+                </front>
+                <seriesInfo name="RFC" value="6454"/>
+            </reference>
             <reference anchor="DEFLATE">
                 <front>
                     <title>DEFLATE Compressed Data Format Specification version 1.3</title>
@@ -1372,6 +1528,9 @@ else
                     <t>
                         Added clarification for signalling of maximum table size
                         after a SETTINGS_HEADER_TABLE_SIZE update.
+                    </t>
+                    <t>
+                        Rewrote security considerations.
                     </t>
                 </list></t>
             </section>
