@@ -73,8 +73,11 @@ reduction := lib/clean-for-DTD.xslt
 
 GHPAGES_TMP := /tmp/ghpages$(shell echo $$$$)
 .TRANSIENT: $(GHPAGES_TMP)
-GIT_ORIG_BRANCH := $(shell git branch | grep '*' | cut -c 3-)
-GIT_ORIG_REV := $(shell git rev-list HEAD~..)
+ifeq (,$(TRAVIS_COMMIT))
+GIT_ORIG := $(shell git branch | grep '*' | cut -c 3-)
+else
+GIT_ORIG := $(TRAVIS_COMMIT)
+endif
 
 IS_LOCAL := $(if $(TRAVIS),true,)
 ifeq (master,$(TRAVIS_BRANCH))
@@ -88,14 +91,12 @@ ifneq (,$(or $(IS_LOCAL),$(IS_MASTER)))
 	mkdir $(GHPAGES_TMP)
 	cp -f $^ $(GHPAGES_TMP)
 	git clean -qfdX
-	ls;git status
 ifeq (true,$(TRAVIS))
 	git config user.email "ci-bot@example.com"
 	git config user.name "Travis CI Builder"
 	git checkout -q --orphan gh-pages
 	git rm -qr --cached .
 	git clean -qfd
-	ls;git status
 	git pull -qf origin gh-pages --depth=5
 else
 	git checkout gh-pages
@@ -105,9 +106,9 @@ endif
 	git add $^
 	if test `git status -s | wc -l` -gt 0; then git commit -m "Script updating gh-pages."; fi
 ifneq (,$(GH_TOKEN))
-	@git push https://$(GH_TOKEN)@github.com/http2/http2-spec.git gh-pages
+	@git push https://$(GH_TOKEN)@github.com/$(TRAVIS_REPO_SLUG).git gh-pages
 endif
-	-git checkout -qf "$(GIT_ORIG_BRANCH)" || git checkout -qf "$(GIT_ORIG_REV)"
+	-git checkout -qf "$(GIT_ORIG)"
 	-rm -rf $(GHPAGES_TMP)
 endif
 
