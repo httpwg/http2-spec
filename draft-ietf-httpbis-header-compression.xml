@@ -108,31 +108,36 @@
                     The HTTP header field encoding defined in this document
                     is based on a header table that maps name-value pairs to
                     index values.  The header table is incrementally updated
-                    during the HTTP/2 connection.
+                    as new values are encoded or decoded.
                 </t>
                 <t>
                     A set of header fields is treated as an unordered collection
-                    of name-value pairs (possibly containing duplicate pairs).
-                    Names and values are considered to be opaque sequences of
-                    octets.  The order of header fields is not guaranteed to
-                    be preserved after being compressed and decompressed.
+                    of name-value pairs that can include duplicates.  Names and
+                    values are considered to be opaque sequences of octets.  The
+                    order of header fields is not guaranteed to be preserved
+                    after being compressed and decompressed.
+                </t>
+                <t>
+                    In the encoded form, a header field is represented either
+                    literally or as a reference to a name-value pair in a header
+                    table.  A set of header fields can therefore be encoded
+                    using a mixture of references and literal values.
                 </t>
                 <t>
                     As two consecutive sets of header fields often have header
-                    fields in common, each set is coded as a difference from
-                    the previous set. The goal is to only encode the changes
-                    (header fields present in one of the sets that are absent
-                    from the other) between the two sets of header fields.
+                    fields in common, each set is coded as a difference from the
+                    previous set. The goal is to only encode the changes between
+                    the two sets of header fields (that is, header fields that
+                    are present in only one of the sets) and eliminate
+                    redundancy (header fields present in both sets).
                 </t>
                 <t>
-                    A header field is represented either literally or as a
-                    reference to a name-value pair in the header table. A set
-                    of header fields is stored as a set of references to
-                    entries in the header table (possibly keeping only a
-                    subset of it, as some header fields may be missing a
-                    corresponding entry in the header table). Differences
-                    between consecutive sets of header fields are encoded as
-                    changes to the set of references.
+                    A subset of the header fields that are encoded to reference
+                    the header table are maintained in a reference set that is
+                    used as the initial set of header fields for the next
+                    encoding.  Differences between consecutive sets of header
+                    fields are either encoded as changes to the set of
+                    references, or as literals.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header
@@ -870,7 +875,7 @@ else
                             target="string.literal.representation" />.
                     </t>
                 </section>
- 
+
                 <section title="Literal Header Field without Indexing"
                     anchor="literal.header.without.indexing">
                     <t>
@@ -932,7 +937,7 @@ else
                             target="string.literal.representation" />.
                     </t>
                 </section>
-           
+
                 <section title="Literal Header Field never Indexed"
                     anchor="literal.header.never.indexed">
                     <t>
@@ -1603,9 +1608,9 @@ else
             <t>
                 <figure>
                     <artwork><![CDATA[
-                                            code        
-                    code as bits           as hex   len 
-     sym           aligned to MSB          aligned   in 
+                                            code
+                    code as bits           as hex   len
+     sym           aligned to MSB          aligned   in
                                            to LSB   bits
     (  0)  |11111111|11111111|11101110|10  3ffffba  [26]
     (  1)  |11111111|11111111|11101110|11  3ffffbb  [26]
@@ -2866,7 +2871,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8484 431d 4d6f 6e2c 2032 3120 4f63 7420 | ..C.Mon, 21 Oct 
+<![CDATA[8484 431d 4d6f 6e2c 2032 3120 4f63 7420 | ..C.Mon, 21 Oct
 3230 3133 2032 303a 3133 3a32 3220 474d | 2013 20:13:22 GM
 545e 0467 7a69 7084 8483 837b 3866 6f6f | T^.gzip....{8foo
 3d41 5344 4a4b 4851 4b42 5a58 4f51 5745 | =ASDJKHQKBZXOQWE
@@ -3165,7 +3170,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8484 4393 d6db b298 84de 2a71 8805 0620 | ..C.......*q... 
+<![CDATA[8484 4393 d6db b298 84de 2a71 8805 0620 | ..C.......*q...
 9851 3111 b56b a35e 84ab dd97 ff84 8483 | .Q1..k.^........
 837b b1e0 d6cf 9f6e 8f9f d3e5 f6fa 76fe | .{.....n......v.
 fd3c 7edf 9eff 1f2f 0f3c fe9f 6fcf 7f8f | ......./....o...
