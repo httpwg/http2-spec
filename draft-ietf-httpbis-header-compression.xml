@@ -611,38 +611,44 @@
             </section>
         </section>
 
-        <section title="Detailed Format" anchor="detailed.format">
-            <section title="Low-level Representations"
-                anchor="low-level.representation">
-                <section title="Integer representation"
-                    anchor="integer.representation">
-                    <t>
-                        Integers are used to represent name indexes, pair
-                        indexes or string lengths. To allow for optimized
-                        processing, an integer representation always finishes at
-                        the end of an octet.
-                    </t>
-                    <t>
-                        An integer is represented in two parts: a prefix that
-                        fills the current octet and an optional list of octets
-                        that are used if the integer value does not fit within
-                        the prefix.  The number of bits of the prefix (called N)
-                        is a parameter of the integer representation.
-                    </t>
-                    <t>
-                        The N-bit prefix allows filling the current octet.  If
-                        the value is small enough (strictly less than
-                        2<x:sup>N</x:sup>-1), it is encoded within the N-bit
-                        prefix.  Otherwise all the bits of the prefix are set to
-                        1 and the value is encoded using an unsigned variable
-                        length integer representation (see <eref
-                        target="http://en.wikipedia.org/wiki/Variable-length_quantity"/>).
-                        N is always between 1 and 8 bits. An integer starting at
-                        an octet-boundary will have an 8-bit prefix.
-                    </t>
-                    <t>
+        <section title="Low-level Representations"
+                 anchor="low-level.representation">
+            <t>
+                HPACK encoding uses two primitive types: unsigned variable
+                length integers, and strings of octets.
+            </t>
+
+            <section title="Integer representation"
+                     anchor="integer.representation">
+                <t>
+                    Integers are used to represent name indexes, pair indexes or
+                    string lengths. To allow for optimized processing, an
+                    integer representation always finishes at the end of an
+                    octet.
+                </t>
+                <t>
+                    An integer is represented in two parts: a prefix that fills
+                    the current octet and an optional list of octets that are
+                    used if the integer value does not fit within the prefix.
+                    The number of bits of the prefix (called N) is a parameter
+                    of the integer representation.
+                </t>
+                <t>
+                    The N-bit prefix allows filling the current octet.  If the
+                    value is small enough (strictly less than
+                    2<x:sup>N</x:sup>-1), it is encoded within the N-bit prefix.
+                    Otherwise all the bits of the prefix are set to 1 and the
+                    value is encoded using an unsigned variable length integer
+                    representation (see <eref
+                    target="http://en.wikipedia.org/wiki/Variable-length_quantity"/>).
+                    N is always between 1 and 8 bits. An integer starting at an
+                    octet-boundary will have an 8-bit prefix.
+                </t>
+                <figure>
+                    <preamble>
                         The algorithm to represent an integer I is as follows:
-                        <figure><artwork type = "inline"><![CDATA[
+                    </preamble>
+                    <artwork type = "inline"><![CDATA[
 if I < 2^N - 1, encode I on N bits
 else
     encode (2^N - 1) on N bits
@@ -651,12 +657,14 @@ else
          encode (I % 128 + 128) on 8 bits
          I = I / 128
     encode I on 8 bits
-]]></artwork></figure>
-                    </t>
-                    <t>
+]]></artwork>
+                </figure>
+                <figure>
+                    <preamble>
                         For informational purpose, the algorithm to decode an
                         integer I is as follows:
-                        <figure><artwork type="inline"><![CDATA[
+                    </preamble>
+                    <artwork type="inline"><![CDATA[
 decode I from the next N bits
 if I < 2^N - 1, return I
 else
@@ -667,37 +675,35 @@ else
         M = M + 7
     while B & 128 == 128
     return I
-]]></artwork></figure>
-                    </t>
-                    <t>
-                        Examples illustrating the encoding of integers are
-                        available in <xref
-                        target="integer.representation.examples"/>.
-                    </t>
-                    <t>
-                        This integer representation allows for values of
-                        indefinite size.  It is also possible for an encoder to
-                        send a large number of zero values, which can waste
-                        octets and could be used to overflow integer values.
-                        Excessively large integer encodings - in value or octet
-                        length - MUST be treated as a decoding error.  Different
-                        limits can be set for each of the different uses of
-                        integers, based on implementation constraints.
-                    </t>
-                </section>
+]]></artwork>
+                </figure>
+                <t>
+                    Examples illustrating the encoding of integers are available
+                    in <xref target="integer.representation.examples"/>.
+                </t>
+                <t>
+                    This integer representation allows for values of indefinite
+                    size.  It is also possible for an encoder to send a large
+                    number of zero values, which can waste octets and could be
+                    used to overflow integer values.  Excessively large integer
+                    encodings - in value or octet length - MUST be treated as a
+                    decoding error.  Different limits can be set for each of the
+                    different uses of integers, based on implementation
+                    constraints.
+                </t>
+            </section>
 
-                <section title="String Literal Representation"
-                    anchor="string.literal.representation">
-                    <t>
-                        Header field names and header field values can be
-                        represented as literal string. A literal string is
-                        encoded as a sequence of octets, either by directly
-                        encoding the literal string's octets, or by using a
-                        canonical <xref target="CANON"/> Huffman encoding <xref
-                        target="HUFF"/>.
-                    </t>
-                    <figure title="String Literal Representation">
-                        <artwork type="inline"><![CDATA[
+            <section title="String Literal Representation"
+                     anchor="string.literal.representation">
+                <t>
+                    Header field names and header field values can be
+                    represented as literal string. A literal string is encoded
+                    as a sequence of octets, either by directly encoding the
+                    literal string's octets, or by using a canonical <xref
+                    target="CANON"/> Huffman encoding <xref target="HUFF"/>.
+                </t>
+                <figure title="String Literal Representation">
+                    <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
 | H |    String Length (7+)     |
@@ -705,62 +711,60 @@ else
 |  String Data (Length octets)  |
 +-------------------------------+
 ]]></artwork>
-                    </figure>
-                    <t>
-                        A literal string representation contains the following
-                        fields:
-                    </t>
-                    <t>
-                        <list style="hanging">
-                            <t hangText="H:">
-                                A one bit flag, H, indicating whether or not the
-                                octets of the string are Huffman encoded.
-                            </t>
-                            <t hangText="String Length:">
-                                The number of octets used to encode the string
-                                literal, encoded as an integer with 7-bit prefix
-                                (see <xref target="integer.representation"/>).
-                            </t>
-                            <t hangText="String Data:">
-                                The encoded data of the string literal. If H is
-                                '0', then the encoded data is the raw octets of
-                                the string literal. If H is '1', then the
-                                encoded data is the Huffman encoding of the
-                                string literal.
-                            </t>
-                        </list>
-                    </t>
-                    <t>
-                        String literals which use Huffman encoding are encoded
-                        with the Huffman codes defined in <xref
-                        target="huffman.codes"/> (see examples inRequest
-                        Examples with Huffman <xref
-                        target="request.examples.with.huffman"/> and in Response
-                        Examples with Huffman <xref
-                        target="response.examples.with.huffman"/>). The encoded
-                        data is the bitwise concatenation of the Huffman codes
-                        corresponding to each octet of the string literal.
-                    </t>
-                    <t>
-                        As the Huffman encoded data doesn't always end at an
-                        octet boundary, some padding is inserted after it up to
-                        the next octet boundary. To prevent this padding to be
-                        misinterpreted as part of the string literal, the most
-                        significant bits of the EOS (end-of-string) entry in the
-                        Huffman table are used.
-                    </t>
-                    <t>
-                        Upon decoding, an incomplete Huffman code at the end of
-                        the encoded data is to be considered as padding and
-                        discarded. A padding strictly longer than 7 bits MUST be
-                        treated as a decoding error. A padding not corresponding
-                        to the most significant bits of the EOS entry MUST be
-                        treated as a decoding error. A Huffman encoded string
-                        literal containing the EOS entry MUST be treated as a
-                        decoding error.
-                    </t>
-                </section>
+                </figure>
+                <t>
+                    A literal string representation contains the following
+                    fields:
+                    <list style="hanging">
+                        <t hangText="H:">
+                            A one bit flag, H, indicating whether or not the
+                            octets of the string are Huffman encoded.
+                        </t>
+                        <t hangText="String Length:">
+                            The number of octets used to encode the string
+                            literal, encoded as an integer with 7-bit prefix
+                            (see <xref target="integer.representation"/>).
+                        </t>
+                        <t hangText="String Data:">
+                            The encoded data of the string literal. If H is
+                            '0', then the encoded data is the raw octets of
+                            the string literal. If H is '1', then the
+                            encoded data is the Huffman encoding of the
+                            string literal.
+                        </t>
+                    </list>
+                </t>
+                <t>
+                    String literals which use Huffman encoding are encoded with
+                    the Huffman codes defined in <xref target="huffman.codes"/>
+                    (see examples in <xref
+                    target="request.examples.with.huffman">Request Examples with
+                    Huffman</xref> and in <xref
+                    target="response.examples.with.huffman">Response Examples
+                    with Huffman</xref>). The encoded data is the bitwise
+                    concatenation of the Huffman codes corresponding to each
+                    octet of the string literal.
+                </t>
+                <t>
+                    As the Huffman encoded data doesn't always end at an octet
+                    boundary, some padding is inserted after it up to the next
+                    octet boundary. To prevent this padding to be misinterpreted
+                    as part of the string literal, the most significant bits of
+                    the EOS (end-of-string) entry in the Huffman table are used.
+                </t>
+                <t>
+                    Upon decoding, an incomplete Huffman code at the end of the
+                    encoded data is to be considered as padding and discarded. A
+                    padding strictly longer than 7 bits MUST be treated as a
+                    decoding error. A padding not corresponding to the most
+                    significant bits of the EOS entry MUST be treated as a
+                    decoding error. A Huffman encoded string literal containing
+                    the EOS entry MUST be treated as a decoding error.
+                </t>
             </section>
+        </section>
+
+        <section title="Detailed Format" anchor="detailed.format">
 
             <section title="Indexed Header Field Representation"
                 anchor="indexed.header.representation">
