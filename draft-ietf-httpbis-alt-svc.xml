@@ -334,9 +334,11 @@
 </t>
 <figure>
   <artwork type="abnf2616">
-Alt-Svc     = 1#( alternative *( OWS ";" OWS parameter ) )
-alternative = protocol-id "=" port
-protocol-id = token ; percent-encoded ALPN protocol identifier
+Alt-Svc       = 1#( alternative *( OWS ";" OWS parameter ) )
+alternative   = protocol-id "=" alt-authority
+protocol-id   = token ; percent-encoded ALPN protocol identifier
+alt-authority = token / quoted-string
+                ; containing [ host ":" ] port
 </artwork>
 </figure>
 <t>
@@ -364,14 +366,30 @@ protocol-id = token ; percent-encoded ALPN protocol identifier
   With these constraints, recipients can apply simple string comparison to
   match protocol identifiers.
 </t>
+<t>
+  The "alt-authority" component is either just a port number (for services
+  on the same host), or a sequence of host name, colon, and port number.
+</t>
 <figure>
   <preamble>For example:</preamble>
    <artwork type="example">
 Alt-Svc: http2=8000
 </artwork>
 <postamble>
-   This indicates that the "http2" protocol on the same host using the
-   indicated port (in this case, 8000).
+   This indicates the "http2" protocol on the same host using the
+   indicated port 8000.
+</postamble>
+</figure>
+<figure>
+  <preamble>An example involving a change of host:</preamble>
+   <artwork type="example">
+Alt-Svc: http2="new.example.org:80"
+</artwork>
+<postamble>
+   This indicates the "http2" protocol on the host "new.example.org",
+   running on port 80. Note that the "quoted-string" syntax needs to be used
+   when a host is specified in addition to a port (":" is not an allowed
+   character in "token"). 
 </postamble>
 </figure>
 <texttable style="all" align="left">
@@ -420,6 +438,10 @@ Alt-Svc: h2c=8000, h2=443
    A single ALTSVC frame can be sent for a connection; a new frame is not needed for every
    request.
 </t>
+<t>
+   Note that all field elements that allow "quoted-string" syntax &MUST; be processed
+   as per <xref target="RFC7230" x:fmt="of" x:rel="#field.components"/>.
+</t>
 
 <section title="Caching Alt-Svc Header Field Values" anchor="caching-alt-svc-header-field-values">
 <t>
@@ -429,7 +451,7 @@ Alt-Svc: h2c=8000, h2=443
 </t>
 <figure>
   <artwork type="example">
-Alt-Svc: h2=443;ma=3600
+Alt-Svc: h2=443; ma=3600
 </artwork>
 </figure>
 <t>
