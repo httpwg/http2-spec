@@ -132,12 +132,10 @@
                     redundancy (header fields present in both sets).
                 </t>
                 <t>
-                    A subset of the header fields that are encoded to reference
+                    A subset of the header fields that are encoded as references to
                     the header table are maintained in a reference set that is
                     used as the initial set of header fields for the next
-                    encoding.  Differences between consecutive sets of header
-                    fields are either encoded as changes to the set of
-                    references, or as literals.
+                    encoding.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header fields
@@ -236,7 +234,7 @@
                     state.
                 </t>
                 <t>
-                    Each endpoint maintains a header table and reference set in
+                    Each endpoint maintains a header table and a reference set in
                     order to decode header blocks, and optionally a copy of the
                     information maintained by their peer.
                 </t>
@@ -362,8 +360,8 @@
                     static table.
                 </t>
                 <t>
-                    Indices that are greater than the length of both tables
-                    combined MUST be treated as a decoding error.
+                    Indices that are greater than the sum of the lengths of both
+                    tables MUST be treated as a decoding error.
                 </t>
 
                 <figure title="Index Address Space">
@@ -499,9 +497,8 @@
                     the processing of this header block are emitted.
                 </t>
                 <t>
-                    Once all of the header field representations have been
-                    processed, and the remaining items in the reference set have
-                    been emitted, the header set is complete.
+                    After the emission of these remaining header fields, the
+                    header set is complete.
                 </t>
             </section>
         </section>
@@ -559,12 +556,12 @@
                 </t>
                 <t>
                     The size of an entry is calculated using the length of the
-                    name and value without any Huffman encoding appled.
+                    name and value without any Huffman encoding applied.
                 </t>
                 <t>
                     The additional 32 octets account for overhead associated
                     with an entry. For example, an entry structure using two
-                    64-bit pointers to reference the name and the value and the
+                    64-bit pointers to reference the name and the value of the
                     entry, and two 64-bit integers for counting the number of
                     references to the name and value would have 32 octets of
                     overhead.
@@ -770,18 +767,20 @@ else
         <section title="Processing Instructions" anchor="detailed.format">
             <t>
                 This section describes the detailed format of each of the
-                different header field repreesntations, plus the encoding
+                different header field representations, plus the encoding
                 context update instruction.
             </t>
 
             <section title="Indexed Header Field Representation"
                 anchor="indexed.header.representation">
                 <t>
-                    An indexed header field identifies an entry in either the
-                    header table or the static table.  An indexed header field
-                    representation can either causes a header field to be
-                    emitted or to be removed from the reference set, as
-                    described in <xref
+                    An indexed header field representation identifies an entry
+                    in either the header table or the static table.
+                </t>
+                <t>
+                    An indexed header field representation can either causes a
+                    header field to be emitted or to be removed from the
+                    reference set, as described in <xref
                     target="header.representation.processing"/>.
                 </t>
 
@@ -808,21 +807,22 @@ else
             <section title="Literal Header Field Representation"
                 anchor="literal.header.representation">
                 <t>
-                    Literal header field representations contain a literal
+                    A literal header field representation contains a literal
                     header field value.  Header field names are either provided
                     as a literal or by reference to an existing table entry,
                     either from the header table or the static table.
                 </t>
                 <t>
-                    Literal representations all result in the emission of a
+                    A literal representation always result in the emission of a
                     header field when decoded.
                 </t>
 
                 <section title="Literal Header Field with Incremental Indexing"
                     anchor="literal.header.with.incremental.indexing">
                     <t>
-                        A literal header field with incremental indexing adds a
-                        new entry to the header table.
+                        A literal header field with incremental indexing
+                        representation causes the emission of a header field,
+                        adding it as a new entry to the header table.
                     </t>
                     <figure title="Literal Header Field with Incremental Indexing -
                         Indexed Name">
@@ -855,8 +855,8 @@ else
 ]]></artwork>
                     </figure>
                     <t>
-                        A literal header field with incremental indexing starts
-                        with the '01' 2-bit pattern.
+                        A literal header field with incremental indexing
+                        representation starts with the '01' 2-bit pattern.
                     </t>
                     <t>
                         If the header field name matches the header field name
@@ -874,9 +874,9 @@ else
                         target="string.literal.representation" />).
                     </t>
                     <t>
-                        Either form of header field name is followed by the
-                        header field value represented as a literal string as
-                        described in <xref
+                        Either form of header field name representation is
+                        followed by the header field value represented as a
+                        literal string as described in <xref
                         target="string.literal.representation" />.
                     </t>
                 </section>
@@ -884,9 +884,9 @@ else
                 <section title="Literal Header Field without Indexing"
                     anchor="literal.header.without.indexing">
                     <t>
-                        A literal header field without indexing causes the
-                        emission of a header field without altering the header
-                        table.
+                        A literal header field without indexing representation
+                        causes the emission of a header field without altering
+                        the header table.
                     </t>
                     <figure title="Literal Header Field without Indexing - Indexed Name">
                         <artwork type="inline"><![CDATA[
@@ -917,7 +917,7 @@ else
 ]]></artwork>
                     </figure>
                     <t>
-                        The literal header field without indexing representation
+                        A literal header field without indexing representation
                         starts with the '0000' 4-bit pattern.
                     </t>
                     <t>
@@ -931,7 +931,7 @@ else
                     </t>
                     <t>
                         Otherwise, the header field name is represented as a
-                        literal. A value 0 is used in place of the 6-bit index,
+                        literal. A value 0 is used in place of the 4-bit index,
                         followed by the header field name (see <xref
                         target="string.literal.representation" />).
                     </t>
@@ -946,10 +946,10 @@ else
                 <section title="Literal Header Field Never Indexed"
                     anchor="literal.header.never.indexed">
                     <t>
-                        A literal header field never indexed causes the emission
-                        of a header field without altering the header table. It
-                        requires intermediaries to use the same representation
-                        for encoding this header field.
+                        A literal header field never indexed representation
+                        causes the emission of a header field without altering
+                        the header table. It requires intermediaries to use the
+                        same representation for encoding this header field.
                     </t>
                     <figure title="Literal Header Field Never Indexed - Indexed Name">
                         <artwork type="inline"><![CDATA[
@@ -980,12 +980,12 @@ else
 ]]></artwork>
                     </figure>
                     <t>
-                        The literal header field never indexed starts with the
-                        '0001' 4-bit pattern.
+                        A literal header field never indexed representation
+                        starts with the '0001' 4-bit pattern.
                     </t>
                     <t>
                         When a header field is represented as a literal header
-                        field never indexed, it MUST always be encoded with a
+                        field never indexed, it MUST always be encoded with
                         this specific literal representation. In particular,
                         when a peer sends a header field that it received
                         represented as a literal header field never indexed, it
