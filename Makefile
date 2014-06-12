@@ -1,8 +1,9 @@
 xml2rfc ?= "xml2rfc"
 saxpath ?= "lib/saxon9.jar"
 saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
+kramdown2629 ?= kramdown-rfc2629
 
-names := http2 header-compression alt-svc
+names := http2 header-compression alt-svc http2-encryption
 drafts := $(addprefix draft-ietf-httpbis-,$(names))
 current_ver = $(shell git tag | grep "$(draft)" | sort | tail -1 | awk -F- '{print $$NF}')
 next_ver := $(foreach draft, $(drafts), -$(shell printf "%.2d" $$((1$(current_ver)-99)) ) )
@@ -10,7 +11,7 @@ next := $(join $(drafts),$(next_ver))
 
 TARGETS := $(addsuffix .txt,$(drafts)) \
 	  $(addsuffix .html,$(drafts))
-friendly_names := index compression alt-svc
+friendly_names := index compression alt-svc encryption
 FRIENDLY := $(addsuffix .txt,$(friendly_names)) \
 	    $(addsuffix .html,$(friendly_names))
 
@@ -45,12 +46,18 @@ compression.%: draft-ietf-httpbis-header-compression.%
 alt-svc.%: draft-ietf-httpbis-alt-svc.%
 	cp -f $< $@
 
+encryption.%: draft-ietf-httpbis-http2-encryption.%
+	cp -f $< $@
+
 define makerule_submit_xml =
 $(1)
 	sed -e"s/$$(basename $$<)-latest/$$(basename $$@)/" $$< > $$@
 endef
 submit_deps := $(join $(addsuffix .xml: ,$(next)),$(addsuffix .redxml,$(drafts)))
 $(foreach rule,$(submit_deps),$(eval $(call makerule_submit_xml,$(rule))))
+
+%.xml: %.md
+	$(kramdown2629) $< | sed -e '/DOCTYPE/,/>/d' > $@
 
 $(addsuffix .txt,$(next)): %.txt: %.xml
 	$(xml2rfc) $< $@
