@@ -66,7 +66,7 @@
         representations from servers to clients.
       </t>
       <t>
-        This document is an alternative to, but does not obsolete, the HTTP/1.1 message syntax.
+        This specification is an alternative to, but does not obsolete, the HTTP/1.1 message syntax.
         HTTP's existing semantics remain unchanged.
       </t>
     </abstract>
@@ -113,11 +113,11 @@
         latency when multiple requests are made on a single new TCP connection.
       </t>
       <t>
-        This document addresses these issues by defining an optimized mapping of HTTP's semantics to
-        an underlying connection.  Specifically, it allows interleaving of request and response
-        messages on the same connection and uses an efficient coding for HTTP header fields.  It
-        also allows prioritization of requests, letting more important requests complete more
-        quickly, further improving performance.
+        This specification addresses these issues by defining an optimized mapping of HTTP's
+        semantics to an underlying connection.  Specifically, it allows interleaving of request and
+        response messages on the same connection and uses an efficient coding for HTTP header
+        fields.  It also allows prioritization of requests, letting more important requests complete
+        more quickly, further improving performance.
       </t>
       <t>
         The resulting protocol is designed to be more friendly to the network, because fewer TCP
@@ -126,8 +126,8 @@
         network capacity.
       </t>
       <t>
-        Finally, this encapsulation also enables more scalable processing of messages through use of
-        binary message framing.
+        Finally, this encapsulation also enables more efficient processing of messages through use
+        of binary message framing.
       </t>
     </section>
 
@@ -138,7 +138,7 @@
       </t>
       <t>
         The basic protocol unit in HTTP/2 is a <xref target="FrameHeader">frame</xref>.  Each frame
-        has a different type and purpose.  For example, <x:ref>HEADERS</x:ref> and
+        type serves a different purpose.  For example, <x:ref>HEADERS</x:ref> and
         <x:ref>DATA</x:ref> frames form the basis of <xref target="HttpSequence">HTTP requests and
         responses</xref>; other frame types like <x:ref>SETTINGS</x:ref>,
         <x:ref>WINDOW_UPDATE</x:ref>, and <x:ref>PUSH_PROMISE</x:ref> are used in support of other
@@ -289,13 +289,12 @@
               <t>
                 The string "h2" identifies the protocol where HTTP/2 uses <xref
                 target="TLS12">TLS</xref>.  This identifier is used in the <xref
-                target="TLSALPN">TLS application layer protocol negotiation extension</xref> field
-                and any place that HTTP/2 over TLS is identified.
+                target="TLSALPN">TLS application layer protocol negotiation extension (ALPN)</xref>
+                field and any place that HTTP/2 over TLS is identified.
               </t>
               <t>
-                When serialised into an ALPN protocol identifier (which is a sequence of octets),
-                the HTTP/2 protocol identifier string is encoded using <xref
-                target="UTF-8">UTF-8</xref>.
+                The "h2" string is serialized into an ALPN protocol identifier as the two octet
+                sequence: 0x68, 0x32.
               </t>
             </x:lt>
             <x:lt>
@@ -369,7 +368,7 @@ Content-Type: text/html
 </artwork>
         </figure>
         <t>
-          A server SHOULD ignore a "h2" token in an Upgrade header field.  Presence of a token with
+          A server MUST ignore a "h2" token in an Upgrade header field.  Presence of a token with
           "h2" implies HTTP/2 over TLS, which is instead negotiated as described in <xref
           target="discover-https"/>.
         </t>
@@ -409,14 +408,17 @@ Upgrade: h2c
             style="verb">HTTP2-Settings</spanx> header field.  The <spanx
             style="verb">HTTP2-Settings</spanx> header field is a hop-by-hop header field that
             includes parameters that govern the HTTP/2 connection, provided in anticipation of the
-            server accepting the request to upgrade.  A server MUST reject an attempt to upgrade if
-            this header field is not present.
+            server accepting the request to upgrade.
           </t>
           <figure>
             <artwork type="abnf" x:indent-with="  "><![CDATA[
 HTTP2-Settings    = token68
 ]]></artwork>
           </figure>
+          <t>
+            A server MUST reject an attempt to upgrade if this header field is not present.  A
+            server MUST NOT send this header field.
+          </t>
 
           <t>
             The content of the <spanx style="verb">HTTP2-Settings</spanx> header field is the
@@ -449,7 +451,8 @@ HTTP2-Settings    = token68
           layer protocol negotiation extension</xref>.
         </t>
         <t>
-          HTTP/2 over TLS uses the "h2" application token.  The "h2c" token MUST NOT be used.
+          HTTP/2 over TLS uses the "h2" application token.  The "h2c" token MUST NOT be sent by a
+          client or selected by a server.
         </t>
         <t>
           Once TLS negotiation is complete, both the client and the server send a <xref
@@ -526,7 +529,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Clients and servers MUST terminate the TCP connection if either peer does not begin with a
-          valid connection preface.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) MAY be
+          valid connection preface.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) can be
           omitted if it is clear that the peer is not using HTTP/2.
         </t>
       </section>
@@ -539,10 +542,10 @@ HTTP2-Settings    = token68
 
       <section anchor="FrameHeader" title="Frame Format">
         <t>
-          All frames begin with an 8-octet header followed by a payload of between 0 and 16,383
+          All frames begin with a fixed 8-octet header followed by a payload of between 0 and 16,383
           octets.
         </t>
-        <figure title="Frame Header">
+        <figure title="Frame Layout">
           <artwork type="inline"><![CDATA[
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -611,7 +614,7 @@ HTTP2-Settings    = token68
         <t>
           The maximum size of a frame payload varies by frame type. The absolute maximum size of a
           frame payload is 2<x:sup>14</x:sup>-1 (16,383) octets, meaning that the maximum frame
-          size is 16,391 octets. All implementations SHOULD be capable of receiving and minimally
+          size is 16,391 octets. All implementations MUST be capable of receiving and minimally
           processing frames up to this maximum size.
         </t>
         <t>
@@ -1142,7 +1145,7 @@ HTTP2-Settings    = token68
             subject to the flow control window advertised by the receiver.
           </t>
           <t>
-            Deployments with constrained resources (for example, memory) MAY employ flow control to
+            Deployments with constrained resources (for example, memory) can employ flow control to
             limit the amount of memory a peer can consume.  Note, however, that this can lead to
             suboptimal use of available network resources if flow control is enabled without
             knowledge of the bandwidth-delay product (see <xref target="RFC1323"/>).
@@ -1151,7 +1154,7 @@ HTTP2-Settings    = token68
             Even with full awareness of the current bandwidth-delay product, implementation of flow
             control can be difficult.  When using flow control, the receiver MUST read from the TCP
             receive buffer in a timely fashion.  Failure to do so could lead to a deadlock when
-            critical frames, such as <x:ref>WINDOW_UPDATE</x:ref>, are not available to HTTP/2.
+            critical frames, such as <x:ref>WINDOW_UPDATE</x:ref>, are not read and acted upon.
           </t>
         </section>
       </section>
@@ -1210,9 +1213,10 @@ HTTP2-Settings    = token68
           </t>
           <t>
             When assigning a dependency on another stream, the stream is added as a new dependency
-            of the parent stream.  For example, if streams B and C are dependent on stream A, and if
-            stream D is created with a dependency on stream A, this results in a dependency order of
-            A followed by B, C, and D.
+            of the parent stream.  Dependent streams that share the same parent are not order with
+            respect to each other.  For example, if streams B and C are dependent on stream A, and
+            if stream D is created with a dependency on stream A, this results in a dependency order
+            of A followed by B, C, and D in any order.
           </t>
           <figure title="Example of Default Dependency Creation">
             <artwork type="inline"><![CDATA[
@@ -1453,12 +1457,17 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Extensions are permitted to use new <xref target="FrameHeader">frame types</xref>, <xref
-          target="SettingValues">settings</xref>, <xref target="ErrorCodes">error codes</xref>, or
-          any reserved flags or fields in frames.  Implementations MUST ignore unknown or
-          unsupported values in all of these elements.  Implementations MUST discard frames that
-          have unknown or unsupported types.  Note that only <x:ref>DATA</x:ref> frames can be flow
-          controlled, extensions cannot be flow controlled.  This means that any of these extension
-          points can be safely used by extensions without prior arrangement or negotiation.
+          target="SettingValues">settings</xref>, <xref target="ErrorCodes">error codes</xref>,
+          header fields that start with a colon (:), or any reserved flags or fields in frames.  Of
+          these, registries are established for <xref target="iana-frames">frame types</xref>, <xref
+          target="iana-settings">settings</xref> and <xref target="iana-errors">error codes</xref>.
+        </t>
+        <t>
+          Implementations MUST ignore unknown or unsupported values in all extensible protocol
+          elements.  Implementations MUST discard frames that have unknown or unsupported types.
+          Note that only <x:ref>DATA</x:ref> frames can be flow controlled, extensions cannot be
+          flow controlled.  This means that any of these extension points can be safely used by
+          extensions without prior arrangement or negotiation.
         </t>
         <t>
           However, extensions can negotiate any use that could change to the semantics of
@@ -1903,7 +1912,7 @@ HTTP2-Settings    = token68
           <t>
             The following parameters are defined:
             <list style="hanging">
-              <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (1):" anchor="SETTINGS_HEADER_TABLE_SIZE">
+              <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (0x1):" anchor="SETTINGS_HEADER_TABLE_SIZE">
                 <t>
                   Allows the sender to inform the remote endpoint of the size of the header
                   compression table used to decode header blocks. The encoder can reduce this size
@@ -1911,7 +1920,7 @@ HTTP2-Settings    = token68
                   block.  The initial value is 4,096 bytes.
                 </t>
               </x:lt>
-              <x:lt hangText="SETTINGS_ENABLE_PUSH (2):" anchor="SETTINGS_ENABLE_PUSH">
+              <x:lt hangText="SETTINGS_ENABLE_PUSH (0x2):" anchor="SETTINGS_ENABLE_PUSH">
                 <t>
                   This setting can be use to disable <xref target="PushResources">server
                   push</xref>. An endpoint MUST NOT send a <x:ref>PUSH_PROMISE</x:ref> frame if it
@@ -1928,7 +1937,7 @@ HTTP2-Settings    = token68
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
               </x:lt>
-              <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (3):" anchor="SETTINGS_MAX_CONCURRENT_STREAMS">
+              <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (0x3):" anchor="SETTINGS_MAX_CONCURRENT_STREAMS">
                 <t>
                   Indicates the maximum number of concurrent streams that the sender will allow.
                   This limit is directional: it applies to the number of streams that the sender
@@ -1944,7 +1953,7 @@ HTTP2-Settings    = token68
                   accept requests, closing the connection could be preferable.
                 </t>
               </x:lt>
-              <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (4):" anchor="SETTINGS_INITIAL_WINDOW_SIZE">
+              <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (0x4):" anchor="SETTINGS_INITIAL_WINDOW_SIZE">
                 <t>
                   Indicates the sender's initial window size (in bytes) for stream level flow
                   control.  The initial value is 65,535.
@@ -2553,51 +2562,51 @@ HTTP2-Settings    = token68
       <t>
         The following error codes are defined:
         <list style="hanging">
-          <t hangText="NO_ERROR (0):" anchor="NO_ERROR">
+          <t hangText="NO_ERROR (0x0):" anchor="NO_ERROR">
             The associated condition is not as a result of an error.  For example, a
             <x:ref>GOAWAY</x:ref> might include this code to indicate graceful shutdown of a
             connection.
           </t>
-          <t hangText="PROTOCOL_ERROR (1):" anchor="PROTOCOL_ERROR">
+          <t hangText="PROTOCOL_ERROR (0x1):" anchor="PROTOCOL_ERROR">
             The endpoint detected an unspecific protocol error.  This error is for use when a more
             specific error code is not available.
           </t>
-          <t hangText="INTERNAL_ERROR (2):" anchor="INTERNAL_ERROR">
+          <t hangText="INTERNAL_ERROR (0x2):" anchor="INTERNAL_ERROR">
             The endpoint encountered an unexpected internal error.
           </t>
-          <t hangText="FLOW_CONTROL_ERROR (3):" anchor="FLOW_CONTROL_ERROR">
+          <t hangText="FLOW_CONTROL_ERROR (0x3):" anchor="FLOW_CONTROL_ERROR">
             The endpoint detected that its peer violated the flow control protocol.
           </t>
-          <t hangText="SETTINGS_TIMEOUT (4):" anchor="SETTINGS_TIMEOUT">
+          <t hangText="SETTINGS_TIMEOUT (0x4):" anchor="SETTINGS_TIMEOUT">
             The endpoint sent a <x:ref>SETTINGS</x:ref> frame, but did not receive a response in a
             timely manner.  See <xref target="SettingsSync">Settings Synchronization</xref>.
           </t>
-          <t hangText="STREAM_CLOSED (5):" anchor="STREAM_CLOSED">
+          <t hangText="STREAM_CLOSED (0x5):" anchor="STREAM_CLOSED">
             The endpoint received a frame after a stream was half closed.
           </t>
-          <t hangText="FRAME_SIZE_ERROR (6):" anchor="FRAME_SIZE_ERROR">
+          <t hangText="FRAME_SIZE_ERROR (0x6):" anchor="FRAME_SIZE_ERROR">
             The endpoint received a frame that was larger than the maximum size that it
             supports.
           </t>
-          <t hangText="REFUSED_STREAM (7):" anchor="REFUSED_STREAM">
+          <t hangText="REFUSED_STREAM (0x7):" anchor="REFUSED_STREAM">
             The endpoint refuses the stream prior to performing any application processing, see
             <xref target="Reliability"/> for details.
           </t>
-          <t hangText="CANCEL (8):" anchor="CANCEL">
+          <t hangText="CANCEL (0x8):" anchor="CANCEL">
             Used by the endpoint to indicate that the stream is no longer needed.
           </t>
-          <t hangText="COMPRESSION_ERROR (9):" anchor="COMPRESSION_ERROR">
+          <t hangText="COMPRESSION_ERROR (0x9):" anchor="COMPRESSION_ERROR">
             The endpoint is unable to maintain the header compression context for the connection.
           </t>
-          <t hangText="CONNECT_ERROR (10):" anchor="CONNECT_ERROR">
+          <t hangText="CONNECT_ERROR (0xa):" anchor="CONNECT_ERROR">
             The connection established in response to a <xref target="CONNECT">CONNECT
             request</xref> was reset or abnormally closed.
           </t>
-          <t hangText="ENHANCE_YOUR_CALM (11):" anchor="ENHANCE_YOUR_CALM">
+          <t hangText="ENHANCE_YOUR_CALM (0xb):" anchor="ENHANCE_YOUR_CALM">
             The endpoint detected that its peer is exhibiting a behavior that might be generating
             excessive load.
           </t>
-          <t hangText="INADEQUATE_SECURITY (12):" anchor="INADEQUATE_SECURITY">
+          <t hangText="INADEQUATE_SECURITY (0xc):" anchor="INADEQUATE_SECURITY">
             The underlying transport has properties that do not meet minimum security
             requirements (see <xref target="TLSUsage"/>).
           </t>
@@ -2612,9 +2621,9 @@ HTTP2-Settings    = token68
     <section anchor="HTTPLayer" title="HTTP Message Exchanges">
       <t>
         HTTP/2 is intended to be as compatible as possible with current uses of HTTP. This means
-        that, from the perspective of the server and client applications, the features of the
-        protocol are largely unchanged. To achieve this, all request and response semantics are
-        preserved, although the syntax of conveying those semantics has changed.
+        that, from the application perspective, the features of the protocol are largely
+        unchanged. To achieve this, all request and response semantics are preserved, although the
+        syntax of conveying those semantics has changed.
       </t>
       <t>
         Thus, the specification and requirements of HTTP/1.1 Semantics and Content <xref
@@ -2712,9 +2721,11 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Other defined 1xx status codes are not applicable to HTTP/2. For example, the semantics
-            of 101 (Switching Protocols) aren't suitable to a multiplexed protocol. Likewise, 102
-            (Processing) is no longer necessary, because HTTP/2 has a separate means of keeping the
-            connection alive.
+            of 101 (Switching Protocols) aren't suitable to a multiplexed protocol. Likewise, <xref
+            target="RFC2518">102 (Processing)</xref> is no longer necessary to ensure connection
+            liveness, because HTTP/2 has a separate means of keeping the connection alive.  The use
+            of the 102 (Processing) status code for progress reporting has since been deprecated and
+            is not retained.
           </t>
           <t>
             This difference between protocol versions necessitates special handling by
@@ -2789,8 +2800,8 @@ HTTP2-Settings    = token68
 
           <section anchor="HttpRequest" title="Request Header Fields">
             <t>
-              HTTP/2 defines a number of header fields starting with a colon ':' character that
-              carry information about the request target:
+              HTTP/2 defines a number of pseudo header fields starting with a colon ':' character
+              that carry information about the request target:
               <list style="symbols">
                 <x:lt>
                   <t>
@@ -3577,7 +3588,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Header compression also offers some opportunities to waste processing resources; see <xref
-          target="COMPRESSION"/> for more details on potential abuses.
+          target="COMPRESSION" x:fmt="of" x:rel="#Security"/> for more details on potential abuses.
         </t>
         <t>
           Limits in <x:ref>SETTINGS</x:ref> parameters cannot be reduced instantaneously, which
@@ -3688,8 +3699,8 @@ HTTP2-Settings    = token68
         </t>
         <t>
           As far as this creates observable differences in behavior, they could be used as a basis
-          for fingerprinting a specific client, as defined in <eref
-          target="http://www.w3.org/TR/html5/introduction.html#fingerprint"/>.
+          for fingerprinting a specific client, as defined in <xref target="HTML5" x:fmt="of"
+          x:sec="1.8"/>.
         </t>
       </section>
     </section>
@@ -3723,7 +3734,7 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <t hangText="Protocol:">HTTP/2 over TLS</t>
             <t hangText="Identification Sequence:">0x68 0x32 ("h2")</t>
-            <t hangText="Specification:">This document (RFCXXXX)</t>
+            <t hangText="Specification:">This document</t>
           </list>
         </t>
         <t>
@@ -3731,7 +3742,7 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <t hangText="Protocol:">HTTP/2 over TCP</t>
             <t hangText="Identification Sequence:">0x68 0x32 0x63 ("h2c")</t>
-            <t hangText="Specification:">This document (RFCXXXX)</t>
+            <t hangText="Specification:">This document</t>
           </list>
         </t>
       </section>
@@ -3790,6 +3801,9 @@ HTTP2-Settings    = token68
         <t>
           New registrations are advised to provide the following information:
           <list style="hanging">
+            <t hangText="Name:">
+              A symbolic name for the setting.  Specifying a setting name is optional.
+            </t>
             <t hangText="Code:">
               The 16-bit code assigned to the setting.
             </t>
@@ -3804,6 +3818,21 @@ HTTP2-Settings    = token68
         <t>
           An initial set of setting registrations can be found in <xref target="SettingValues"/>.
         </t>
+        <texttable align="left" suppress-title="true">
+          <ttcol>Name</ttcol>
+          <ttcol>Code</ttcol>
+          <ttcol>Initial Value</ttcol>
+          <ttcol>Specification</ttcol>
+          <c>HEADER_TABLE_SIZE</c>
+          <c>0x1</c><c>4096</c><c><xref target="SettingValues"/></c>
+          <c>ENABLE_PUSH</c>
+          <c>0x2</c><c>1</c><c><xref target="SettingValues"/></c>
+          <c>MAX_CONCURRENT_STREAMS</c>
+          <c>0x3</c><c>(infinite)</c><c><xref target="SettingValues"/></c>
+          <c>INITIAL_WINDOW_SIZE</c>
+          <c>0x4</c><c>65535</c><c><xref target="SettingValues"/></c>
+        </texttable>
+
       </section>
 
       <section anchor="iana-errors" title="Error Code Registry">
@@ -3821,14 +3850,15 @@ HTTP2-Settings    = token68
         <t>
           New registrations are advised to provide the following information:
           <list style="hanging">
-            <t hangText="Error Code:">
-              The 32-bit error code value.
-            </t>
             <t hangText="Name:">
               A name for the error code.  Specifying an error code name is optional.
             </t>
+            <t hangText="Code:">
+              The 32-bit error code value.
+            </t>
             <t hangText="Description:">
-              A description of the conditions where the error code is applicable.
+              A brief description of the error code semantics, longer if no detailed specification
+              is provided.
             </t>
             <t hangText="Specification:">
               An optional reference for a specification that defines the error code.
@@ -3836,8 +3866,54 @@ HTTP2-Settings    = token68
           </list>
         </t>
         <t>
-          An initial set of error code registrations can be found in <xref target="ErrorCodes"/>.
+          The entries in the following table are registered by this document.
         </t>
+        <texttable align="left" suppress-title="true">
+          <ttcol>Name</ttcol>
+          <ttcol>Code</ttcol>
+          <ttcol>Description</ttcol>
+          <ttcol>Specification</ttcol>
+          <c>NO_ERROR</c><c>0x0</c>
+          <c>Graceful shutdown</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>PROTOCOL_ERROR</c><c>0x1</c>
+          <c>Protocol error detected</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>INTERNAL_ERROR</c><c>0x2</c>
+          <c>Implementation fault</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>FLOW_CONTROL_ERROR</c><c>0x3</c>
+          <c>Flow control limits exceeded</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>SETTINGS_TIMEOUT</c><c>0x4</c>
+          <c>Settings not acknowledged</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>STREAM_CLOSED</c><c>0x5</c>
+          <c>Frame received for closed stream</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>FRAME_SIZE_ERROR</c><c>0x6</c>
+          <c>Frame size incorrect</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>REFUSED_STREAM</c><c>0x7</c>
+          <c>Stream not processed</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>CANCEL</c><c>0x8</c>
+          <c>Stream cancelled</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>COMPRESSION_ERROR</c><c>0x9</c>
+          <c>Compression state not updated</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>CONNECT_ERROR</c><c>0xa</c>
+          <c>TCP connection error for CONNECT method</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>ENHANCE_YOUR_CALM</c><c>0xb</c>
+          <c>Processing capacity exceeded</c>
+          <c><xref target="ErrorCodes"/></c>
+          <c>INADEQUATE_SECURITY</c><c>0xc</c>
+          <c>Negotiated TLS parameters not acceptable</c>
+          <c><xref target="ErrorCodes"/></c>
+        </texttable>
+
       </section>
 
       <section title="HTTP2-Settings Header Field Registration">
@@ -3869,8 +3945,8 @@ HTTP2-Settings    = token68
 
       <section title="PRI Method Registration">
         <t>
-          This section registers the <spanx style="verb">PRI</spanx> method in the
-          <xref target="RFC7231">HTTP Method Registry</xref>.
+          This section registers the <spanx style="verb">PRI</spanx> method in the HTTP Method
+          Registry (<xref target="RFC7231" x:fmt="," x:rel="#method.registry"/>).
           <list style="hanging">
             <t hangText="Method Name:">
               PRI
@@ -3940,6 +4016,7 @@ HTTP2-Settings    = token68
           <date month="April" year="2014" />
         </front>
         <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-header-compression-07" />
+        <x:source href="draft-ietf-httpbis-header-compression.xml"/>
       </reference>
 
       <reference anchor="TCP">
@@ -3981,16 +4058,6 @@ HTTP2-Settings    = token68
           <date month="May" year="2000"/>
         </front>
         <seriesInfo name="RFC" value="2818"/>
-      </reference>
-
-      <reference anchor="UTF-8">
-        <front>
-          <title abbrev="UTF-8">UTF-8, a transformation format of ISO 10646</title>
-          <author initials="F." surname="Yergeau" fullname="Francois Yergeau"/>
-          <date year="2003" month="November" />
-        </front>
-        <seriesInfo name="STD" value="63" />
-        <seriesInfo name="RFC" value="3629" />
       </reference>
 
       <reference anchor="RFC3986">
@@ -4203,6 +4270,21 @@ HTTP2-Settings    = token68
         <seriesInfo name="RFC" value="1323" />
       </reference>
 
+      <reference anchor="RFC2518">
+        <front>
+          <title>
+            HTTP Extensions for Distributed Authoring -- WEBDAV
+          </title>
+          <author initials="Y." surname="Goland" fullname="Y. Y. Goland"/>
+          <author initials="E." surname="Whitehead" fullname="E. J. Whitehead, Jr."/>
+          <author initials="A." surname="Faizi" fullname="A. Faizi"/>
+          <author initials="S." surname="Carter" fullname="S. R. Carter"/>
+          <author initials="D." surname="Jensen" fullname="D. Jensen"/>
+          <date year="1999" month="February" />
+        </front>
+        <seriesInfo name="RFC" value="2518" />
+      </reference>
+
       <reference anchor="RFC3749">
         <front>
           <title>Transport Layer Security Protocol Compression Methods</title>
@@ -4248,6 +4330,22 @@ HTTP2-Settings    = token68
           <date year="2008" month="August" />
         </front>
         <seriesInfo name="RFC" value="5288" />
+      </reference>
+
+      <reference anchor="HTML5" target="http://www.w3.org/TR/2014/CR-html5-20140429/">
+        <front>
+          <title>
+            HTML5
+          </title>
+          <author initials="R." surname="Berjon"/>
+          <author initials="S." surname="Faulkner"/>
+          <author initials="T." surname="Leithead"/>
+          <author initials="E." surname="Doyle Navara"/>
+          <author initials="E." surname="O'Connor"/>
+          <author initials="S." surname="Pfeiffer"/>
+          <author initials="I." surname="Hickson"/>
+          <date year="2014" month="April" />
+        </front>
       </reference>
 
       <reference anchor="TALKING" target="http://w2spconf.com/2011/papers/websocket.pdf">
