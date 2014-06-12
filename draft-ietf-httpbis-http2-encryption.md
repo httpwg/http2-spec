@@ -3,7 +3,7 @@ title: Opportunistic Encryption for HTTP URIs
 abbrev: Opportunistic HTTP Encryption
 docname: draft-ietf-httpbis-http2-encryption-latest
 date: 2014
-category: std
+category: exp
 
 ipr: trust200902
 area: General
