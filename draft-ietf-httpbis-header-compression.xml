@@ -510,8 +510,8 @@
                 <t>
                     To limit the memory requirements on the decoder side, the
                     mutable structures used in an encoding context are
-                    constrained. These mutable structures are the header table
-                    and the reference set.
+                    constrained in size. These mutable structures are the header
+                    table and the reference set.
                 </t>
                 <t>
                     The size of the header table is bounded by a maximum size
@@ -539,7 +539,7 @@
                     the header table used by the encoder, the encoder MUST
                     signal this change via an encoding context update (see <xref
                     target="encoding.context.update"/>). This encoding context
-                    update MUST occurs at the beginning of the first header
+                    update MUST occur at the beginning of the first header
                     block following the SETTINGS frame sent to acknowledge the
                     application of the updated settings.
                 </t>
@@ -550,35 +550,34 @@
                 <t>
                     The size of an entry is the sum of its name's length in
                     octets (as defined in <xref
-                    target="string.literal.representation" />), of its value's
+                    target="string.literal.representation" />), its value's
                     length in octets (<xref
-                    target="string.literal.representation" />) and of 32 octets.
+                    target="string.literal.representation" />), plus 32.
                 </t>
                 <t>
-                    The lengths are measured on the non-encoded entry name and
-                    entry value (for the case when a Huffman encoding is used to
-                    transmit string values).
+                    The size of an entry is calculated using the length of the
+                    name and value without any Huffman encoding appled.
                 </t>
                 <t>
-                    The 32 octets are an accounting for the entry structure
-                    overhead. For example, an entry structure using two 64-bits
-                    pointers to reference the name and the value and the entry,
-                    and two 64-bits integer for counting the number of
-                    references to these name and value would use 32 octets.
+                    The additional 32 octets account for overhead associated
+                    with an entry. For example, an entry structure using two
+                    64-bit pointers to reference the name and the value and the
+                    entry, and two 64-bit integers for counting the number of
+                    references to the name and value would have 32 octets of
+                    overhead.
                 </t>
             </section>
             <section title="Entry Eviction When Header Table Size Changes"
                      anchor="entry.eviction">
                 <t>
-                    Whenever an entry is evicted from the header table, any
-                    reference to that entry contained by the reference set is
-                    removed.
-                </t>
-                <t>
                     Whenever the maximum size for the header table is made
                     smaller, entries are evicted from the end of the header
                     table until the size of the header table is less than or
                     equal to the maximum size.
+                </t>
+                <t>
+                    Whenever an entry is evicted from the header table, any
+                    reference to that entry from the reference set is removed.
                 </t>
                 <t>
                     The eviction of an entry from the header table causes the
@@ -589,18 +588,25 @@
             <section title="Entry Eviction when Adding New Entries"
                      anchor="entry.addition">
                 <t>
-                    Whenever a new entry is to be added to the table, any name
-                    referenced by the representation of this new entry is
-                    cached, and then entries are evicted from the end of the
-                    header table until the size of the header table is less than
-                    or equal to (maximum size - new entry size), or until the
-                    table is empty.
+                    Whenever a new entry is to be added to the header table
+                    entries are evicted from the end of the header table until
+                    the size of the header table is less than or equal to
+                    (maximum size - new entry size), or until the table is
+                    empty.
+                </t>
+                <t>
+                    If the representation of the added entry references the name
+                    of an entry in the header table, the referenced name is
+                    cached prior to performing eviction to avoid having the name
+                    inadvertently evicted.
                 </t>
                 <t>
                     If the size of the new entry is less than or equal to the
                     maximum size, that entry is added to the table.  It is not
                     an error to attempt to add an entry that is larger than the
-                    maximum size.
+                    maximum size; an attempt to add an entry larger than the
+                    entire table causes the table to be emptied of all existing
+                    entries.
                 </t>
             </section>
         </section>
