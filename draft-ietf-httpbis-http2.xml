@@ -634,7 +634,7 @@ HTTP2-Settings    = token68
 
       <section anchor="HeaderBlock" title="Header Compression and Decompression">
         <t>
-          A header field in HTTP/2 is a name-value pair with one or more associated values. They are
+          A header field in HTTP/2 is a name with one or more associated values. They are
           used within HTTP request and response messages as well as server push operations (see
           <xref target="PushResources" />).
         </t>
@@ -991,7 +991,7 @@ HTTP2-Settings    = token68
                 An endpoint might receive a <x:ref>PUSH_PROMISE</x:ref> frame after it sends
                 <x:ref>RST_STREAM</x:ref>.  <x:ref>PUSH_PROMISE</x:ref> causes a stream to become
                 "reserved" even if the associated stream has been reset.  Therefore, a
-                <x:ref>RST_STREAM</x:ref> is needed to close an unwanted promised streams.
+                <x:ref>RST_STREAM</x:ref> is needed to close an unwanted promised stream.
               </t>
             </x:lt>
           </list>
@@ -1036,6 +1036,8 @@ HTTP2-Settings    = token68
             Stream identifiers cannot be reused.  Long-lived connections can result in an endpoint
             exhausting the available range of stream identifiers.  A client that is unable to
             establish a new stream identifier can establish a new connection for new streams.
+            A server that is unable to establish a new stream identifier may send a
+            <x:ref>GOWAY</x:ref> frame to require the client to establish a new connection.
           </t>
         </section>
 
@@ -1053,15 +1055,13 @@ HTTP2-Settings    = token68
             Streams that are in the "open" state, or either of the "half closed" states count toward
             the maximum number of streams that an endpoint is permitted to open.  Streams in any of
             these three states count toward the limit advertised in the
-            <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> setting.
+            <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> setting. Streams in either of the "reserved"
+            states do not count as open.
           </t>
           <t>
             Endpoints MUST NOT exceed the limit set by their peer.  An endpoint that receives a
             <x:ref>HEADERS</x:ref> frame that causes their advertised concurrent stream limit to be
             exceeded MUST treat this as a <xref target="StreamErrorHandler">stream error</xref>.
-          </t>
-          <t>
-            Streams in either of the "reserved" states do not count as open.
           </t>
         </section>
       </section>
@@ -1281,7 +1281,7 @@ HTTP2-Settings    = token68
           </t>
           <figure title="Example of Dependency Reordering">
             <preamble>
-              For example, for an original dependency tree where B and C depend on A, D and E depend
+              For example, consider an original dependency tree where B and C depend on A, D and E depend
               on C, and F depends on D.  If A is made dependent on D, then D takes the place of A.
               All other dependency relationships stay the same, except for F, which becomes
               dependent on A if the reprioritization is exclusive.
@@ -1333,13 +1333,9 @@ HTTP2-Settings    = token68
             prioritization, since the stream could be given a priority that is higher than intended.
           </t>
           <t>
-            To avoid these problems, endpoints SHOULD maintain prioritization state for closed
-            streams for a period after streams close.
-          </t>
-          <t>
-            An endpoint SHOULD retain stream prioritization state for a period after streams become
-            closed.  The longer state is retained, the lower the chance that streams are assigned
-            incorrect or default priority values.
+            To avoid these problems, an endpoint SHOULD retain stream prioritization state for a 
+            period after streams become closed.  The longer state is retained, the lower the chance
+            that streams are assigned incorrect or default priority values.
           </t>
           <t>
             This could create a large state burden for an endpoint, so this state MAY be limited.
@@ -1915,10 +1911,10 @@ HTTP2-Settings    = token68
             <list style="hanging">
               <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (0x1):" anchor="SETTINGS_HEADER_TABLE_SIZE">
                 <t>
-                  Allows the sender to inform the remote endpoint of the size of the header
-                  compression table used to decode header blocks. The encoder can reduce this size
-                  by using signaling specific to the header compression format inside a header
-                  block.  The initial value is 4,096 bytes.
+                  Allows the sender to inform the remote endpoint of the maximum size of the header
+                  compression table used to decode header blocks. The encoder can select any size
+                  equal to or less than this value by using signaling specific to the header compression
+                  format inside a header block.  The initial value is 4,096 bytes.
                 </t>
               </x:lt>
               <x:lt hangText="SETTINGS_ENABLE_PUSH (0x2):" anchor="SETTINGS_ENABLE_PUSH">
@@ -2272,8 +2268,8 @@ HTTP2-Settings    = token68
           subsequently encounter an condition that requires immediate termination of the connection.
           The last stream identifier from the last GOAWAY frame received indicates which streams
           could have been acted upon.  Endpoints MUST NOT increase the value they send in the last
-          stream identifier, since this could cause their peers to erroneously retry streams if a
-          GOAWAY frame is lost.
+          stream identifier, since the peers might already have retried unprocessed requests on
+          another connection.
         </t>
         <t>
           A client that is unable to retry requests loses all requests that are in flight when the
@@ -2328,7 +2324,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Flow control only applies to frames that are identified as being subject to flow control.
-          Of the frame types defined in this document, this includes only <x:ref>DATA</x:ref> frame.
+          Of the frame types defined in this document, this includes only <x:ref>DATA</x:ref> frames.
           Frames that are exempt from flow control MUST be accepted and processed, unless the
           receiver is unable to assign resources to handling the frame.  A receiver MAY respond with
           a <xref target="StreamErrorHandler">stream error</xref> or <xref
