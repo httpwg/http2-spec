@@ -67,9 +67,8 @@ $(addsuffix .txt,$(next)): %.txt: %.xml
 
 stylesheet := lib/myxml2rfc.xslt
 extra_css := lib/style.css
-css_content = $(shell cat $(extra_css))
 %.html: %.xml $(stylesheet) $(extra_css)
-	$(saxon) $< $(stylesheet) | sed -e's~</style>~</style><style tyle="text/css">$(css_content)</style>~' > $@
+	$(saxon) $< $(stylesheet) | sed -f lib/addstyle.sed > $@
 
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
@@ -113,7 +112,7 @@ endif
 	git add $^
 	if test `git status -s | wc -l` -gt 0; then git commit -m "Script updating gh-pages."; fi
 ifneq (,$(GH_TOKEN))
-	@echo @git push https://github.com/$(TRAVIS_REPO_SLUG).git gh-pages
+	@echo git push https://github.com/$(TRAVIS_REPO_SLUG).git gh-pages
 	@git push https://$(GH_TOKEN)@github.com/$(TRAVIS_REPO_SLUG).git gh-pages
 endif
 	-git checkout -qf "$(GIT_ORIG)"
