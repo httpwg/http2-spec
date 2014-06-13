@@ -113,6 +113,7 @@ endif
 	git add $^
 	if test `git status -s | wc -l` -gt 0; then git commit -m "Script updating gh-pages."; fi
 ifneq (,$(GH_TOKEN))
+	@echo @git push https://github.com/$(TRAVIS_REPO_SLUG).git gh-pages
 	@git push https://$(GH_TOKEN)@github.com/$(TRAVIS_REPO_SLUG).git gh-pages
 endif
 	-git checkout -qf "$(GIT_ORIG)"
