@@ -30,9 +30,9 @@ normative:
   RFC2119:
   RFC2818:
   RFC5246:
+  RFC7234:
   I-D.ietf-httpbis-http2:
   I-D.ietf-httpbis-alt-svc:
-  I-D.ietf-httpbis-p6-cache:
   I-D.ietf-websec-key-pinning:
 
 informative:
@@ -202,7 +202,7 @@ service, as described in Section 3.1 of {{RFC2818}}, noting the additional requi
 {{I-D.ietf-httpbis-alt-svc}}. The header field MUST be ignored if strong authentication fails.
 
 Persisted information expires after a period determined by the value of the "ma" parameter. See
-Section 4.2.3 of {{I-D.ietf-httpbis-p6-cache}} for details of determining response age.
+Section 4.2.3 of {{RFC7234}} for details of determining response age.
 
     ma-parameter     = delta-seconds
 
