@@ -1076,7 +1076,11 @@ HTTP2-Settings    = token68
           <t>
             Endpoints MUST NOT exceed the limit set by their peer.  An endpoint that receives a
             <x:ref>HEADERS</x:ref> frame that causes their advertised concurrent stream limit to be
-            exceeded MUST treat this as a <xref target="StreamErrorHandler">stream error</xref>.
+            exceeded MUST treat this as a <xref target="StreamErrorHandler">stream error</xref>.  An
+            endpoint that wishes to reduce the value of
+            <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> to a value that is below the current
+            number of open streams can either close streams that exceed the new value or allow
+            streams to complete.
           </t>
         </section>
       </section>
@@ -2450,14 +2454,7 @@ HTTP2-Settings    = token68
             A <x:ref>SETTINGS</x:ref> frame can alter the initial flow control window size for all
             current streams. When the value of <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> changes,
             a receiver MUST adjust the size of all stream flow control windows that it maintains by
-            the difference between the new value and the old value.  A <x:ref>SETTINGS</x:ref> frame
-            cannot alter the connection flow control window.
-          </t>
-          <t>
-            An endpoint MUST treat a change to <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> that
-            causes any flow control window to exceed the maximum size as a <xref
-            target="ConnectionErrorHandler">connection error</xref> of type
-            <x:ref>FLOW_CONTROL_ERROR</x:ref>.
+            the difference between the new value and the old value.
           </t>
           <t>
             A change to <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> can cause the available space in
@@ -2471,6 +2468,15 @@ HTTP2-Settings    = token68
             available flow control window to be -44KB on receipt of the <x:ref>SETTINGS</x:ref>
             frame.  The client retains a negative flow control window until WINDOW_UPDATE frames
             restore the window to being positive, after which the client can resume sending.
+          </t>
+          <t>
+            A <x:ref>SETTINGS</x:ref> frame cannot alter the connection flow control window.
+          </t>
+          <t>
+            An endpoint MUST treat a change to <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> that
+            causes any flow control window to exceed the maximum size as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>FLOW_CONTROL_ERROR</x:ref>.
           </t>
         </section>
 
@@ -2980,6 +2986,22 @@ HTTP2-Settings    = token68
               target="HeaderOrdering"/>.  When decoding, zero octets MUST be replaced with the
               cookie delimiter ("; ").
             </t>
+            <figure>
+              <preamble>
+                Therefore, the following sets of Cookie header fields are semantically equivalent,
+                though the final form might appear in a different order after compression and
+                decompression.
+              </preamble>
+              <artwork type="inline"><![CDATA[
+  cookie: a=b; c=d; e=f
+
+  cookie: a=b\0c=d; e=f
+
+  cookie: a=b
+  cookie: c=d
+  cookie: e=f
+]]></artwork>
+            </figure>
           </section>
 
           <section anchor="malformed" title="Malformed Messages">
@@ -3400,25 +3422,22 @@ HTTP2-Settings    = token68
           the server closes the connection.
         </t>
         <t>
-          Clients SHOULD NOT open more than one HTTP/2 connection to a given destination, where a
-          destination is the IP address and port that is derived from a URI, a selected <xref
-          target="ALT-SVC">alternative service</xref>, or a configured proxy.  A client can create
-          additional connections as replacements, either to replace connections that are near to
-          exhausting the available <xref target="StreamIdentifiers">stream identifier space</xref>,
-          or to replace connections that have encountered <xref
+          Clients SHOULD NOT open more than one HTTP/2 connection to a given host and port pair,
+          where host is derived from a URI, a selected <xref target="ALT-SVC">alternative
+          service</xref>, or a configured proxy.
+        </t>
+        <t>
+          A client can create additional connections as replacements, either to replace connections
+          that are near to exhausting the available <xref target="StreamIdentifiers">stream
+          identifier space</xref>, to refresh the keying material for a TLS connection, or to
+          replace connections that have encountered <xref
           target="ConnectionErrorHandler">errors</xref>.
         </t>
         <t>
           A client MAY open multiple connections to the same IP address and TCP port using different
           <xref target="TLS-EXT">Server Name Indication</xref> values or to provide different TLS
           client certificates, but SHOULD avoid creating multiple connections with the same
-          configuration.  <cref>Need more text on how client certificates relate here, see issue
-          #363.</cref>
-        </t>
-        <t>
-          Clients MAY use a single server connection to send requests for URIs with multiple
-          different authority components as long as the server is <xref
-          target="authority">authoritative</xref>.
+          configuration.
         </t>
         <t>
           Servers are encouraged to maintain open connections for as long as possible, but are
@@ -3428,6 +3447,59 @@ HTTP2-Settings    = token68
           determine whether previously sent frames have been processed and gracefully complete or
           terminate any necessary remaining tasks.
         </t>
+
+        <section anchor="reuse" title="Connection Reuse">
+          <t>
+            Clients MAY use a single server connection to send requests for URIs with multiple
+            different authority components as long as the server is <xref
+            target="authority">authoritative</xref>.  For <spanx style="verb">http</spanx>
+            resources, this depends on the host having resolved to the same IP address.
+          </t>
+          <t>
+            For <spanx style="verb">https</spanx> resources, connection reuse additionally depends
+            on having a certificate that is valid for the host in the URI.  That is the use of
+            server certificate with multiple <spanx style="verb">subjectAltName</spanx> attributes,
+            or names with wildcards.  For example, a certificate with a <spanx
+            style="verb">subjectAltName</spanx> of <spanx style="verb">*.example.com</spanx> might
+            permit the use of the same connection for <spanx style="verb">a.example.com</spanx> and
+            <spanx style="verb">b.example.com</spanx>.
+          </t>
+          <t>
+            In some deployments, reusing a connection for multiple origins can result in requests
+            being directed to the wrong origin server.  For example, TLS termination might be
+            performed by a middlebox that uses the TLS <xref target="TLS-EXT">Server Name Indication
+            (SNI)</xref> extension to select the an origin server.  This means that it is possible
+            for clients to send confidential information to servers that might not be the intended
+            target for the request, even though the server has valid authentication credentials.
+          </t>
+          <t>
+            A server that does not wish clients to reuse connections can indicate that it is not
+            authoritative for a request by sending a 421 (Not Authoritative) status code in response
+            to request (see <xref target="NotAuthoritative"/>).
+          </t>
+        </section>
+
+        <section anchor="NotAuthoritative" title="The 421 (Not Authoritative) Status Code">
+          <t>
+            The 421 (Not Authoritative) status code indicates that the current origin server is not
+            authoritative for the requested resource, in the sense of <xref target="RFC7230"
+            x:rel="#establishing.authority" x:fmt=","/> (see also <xref target="authority"/>).
+          </t>
+          <t>
+            Clients receiving a 421 (Not Authoritative) response from a server MAY retry the request
+            - whether the request method is idempotent or not - over a different connection.  This
+            is possible if a connection is reused (<xref target="reuse"/>) or if an
+            alternative service is selected (<xref target="ALT-SVC"/>).
+          </t>
+          <t>
+            This status code MUST NOT be generated by proxies.
+          </t>
+          <t>
+            A 421 response is cacheable by default; i.e., unless otherwise indicated by the method
+            definition or explicit cache controls (see <xref target="RFC7234"
+            x:rel="#heuristic.freshness" x:fmt="of"/>).
+          </t>
+        </section>
       </section>
 
       <section title="Use of TLS Features" anchor="TLSUsage">
@@ -3436,42 +3508,67 @@ HTTP2-Settings    = token68
           TLS.  The general TLS usage guidance in <xref target="TLSBCP"/> SHOULD be followed, with
           some additional restrictions that are specific to HTTP/2.
         </t>
-        <t>
-          The TLS implementation MUST support the <xref target="TLS-EXT">Server Name Indication
-          (SNI)</xref> extension to TLS. HTTP/2 clients MUST indicate the target domain name when
-          negotiating TLS.
-        </t>
-        <t>
-          The TLS implementation MUST disable compression.  TLS compression can lead to the exposure
-          of information that would not otherwise be revealed <xref target="RFC3749"/>.  Generic
-          compression is unnecessary since HTTP/2 provides compression features that are more aware
-          of context and therefore likely to be more appropriate for use for performance, security
-          or other reasons.
-        </t>
-        <t>
-          The set of TLS cipher suites that are permitted in HTTP/2 is restricted.  HTTP/2 MUST only
-          be used with cipher suites that have ephemeral key exchange, such as the <xref
-          target="TLS12">ephemeral Diffie-Hellman (DHE)</xref> or the <xref
-          target="RFC4492">elliptic curve variant (ECDHE)</xref>.  Ephemeral key exchange MUST have
-          a minimum size of 2048 bits for DHE or security level of 128 bits for ECDHE.  Clients MUST
-          accept DHE sizes of up to 4096 bits.  HTTP MUST NOT be used with cipher suites that use
-          stream or block ciphers.  Authenticated Encryption with Additional Data (AEAD) modes, such
-          as the <xref target="RFC5288">Galois Counter Model (GCM) mode for AES</xref> are
-          acceptable.
-        </t>
-        <t>
-          Clients MAY advertise support of other cipher suites in order to allow for connection to
-          servers that do not support HTTP/2 to complete without the additional latency imposed by
-          using a separate connection for fallback.
-        </t>
-        <t>
-          An implementation SHOULD NOT negotiate a TLS connection for HTTP/2 without also
-          negotiating a cipher suite that meets these requirements.  Due to implementation
-          limitations, it might not be possible to fail TLS negotiation.  An endpoint MUST
-          immediately terminate an HTTP/2 connection that does not meet these minimum requirements
-          with a <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>INADEQUATE_SECURITY</x:ref>.
-        </t>
+
+        <section title="TLS Features">
+          <t>
+            The TLS implementation MUST support the <xref target="TLS-EXT">Server Name Indication
+            (SNI)</xref> extension to TLS. HTTP/2 clients MUST indicate the target domain name when
+            negotiating TLS.
+          </t>
+          <t>
+            The TLS implementation MUST disable compression.  TLS compression can lead to the
+            exposure of information that would not otherwise be revealed <xref target="RFC3749"/>.
+            Generic compression is unnecessary since HTTP/2 provides compression features that are
+            more aware of context and therefore likely to be more appropriate for use for
+            performance, security or other reasons.
+          </t>
+          <t>
+            The TLS implementation MUST disable renegotiation.  An endpoint MUST treat a TLS
+            renegotiation as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.  Note that disabling renegotiation can result in
+            long-lived connections becoming unusable due to limits on the number of messages the
+            underlying cipher suite can encipher.
+          </t>
+          <t>
+            A client MAY use renegotiation to provide confidentiality protection for client
+            credentials offered in the handshake, but any renegotiation MUST occur prior to sending
+            the connection preface.  A server SHOULD request a client certificate if it sees a
+            renegotiation request immediately after establishing a connection.
+          </t>
+          <t>
+            This effectively prevents the use of renegotiation in response to a request for a
+            specific protected resource.  A future specification might provide a way to support this
+            use case. <!-- <cref> We are tracking this in a non-blocking fashion in issue #496 and
+            with a new draft. -->
+          </t>
+        </section>
+
+        <section title="TLS Cipher Suites">
+          <t>
+            The set of TLS cipher suites that are permitted in HTTP/2 is restricted.  HTTP/2 MUST
+            only be used with cipher suites that have ephemeral key exchange, such as the <xref
+            target="TLS12">ephemeral Diffie-Hellman (DHE)</xref> or the <xref
+            target="RFC4492">elliptic curve variant (ECDHE)</xref>.  Ephemeral key exchange MUST
+            have a minimum size of 2048 bits for DHE or security level of 128 bits for ECDHE.
+            Clients MUST accept DHE sizes of up to 4096 bits.  HTTP MUST NOT be used with cipher
+            suites that use stream or block ciphers.  Authenticated Encryption with Additional Data
+            (AEAD) modes, such as the <xref target="RFC5288">Galois Counter Model (GCM) mode for
+            AES</xref> are acceptable.
+          </t>
+          <t>
+            Clients MAY advertise support of other cipher suites in order to allow for connection to
+            servers that do not support HTTP/2 to complete without the additional latency imposed by
+            using a separate connection for fallback.
+          </t>
+          <t>
+            An implementation SHOULD NOT negotiate a TLS connection for HTTP/2 without also
+            negotiating a cipher suite that meets these requirements.  Due to implementation
+            limitations, it might not be possible to fail TLS negotiation.  An endpoint MUST
+            immediately terminate an HTTP/2 connection that does not meet these minimum requirements
+            with a <xref target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>INADEQUATE_SECURITY</x:ref>.
+          </t>
+        </section>
       </section>
     </section>
 
@@ -3728,7 +3825,7 @@ HTTP2-Settings    = token68
       </t>
       <t>
         This document registers the <spanx style="verb">HTTP2-Settings</spanx> header field for
-        use in HTTP.
+        use in HTTP; and the 421 (Not Authoritative) status code.
       </t>
       <t>
         This document registers the <spanx style="verb">PRI</spanx> method for use in HTTP, to avoid
@@ -3980,6 +4077,29 @@ HTTP2-Settings    = token68
           </list>
         </t>
       </section>
+
+      <section title="The 421 Not Authoritative HTTP Status Code"
+               anchor="iana-NotAuthoritative">
+        <t>
+          This document registers the 421 (Not Authoritative) HTTP Status code in the Hypertext
+          Transfer Protocol (HTTP) Status Code Registry (<xref target="RFC7231" x:fmt=","
+          x:rel="#status.code.registry"/>).
+        </t>
+        <t>
+          <list style="hanging">
+            <t hangText="Status Code:">
+              421
+            </t>
+            <t hangText="Short Description:">
+              Not Authoritative
+            </t>
+            <t hangText="Specification:">
+              <xref target="NotAuthoritative"/> of this document
+            </t>
+          </list>
+        </t>
+      </section>
+
     </section>
 
     <section title="Acknowledgements">
@@ -4027,7 +4147,7 @@ HTTP2-Settings    = token68
           <author initials="R." surname="Peon" fullname="Roberto Peon"/>
           <date month="June" year="2014" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-header-compression-07" />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-header-compression-08" />
         <x:source href="refs/draft-ietf-httpbis-header-compression-08.xml"/>
       </reference>
 
