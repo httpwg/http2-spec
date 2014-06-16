@@ -3412,8 +3412,7 @@ HTTP2-Settings    = token68
           A client MAY open multiple connections to the same IP address and TCP port using different
           <xref target="TLS-EXT">Server Name Indication</xref> values or to provide different TLS
           client certificates, but SHOULD avoid creating multiple connections with the same
-          configuration.  <cref>Need more text on how client certificates relate here, see issue
-          #363.</cref>
+          configuration.
         </t>
         <t>
           Clients MAY use a single server connection to send requests for URIs with multiple
@@ -3436,42 +3435,68 @@ HTTP2-Settings    = token68
           TLS.  The general TLS usage guidance in <xref target="TLSBCP"/> SHOULD be followed, with
           some additional restrictions that are specific to HTTP/2.
         </t>
-        <t>
-          The TLS implementation MUST support the <xref target="TLS-EXT">Server Name Indication
-          (SNI)</xref> extension to TLS. HTTP/2 clients MUST indicate the target domain name when
-          negotiating TLS.
-        </t>
-        <t>
-          The TLS implementation MUST disable compression.  TLS compression can lead to the exposure
-          of information that would not otherwise be revealed <xref target="RFC3749"/>.  Generic
-          compression is unnecessary since HTTP/2 provides compression features that are more aware
-          of context and therefore likely to be more appropriate for use for performance, security
-          or other reasons.
-        </t>
-        <t>
-          The set of TLS cipher suites that are permitted in HTTP/2 is restricted.  HTTP/2 MUST only
-          be used with cipher suites that have ephemeral key exchange, such as the <xref
-          target="TLS12">ephemeral Diffie-Hellman (DHE)</xref> or the <xref
-          target="RFC4492">elliptic curve variant (ECDHE)</xref>.  Ephemeral key exchange MUST have
-          a minimum size of 2048 bits for DHE or security level of 128 bits for ECDHE.  Clients MUST
-          accept DHE sizes of up to 4096 bits.  HTTP MUST NOT be used with cipher suites that use
-          stream or block ciphers.  Authenticated Encryption with Additional Data (AEAD) modes, such
-          as the <xref target="RFC5288">Galois Counter Model (GCM) mode for AES</xref> are
-          acceptable.
-        </t>
-        <t>
-          Clients MAY advertise support of other cipher suites in order to allow for connection to
-          servers that do not support HTTP/2 to complete without the additional latency imposed by
-          using a separate connection for fallback.
-        </t>
-        <t>
-          An implementation SHOULD NOT negotiate a TLS connection for HTTP/2 without also
-          negotiating a cipher suite that meets these requirements.  Due to implementation
-          limitations, it might not be possible to fail TLS negotiation.  An endpoint MUST
-          immediately terminate an HTTP/2 connection that does not meet these minimum requirements
-          with a <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>INADEQUATE_SECURITY</x:ref>.
-        </t>
+
+        <section title="TLS Features">
+          <t>
+            The TLS implementation MUST support the <xref target="TLS-EXT">Server Name Indication
+            (SNI)</xref> extension to TLS. HTTP/2 clients MUST indicate the target domain name when
+            negotiating TLS.
+          </t>
+          <t>
+            The TLS implementation MUST disable compression.  TLS compression can lead to the
+            exposure of information that would not otherwise be revealed <xref target="RFC3749"/>.
+            Generic compression is unnecessary since HTTP/2 provides compression features that are
+            more aware of context and therefore likely to be more appropriate for use for
+            performance, security or other reasons.
+          </t>
+          <t>
+            The TLS implementation MUST disable renegotiation once the HTTP/2 connection preface has
+            been sent.  An endpoint MUST treat a TLS renegotiation as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.  Note that disabling renegotiation can result in
+            long-lived connections becoming unusable due to limits on the number of messages the
+            underlying cipher suite can encipher.
+          </t>
+          <t>
+            A client MAY use renegotiation to provide confidentiality protection for client
+            credentials offered in the handshake, but any renegotiation MUST occur prior to sending
+            the connection preface.  A server SHOULD request a client certificate if it sees a
+            renegotiation request immediately after establishing a connection.
+          </t>
+          <t>
+            This effectively prevents the use of renegotiation in response to a request for a
+            specific protected resource.  In the absence of an alternative mechanism, a server can
+            request that the client fall back to HTTP/1.1 for a given resource, as described in
+            <cref>TBD: refer to https://github.com/http2/http2-spec/issues/496</cref>.
+          </t>
+        </section>
+
+        <section title="TLS Cipher Suites">
+          <t>
+            The set of TLS cipher suites that are permitted in HTTP/2 is restricted.  HTTP/2 MUST
+            only be used with cipher suites that have ephemeral key exchange, such as the <xref
+            target="TLS12">ephemeral Diffie-Hellman (DHE)</xref> or the <xref
+            target="RFC4492">elliptic curve variant (ECDHE)</xref>.  Ephemeral key exchange MUST
+            have a minimum size of 2048 bits for DHE or security level of 128 bits for ECDHE.
+            Clients MUST accept DHE sizes of up to 4096 bits.  HTTP MUST NOT be used with cipher
+            suites that use stream or block ciphers.  Authenticated Encryption with Additional Data
+            (AEAD) modes, such as the <xref target="RFC5288">Galois Counter Model (GCM) mode for
+            AES</xref> are acceptable.
+          </t>
+          <t>
+            Clients MAY advertise support of other cipher suites in order to allow for connection to
+            servers that do not support HTTP/2 to complete without the additional latency imposed by
+            using a separate connection for fallback.
+          </t>
+          <t>
+            An implementation SHOULD NOT negotiate a TLS connection for HTTP/2 without also
+            negotiating a cipher suite that meets these requirements.  Due to implementation
+            limitations, it might not be possible to fail TLS negotiation.  An endpoint MUST
+            immediately terminate an HTTP/2 connection that does not meet these minimum requirements
+            with a <xref target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>INADEQUATE_SECURITY</x:ref>.
+          </t>
+        </section>
       </section>
     </section>
 
