@@ -758,12 +758,12 @@ else
                     String literals which use Huffman encoding are encoded with
                     the Huffman codes defined in <xref target="huffman.codes"/>
                     (see examples in <xref
-                    target="request.examples.with.huffman">Request Examples with
-                    Huffman</xref> and in <xref
-                    target="response.examples.with.huffman">Response Examples
-                    with Huffman</xref>). The encoded data is the bitwise
-                    concatenation of the Huffman codes corresponding to each
-                    octet of the string literal.
+                        target="request.examples.with.huffman.coding">Request
+                        Examples with Huffman</xref> and in <xref
+                        target="response.examples.with.huffman.coding">Response
+                        Examples with Huffman</xref>). The encoded data is the
+                    bitwise concatenation of the Huffman codes corresponding
+                    to each octet of the string literal.
                 </t>
                 <t>
                     As the Huffman encoded data doesn't always end at an octet
@@ -2215,7 +2215,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
     <section title="Literal Header Field with Indexing">
         <t>
             The header field representation uses a literal name and a literal
-            value.
+            value. The header field is added to the header table.
         </t>
         <t>
             <figure>
@@ -2268,7 +2268,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
     <section title="Literal Header Field without Indexing">
         <t>
             The header field representation uses an indexed name and a literal
-            value.
+            value. The header field is not added to the header table.
         </t>
         <t>
             <figure>
@@ -2307,6 +2307,54 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
                 <preamble>Decoded header set:</preamble>
                 <artwork>
 <![CDATA[:path: /sample/path]]></artwork>
+            </figure>
+        </t>
+    </section>
+
+    <section title="Literal Header Field never Indexed">
+        <t>
+            The header field representation uses a literal name and a literal
+            value. The header field is not added to the header table, and must
+            use the same representation if re-encoded by an intermediary.
+        </t>
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[password: secret]]></artwork>
+            </figure>
+        </t>
+        <t>
+            Reference set: empty.
+        </t>
+        <t>
+            <figure>
+                <preamble>Hex dump of encoded data:</preamble>
+                <artwork>
+<![CDATA[1008 7061 7373 776f 7264 0673 6563 7265 | ..password.secre
+74                                      | t]]></artwork>
+            </figure>
+        </t>
+        <t>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[10                                      | == Literal never indexed ==
+08                                      |   Literal name (len = 8)
+7061 7373 776f 7264                     | password
+06                                      |   Literal value (len = 6)
+7365 6372 6574                          | secret
+                                        | -> password: secret]]></artwork>
+            </figure>
+        </t>
+        <t>
+          Header table (after decoding): empty.
+      </t>
+        <t>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[password: secret]]></artwork>
             </figure>
         </t>
     </section>
@@ -2406,8 +2454,8 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
     </section>
 
 </section>
-<section title="Request Examples without Huffman"
-    anchor="request.examples.without.huffman">
+<section title="Request Examples without Huffman Coding"
+    anchor="request.examples.without.huffman.coding">
     <t>
         This section shows several consecutive header sets, corresponding to
         HTTP requests, on the same connection.
@@ -2644,7 +2692,7 @@ custom-key: custom-value]]></artwork>
 
 </section>
 <section title="Request Examples with Huffman Coding"
-    anchor="request.examples.with.huffman">
+    anchor="request.examples.with.huffman.coding">
     <t>
         This section shows the same examples as the previous section, but using
         Huffman encoding for the literal values.
@@ -2667,7 +2715,7 @@ custom-key: custom-value]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8287 8644 8ce7 cf9b ebe8 9b6f b16f a9b6 | ...D.......o.o..
+<![CDATA[8287 8644 8cf1 e3c2 e5f2 3a6b a0ab 90f4 | ...D......:k....
 ff                                      | .]]></artwork>
             </figure>
         </t>
@@ -2689,7 +2737,7 @@ ff                                      | .]]></artwork>
                                         |     :authority
 8c                                      |   Literal value (len = 15)
                                         |     Huffman encoded:
-e7cf 9beb e89b 6fb1 6fa9 b6ff           | ......o.o...
+f1e3 c2e5 f23a 6ba0 ab90 f4ff           | .....:k.....
                                         |     Decoded:
                                         | www.example.com
                                         | -> :authority: www.example\
@@ -2749,7 +2797,7 @@ cache-control: no-cache]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[5c86 b9b9 9495 56bf                     | \.....V.]]></artwork>
+<![CDATA[5c86 a8eb 1064 9cbf                     | \....d..]]></artwork>
             </figure>
         </t>
         <t>
@@ -2761,7 +2809,7 @@ cache-control: no-cache]]></artwork>
                                         |     cache-control
 86                                      |   Literal value (len = 8)
                                         |     Huffman encoded:
-b9b9 9495 56bf                          | ....V.
+a8eb 1064 9cbf                          | ...d..
                                         |     Decoded:
                                         | no-cache
                                         | -> cache-control: no-cache]]></artwork>
@@ -2824,8 +2872,8 @@ custom-key: custom-value]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[3085 8c8b 8440 8857 1c5c db73 7b2f af89 | 0....@.W.\.s{/..
-571c 5cdb 7372 4d9c 57                  | W.\.srM.W]]></artwork>
+<![CDATA[3085 8c8b 8440 8825 a849 e95b a97d 7f89 | 0....@.%.I.[.}..
+25a8 49e9 5bb8 e8b4 bf                  | %.I.[....]]></artwork>
             </figure>
         </t>
         <t>
@@ -2851,12 +2899,12 @@ custom-key: custom-value]]></artwork>
 40                                      | == Literal indexed ==
 88                                      |   Literal name (len = 10)
                                         |     Huffman encoded:
-571c 5cdb 737b 2faf                     | W.\.s{/.
+25a8 49e9 5ba9 7d7f                     | %.I.[.}.
                                         |     Decoded:
                                         | custom-key
 89                                      |   Literal value (len = 12)
                                         |     Huffman encoded:
-571c 5cdb 7372 4d9c 57                  | W.\.srM.W
+25a8 49e9 5bb8 e8b4 bf                  | %.I.[....
                                         |     Decoded:
                                         | custom-value
                                         | -> custom-key: custom-valu\
@@ -2892,8 +2940,8 @@ custom-key: custom-value]]></artwork>
     </section>
 
 </section>
-<section title="Response Examples without Huffman"
-    anchor="response.examples.without.huffman">
+<section title="Response Examples without Huffman Coding"
+    anchor="response.examples.without.huffman.coding">
     <t>
         This section shows several consecutive header sets, corresponding to
         HTTP responses, on the same connection. The HTTP/2 setting
@@ -2986,7 +3034,7 @@ location: https://www.example.com]]></artwork>
         <t>
             The (":status", "302") header field is evicted from the header table
             to free space to allow adding the (":status", "200") header field,
-            copied from the static table into the header table.  The (":status",
+            copied from the static table into the header table. The (":status",
             "302") header field doesn't need to be removed from the reference
             set as it is evicted from the header table.
         </t>
@@ -3055,7 +3103,7 @@ cache-control: private]]></artwork>
             Several header fields are evicted from the header table during the
             processing of this header set. Before evicting a header belonging to
             the reference set, it is emitted, by coding it twice as an Indexed
-            Representation.  The first representation removes the header field
+            Representation. The first representation removes the header field
             from the reference set, the second one adds it again to the
             reference set, also emitting it.
         </t>
@@ -3085,7 +3133,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8484 431d 4d6f 6e2c 2032 3120 4f63 7420 | ..C.Mon, 21 Oct
+<![CDATA[8484 431d 4d6f 6e2c 2032 3120 4f63 7420 | ..C.Mon, 21 Oct 
 3230 3133 2032 303a 3133 3a32 3220 474d | 2013 20:13:22 GM
 545e 0467 7a69 7084 8483 837b 3866 6f6f | T^.gzip....{8foo
 3d41 5344 4a4b 4851 4b42 5a58 4f51 5745 | =ASDJKHQKBZXOQWE
@@ -3179,7 +3227,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
 
 </section>
 <section title="Response Examples with Huffman Coding"
-    anchor="response.examples.with.huffman">
+    anchor="response.examples.with.huffman.coding">
     <t>
         This section shows the same examples as the previous section, but using
         Huffman encoding for the literal values. The HTTP/2 setting
@@ -3206,10 +3254,10 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[4882 4017 5985 bf06 724b 9763 93d6 dbb2 | H.@.Y...rK.c....
-9884 de2a 7188 0506 2098 5131 09b5 6ba3 | ...*q... .Q1..k.
-7191 adce bf19 8e7e 7cf9 bebe 89b6 fb16 | q.......|.......
-fa9b 6f                                 | ..o]]></artwork>
+<![CDATA[4882 6402 5985 aec3 771a 4b63 96d0 7abe | H.d.Y...w.Kc..z.
+9410 54d4 44a8 2005 9504 0b81 66e0 82a6 | ..T.D. .....f...
+2d1b ff71 919d 29ad 1718 63c7 8f0b 97c8 | -..q..)...c.....
+e9ae 82ae 43d3                          | ....C.]]></artwork>
             </figure>
         </t>
         <t>
@@ -3221,7 +3269,7 @@ fa9b 6f                                 | ..o]]></artwork>
                                         |     :status
 82                                      |   Literal value (len = 3)
                                         |     Huffman encoded:
-4017                                    | @.
+6402                                    | d.
                                         |     Decoded:
                                         | 302
                                         | -> :status: 302
@@ -3230,17 +3278,17 @@ fa9b 6f                                 | ..o]]></artwork>
                                         |     cache-control
 85                                      |   Literal value (len = 7)
                                         |     Huffman encoded:
-bf06 724b 97                            | ..rK.
+aec3 771a 4b                            | ..w.K
                                         |     Decoded:
                                         | private
                                         | -> cache-control: private
 63                                      | == Literal indexed ==
                                         |   Indexed name (idx = 35)
                                         |     date
-93                                      |   Literal value (len = 29)
+96                                      |   Literal value (len = 29)
                                         |     Huffman encoded:
-d6db b298 84de 2a71 8805 0620 9851 3109 | ......*q... .Q1.
-b56b a3                                 | .k.
+d07a be94 1054 d444 a820 0595 040b 8166 | .z...T.D. .....f
+e082 a62d 1bff                          | ...-..
                                         |     Decoded:
                                         | Mon, 21 Oct 2013 20:13:21 \
                                         | GMT
@@ -3251,8 +3299,8 @@ b56b a3                                 | .k.
                                         |     location
 91                                      |   Literal value (len = 23)
                                         |     Huffman encoded:
-adce bf19 8e7e 7cf9 bebe 89b6 fb16 fa9b | ......|.........
-6f                                      | o
+9d29 ad17 1863 c78f 0b97 c8e9 ae82 ae43 | .)...c.........C
+d3                                      | .
                                         |     Decoded:
                                         | https://www.example.com
                                         | -> location: https://www.e\
@@ -3286,7 +3334,7 @@ location: https://www.example.com]]></artwork>
         <t>
             The (":status", "302") header field is evicted from the header table
             to free space to allow adding the (":status", "200") header field,
-            copied from the static table into the header table.  The (":status",
+            copied from the static table into the header table. The (":status",
             "302") header field doesn't need to be removed from the reference
             set as it is evicted from the header table.
         </t>
@@ -3355,7 +3403,7 @@ cache-control: private]]></artwork>
             Several header fields are evicted from the header table during the
             processing of this header set. Before evicting a header belonging to
             the reference set, it is emitted, by coding it twice as an Indexed
-            Representation.  The first representation removes the header field
+            Representation. The first representation removes the header field
             from the reference set, the second one adds it again to the
             reference set, also emitting it.
         </t>
@@ -3385,12 +3433,12 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8484 4393 d6db b298 84de 2a71 8805 0620 | ..C.......*q...
-9851 3111 b56b a35e 84ab dd97 ff84 8483 | .Q1..k.^........
-837b b1e0 d6cf 9f6e 8f9f d3e5 f6fa 76fe | .{.....n......v.
-fd3c 7edf 9eff 1f2f 0f3c fe9f 6fcf 7f8f | ......./....o...
-879f 61ad 4f4c c9a9 73a2 200e c372 5e18 | ..a.OL..s. ..r^.
-b1b7 4e3f                               | ..N?]]></artwork>
+<![CDATA[8484 4396 d07a be94 1054 d444 a820 0595 | ..C..z...T.D. ..
+040b 8166 e084 a62d 1bff 5e83 9bd9 ab84 | ...f...-..^.....
+8483 837b ad94 e782 1dd7 f2e6 c7b3 35df | ...{..........5.
+dfcd 5b39 60d5 af27 087f 3672 c1ab 270f | ..[9`..'..6r..'.
+b529 1f95 8731 6065 c003 ed4e e5b1 063d | .)...1`e...N...=
+5007                                    | P.]]></artwork>
             </figure>
         </t>
         <t>
@@ -3406,10 +3454,10 @@ b1b7 4e3f                               | ..N?]]></artwork>
 43                                      | == Literal indexed ==
                                         |   Indexed name (idx = 3)
                                         |     date
-93                                      |   Literal value (len = 29)
+96                                      |   Literal value (len = 29)
                                         |     Huffman encoded:
-d6db b298 84de 2a71 8805 0620 9851 3111 | ......*q... .Q1.
-b56b a3                                 | .k.
+d07a be94 1054 d444 a820 0595 040b 8166 | .z...T.D. .....f
+e084 a62d 1bff                          | ...-..
                                         |     Decoded:
                                         | Mon, 21 Oct 2013 20:13:22 \
                                         | GMT
@@ -3420,9 +3468,9 @@ b56b a3                                 | .k.
 5e                                      | == Literal indexed ==
                                         |   Indexed name (idx = 30)
                                         |     content-encoding
-84                                      |   Literal value (len = 4)
+83                                      |   Literal value (len = 4)
                                         |     Huffman encoded:
-abdd 97ff                               | ....
+9bd9 ab                                 | ...
                                         |     Decoded:
                                         | gzip
                                         | - evict: date: Mon, 21 Oct\
@@ -3445,12 +3493,11 @@ abdd 97ff                               | ....
 7b                                      | == Literal indexed ==
                                         |   Indexed name (idx = 59)
                                         |     set-cookie
-b1                                      |   Literal value (len = 56)
+ad                                      |   Literal value (len = 56)
                                         |     Huffman encoded:
-e0d6 cf9f 6e8f 9fd3 e5f6 fa76 fefd 3c7e | ....n......v....
-df9e ff1f 2f0f 3cfe 9f6f cf7f 8f87 9f61 | ..../....o.....a
-ad4f 4cc9 a973 a220 0ec3 725e 18b1 b74e | .OL..s. ..r^...N
-3f                                      | ?
+94e7 821d d7f2 e6c7 b335 dfdf cd5b 3960 | .........5...[9`
+d5af 2708 7f36 72c1 ab27 0fb5 291f 9587 | ..'..6r..'..)...
+3160 65c0 03ed 4ee5 b106 3d50 07        | 1`e...N...=P.
                                         |     Decoded:
                                         | foo=ASDJKHQKBZXOQWEOPIUAXQ\
                                         | WEOIU; max-age=3600; versi\
