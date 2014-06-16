@@ -719,8 +719,8 @@ else
                     Header field names and header field values can be
                     represented as literal string. A literal string is encoded
                     as a sequence of octets, either by directly encoding the
-                    literal string's octets, or by using a canonical <xref
-                    target="CANONICAL"/> Huffman encoding <xref target="HUFFMAN"/>.
+                    literal string's octets, or by using a Huffman code
+                    <xref target="HUFFMAN"/>.
                 </t>
                 <figure title="String Literal Representation">
                     <artwork type="inline"><![CDATA[
@@ -756,30 +756,32 @@ else
                 </t>
                 <t>
                     String literals which use Huffman encoding are encoded with
-                    the Huffman codes defined in <xref target="huffman.codes"/>
+                    the Huffman code defined in <xref target="huffman.code"/>
                     (see examples in <xref
                         target="request.examples.with.huffman.coding">Request
-                        Examples with Huffman</xref> and in <xref
+                        Examples with Huffman Coding</xref> and in <xref
                         target="response.examples.with.huffman.coding">Response
-                        Examples with Huffman</xref>). The encoded data is the
-                    bitwise concatenation of the Huffman codes corresponding
-                    to each octet of the string literal.
+                        Examples with Huffman Coding</xref>). The encoded data
+                    is the bitwise concatenation of the codes corresponding to
+                    each octet of the string literal.
                 </t>
                 <t>
                     As the Huffman encoded data doesn't always end at an octet
                     boundary, some padding is inserted after it up to the next
                     octet boundary. To prevent this padding to be misinterpreted
                     as part of the string literal, the most significant bits of
-                    the EOS (end-of-string) entry in the Huffman table are used.
+                    code corresponding to the EOS (end-of-string) symbol are
+                    used.
                 </t>
                 <t>
-                    Upon decoding, an incomplete Huffman code at the end of the
+                    Upon decoding, an incomplete code at the end of the
                     encoded data is to be considered as padding and discarded. A
                     padding strictly longer than 7 bits MUST be treated as a
                     decoding error. A padding not corresponding to the most
-                    significant bits of the EOS entry MUST be treated as a
-                    decoding error. A Huffman encoded string literal containing
-                    the EOS entry MUST be treated as a decoding error.
+                    significant bits of the code for the EOS symbol MUST be
+                    treated as a decoding error. A Huffman encoded string
+                    literal containing the EOS symbol MUST be treated as a
+                    decoding error.
                 </t>
             </section>
         </section>
@@ -1789,14 +1791,21 @@ else
             </t>
         </section>
 
-        <section title="Huffman Codes" anchor="huffman.codes">
+        <section title="Huffman Code" anchor="huffman.code">
             <t>
-                The following codes are used when encoding string literals with
-                an Huffman coding (see <xref
-                target="string.literal.representation"/>).
+                The following Huffman code is used when encoding string literals
+                with a Huffman coding (see <xref
+                    target="string.literal.representation"/>).
             </t>
             <t>
-                Each row in the table specifies one Huffman code:
+                This Huffman code was generated from statistics obtained on a
+                large sample of HTTP headers. It is a canonical Huffman code
+                <xref target="CANONICAL"/> with some tweaking to ensure that no
+                symbol has a unique code length.
+            </t>
+            <t>
+                Each row in the table defines the code used to represent a
+                symbol:
                 <list style="hanging">
                     <t hangText="sym:">
                         The symbol to be represented. It is the decimal value of
@@ -1806,23 +1815,23 @@ else
                     </t>
                     <t hangText="code as bits:">
                         The Huffman code for the symbol represented as a base-2
-                        integer.
+                        integer, aligned on the most significant bit (MSB).
                     </t>
                     <t hangText="code as hex:">
                         The Huffman code for the symbol, represented as a
                         hexadecimal integer, aligned on the least significant
-                        bit.
+                        bit (LSB).
                     </t>
                     <t hangText="len:">
-                        The number of bits for the Huffman code of the symbol.
+                        The number of bits for the code representing the symbol.
                     </t>
                 </list>
             </t>
             <t>
-                As an example, the Huffman code for the symbol 47 (corresponding
-                to the ASCII character "/") consists in the 6 bits "0", "1",
-                "1", "0", "0", "0". This corresponds to the value 18 encoded on
-                6 bits.
+                As an example, the code for the symbol 47 (corresponding to the
+                ASCII character "/") consists in the 6 bits "0", "1", "1", "0",
+                "0", "0". This corresponds to the value 0x18 (in hexadecimal)
+                encoded on 6 bits.
             </t>
             <figure>
                 <artwork><![CDATA[
