@@ -83,8 +83,9 @@
                 encoded without any form of compression.  As web pages have
                 grown to include dozens to hundreds of requests, the redundant
                 header fields in these requests now measurably increase latency
-                and unnecessarily consume bandwidth (see <xref target="PERF1"/>
-                and <xref target="PERF2"/>).
+                and unnecessarily consume bandwidth (see <xref
+                    target="SPDY-DESC-1"/>
+                and <xref target="SPDY-DESC-2"/>).
             </t>
 
             <t>
@@ -227,7 +228,7 @@
             </section>
         </section>
 
-        <section title="Decoding Overview" anchor="header.encoding">
+        <section title="Decoding Process Overview" anchor="header.encoding">
             <t>
                 This specification does not describe a specific algorithm for an
                 encoder.  Instead, it defines precisely how a decoder is expected
@@ -235,7 +236,8 @@
                 definition permits.
             </t>
 
-            <section title="Encoding Context" anchor="encoding.context">
+            <section title="Encoding and Decoding Contexts"
+                anchor="encoding.context">
                 <t>
                     HPACK requires that a decoder maintains both a header table
                     and a reference set.  No other state information is needed
@@ -631,7 +633,7 @@
             </section>
         </section>
 
-        <section title="Low-level Representations"
+        <section title="Primitive Type Representations"
                  anchor="low-level.representation">
             <t>
                 HPACK encoding uses two primitive types: unsigned variable
@@ -719,8 +721,8 @@ else
                     Header field names and header field values can be
                     represented as literal string. A literal string is encoded
                     as a sequence of octets, either by directly encoding the
-                    literal string's octets, or by using a canonical <xref
-                    target="CANONICAL"/> Huffman encoding <xref target="HUFFMAN"/>.
+                    literal string's octets, or by using a Huffman code
+                    <xref target="HUFFMAN"/>.
                 </t>
                 <figure title="String Literal Representation">
                     <artwork type="inline"><![CDATA[
@@ -756,35 +758,37 @@ else
                 </t>
                 <t>
                     String literals which use Huffman encoding are encoded with
-                    the Huffman codes defined in <xref target="huffman.codes"/>
+                    the Huffman code defined in <xref target="huffman.code"/>
                     (see examples in <xref
-                    target="request.examples.with.huffman">Request Examples with
-                    Huffman</xref> and in <xref
-                    target="response.examples.with.huffman">Response Examples
-                    with Huffman</xref>). The encoded data is the bitwise
-                    concatenation of the Huffman codes corresponding to each
-                    octet of the string literal.
+                        target="request.examples.with.huffman.coding">Request
+                        Examples with Huffman Coding</xref> and in <xref
+                        target="response.examples.with.huffman.coding">Response
+                        Examples with Huffman Coding</xref>). The encoded data
+                    is the bitwise concatenation of the codes corresponding to
+                    each octet of the string literal.
                 </t>
                 <t>
                     As the Huffman encoded data doesn't always end at an octet
                     boundary, some padding is inserted after it up to the next
                     octet boundary. To prevent this padding to be misinterpreted
                     as part of the string literal, the most significant bits of
-                    the EOS (end-of-string) entry in the Huffman table are used.
+                    code corresponding to the EOS (end-of-string) symbol are
+                    used.
                 </t>
                 <t>
-                    Upon decoding, an incomplete Huffman code at the end of the
+                    Upon decoding, an incomplete code at the end of the
                     encoded data is to be considered as padding and discarded. A
                     padding strictly longer than 7 bits MUST be treated as a
                     decoding error. A padding not corresponding to the most
-                    significant bits of the EOS entry MUST be treated as a
-                    decoding error. A Huffman encoded string literal containing
-                    the EOS entry MUST be treated as a decoding error.
+                    significant bits of the code for the EOS symbol MUST be
+                    treated as a decoding error. A Huffman encoded string
+                    literal containing the EOS symbol MUST be treated as a
+                    decoding error.
                 </t>
             </section>
         </section>
 
-        <section title="Processing Instructions" anchor="detailed.format">
+        <section title="Binary Format" anchor="detailed.format">
             <t>
                 This section describes the detailed format of each of the
                 different header field representations, plus the encoding
@@ -1341,9 +1345,17 @@ else
 
         <section title="Acknowledgements">
             <t>
-                This document includes substantial editorial contributions from
-                the following individuals: Mike Bishop, Jeff Pinner, Julian
-                Reschke, Martin Thomson.
+                This document includes substantial input from the following
+                individuals:
+                <list style="symbols">
+                    <t>
+                        Mike Bishop, Jeff Pinner, Julian Reschke, Martin Thomson
+                        (substantial editorial contributions).
+                    </t>
+                    <t>
+                        Johnny Graettinger (Huffman code statistics).
+                    </t>
+                </list>
             </t>
         </section>
     </middle>
@@ -1446,7 +1458,7 @@ else
                     <date month="September" year="2012"/>
                 </front>
             </reference>
-            <reference anchor="PERF1" target="https://www.ietf.org/proceedings/83/slides/slides-83-httpbis-3">
+            <reference anchor="SPDY-DESC-1" target="https://www.ietf.org/proceedings/83/slides/slides-83-httpbis-3">
                 <front>
                     <title>
                         IETF83: SPDY and What to Consider for HTTP/2.0
@@ -1456,7 +1468,7 @@ else
                     <date month="March" year="2012"/>
                 </front>
             </reference>
-            <reference anchor="PERF2" target="https://bitsup.blogspot.com/2011/09/spdy-what-i-like-about-you.html">
+            <reference anchor="SPDY-DESC-2" target="https://bitsup.blogspot.com/2011/09/spdy-what-i-like-about-you.html">
                 <front>
                     <title>SPDY: What I Like About You</title>
                     <author initials="P." surname="McManus" fullname="Patrick McManus">
@@ -1514,6 +1526,10 @@ else
                     <t>
                         Updated static table. Entry 16 has now "gzip, deflate"
                         for value.
+                    </t>
+                    <t>
+                        Updated Huffman table, using data set provided by
+                        Google.
                     </t>
                 </list></t>
             </section>
@@ -1785,14 +1801,21 @@ else
             </t>
         </section>
 
-        <section title="Huffman Codes" anchor="huffman.codes">
+        <section title="Huffman Code" anchor="huffman.code">
             <t>
-                The following codes are used when encoding string literals with
-                an Huffman coding (see <xref
-                target="string.literal.representation"/>).
+                The following Huffman code is used when encoding string literals
+                with a Huffman coding (see <xref
+                    target="string.literal.representation"/>).
             </t>
             <t>
-                Each row in the table specifies one Huffman code:
+                This Huffman code was generated from statistics obtained on a
+                large sample of HTTP headers. It is a canonical Huffman code
+                <xref target="CANONICAL"/> with some tweaking to ensure that no
+                symbol has a unique code length.
+            </t>
+            <t>
+                Each row in the table defines the code used to represent a
+                symbol:
                 <list style="hanging">
                     <t hangText="sym:">
                         The symbol to be represented. It is the decimal value of
@@ -1802,287 +1825,287 @@ else
                     </t>
                     <t hangText="code as bits:">
                         The Huffman code for the symbol represented as a base-2
-                        integer.
+                        integer, aligned on the most significant bit (MSB).
                     </t>
                     <t hangText="code as hex:">
                         The Huffman code for the symbol, represented as a
                         hexadecimal integer, aligned on the least significant
-                        bit.
+                        bit (LSB).
                     </t>
                     <t hangText="len:">
-                        The number of bits for the Huffman code of the symbol.
+                        The number of bits for the code representing the symbol.
                     </t>
                 </list>
             </t>
             <t>
-                As an example, the Huffman code for the symbol 47
-                (corresponding to the ASCII character "/") consists in the 5
-                bits "0", "0", "1", "1", "1". This corresponds to the value 7
-                encoded on 5 bits.
+                As an example, the code for the symbol 47 (corresponding to the
+                ASCII character "/") consists in the 6 bits "0", "1", "1", "0",
+                "0", "0". This corresponds to the value 0x18 (in hexadecimal)
+                encoded on 6 bits.
             </t>
             <figure>
                 <artwork><![CDATA[
-                                            code
-                    code as bits           as hex   len
-     sym           aligned to MSB          aligned   in
-                                           to LSB   bits
-    (  0)  |11111111|11111111|11101110|10  3ffffba  [26]
-    (  1)  |11111111|11111111|11101110|11  3ffffbb  [26]
-    (  2)  |11111111|11111111|11101111|00  3ffffbc  [26]
-    (  3)  |11111111|11111111|11101111|01  3ffffbd  [26]
-    (  4)  |11111111|11111111|11101111|10  3ffffbe  [26]
-    (  5)  |11111111|11111111|11101111|11  3ffffbf  [26]
-    (  6)  |11111111|11111111|11110000|00  3ffffc0  [26]
-    (  7)  |11111111|11111111|11110000|01  3ffffc1  [26]
-    (  8)  |11111111|11111111|11110000|10  3ffffc2  [26]
-    (  9)  |11111111|11111111|11110000|11  3ffffc3  [26]
-    ( 10)  |11111111|11111111|11110001|00  3ffffc4  [26]
-    ( 11)  |11111111|11111111|11110001|01  3ffffc5  [26]
-    ( 12)  |11111111|11111111|11110001|10  3ffffc6  [26]
-    ( 13)  |11111111|11111111|11110001|11  3ffffc7  [26]
-    ( 14)  |11111111|11111111|11110010|00  3ffffc8  [26]
-    ( 15)  |11111111|11111111|11110010|01  3ffffc9  [26]
-    ( 16)  |11111111|11111111|11110010|10  3ffffca  [26]
-    ( 17)  |11111111|11111111|11110010|11  3ffffcb  [26]
-    ( 18)  |11111111|11111111|11110011|00  3ffffcc  [26]
-    ( 19)  |11111111|11111111|11110011|01  3ffffcd  [26]
-    ( 20)  |11111111|11111111|11110011|10  3ffffce  [26]
-    ( 21)  |11111111|11111111|11110011|11  3ffffcf  [26]
-    ( 22)  |11111111|11111111|11110100|00  3ffffd0  [26]
-    ( 23)  |11111111|11111111|11110100|01  3ffffd1  [26]
-    ( 24)  |11111111|11111111|11110100|10  3ffffd2  [26]
-    ( 25)  |11111111|11111111|11110100|11  3ffffd3  [26]
-    ( 26)  |11111111|11111111|11110101|00  3ffffd4  [26]
-    ( 27)  |11111111|11111111|11110101|01  3ffffd5  [26]
-    ( 28)  |11111111|11111111|11110101|10  3ffffd6  [26]
-    ( 29)  |11111111|11111111|11110101|11  3ffffd7  [26]
-    ( 30)  |11111111|11111111|11110110|00  3ffffd8  [26]
-    ( 31)  |11111111|11111111|11110110|01  3ffffd9  [26]
-' ' ( 32)  |00110                                6  [ 5]
-'!' ( 33)  |11111111|11100                    1ffc  [13]
-'"' ( 34)  |11111000|0                         1f0  [ 9]
-'#' ( 35)  |11111111|111100                   3ffc  [14]
-'$' ( 36)  |11111111|1111100                  7ffc  [15]
-'%' ( 37)  |011110                              1e  [ 6]
-'&' ( 38)  |1100100                             64  [ 7]
-''' ( 39)  |11111111|11101                    1ffd  [13]
-'(' ( 40)  |11111110|10                        3fa  [10]
-')' ( 41)  |11111000|1                         1f1  [ 9]
-'*' ( 42)  |11111110|11                        3fb  [10]
-'+' ( 43)  |11111111|00                        3fc  [10]
-',' ( 44)  |1100101                             65  [ 7]
-'-' ( 45)  |1100110                             66  [ 7]
-'.' ( 46)  |011111                              1f  [ 6]
-'/' ( 47)  |00111                                7  [ 5]
-'0' ( 48)  |0000                                 0  [ 4]
-'1' ( 49)  |0001                                 1  [ 4]
-'2' ( 50)  |0010                                 2  [ 4]
-'3' ( 51)  |01000                                8  [ 5]
-'4' ( 52)  |100000                              20  [ 6]
-'5' ( 53)  |100001                              21  [ 6]
-'6' ( 54)  |100010                              22  [ 6]
-'7' ( 55)  |100011                              23  [ 6]
-'8' ( 56)  |100100                              24  [ 6]
-'9' ( 57)  |100101                              25  [ 6]
-':' ( 58)  |100110                              26  [ 6]
-';' ( 59)  |11101100|                           ec  [ 8]
-'<' ( 60)  |11111111|11111110|0              1fffc  [17]
-'=' ( 61)  |100111                              27  [ 6]
-'>' ( 62)  |11111111|1111101                  7ffd  [15]
-'?' ( 63)  |11111111|01                        3fd  [10]
-'@' ( 64)  |11111111|1111110                  7ffe  [15]
-'A' ( 65)  |1100111                             67  [ 7]
-'B' ( 66)  |11101101|                           ed  [ 8]
-'C' ( 67)  |11101110|                           ee  [ 8]
-'D' ( 68)  |1101000                             68  [ 7]
-'E' ( 69)  |11101111|                           ef  [ 8]
-'F' ( 70)  |1101001                             69  [ 7]
-'G' ( 71)  |1101010                             6a  [ 7]
-'H' ( 72)  |11111001|0                         1f2  [ 9]
-'I' ( 73)  |11110000|                           f0  [ 8]
-'J' ( 74)  |11111001|1                         1f3  [ 9]
-'K' ( 75)  |11111010|0                         1f4  [ 9]
-'L' ( 76)  |11111010|1                         1f5  [ 9]
-'M' ( 77)  |1101011                             6b  [ 7]
-'N' ( 78)  |1101100                             6c  [ 7]
-'O' ( 79)  |11110001|                           f1  [ 8]
-'P' ( 80)  |11110010|                           f2  [ 8]
-'Q' ( 81)  |11111011|0                         1f6  [ 9]
-'R' ( 82)  |11111011|1                         1f7  [ 9]
-'S' ( 83)  |1101101                             6d  [ 7]
-'T' ( 84)  |101000                              28  [ 6]
-'U' ( 85)  |11110011|                           f3  [ 8]
-'V' ( 86)  |11111100|0                         1f8  [ 9]
-'W' ( 87)  |11111100|1                         1f9  [ 9]
-'X' ( 88)  |11110100|                           f4  [ 8]
-'Y' ( 89)  |11111101|0                         1fa  [ 9]
-'Z' ( 90)  |11111101|1                         1fb  [ 9]
-'[' ( 91)  |11111111|100                       7fc  [11]
-'\' ( 92)  |11111111|11111111|11110110|10  3ffffda  [26]
-']' ( 93)  |11111111|101                       7fd  [11]
-'^' ( 94)  |11111111|111101                   3ffd  [14]
-'_' ( 95)  |1101110                             6e  [ 7]
-'`' ( 96)  |11111111|11111111|10             3fffe  [18]
-'a' ( 97)  |01001                                9  [ 5]
-'b' ( 98)  |1101111                             6f  [ 7]
-'c' ( 99)  |01010                                a  [ 5]
-'d' (100)  |101001                              29  [ 6]
-'e' (101)  |01011                                b  [ 5]
-'f' (102)  |1110000                             70  [ 7]
-'g' (103)  |101010                              2a  [ 6]
-'h' (104)  |101011                              2b  [ 6]
-'i' (105)  |01100                                c  [ 5]
-'j' (106)  |11110101|                           f5  [ 8]
-'k' (107)  |11110110|                           f6  [ 8]
-'l' (108)  |101100                              2c  [ 6]
-'m' (109)  |101101                              2d  [ 6]
-'n' (110)  |101110                              2e  [ 6]
-'o' (111)  |01101                                d  [ 5]
-'p' (112)  |101111                              2f  [ 6]
-'q' (113)  |11111110|0                         1fc  [ 9]
-'r' (114)  |110000                              30  [ 6]
-'s' (115)  |110001                              31  [ 6]
-'t' (116)  |01110                                e  [ 5]
-'u' (117)  |1110001                             71  [ 7]
-'v' (118)  |1110010                             72  [ 7]
-'w' (119)  |1110011                             73  [ 7]
-'x' (120)  |1110100                             74  [ 7]
-'y' (121)  |1110101                             75  [ 7]
-'z' (122)  |11110111|                           f7  [ 8]
-'{' (123)  |11111111|11111110|1              1fffd  [17]
-'|' (124)  |11111111|1100                      ffc  [12]
-'}' (125)  |11111111|11111111|0              1fffe  [17]
-'~' (126)  |11111111|1101                      ffd  [12]
-    (127)  |11111111|11111111|11110110|11  3ffffdb  [26]
-    (128)  |11111111|11111111|11110111|00  3ffffdc  [26]
-    (129)  |11111111|11111111|11110111|01  3ffffdd  [26]
-    (130)  |11111111|11111111|11110111|10  3ffffde  [26]
-    (131)  |11111111|11111111|11110111|11  3ffffdf  [26]
-    (132)  |11111111|11111111|11111000|00  3ffffe0  [26]
-    (133)  |11111111|11111111|11111000|01  3ffffe1  [26]
-    (134)  |11111111|11111111|11111000|10  3ffffe2  [26]
-    (135)  |11111111|11111111|11111000|11  3ffffe3  [26]
-    (136)  |11111111|11111111|11111001|00  3ffffe4  [26]
-    (137)  |11111111|11111111|11111001|01  3ffffe5  [26]
-    (138)  |11111111|11111111|11111001|10  3ffffe6  [26]
-    (139)  |11111111|11111111|11111001|11  3ffffe7  [26]
-    (140)  |11111111|11111111|11111010|00  3ffffe8  [26]
-    (141)  |11111111|11111111|11111010|01  3ffffe9  [26]
-    (142)  |11111111|11111111|11111010|10  3ffffea  [26]
-    (143)  |11111111|11111111|11111010|11  3ffffeb  [26]
-    (144)  |11111111|11111111|11111011|00  3ffffec  [26]
-    (145)  |11111111|11111111|11111011|01  3ffffed  [26]
-    (146)  |11111111|11111111|11111011|10  3ffffee  [26]
-    (147)  |11111111|11111111|11111011|11  3ffffef  [26]
-    (148)  |11111111|11111111|11111100|00  3fffff0  [26]
-    (149)  |11111111|11111111|11111100|01  3fffff1  [26]
-    (150)  |11111111|11111111|11111100|10  3fffff2  [26]
-    (151)  |11111111|11111111|11111100|11  3fffff3  [26]
-    (152)  |11111111|11111111|11111101|00  3fffff4  [26]
-    (153)  |11111111|11111111|11111101|01  3fffff5  [26]
-    (154)  |11111111|11111111|11111101|10  3fffff6  [26]
-    (155)  |11111111|11111111|11111101|11  3fffff7  [26]
-    (156)  |11111111|11111111|11111110|00  3fffff8  [26]
-    (157)  |11111111|11111111|11111110|01  3fffff9  [26]
-    (158)  |11111111|11111111|11111110|10  3fffffa  [26]
-    (159)  |11111111|11111111|11111110|11  3fffffb  [26]
-    (160)  |11111111|11111111|11111111|00  3fffffc  [26]
-    (161)  |11111111|11111111|11111111|01  3fffffd  [26]
-    (162)  |11111111|11111111|11111111|10  3fffffe  [26]
-    (163)  |11111111|11111111|11111111|11  3ffffff  [26]
-    (164)  |11111111|11111111|11000000|0   1ffff80  [25]
-    (165)  |11111111|11111111|11000000|1   1ffff81  [25]
-    (166)  |11111111|11111111|11000001|0   1ffff82  [25]
-    (167)  |11111111|11111111|11000001|1   1ffff83  [25]
-    (168)  |11111111|11111111|11000010|0   1ffff84  [25]
-    (169)  |11111111|11111111|11000010|1   1ffff85  [25]
-    (170)  |11111111|11111111|11000011|0   1ffff86  [25]
-    (171)  |11111111|11111111|11000011|1   1ffff87  [25]
-    (172)  |11111111|11111111|11000100|0   1ffff88  [25]
-    (173)  |11111111|11111111|11000100|1   1ffff89  [25]
-    (174)  |11111111|11111111|11000101|0   1ffff8a  [25]
-    (175)  |11111111|11111111|11000101|1   1ffff8b  [25]
-    (176)  |11111111|11111111|11000110|0   1ffff8c  [25]
-    (177)  |11111111|11111111|11000110|1   1ffff8d  [25]
-    (178)  |11111111|11111111|11000111|0   1ffff8e  [25]
-    (179)  |11111111|11111111|11000111|1   1ffff8f  [25]
-    (180)  |11111111|11111111|11001000|0   1ffff90  [25]
-    (181)  |11111111|11111111|11001000|1   1ffff91  [25]
-    (182)  |11111111|11111111|11001001|0   1ffff92  [25]
-    (183)  |11111111|11111111|11001001|1   1ffff93  [25]
-    (184)  |11111111|11111111|11001010|0   1ffff94  [25]
-    (185)  |11111111|11111111|11001010|1   1ffff95  [25]
-    (186)  |11111111|11111111|11001011|0   1ffff96  [25]
-    (187)  |11111111|11111111|11001011|1   1ffff97  [25]
-    (188)  |11111111|11111111|11001100|0   1ffff98  [25]
-    (189)  |11111111|11111111|11001100|1   1ffff99  [25]
-    (190)  |11111111|11111111|11001101|0   1ffff9a  [25]
-    (191)  |11111111|11111111|11001101|1   1ffff9b  [25]
-    (192)  |11111111|11111111|11001110|0   1ffff9c  [25]
-    (193)  |11111111|11111111|11001110|1   1ffff9d  [25]
-    (194)  |11111111|11111111|11001111|0   1ffff9e  [25]
-    (195)  |11111111|11111111|11001111|1   1ffff9f  [25]
-    (196)  |11111111|11111111|11010000|0   1ffffa0  [25]
-    (197)  |11111111|11111111|11010000|1   1ffffa1  [25]
-    (198)  |11111111|11111111|11010001|0   1ffffa2  [25]
-    (199)  |11111111|11111111|11010001|1   1ffffa3  [25]
-    (200)  |11111111|11111111|11010010|0   1ffffa4  [25]
-    (201)  |11111111|11111111|11010010|1   1ffffa5  [25]
-    (202)  |11111111|11111111|11010011|0   1ffffa6  [25]
-    (203)  |11111111|11111111|11010011|1   1ffffa7  [25]
-    (204)  |11111111|11111111|11010100|0   1ffffa8  [25]
-    (205)  |11111111|11111111|11010100|1   1ffffa9  [25]
-    (206)  |11111111|11111111|11010101|0   1ffffaa  [25]
-    (207)  |11111111|11111111|11010101|1   1ffffab  [25]
-    (208)  |11111111|11111111|11010110|0   1ffffac  [25]
-    (209)  |11111111|11111111|11010110|1   1ffffad  [25]
-    (210)  |11111111|11111111|11010111|0   1ffffae  [25]
-    (211)  |11111111|11111111|11010111|1   1ffffaf  [25]
-    (212)  |11111111|11111111|11011000|0   1ffffb0  [25]
-    (213)  |11111111|11111111|11011000|1   1ffffb1  [25]
-    (214)  |11111111|11111111|11011001|0   1ffffb2  [25]
-    (215)  |11111111|11111111|11011001|1   1ffffb3  [25]
-    (216)  |11111111|11111111|11011010|0   1ffffb4  [25]
-    (217)  |11111111|11111111|11011010|1   1ffffb5  [25]
-    (218)  |11111111|11111111|11011011|0   1ffffb6  [25]
-    (219)  |11111111|11111111|11011011|1   1ffffb7  [25]
-    (220)  |11111111|11111111|11011100|0   1ffffb8  [25]
-    (221)  |11111111|11111111|11011100|1   1ffffb9  [25]
-    (222)  |11111111|11111111|11011101|0   1ffffba  [25]
-    (223)  |11111111|11111111|11011101|1   1ffffbb  [25]
-    (224)  |11111111|11111111|11011110|0   1ffffbc  [25]
-    (225)  |11111111|11111111|11011110|1   1ffffbd  [25]
-    (226)  |11111111|11111111|11011111|0   1ffffbe  [25]
-    (227)  |11111111|11111111|11011111|1   1ffffbf  [25]
-    (228)  |11111111|11111111|11100000|0   1ffffc0  [25]
-    (229)  |11111111|11111111|11100000|1   1ffffc1  [25]
-    (230)  |11111111|11111111|11100001|0   1ffffc2  [25]
-    (231)  |11111111|11111111|11100001|1   1ffffc3  [25]
-    (232)  |11111111|11111111|11100010|0   1ffffc4  [25]
-    (233)  |11111111|11111111|11100010|1   1ffffc5  [25]
-    (234)  |11111111|11111111|11100011|0   1ffffc6  [25]
-    (235)  |11111111|11111111|11100011|1   1ffffc7  [25]
-    (236)  |11111111|11111111|11100100|0   1ffffc8  [25]
-    (237)  |11111111|11111111|11100100|1   1ffffc9  [25]
-    (238)  |11111111|11111111|11100101|0   1ffffca  [25]
-    (239)  |11111111|11111111|11100101|1   1ffffcb  [25]
-    (240)  |11111111|11111111|11100110|0   1ffffcc  [25]
-    (241)  |11111111|11111111|11100110|1   1ffffcd  [25]
-    (242)  |11111111|11111111|11100111|0   1ffffce  [25]
-    (243)  |11111111|11111111|11100111|1   1ffffcf  [25]
-    (244)  |11111111|11111111|11101000|0   1ffffd0  [25]
-    (245)  |11111111|11111111|11101000|1   1ffffd1  [25]
-    (246)  |11111111|11111111|11101001|0   1ffffd2  [25]
-    (247)  |11111111|11111111|11101001|1   1ffffd3  [25]
-    (248)  |11111111|11111111|11101010|0   1ffffd4  [25]
-    (249)  |11111111|11111111|11101010|1   1ffffd5  [25]
-    (250)  |11111111|11111111|11101011|0   1ffffd6  [25]
-    (251)  |11111111|11111111|11101011|1   1ffffd7  [25]
-    (252)  |11111111|11111111|11101100|0   1ffffd8  [25]
-    (253)  |11111111|11111111|11101100|1   1ffffd9  [25]
-    (254)  |11111111|11111111|11101101|0   1ffffda  [25]
-    (255)  |11111111|11111111|11101101|1   1ffffdb  [25]
-EOS (256)  |11111111|11111111|11101110|0   1ffffdc  [25]
+                                                    code
+                       code as bits                as hex    len
+     sym              aligned to MSB               aligned    in
+                                                   to LSB    bits
+    (  0)  |11111111|11000                             1ff8  [13]
+    (  1)  |11111111|11111111|1011000                7fffd8  [23]
+    (  2)  |11111111|11111111|11111110|0010         fffffe2  [28]
+    (  3)  |11111111|11111111|11111110|0011         fffffe3  [28]
+    (  4)  |11111111|11111111|11111110|0100         fffffe4  [28]
+    (  5)  |11111111|11111111|11111110|0101         fffffe5  [28]
+    (  6)  |11111111|11111111|11111110|0110         fffffe6  [28]
+    (  7)  |11111111|11111111|11111110|0111         fffffe7  [28]
+    (  8)  |11111111|11111111|11111110|1000         fffffe8  [28]
+    (  9)  |11111111|11111111|11101010               ffffea  [24]
+    ( 10)  |11111111|11111111|11111111|111100      3ffffffc  [30]
+    ( 11)  |11111111|11111111|11111110|1001         fffffe9  [28]
+    ( 12)  |11111111|11111111|11111110|1010         fffffea  [28]
+    ( 13)  |11111111|11111111|11111111|111101      3ffffffd  [30]
+    ( 14)  |11111111|11111111|11111110|1011         fffffeb  [28]
+    ( 15)  |11111111|11111111|11111110|1100         fffffec  [28]
+    ( 16)  |11111111|11111111|11111110|1101         fffffed  [28]
+    ( 17)  |11111111|11111111|11111110|1110         fffffee  [28]
+    ( 18)  |11111111|11111111|11111110|1111         fffffef  [28]
+    ( 19)  |11111111|11111111|11111111|0000         ffffff0  [28]
+    ( 20)  |11111111|11111111|11111111|0001         ffffff1  [28]
+    ( 21)  |11111111|11111111|11111111|0010         ffffff2  [28]
+    ( 22)  |11111111|11111111|11111111|111110      3ffffffe  [30]
+    ( 23)  |11111111|11111111|11111111|0011         ffffff3  [28]
+    ( 24)  |11111111|11111111|11111111|0100         ffffff4  [28]
+    ( 25)  |11111111|11111111|11111111|0101         ffffff5  [28]
+    ( 26)  |11111111|11111111|11111111|0110         ffffff6  [28]
+    ( 27)  |11111111|11111111|11111111|0111         ffffff7  [28]
+    ( 28)  |11111111|11111111|11111111|1000         ffffff8  [28]
+    ( 29)  |11111111|11111111|11111111|1001         ffffff9  [28]
+    ( 30)  |11111111|11111111|11111111|1010         ffffffa  [28]
+    ( 31)  |11111111|11111111|11111111|1011         ffffffb  [28]
+' ' ( 32)  |010100                                       14  [ 6]
+'!' ( 33)  |11111110|00                                 3f8  [10]
+'"' ( 34)  |11111110|01                                 3f9  [10]
+'#' ( 35)  |11111111|1010                               ffa  [12]
+'$' ( 36)  |11111111|11001                             1ff9  [13]
+'%' ( 37)  |010101                                       15  [ 6]
+'&' ( 38)  |11111000                                     f8  [ 8]
+''' ( 39)  |11111111|010                                7fa  [11]
+'(' ( 40)  |11111110|10                                 3fa  [10]
+')' ( 41)  |11111110|11                                 3fb  [10]
+'*' ( 42)  |11111001                                     f9  [ 8]
+'+' ( 43)  |11111111|011                                7fb  [11]
+',' ( 44)  |11111010                                     fa  [ 8]
+'-' ( 45)  |010110                                       16  [ 6]
+'.' ( 46)  |010111                                       17  [ 6]
+'/' ( 47)  |011000                                       18  [ 6]
+'0' ( 48)  |00000                                         0  [ 5]
+'1' ( 49)  |00001                                         1  [ 5]
+'2' ( 50)  |00010                                         2  [ 5]
+'3' ( 51)  |011001                                       19  [ 6]
+'4' ( 52)  |011010                                       1a  [ 6]
+'5' ( 53)  |011011                                       1b  [ 6]
+'6' ( 54)  |011100                                       1c  [ 6]
+'7' ( 55)  |011101                                       1d  [ 6]
+'8' ( 56)  |011110                                       1e  [ 6]
+'9' ( 57)  |011111                                       1f  [ 6]
+':' ( 58)  |1011100                                      5c  [ 7]
+';' ( 59)  |11111011                                     fb  [ 8]
+'<' ( 60)  |11111111|1111100                           7ffc  [15]
+'=' ( 61)  |100000                                       20  [ 6]
+'>' ( 62)  |11111111|1011                               ffb  [12]
+'?' ( 63)  |11111111|00                                 3fc  [10]
+'@' ( 64)  |11111111|11010                             1ffa  [13]
+'A' ( 65)  |100001                                       21  [ 6]
+'B' ( 66)  |1011101                                      5d  [ 7]
+'C' ( 67)  |1011110                                      5e  [ 7]
+'D' ( 68)  |1011111                                      5f  [ 7]
+'E' ( 69)  |1100000                                      60  [ 7]
+'F' ( 70)  |1100001                                      61  [ 7]
+'G' ( 71)  |1100010                                      62  [ 7]
+'H' ( 72)  |1100011                                      63  [ 7]
+'I' ( 73)  |1100100                                      64  [ 7]
+'J' ( 74)  |1100101                                      65  [ 7]
+'K' ( 75)  |1100110                                      66  [ 7]
+'L' ( 76)  |1100111                                      67  [ 7]
+'M' ( 77)  |1101000                                      68  [ 7]
+'N' ( 78)  |1101001                                      69  [ 7]
+'O' ( 79)  |1101010                                      6a  [ 7]
+'P' ( 80)  |1101011                                      6b  [ 7]
+'Q' ( 81)  |1101100                                      6c  [ 7]
+'R' ( 82)  |1101101                                      6d  [ 7]
+'S' ( 83)  |1101110                                      6e  [ 7]
+'T' ( 84)  |1101111                                      6f  [ 7]
+'U' ( 85)  |1110000                                      70  [ 7]
+'V' ( 86)  |1110001                                      71  [ 7]
+'W' ( 87)  |1110010                                      72  [ 7]
+'X' ( 88)  |11111100                                     fc  [ 8]
+'Y' ( 89)  |1110011                                      73  [ 7]
+'Z' ( 90)  |11111101                                     fd  [ 8]
+'[' ( 91)  |11111111|11011                             1ffb  [13]
+'\' ( 92)  |11111111|11111110|000                     7fff0  [19]
+']' ( 93)  |11111111|11100                             1ffc  [13]
+'^' ( 94)  |11111111|111100                            3ffc  [14]
+'_' ( 95)  |100010                                       22  [ 6]
+'`' ( 96)  |11111111|1111101                           7ffd  [15]
+'a' ( 97)  |00011                                         3  [ 5]
+'b' ( 98)  |100011                                       23  [ 6]
+'c' ( 99)  |00100                                         4  [ 5]
+'d' (100)  |100100                                       24  [ 6]
+'e' (101)  |00101                                         5  [ 5]
+'f' (102)  |100101                                       25  [ 6]
+'g' (103)  |100110                                       26  [ 6]
+'h' (104)  |100111                                       27  [ 6]
+'i' (105)  |00110                                         6  [ 5]
+'j' (106)  |1110100                                      74  [ 7]
+'k' (107)  |1110101                                      75  [ 7]
+'l' (108)  |101000                                       28  [ 6]
+'m' (109)  |101001                                       29  [ 6]
+'n' (110)  |101010                                       2a  [ 6]
+'o' (111)  |00111                                         7  [ 5]
+'p' (112)  |101011                                       2b  [ 6]
+'q' (113)  |1110110                                      76  [ 7]
+'r' (114)  |101100                                       2c  [ 6]
+'s' (115)  |01000                                         8  [ 5]
+'t' (116)  |01001                                         9  [ 5]
+'u' (117)  |101101                                       2d  [ 6]
+'v' (118)  |1110111                                      77  [ 7]
+'w' (119)  |1111000                                      78  [ 7]
+'x' (120)  |1111001                                      79  [ 7]
+'y' (121)  |1111010                                      7a  [ 7]
+'z' (122)  |1111011                                      7b  [ 7]
+'{' (123)  |11111111|1111110                           7ffe  [15]
+'|' (124)  |11111111|100                                7fc  [11]
+'}' (125)  |11111111|111101                            3ffd  [14]
+'~' (126)  |11111111|11101                             1ffd  [13]
+    (127)  |11111111|11111111|11111111|1100         ffffffc  [28]
+    (128)  |11111111|11111110|0110                    fffe6  [20]
+    (129)  |11111111|11111111|010010                 3fffd2  [22]
+    (130)  |11111111|11111110|0111                    fffe7  [20]
+    (131)  |11111111|11111110|1000                    fffe8  [20]
+    (132)  |11111111|11111111|010011                 3fffd3  [22]
+    (133)  |11111111|11111111|010100                 3fffd4  [22]
+    (134)  |11111111|11111111|010101                 3fffd5  [22]
+    (135)  |11111111|11111111|1011001                7fffd9  [23]
+    (136)  |11111111|11111111|010110                 3fffd6  [22]
+    (137)  |11111111|11111111|1011010                7fffda  [23]
+    (138)  |11111111|11111111|1011011                7fffdb  [23]
+    (139)  |11111111|11111111|1011100                7fffdc  [23]
+    (140)  |11111111|11111111|1011101                7fffdd  [23]
+    (141)  |11111111|11111111|1011110                7fffde  [23]
+    (142)  |11111111|11111111|11101011               ffffeb  [24]
+    (143)  |11111111|11111111|1011111                7fffdf  [23]
+    (144)  |11111111|11111111|11101100               ffffec  [24]
+    (145)  |11111111|11111111|11101101               ffffed  [24]
+    (146)  |11111111|11111111|010111                 3fffd7  [22]
+    (147)  |11111111|11111111|1100000                7fffe0  [23]
+    (148)  |11111111|11111111|11101110               ffffee  [24]
+    (149)  |11111111|11111111|1100001                7fffe1  [23]
+    (150)  |11111111|11111111|1100010                7fffe2  [23]
+    (151)  |11111111|11111111|1100011                7fffe3  [23]
+    (152)  |11111111|11111111|1100100                7fffe4  [23]
+    (153)  |11111111|11111110|11100                  1fffdc  [21]
+    (154)  |11111111|11111111|011000                 3fffd8  [22]
+    (155)  |11111111|11111111|1100101                7fffe5  [23]
+    (156)  |11111111|11111111|011001                 3fffd9  [22]
+    (157)  |11111111|11111111|1100110                7fffe6  [23]
+    (158)  |11111111|11111111|1100111                7fffe7  [23]
+    (159)  |11111111|11111111|11101111               ffffef  [24]
+    (160)  |11111111|11111111|011010                 3fffda  [22]
+    (161)  |11111111|11111110|11101                  1fffdd  [21]
+    (162)  |11111111|11111110|1001                    fffe9  [20]
+    (163)  |11111111|11111111|011011                 3fffdb  [22]
+    (164)  |11111111|11111111|011100                 3fffdc  [22]
+    (165)  |11111111|11111111|1101000                7fffe8  [23]
+    (166)  |11111111|11111111|1101001                7fffe9  [23]
+    (167)  |11111111|11111110|11110                  1fffde  [21]
+    (168)  |11111111|11111111|1101010                7fffea  [23]
+    (169)  |11111111|11111111|011101                 3fffdd  [22]
+    (170)  |11111111|11111111|011110                 3fffde  [22]
+    (171)  |11111111|11111111|11110000               fffff0  [24]
+    (172)  |11111111|11111110|11111                  1fffdf  [21]
+    (173)  |11111111|11111111|011111                 3fffdf  [22]
+    (174)  |11111111|11111111|1101011                7fffeb  [23]
+    (175)  |11111111|11111111|1101100                7fffec  [23]
+    (176)  |11111111|11111111|00000                  1fffe0  [21]
+    (177)  |11111111|11111111|00001                  1fffe1  [21]
+    (178)  |11111111|11111111|100000                 3fffe0  [22]
+    (179)  |11111111|11111111|00010                  1fffe2  [21]
+    (180)  |11111111|11111111|1101101                7fffed  [23]
+    (181)  |11111111|11111111|100001                 3fffe1  [22]
+    (182)  |11111111|11111111|1101110                7fffee  [23]
+    (183)  |11111111|11111111|1101111                7fffef  [23]
+    (184)  |11111111|11111110|1010                    fffea  [20]
+    (185)  |11111111|11111111|100010                 3fffe2  [22]
+    (186)  |11111111|11111111|100011                 3fffe3  [22]
+    (187)  |11111111|11111111|100100                 3fffe4  [22]
+    (188)  |11111111|11111111|1110000                7ffff0  [23]
+    (189)  |11111111|11111111|100101                 3fffe5  [22]
+    (190)  |11111111|11111111|100110                 3fffe6  [22]
+    (191)  |11111111|11111111|1110001                7ffff1  [23]
+    (192)  |11111111|11111111|11111000|00           3ffffe0  [26]
+    (193)  |11111111|11111111|11111000|01           3ffffe1  [26]
+    (194)  |11111111|11111110|1011                    fffeb  [20]
+    (195)  |11111111|11111110|001                     7fff1  [19]
+    (196)  |11111111|11111111|100111                 3fffe7  [22]
+    (197)  |11111111|11111111|1110010                7ffff2  [23]
+    (198)  |11111111|11111111|101000                 3fffe8  [22]
+    (199)  |11111111|11111111|11110110|0            1ffffec  [25]
+    (200)  |11111111|11111111|11111000|10           3ffffe2  [26]
+    (201)  |11111111|11111111|11111000|11           3ffffe3  [26]
+    (202)  |11111111|11111111|11111001|00           3ffffe4  [26]
+    (203)  |11111111|11111111|11111011|110          7ffffde  [27]
+    (204)  |11111111|11111111|11111011|111          7ffffdf  [27]
+    (205)  |11111111|11111111|11111001|01           3ffffe5  [26]
+    (206)  |11111111|11111111|11110001               fffff1  [24]
+    (207)  |11111111|11111111|11110110|1            1ffffed  [25]
+    (208)  |11111111|11111110|010                     7fff2  [19]
+    (209)  |11111111|11111111|00011                  1fffe3  [21]
+    (210)  |11111111|11111111|11111001|10           3ffffe6  [26]
+    (211)  |11111111|11111111|11111100|000          7ffffe0  [27]
+    (212)  |11111111|11111111|11111100|001          7ffffe1  [27]
+    (213)  |11111111|11111111|11111001|11           3ffffe7  [26]
+    (214)  |11111111|11111111|11111100|010          7ffffe2  [27]
+    (215)  |11111111|11111111|11110010               fffff2  [24]
+    (216)  |11111111|11111111|00100                  1fffe4  [21]
+    (217)  |11111111|11111111|00101                  1fffe5  [21]
+    (218)  |11111111|11111111|11111010|00           3ffffe8  [26]
+    (219)  |11111111|11111111|11111010|01           3ffffe9  [26]
+    (220)  |11111111|11111111|11111111|1101         ffffffd  [28]
+    (221)  |11111111|11111111|11111100|011          7ffffe3  [27]
+    (222)  |11111111|11111111|11111100|100          7ffffe4  [27]
+    (223)  |11111111|11111111|11111100|101          7ffffe5  [27]
+    (224)  |11111111|11111110|1100                    fffec  [20]
+    (225)  |11111111|11111111|11110011               fffff3  [24]
+    (226)  |11111111|11111110|1101                    fffed  [20]
+    (227)  |11111111|11111111|00110                  1fffe6  [21]
+    (228)  |11111111|11111111|101001                 3fffe9  [22]
+    (229)  |11111111|11111111|00111                  1fffe7  [21]
+    (230)  |11111111|11111111|01000                  1fffe8  [21]
+    (231)  |11111111|11111111|1110011                7ffff3  [23]
+    (232)  |11111111|11111111|101010                 3fffea  [22]
+    (233)  |11111111|11111111|101011                 3fffeb  [22]
+    (234)  |11111111|11111111|11110111|0            1ffffee  [25]
+    (235)  |11111111|11111111|11110111|1            1ffffef  [25]
+    (236)  |11111111|11111111|11110100               fffff4  [24]
+    (237)  |11111111|11111111|11110101               fffff5  [24]
+    (238)  |11111111|11111111|11111010|10           3ffffea  [26]
+    (239)  |11111111|11111111|1110100                7ffff4  [23]
+    (240)  |11111111|11111111|11111010|11           3ffffeb  [26]
+    (241)  |11111111|11111111|11111100|110          7ffffe6  [27]
+    (242)  |11111111|11111111|11111011|00           3ffffec  [26]
+    (243)  |11111111|11111111|11111011|01           3ffffed  [26]
+    (244)  |11111111|11111111|11111100|111          7ffffe7  [27]
+    (245)  |11111111|11111111|11111101|000          7ffffe8  [27]
+    (246)  |11111111|11111111|11111101|001          7ffffe9  [27]
+    (247)  |11111111|11111111|11111101|010          7ffffea  [27]
+    (248)  |11111111|11111111|11111101|011          7ffffeb  [27]
+    (249)  |11111111|11111111|11111111|1110         ffffffe  [28]
+    (250)  |11111111|11111111|11111101|100          7ffffec  [27]
+    (251)  |11111111|11111111|11111101|101          7ffffed  [27]
+    (252)  |11111111|11111111|11111101|110          7ffffee  [27]
+    (253)  |11111111|11111111|11111101|111          7ffffef  [27]
+    (254)  |11111111|11111111|11111110|000          7fffff0  [27]
+    (255)  |11111111|11111111|11111011|10           3ffffee  [26]
+EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
 ]]></artwork>
             </figure>
         </section>
@@ -2211,7 +2234,7 @@ EOS (256)  |11111111|11111111|11101110|0   1ffffdc  [25]
     <section title="Literal Header Field with Indexing">
         <t>
             The header field representation uses a literal name and a literal
-            value.
+            value. The header field is added to the header table.
         </t>
         <t>
             <figure>
@@ -2264,7 +2287,7 @@ EOS (256)  |11111111|11111111|11101110|0   1ffffdc  [25]
     <section title="Literal Header Field without Indexing">
         <t>
             The header field representation uses an indexed name and a literal
-            value.
+            value. The header field is not added to the header table.
         </t>
         <t>
             <figure>
@@ -2303,6 +2326,54 @@ EOS (256)  |11111111|11111111|11101110|0   1ffffdc  [25]
                 <preamble>Decoded header set:</preamble>
                 <artwork>
 <![CDATA[:path: /sample/path]]></artwork>
+            </figure>
+        </t>
+    </section>
+
+    <section title="Literal Header Field never Indexed">
+        <t>
+            The header field representation uses a literal name and a literal
+            value. The header field is not added to the header table, and must
+            use the same representation if re-encoded by an intermediary.
+        </t>
+        <t>
+            <figure>
+                <preamble>Header set to encode:</preamble>
+                <artwork>
+<![CDATA[password: secret]]></artwork>
+            </figure>
+        </t>
+        <t>
+            Reference set: empty.
+        </t>
+        <t>
+            <figure>
+                <preamble>Hex dump of encoded data:</preamble>
+                <artwork>
+<![CDATA[1008 7061 7373 776f 7264 0673 6563 7265 | ..password.secre
+74                                      | t]]></artwork>
+            </figure>
+        </t>
+        <t>
+            <figure>
+                <preamble>Decoding process:</preamble>
+                <artwork>
+<![CDATA[10                                      | == Literal never indexed ==
+08                                      |   Literal name (len = 8)
+7061 7373 776f 7264                     | password
+06                                      |   Literal value (len = 6)
+7365 6372 6574                          | secret
+                                        | -> password: secret]]></artwork>
+            </figure>
+        </t>
+        <t>
+          Header table (after decoding): empty.
+      </t>
+        <t>
+            <figure>
+                <preamble>Decoded header set:</preamble>
+                <artwork>
+<![CDATA[password: secret]]></artwork>
             </figure>
         </t>
     </section>
@@ -2402,8 +2473,8 @@ EOS (256)  |11111111|11111111|11101110|0   1ffffdc  [25]
     </section>
 
 </section>
-<section title="Request Examples without Huffman"
-    anchor="request.examples.without.huffman">
+<section title="Request Examples without Huffman Coding"
+    anchor="request.examples.without.huffman.coding">
     <t>
         This section shows several consecutive header sets, corresponding to
         HTTP requests, on the same connection.
@@ -2640,7 +2711,7 @@ custom-key: custom-value]]></artwork>
 
 </section>
 <section title="Request Examples with Huffman Coding"
-    anchor="request.examples.with.huffman">
+    anchor="request.examples.with.huffman.coding">
     <t>
         This section shows the same examples as the previous section, but using
         Huffman encoding for the literal values.
@@ -2663,7 +2734,7 @@ custom-key: custom-value]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8287 8644 8ce7 cf9b ebe8 9b6f b16f a9b6 | ...D.......o.o..
+<![CDATA[8287 8644 8cf1 e3c2 e5f2 3a6b a0ab 90f4 | ...D......:k....
 ff                                      | .]]></artwork>
             </figure>
         </t>
@@ -2685,7 +2756,7 @@ ff                                      | .]]></artwork>
                                         |     :authority
 8c                                      |   Literal value (len = 15)
                                         |     Huffman encoded:
-e7cf 9beb e89b 6fb1 6fa9 b6ff           | ......o.o...
+f1e3 c2e5 f23a 6ba0 ab90 f4ff           | .....:k.....
                                         |     Decoded:
                                         | www.example.com
                                         | -> :authority: www.example\
@@ -2745,7 +2816,7 @@ cache-control: no-cache]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[5c86 b9b9 9495 56bf                     | \.....V.]]></artwork>
+<![CDATA[5c86 a8eb 1064 9cbf                     | \....d..]]></artwork>
             </figure>
         </t>
         <t>
@@ -2757,7 +2828,7 @@ cache-control: no-cache]]></artwork>
                                         |     cache-control
 86                                      |   Literal value (len = 8)
                                         |     Huffman encoded:
-b9b9 9495 56bf                          | ....V.
+a8eb 1064 9cbf                          | ...d..
                                         |     Decoded:
                                         | no-cache
                                         | -> cache-control: no-cache]]></artwork>
@@ -2820,8 +2891,8 @@ custom-key: custom-value]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[3085 8c8b 8440 8857 1c5c db73 7b2f af89 | 0....@.W.\.s{/..
-571c 5cdb 7372 4d9c 57                  | W.\.srM.W]]></artwork>
+<![CDATA[3085 8c8b 8440 8825 a849 e95b a97d 7f89 | 0....@.%.I.[.}..
+25a8 49e9 5bb8 e8b4 bf                  | %.I.[....]]></artwork>
             </figure>
         </t>
         <t>
@@ -2847,12 +2918,12 @@ custom-key: custom-value]]></artwork>
 40                                      | == Literal indexed ==
 88                                      |   Literal name (len = 10)
                                         |     Huffman encoded:
-571c 5cdb 737b 2faf                     | W.\.s{/.
+25a8 49e9 5ba9 7d7f                     | %.I.[.}.
                                         |     Decoded:
                                         | custom-key
 89                                      |   Literal value (len = 12)
                                         |     Huffman encoded:
-571c 5cdb 7372 4d9c 57                  | W.\.srM.W
+25a8 49e9 5bb8 e8b4 bf                  | %.I.[....
                                         |     Decoded:
                                         | custom-value
                                         | -> custom-key: custom-valu\
@@ -2888,8 +2959,8 @@ custom-key: custom-value]]></artwork>
     </section>
 
 </section>
-<section title="Response Examples without Huffman"
-    anchor="response.examples.without.huffman">
+<section title="Response Examples without Huffman Coding"
+    anchor="response.examples.without.huffman.coding">
     <t>
         This section shows several consecutive header sets, corresponding to
         HTTP responses, on the same connection. The HTTP/2 setting
@@ -2982,7 +3053,7 @@ location: https://www.example.com]]></artwork>
         <t>
             The (":status", "302") header field is evicted from the header table
             to free space to allow adding the (":status", "200") header field,
-            copied from the static table into the header table.  The (":status",
+            copied from the static table into the header table. The (":status",
             "302") header field doesn't need to be removed from the reference
             set as it is evicted from the header table.
         </t>
@@ -3051,7 +3122,7 @@ cache-control: private]]></artwork>
             Several header fields are evicted from the header table during the
             processing of this header set. Before evicting a header belonging to
             the reference set, it is emitted, by coding it twice as an Indexed
-            Representation.  The first representation removes the header field
+            Representation. The first representation removes the header field
             from the reference set, the second one adds it again to the
             reference set, also emitting it.
         </t>
@@ -3081,7 +3152,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8484 431d 4d6f 6e2c 2032 3120 4f63 7420 | ..C.Mon, 21 Oct
+<![CDATA[8484 431d 4d6f 6e2c 2032 3120 4f63 7420 | ..C.Mon, 21 Oct 
 3230 3133 2032 303a 3133 3a32 3220 474d | 2013 20:13:22 GM
 545e 0467 7a69 7084 8483 837b 3866 6f6f | T^.gzip....{8foo
 3d41 5344 4a4b 4851 4b42 5a58 4f51 5745 | =ASDJKHQKBZXOQWE
@@ -3175,7 +3246,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
 
 </section>
 <section title="Response Examples with Huffman Coding"
-    anchor="response.examples.with.huffman">
+    anchor="response.examples.with.huffman.coding">
     <t>
         This section shows the same examples as the previous section, but using
         Huffman encoding for the literal values. The HTTP/2 setting
@@ -3202,10 +3273,10 @@ location: https://www.example.com]]></artwork>
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[4882 4017 5985 bf06 724b 9763 93d6 dbb2 | H.@.Y...rK.c....
-9884 de2a 7188 0506 2098 5131 09b5 6ba3 | ...*q... .Q1..k.
-7191 adce bf19 8e7e 7cf9 bebe 89b6 fb16 | q.......|.......
-fa9b 6f                                 | ..o]]></artwork>
+<![CDATA[4882 6402 5985 aec3 771a 4b63 96d0 7abe | H.d.Y...w.Kc..z.
+9410 54d4 44a8 2005 9504 0b81 66e0 82a6 | ..T.D. .....f...
+2d1b ff71 919d 29ad 1718 63c7 8f0b 97c8 | -..q..)...c.....
+e9ae 82ae 43d3                          | ....C.]]></artwork>
             </figure>
         </t>
         <t>
@@ -3217,7 +3288,7 @@ fa9b 6f                                 | ..o]]></artwork>
                                         |     :status
 82                                      |   Literal value (len = 3)
                                         |     Huffman encoded:
-4017                                    | @.
+6402                                    | d.
                                         |     Decoded:
                                         | 302
                                         | -> :status: 302
@@ -3226,17 +3297,17 @@ fa9b 6f                                 | ..o]]></artwork>
                                         |     cache-control
 85                                      |   Literal value (len = 7)
                                         |     Huffman encoded:
-bf06 724b 97                            | ..rK.
+aec3 771a 4b                            | ..w.K
                                         |     Decoded:
                                         | private
                                         | -> cache-control: private
 63                                      | == Literal indexed ==
                                         |   Indexed name (idx = 35)
                                         |     date
-93                                      |   Literal value (len = 29)
+96                                      |   Literal value (len = 29)
                                         |     Huffman encoded:
-d6db b298 84de 2a71 8805 0620 9851 3109 | ......*q... .Q1.
-b56b a3                                 | .k.
+d07a be94 1054 d444 a820 0595 040b 8166 | .z...T.D. .....f
+e082 a62d 1bff                          | ...-..
                                         |     Decoded:
                                         | Mon, 21 Oct 2013 20:13:21 \
                                         | GMT
@@ -3247,8 +3318,8 @@ b56b a3                                 | .k.
                                         |     location
 91                                      |   Literal value (len = 23)
                                         |     Huffman encoded:
-adce bf19 8e7e 7cf9 bebe 89b6 fb16 fa9b | ......|.........
-6f                                      | o
+9d29 ad17 1863 c78f 0b97 c8e9 ae82 ae43 | .)...c.........C
+d3                                      | .
                                         |     Decoded:
                                         | https://www.example.com
                                         | -> location: https://www.e\
@@ -3282,7 +3353,7 @@ location: https://www.example.com]]></artwork>
         <t>
             The (":status", "302") header field is evicted from the header table
             to free space to allow adding the (":status", "200") header field,
-            copied from the static table into the header table.  The (":status",
+            copied from the static table into the header table. The (":status",
             "302") header field doesn't need to be removed from the reference
             set as it is evicted from the header table.
         </t>
@@ -3351,7 +3422,7 @@ cache-control: private]]></artwork>
             Several header fields are evicted from the header table during the
             processing of this header set. Before evicting a header belonging to
             the reference set, it is emitted, by coding it twice as an Indexed
-            Representation.  The first representation removes the header field
+            Representation. The first representation removes the header field
             from the reference set, the second one adds it again to the
             reference set, also emitting it.
         </t>
@@ -3381,12 +3452,12 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[8484 4393 d6db b298 84de 2a71 8805 0620 | ..C.......*q...
-9851 3111 b56b a35e 84ab dd97 ff84 8483 | .Q1..k.^........
-837b b1e0 d6cf 9f6e 8f9f d3e5 f6fa 76fe | .{.....n......v.
-fd3c 7edf 9eff 1f2f 0f3c fe9f 6fcf 7f8f | ......./....o...
-879f 61ad 4f4c c9a9 73a2 200e c372 5e18 | ..a.OL..s. ..r^.
-b1b7 4e3f                               | ..N?]]></artwork>
+<![CDATA[8484 4396 d07a be94 1054 d444 a820 0595 | ..C..z...T.D. ..
+040b 8166 e084 a62d 1bff 5e83 9bd9 ab84 | ...f...-..^.....
+8483 837b ad94 e782 1dd7 f2e6 c7b3 35df | ...{..........5.
+dfcd 5b39 60d5 af27 087f 3672 c1ab 270f | ..[9`..'..6r..'.
+b529 1f95 8731 6065 c003 ed4e e5b1 063d | .)...1`e...N...=
+5007                                    | P.]]></artwork>
             </figure>
         </t>
         <t>
@@ -3402,10 +3473,10 @@ b1b7 4e3f                               | ..N?]]></artwork>
 43                                      | == Literal indexed ==
                                         |   Indexed name (idx = 3)
                                         |     date
-93                                      |   Literal value (len = 29)
+96                                      |   Literal value (len = 29)
                                         |     Huffman encoded:
-d6db b298 84de 2a71 8805 0620 9851 3111 | ......*q... .Q1.
-b56b a3                                 | .k.
+d07a be94 1054 d444 a820 0595 040b 8166 | .z...T.D. .....f
+e084 a62d 1bff                          | ...-..
                                         |     Decoded:
                                         | Mon, 21 Oct 2013 20:13:22 \
                                         | GMT
@@ -3416,9 +3487,9 @@ b56b a3                                 | .k.
 5e                                      | == Literal indexed ==
                                         |   Indexed name (idx = 30)
                                         |     content-encoding
-84                                      |   Literal value (len = 4)
+83                                      |   Literal value (len = 4)
                                         |     Huffman encoded:
-abdd 97ff                               | ....
+9bd9 ab                                 | ...
                                         |     Decoded:
                                         | gzip
                                         | - evict: date: Mon, 21 Oct\
@@ -3441,12 +3512,11 @@ abdd 97ff                               | ....
 7b                                      | == Literal indexed ==
                                         |   Indexed name (idx = 59)
                                         |     set-cookie
-b1                                      |   Literal value (len = 56)
+ad                                      |   Literal value (len = 56)
                                         |     Huffman encoded:
-e0d6 cf9f 6e8f 9fd3 e5f6 fa76 fefd 3c7e | ....n......v....
-df9e ff1f 2f0f 3cfe 9f6f cf7f 8f87 9f61 | ..../....o.....a
-ad4f 4cc9 a973 a220 0ec3 725e 18b1 b74e | .OL..s. ..r^...N
-3f                                      | ?
+94e7 821d d7f2 e6c7 b335 dfdf cd5b 3960 | .........5...[9`
+d5af 2708 7f36 72c1 ab27 0fb5 291f 9587 | ..'..6r..'..)...
+3160 65c0 03ed 4ee5 b106 3d50 07        | 1`e...N...=P.
                                         |     Decoded:
                                         | foo=ASDJKHQKBZXOQWEOPIUAXQ\
                                         | WEOIU; max-age=3600; versi\
