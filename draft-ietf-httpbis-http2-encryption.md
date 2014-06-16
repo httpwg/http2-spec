@@ -1,6 +1,6 @@
 ---
-title: Opportunistic Encryption for HTTP URIs
-abbrev: Opportunistic HTTP Encryption
+title: Opportunistic Security for HTTP
+abbrev: Opportunistic HTTP Security
 docname: draft-ietf-httpbis-http2-encryption-latest
 date: 2014
 category: exp
