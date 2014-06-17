@@ -5,7 +5,7 @@ kramdown2629 ?= kramdown-rfc2629
 
 names := http2 header-compression alt-svc http2-encryption
 drafts := $(addprefix draft-ietf-httpbis-,$(names))
-last_tag = $(shell git tag | grep "$(draft)" | sort | tail -1 | awk -F- '{print $$NF}')
+last_tag = $(shell git tag | grep "$(draft)-[0-9][0-9]" | sort | tail -1 | awk -F- '{print $$NF}')
 next_ver = $(if $(last_tag),$(shell printf "%.2d" $$(( 1$(last_tag) - 99)) ),00)
 next := $(foreach draft, $(drafts), $(draft)-$(next_ver))
 
