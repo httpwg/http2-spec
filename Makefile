@@ -85,11 +85,11 @@ else
 GIT_ORIG := $(TRAVIS_COMMIT)
 endif
 
-IS_LOCAL := $(if $(TRAVIS),true,)
+IS_LOCAL := $(if $(TRAVIS),,true)
 ifeq (master,$(TRAVIS_BRANCH))
 IS_MASTER := $(findstring false,$(TRAVIS_PULL_REQUEST))
 else
-IS_MASTER := true
+IS_MASTER := 
 endif
 
 ghpages: $(FRIENDLY) $(TARGETS)
