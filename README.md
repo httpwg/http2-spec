@@ -1,5 +1,4 @@
-HTTP/2 Draft Specifications
-=============================
+# HTTP/2 Draft Specifications
 
 This is the working area for the [IETF HTTPbis Working
 Group](https://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of
@@ -16,8 +15,7 @@ Header Compression (HPACK) specification:
 * [Working Group Draft](https://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
 
 
-Contributing
-------------
+## Contributing
 
 Before submitting feedback, please familiarize yourself with our current issues
 list and review the [HTTP/2 page](https://http2.github.io/) and the [working
@@ -55,8 +53,7 @@ providing a link to the issue in the message body.
   appropriate place to discuss design issues is on the mailing list itself.
 
 
-Working With the Drafts
------------------------
+## Working With the Drafts
 
 The source for our current draft is
 [draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
@@ -75,8 +72,7 @@ If you're an editor, or forking a copy of the draft, a few things to know:
   "make hpack".
 
 
-NOTE WELL
----------
+##NOTE WELL
 
 Any submission to the [IETF](https://www.ietf.org/) intended by the Contributor
 for publication as all or part of an IETF Internet-Draft or RFC and any
