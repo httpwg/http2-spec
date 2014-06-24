@@ -15,16 +15,6 @@ Header Compression (HPACK) specification:
 * [Editor's copy](https://http2.github.com/http2-spec/compression.txt) (plain text)
 * [Working Group Draft](https://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
 
-Alternative Services specification:
-* [Editor's copy](https://http2.github.com/http2-spec/alt-svc.html) (HTML)
-* [Editor's copy](https://http2.github.com/http2-spec/alt-svc.txt) (plain text)
-* [Working Group Draft](https://tools.ietf.org/html/draft-ietf-httpbis-alt-svc) (less recent, more official)
-
-HTTP Opportunistic Security:
-* [Editor's copy](https://http2.github.com/http2-spec/encryption.html) (HTML)
-* [Editor's copy](https://http2.github.com/http2-spec/encryption.txt) (plain text)
-* [Working Group Draft](https://tools.ietf.org/html/draft-ietf-httpbis-http2-encryption) (less recent, more official)
-
 
 Contributing
 ------------
@@ -79,7 +69,6 @@ If you're an editor, or forking a copy of the draft, a few things to know:
 * You'll need xml2rfc, Java and Saxon-HE available. You can override the
   default locations in the environment.  On a Mac with
   [Homebrew](http://brew.sh/), "saxon-b" is the right package.
-* For -encryption, you will need [kramdown-rfc2629](https://github.com/cabo/kramdown-rfc2629)
 * Some of the make targets require GNU Make 4.0
 * Making the txt and html for the latest drafts is done with "make".
 * Output for a specific draft can be made using "make http2" or
