@@ -3,7 +3,7 @@ saxpath ?= "lib/saxon9.jar"
 saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 kramdown2629 ?= kramdown-rfc2629
 
-names := http2 header-compression alt-svc http2-encryption
+names := http2 header-compression
 drafts := $(addprefix draft-ietf-httpbis-,$(names))
 last_tag = $(shell git tag | grep "$(draft)-[0-9][0-9]" | sort | tail -1 | awk -F- '{print $$NF}')
 next_ver = $(if $(last_tag),$(shell printf "%.2d" $$(( 1$(last_tag) - 99)) ),00)
@@ -11,7 +11,7 @@ next := $(foreach draft, $(drafts), $(draft)-$(next_ver))
 
 TARGETS := $(addsuffix .txt,$(drafts)) \
 	  $(addsuffix .html,$(drafts))
-friendly_names := index compression alt-svc encryption
+friendly_names := index compression
 FRIENDLY := $(addsuffix .txt,$(friendly_names)) \
 	    $(addsuffix .html,$(friendly_names))
 
@@ -41,12 +41,6 @@ index.%: draft-ietf-httpbis-http2.%
 	cp -f $< $@
 
 compression.%: draft-ietf-httpbis-header-compression.%
-	cp -f $< $@
-
-alt-svc.%: draft-ietf-httpbis-alt-svc.%
-	cp -f $< $@
-
-encryption.%: draft-ietf-httpbis-http2-encryption.%
 	cp -f $< $@
 
 define makerule_submit_xml =
@@ -85,11 +79,11 @@ else
 GIT_ORIG := $(TRAVIS_COMMIT)
 endif
 
-IS_LOCAL := $(if $(TRAVIS),true,)
+IS_LOCAL := $(if $(TRAVIS),,true)
 ifeq (master,$(TRAVIS_BRANCH))
 IS_MASTER := $(findstring false,$(TRAVIS_PULL_REQUEST))
 else
-IS_MASTER := true
+IS_MASTER := 
 endif
 
 ghpages: $(FRIENDLY) $(TARGETS)

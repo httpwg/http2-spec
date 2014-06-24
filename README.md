@@ -1,5 +1,4 @@
-HTTP/2 Draft Specifications
-=============================
+# HTTP/2 Draft Specifications
 
 This is the working area for the [IETF HTTPbis Working
 Group](https://trac.tools.ietf.org/wg/httpbis/trac/wiki) draft of
@@ -15,19 +14,8 @@ Header Compression (HPACK) specification:
 * [Editor's copy](https://http2.github.com/http2-spec/compression.txt) (plain text)
 * [Working Group Draft](https://tools.ietf.org/html/draft-ietf-httpbis-header-compression) (less recent, more official)
 
-Alternative Services specification:
-* [Editor's copy](https://http2.github.com/http2-spec/alt-svc.html) (HTML)
-* [Editor's copy](https://http2.github.com/http2-spec/alt-svc.txt) (plain text)
-* [Working Group Draft](https://tools.ietf.org/html/draft-ietf-httpbis-alt-svc) (less recent, more official)
 
-HTTP Opportunistic Security:
-* [Editor's copy](https://http2.github.com/http2-spec/encryption.html) (HTML)
-* [Editor's copy](https://http2.github.com/http2-spec/encryption.txt) (plain text)
-* [Working Group Draft](https://tools.ietf.org/html/draft-ietf-httpbis-http2-encryption) (less recent, more official)
-
-
-Contributing
-------------
+## Contributing
 
 Before submitting feedback, please familiarize yourself with our current issues
 list and review the [HTTP/2 page](https://http2.github.io/) and the [working
@@ -65,8 +53,7 @@ providing a link to the issue in the message body.
   appropriate place to discuss design issues is on the mailing list itself.
 
 
-Working With the Drafts
------------------------
+## Working With the Drafts
 
 The source for our current draft is
 [draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
@@ -79,15 +66,13 @@ If you're an editor, or forking a copy of the draft, a few things to know:
 * You'll need xml2rfc, Java and Saxon-HE available. You can override the
   default locations in the environment.  On a Mac with
   [Homebrew](http://brew.sh/), "saxon-b" is the right package.
-* For -encryption, you will need [kramdown-rfc2629](https://github.com/cabo/kramdown-rfc2629)
 * Some of the make targets require GNU Make 4.0
 * Making the txt and html for the latest drafts is done with "make".
 * Output for a specific draft can be made using "make http2" or
   "make hpack".
 
 
-NOTE WELL
----------
+##NOTE WELL
 
 Any submission to the [IETF](https://www.ietf.org/) intended by the Contributor
 for publication as all or part of an IETF Internet-Draft or RFC and any
