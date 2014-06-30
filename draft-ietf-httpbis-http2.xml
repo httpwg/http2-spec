@@ -640,9 +640,9 @@ HTTP2-Settings    = token68
           data, the endpoint MUST send a <x:ref>FRAME_SIZE_ERROR</x:ref> error. A frame size error
           in a frame that could alter the state of the entire connection MUST be treated as a <xref
           target="ConnectionErrorHandler">connection error</xref>; this includes any frame carrying
-          a <xref target="HeaderBlock">header block</xref> (that is, <x:ref>HEADERS</x:ref>,
-          <x:ref>PUSH_PROMISE</x:ref>, and <x:ref>CONTINUATION</x:ref>), <x:ref>SETTINGS</x:ref>,
-          and any <x:ref>WINDOW_UPDATE</x:ref> frame with a stream identifier of 0.
+          a <xref target="HeaderBlock">header block</xref> (that is, <x:ref>HEADERS</x:ref> and
+          <x:ref>PUSH_PROMISE</x:ref>), <x:ref>SETTINGS</x:ref>, and any <x:ref>WINDOW_UPDATE</x:ref> 
+          frame with a stream identifier of 0.
         </t>
       </section>
 
@@ -659,7 +659,10 @@ HTTP2-Settings    = token68
           divided into one or more octet sequences, called header block fragments, and transmitted
           within the payload of <xref target="HEADERS">HEADERS</xref>, <xref
           target="PUSH_PROMISE">PUSH_PROMISE</xref> or <xref
-          target="CONTINUATION">CONTINUATION</xref> frames.
+          target="CONTINUATION">CONTINUATION</xref> frames, where CONTINUATION frames SHOULD only
+          be used if the complete header block does not fit within a single 
+          <xref target="HEADERS">HEADERS</xref> or <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>
+          frame.
         </t>
         <t>
           HTTP Header Compression does not preserve the relative ordering of header fields.  Header
@@ -690,24 +693,27 @@ HTTP2-Settings    = token68
           </list>
         </t>
         <t>
-          Header compression is stateful, using a single compression context for the entire
-          connection.  Each header block is processed as a discrete unit.  Header blocks MUST be
-          transmitted as a contiguous sequence of frames, with no interleaved frames of any other
-          type or from any other stream.  The last frame in a sequence of <x:ref>HEADERS</x:ref> or
-          <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS flag set.  The last frame in
-          a sequence of <x:ref>PUSH_PROMISE</x:ref> or <x:ref>CONTINUATION</x:ref> frames MUST have
-          the END_HEADERS flag set.  This allows a header block to be logically equivalent to a
-          single frame.
+          Each header block is processed as a discrete unit.  The last frame in a sequence of 
+          <x:ref>HEADERS</x:ref> or <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS 
+          flag set.  The last frame in a sequence of <x:ref>PUSH_PROMISE</x:ref> or 
+          <x:ref>CONTINUATION</x:ref> frames MUST have the END_HEADERS flag set.
         </t>
         <t>
-          Header block fragments can only be sent as the payload of <x:ref>HEADERS</x:ref>,
-          <x:ref>PUSH_PROMISE</x:ref> or <x:ref>CONTINUATION</x:ref> frames, because these frames
-          carry data that can modify the compression context maintained by a receiver.  An endpoint
-          receiving <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> or
-          <x:ref>CONTINUATION</x:ref> frames MUST reassemble header blocks and perform decompression
-          even if the frames are to be discarded.  A receiver MUST terminate the connection with a
+          Header compression is stateful, using a single compression context for the entire
+          connection.  Header block fragments which modify the compression context can only be sent 
+          as the payload of <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frames. 
+          Since these frames carry data that can modify the compression context maintained by a 
+          sender, an endpoint receiving <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> 
+          frames MUST perform decompression even if the frames are to be discarded.  A receiver 
+          MUST terminate the connection with a
           <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>COMPRESSION_ERROR</x:ref> if it does not decompress a header block.
+          <x:ref>COMPRESSION_ERROR</x:ref> if it does not decompress a <x:ref>HEADERS</x:ref> or 
+          <x:ref>PUSH_PROMISE</x:ref> frame.
+        </t>
+        <t>
+          Header block fragments carried in <x:ref>CONTINUATION</x:ref> frames MUST only contain
+          literal representations, optionally huffman encoded, that do not modify the compression
+          context.
         </t>
       </section>
     </section>
@@ -1000,7 +1006,8 @@ HTTP2-Settings    = token68
                 error.
               </t>
               <t>
-                Flow controlled frames (i.e., <x:ref>DATA</x:ref>) received after sending
+                Flow controlled frames (i.e., <x:ref>CONTINUATION</x:ref> and <x:ref>DATA</x:ref>) 
+                received after sending
                 <x:ref>RST_STREAM</x:ref> are counted toward the connection flow control window.
                 Even though these frames might be ignored, because they are sent before the sender
                 receives the <x:ref>RST_STREAM</x:ref>, the sender will consider the frames to count
@@ -1135,7 +1142,8 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 The frame type determines whether flow control applies to a frame.  Of the frames
-                specified in this document, only <x:ref>DATA</x:ref> frames are subject to flow
+                specified in this document, only <x:ref>CONTINUATION</x:ref> and <x:ref>DATA</x:ref> 
+                frames are subject to flow
                 control; all other frame types do not consume space in the advertised flow control
                 window.  This ensures that important control frames are not blocked by flow control.
               </t>
@@ -1501,9 +1509,9 @@ HTTP2-Settings    = token68
           be negotiated before being used.  For example, an extension that changes the layout of the
           <x:ref>HEADERS</x:ref> frame cannot be used until the peer has given a positive signal
           that this is acceptable.  In this case, it could also be necessary to coordinate when the
-          revised layout comes into effect.  Note that treating any frame other than
-          <x:ref>DATA</x:ref> frames as flow controlled is such a change in semantics, and can only
-          be done through negotiation.
+          revised layout comes into effect.  Note that treating any frames other than
+          <x:ref>CONTINUATION</x:ref> and <x:ref>DATA</x:ref> as flow controlled is such a 
+          change in semantics, and can only be done through negotiation.
         </t>
         <t>
           This document doesn't mandate a specific method for negotiating the use of an extension,
@@ -1679,36 +1687,25 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <x:lt hangText="END_STREAM (0x1):">
               <t>
-                Bit 1 being set indicates that the <xref target="HeaderBlock">header block</xref> is
-                the last that the endpoint will send for the identified stream.  Setting this flag
-                causes the stream to enter one of <xref target="StreamStates">"half closed"
-                states</xref>.
-              </t>
-              <t>
-                A HEADERS frame that is followed by <x:ref>CONTINUATION</x:ref> frames carries the
-                END_STREAM flag that signals the end of a stream.  A <x:ref>CONTINUATION</x:ref>
-                frame cannot be used to terminate a stream.
+                Bit 1 being set indicates that this is the last frame the endpoint will send for 
+                the identified stream.  Setting this flag causes the stream to enter one of 
+                <xref target="StreamStates">"half closed" states</xref>.
               </t>
             </x:lt>
             <x:lt hangText="END_SEGMENT (0x2):">
               <t>
                 Bit 2 being set indicates that this frame is the last for the current segment.
                 Intermediaries MUST NOT coalesce frames across a segment boundary and MUST preserve
-                segment boundaries when forwarding frames.
+                segment boundaries when forwarding frames. 
               </t>
             </x:lt>
             <x:lt hangText="END_HEADERS (0x4):">
               <t>
                 Bit 3 being set indicates that this frame contains an entire <xref
                 target="HeaderBlock">header block</xref> and is not followed by any
-                <x:ref>CONTINUATION</x:ref> frames.
-              </t>
-              <t>
-                A HEADERS frame without the END_HEADERS flag set MUST be followed by a
-                <x:ref>CONTINUATION</x:ref> frame for the same stream.  A receiver MUST treat the
-                receipt of any other type of frame or a frame on a different stream as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
+                <x:ref>CONTINUATION</x:ref> frames. This bit MUST be set if END_STREAM is 
+                set. A receiver MUST treat the receipt of a CONTINUATION frame with END_STREAM set 
+                and END_HEADERS cleared as an error of type <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
             <x:lt hangText="PADDED (0x8):">
@@ -2087,13 +2084,6 @@ HTTP2-Settings    = token68
                 target="HeaderBlock">header block</xref> and is not followed by any
                 <x:ref>CONTINUATION</x:ref> frames.
               </t>
-              <t>
-                A PUSH_PROMISE frame without the END_HEADERS flag set MUST be followed by a
-                CONTINUATION frame for the same stream.  A receiver MUST treat the receipt of any
-                other type of frame or a frame on a different stream as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
-              </t>
             </x:lt>
             <x:lt hangText="PADDED (0x8):">
               <t>
@@ -2318,10 +2308,11 @@ HTTP2-Settings    = token68
         <t>
           After sending a GOAWAY frame, the sender can discard frames for streams with identifiers
           higher than the identified last stream.  However, any frames that alter connection state
-          cannot be completely ignored.  For instance, <x:ref>HEADERS</x:ref>,
-          <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames MUST be minimally
-          processed to ensure the state maintained for header compression is consistent (see <xref
-          target="HeaderBlock"/>); similarly DATA frames MUST be counted toward the connection flow
+          cannot be completely ignored.  For instance, <x:ref>HEADERS</x:ref> and
+          <x:ref>PUSH_PROMISE</x:ref> frames MUST be minimally 
+          processed to ensure the state maintained for header compression is consistent (see 
+          <xref target="HeaderBlock"/>); similarly CONTINUATION and DATA frames MUST be counted 
+          toward the connection flow
           control window.  Failure to process these frames can cause flow control or header
           compression state to become unsynchronized.
         </t>
@@ -2356,7 +2347,8 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Flow control only applies to frames that are identified as being subject to flow control.
-          Of the frame types defined in this document, this includes only <x:ref>DATA</x:ref> frames.
+          Of the frame types defined in this document, this includes only 
+          <x:ref>CONTINUATION</x:ref> and <x:ref>DATA</x:ref> frames.
           Frames that are exempt from flow control MUST be accepted and processed, unless the
           receiver is unable to assign resources to handling the frame.  A receiver MAY respond with
           a <xref target="StreamErrorHandler">stream error</xref> or <xref
@@ -2543,23 +2535,31 @@ HTTP2-Settings    = token68
         <t>
           The CONTINUATION frame defines the following flag:
           <list style="hanging">
+            <x:lt hangText="END_STREAM (0x1):">
+              <t>
+                Bit 1 being set indicates that this is the last frame the endpoint will 
+                send for the identified stream.
+              </t>
+            </x:lt>          
             <x:lt hangText="END_HEADERS (0x4):">
               <t>
                 Bit 3 being set indicates that this frame ends a <xref target="HeaderBlock">header
-                block</xref>.
+                block</xref>. This bit MUST be set if END_STREAM is set. A receiver MUST 
+                treat the receipt of a CONTINUATION frame with END_STREAM set and END_HEADERS 
+                cleared as an error of type <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
               <t>
                 If the END_HEADERS bit is not set, this frame MUST be followed by another
-                CONTINUATION frame.  A receiver MUST treat the receipt of any other type of frame or
-                a frame on a different stream as a <xref target="ConnectionErrorHandler">connection
-                error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+                CONTINUATION frame.  A receiver MUST treat the receipt of any other type of frame
+                as a <xref target="ConnectionErrorHandler">connection error</xref> of type 
+                <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
           </list>
         </t>
 
         <t>
-          The CONTINUATION frame changes the connection state as defined in <xref
+          The CONTINUATION frame MUST NOT change the connection state as defined in <xref
           target="HeaderBlock" />.
         </t>
 
@@ -2576,6 +2576,11 @@ HTTP2-Settings    = token68
           target="ConnectionErrorHandler"> connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
+        
+        <t>
+          CONTINUATION frames are subject to flow control.  The entire CONTINUATION frame payload is 
+          included in flow control.
+        </t>        
       </section>
     </section>
 
@@ -2690,16 +2695,10 @@ HTTP2-Settings    = token68
               target="RFC7230" x:fmt="," x:rel="#chunked.trailer.part"/>).
             </t>
           </list>
-          The last frame in the sequence bears an END_STREAM flag, noting that a
-          <x:ref>HEADERS</x:ref> frame bearing the END_STREAM flag can be followed by
-          <x:ref>CONTINUATION</x:ref> frames that carry any remaining portions of the header block.
+          The last frame in the sequence bears an END_STREAM flag.
         </t>
         <t>
-          Other frames (from any stream) MUST NOT occur between either <x:ref>HEADERS</x:ref> frame
-          and any <x:ref>CONTINUATION</x:ref> frames that might follow.
-        </t>
-        <t>
-          Otherwise, frames MAY be interspersed on the stream between these frames, but those frames
+          Frames MAY be interspersed on the stream between these frames, but those frames
           do not carry HTTP semantics. In particular, <x:ref>HEADERS</x:ref> frames (and any
           <x:ref>CONTINUATION</x:ref> frames that follow) other than the first and optional last
           frames in this sequence do not carry HTTP semantics.
@@ -2708,7 +2707,7 @@ HTTP2-Settings    = token68
         <t>
           Trailing header fields are carried in a header block that also terminates the stream.
           That is, a sequence starting with a <x:ref>HEADERS</x:ref> frame, followed by zero or more
-          <x:ref>CONTINUATION</x:ref> frames, where the <x:ref>HEADERS</x:ref> frame bears an
+          <x:ref>CONTINUATION</x:ref> frames, where the final frame bears an
           END_STREAM flag.  Header blocks after the first that do not terminate the stream are not
           part of an HTTP request or response.
         </t>
@@ -3149,8 +3148,8 @@ HTTP2-Settings    = token68
           <t>
             Trailing header fields are sent as a header block after both the request or response
             header block and all the <x:ref>DATA</x:ref> frames have been sent.  The
-            <x:ref>HEADERS</x:ref> frame starting the trailers header block has the END_STREAM flag
-            set.
+            final <x:ref>HEADERS</x:ref> or <x:ref>CONTINUATION</x:ref> frame has the END_STREAM 
+            flag set.
           </t>
 
           <figure>
@@ -3314,7 +3313,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Sending a <x:ref>PUSH_PROMISE</x:ref> frame creates a new stream and puts the stream
-            into the “reserved (local)” state for the server and the “reserved (remote)” state for
+            into the "reserved (local)" state for the server and the "reserved (remote)" state for
             the client.
           </t>
         </section>
@@ -3360,8 +3359,8 @@ HTTP2-Settings    = token68
           </t>
           <t>
             The response for a <x:ref>PUSH_PROMISE</x:ref> stream begins with a
-            <x:ref>HEADERS</x:ref> frame, which immediately puts the stream into the “half closed
-            (remote)” state for the server and “half closed (local)” state for the client, and ends
+            <x:ref>HEADERS</x:ref> frame, which immediately puts the stream into the "half closed
+            (remote)" state for the server and "half closed (local)" state for the client, and ends
             with a frame bearing END_STREAM, which places the stream in the "closed" state.
             <list style="hanging">
               <t hangText="Note:">
