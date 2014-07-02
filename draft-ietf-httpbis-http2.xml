@@ -1484,11 +1484,11 @@ HTTP2-Settings    = token68
           connection.
         </t>
         <t>
-          Extensions are permitted to use new <xref target="FrameHeader">frame types</xref>, new <xref
-          target="SettingValues">settings</xref>, new <xref target="ErrorCodes">error codes</xref>,
-          or new header fields that start with a colon (:).  Of
-          these, registries are established for <xref target="iana-frames">frame types</xref>, <xref
-          target="iana-settings">settings</xref> and <xref target="iana-errors">error codes</xref>.
+          Extensions are permitted to use new <xref target="FrameHeader">frame types</xref>, new
+          <xref target="SettingValues">settings</xref>, or new <xref target="ErrorCodes">error
+          codes</xref>.  Registries are established for managing these extension points: <xref
+          target="iana-frames">frame types</xref>, <xref target="iana-settings">settings</xref> and
+          <xref target="iana-errors">error codes</xref>.
         </t>
         <t>
           Implementations MUST ignore unknown or unsupported values in all extensible protocol
@@ -2793,8 +2793,14 @@ HTTP2-Settings    = token68
           <t>
             While HTTP/1.x used the message start-line (see <xref target="RFC7230" x:fmt=","
             x:rel="#start.line"/>) to convey the target URI and method of the request, and the
-            status code for the response, HTTP/2 uses special pseudo-headers beginning with ':'
-            character (ASCII 0x3a) for this purpose.
+            status code for the response, HTTP/2 uses special pseudo-header fields beginning with
+            ':' character (ASCII 0x3a) for this purpose.
+          </t>
+          <t>
+            Pseudo-header fields are only valid in initial header blocks, that is, the first
+            <x:ref>HEADERS</x:ref> frame sent on a stream, and <x:ref>PUSH_PROMISE</x:ref>.
+            Pseudo-header fields that appear in other header blocks, including trailers, cause the
+            corresponding request or response to be <xref target="malformed">malformed</xref>.
           </t>
           <t>
             Just as in HTTP/1.x, header field names are strings of ASCII characters that are
@@ -2885,6 +2891,8 @@ HTTP2-Settings    = token68
                   </t>
                 </x:lt>
               </list>
+            </t>
+            <t>
               All HTTP/2 requests MUST include exactly one valid value for the <spanx
               style="verb">:method</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
               style="verb">:path</spanx> header fields, unless this is a <xref
@@ -2894,9 +2902,9 @@ HTTP2-Settings    = token68
             <t>
               Header field names that start with a colon are only valid in the HTTP/2 context.
               These are not HTTP header fields.  Implementations MUST NOT generate header fields
-              that start with a colon, and they MUST ignore and discard any header field that starts
-              with a colon.  In particular, header fields with names starting with a colon MUST NOT
-              be exposed as HTTP header fields.
+              that start with a colon, and they MUST treat requests containing undefined
+              pseudo-header fields, or the <spanx style="verb">:status</spanx> pseudo-header field,
+              as being <xref target="malformed">malformed</xref>.
             </t>
             <t>
               HTTP/2 does not define a way to carry the version identifier that is included in the
@@ -2909,7 +2917,9 @@ HTTP2-Settings    = token68
               A single <spanx style="verb">:status</spanx> header field is defined that carries the
               HTTP status code field (see <xref target="RFC7231" x:fmt="," x:rel="#status.codes"/>).
               This header field MUST be included in all responses, otherwise the response is <xref
-              target="malformed">malformed</xref>.
+              target="malformed">malformed</xref>.  Implementations MUST treat the receipt of an
+              undefined pseudo-header field, or one of the request pseudo-header fields, as a <xref
+              target="malformed">malformed response</xref>.
             </t>
             <t>
               HTTP/2 does not define a way to carry the version or reason phrase that is included in
@@ -3032,15 +3042,16 @@ HTTP2-Settings    = token68
             </t>
             <t>
               Intermediaries that process HTTP requests or responses (i.e., any intermediary not
-              acting as a tunnel) MUST NOT forward a malformed request or response.
+              acting as a tunnel) MUST NOT forward a malformed request or response.  Malformed
+              requests or responses that are detected MUST be treated as a <xref
+              target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
             </t>
             <t>
-              Implementations that detect malformed requests or responses need to ensure that the
-              stream ends.  For malformed requests, a server MAY send an HTTP response prior to
-              closing or resetting the stream.  Clients MUST NOT accept a malformed response. Note
-              that these requirements are intended to protect against several types of common
-              attacks against HTTP; they are deliberately strict, because being permissive can
-              expose implementations to these vulnerabilities.
+              For malformed requests, a server MAY send an HTTP response prior to closing or
+              resetting the stream.  Clients MUST NOT accept a malformed response. Note that these
+              requirements are intended to protect against several types of common attacks against
+              HTTP; they are deliberately strict, because being permissive can expose
+              implementations to these vulnerabilities.
             </t>
           </section>
         </section>
