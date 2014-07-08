@@ -646,7 +646,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           A peer MAY advertise the maximum frame payload size it is willing to receive by 
-          any/all of:
+          either of:
           <list style="symbols">
           <t>
             the <x:ref>SETTINGS_FRAME_SIZE</x:ref> parameter within a 
@@ -655,10 +655,6 @@ HTTP2-Settings    = token68
           <t>
             the <x:ref>SETTINGS_HEADER_FRAME_SIZE</x:ref> parameter within a 
             <x:ref>SETTINGS</x:ref> frame (see <xref target="SettingValues"/>),
-          </t>
-          <t>
-            the Max Frame Size field in a <x:ref>WINDOW_UPDATE</x:ref> frame 
-            (see <xref target="MaxFrameSize"/>).
           </t>
           </list>
         </t>
@@ -2405,8 +2401,6 @@ HTTP2-Settings    = token68
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  |R|              Window Size Increment (31)                     |
  +-+-------------------------------------------------------------+
- |R|                 Max Frame Size? (31)                        |
- +-+-------------------------------------------------------------+
 ]]></artwork>
         </figure>
         <t>
@@ -2420,26 +2414,10 @@ HTTP2-Settings    = token68
               flow control window.  The legal range for the increment to the flow control window is 1 to
               2<x:sup>31</x:sup> - 1 (0x7fffffff) bytes.
             </t>
-            <t hangText="R:">
-              A Reserved bit, which is present only if the FRAME_SIZE flag is set.
-            </t>
-            <t hangText="Max Frame Size:">
-              An optional unsigned 31-bit integer which is present only if the FRAME_SIZE flag is set,
-              indicating the maximum frame size in octets that the peer can use to transmit frames
-              on this stream.  The legal range for this value is 256 to
-              2<x:sup>31</x:sup> - 1 (0x7fffffff) bytes. This value overrides the <x:ref>SETTINGS_FRAME_SIZE</x:ref> 
-              set for the connection.
-            </t>
           </list>
         </t>
         <t>
-          The WINDOW_UPDATE frame defines the following flags:
-          <list style="hanging">
-            <t hangText="FRAME_SIZE (0x1):">
-              Bit 1 being set indicates that this WINDOW_UPDATE frame contains a Max Data Frame Size field. 
-              This flag MUST NOT be set on a WINDOW_UPDATE with a stream ID of 0.
-            </t>
-          </list>
+          The WINDOW_UPDATE frame does not defines any flags.
         </t>
         <t>
           The WINDOW_UPDATE frame can be specific to a stream or to the entire connection.  In the
@@ -2577,52 +2555,6 @@ HTTP2-Settings    = token68
               <t>
                 The receiver can accept the streams and tolerate the resulting head of line
                 blocking, sending WINDOW_UPDATE frames as it consumes data.
-              </t>
-            </list>
-          </t>
-        </section>
-        <section anchor="MaxFrameSize" title="Setting the Stream Max Frame Size">
-          <t>
-            A receiver that wishes to allow a different max frame size in a specific stream 
-            that are different to <x:ref>SETTINGS_FRAME_SIZE</x:ref> for the connection, can send a Max Frame Size field in 
-            a WINDOW_UPDATE frame to indicate the size of frame that it wishes to 
-            receive in that stream. 
-          </t>
-          <t>
-            A peer that receives a Max Frame Size field can send frames on the indicated stream 
-            with lengths that:
-            <list style="symbols">
-              <t>MUST NOT exceed the larger of the <x:ref>SETTINGS_FRAME_SIZE</x:ref> and the Max Frame Size.</t>
-              <t>MAY exceed the <x:ref>SETTINGS_FRAME_SIZE</x:ref> if the Max Frame Size is larger.</t>
-              <t>SHOULD NOT exceed the Max Frame Size even if the <x:ref>SETTINGS_FRAME_SIZE</x:ref> is larger.</t>
-              <t>MUST NOT exceed the connection flow control window size.</t>
-              <t>MUST NOT exceed the stream flow control window size.</t>
-            </list>
-          </t>
-          <t>
-            A sender MAY choose to ignore a received Max Frame Size, thus a receiver MUST always be 
-            prepared to receive a frame up to the size set in the <x:ref>SETTINGS_FRAME_SIZE</x:ref> for the 
-            connection (or the default if not set), even if it has sent a Max Frame Size field 
-            that is smaller.
-          </t>
-          <t>
-            Increasing frame size may increase the efficiency of data transport 
-            for a single stream at the cost of quality of service of multiplexing multiple 
-            streams. This document does not stipulate if or how a receiver decides to change the 
-            Max Frame Size for a stream, but implementations that do MAY consider in their algorithm:
-            <list style="symbols">
-              <t>
-                The number of streams currently open or reserved.
-              </t>
-              <t>
-                The priority of the stream contents in relation to any other open or reserved streams.
-              </t>
-              <t>
-                The content-length of the stream.
-              </t>
-              <t>
-                Latency and throughput estimates derived from the timing of the frames previously received on
-                the stream.
               </t>
             </list>
           </t>
