@@ -697,6 +697,8 @@ HTTP2-Settings    = token68
           target="COMPRESSION">HTTP Header Compression</xref>.  The serialized header block is then
           transmitted within the payload of a <xref target="HEADERS">HEADERS</xref> or <xref
           target="PUSH_PROMISE">PUSH_PROMISE</xref> frame.
+          A header block MUST fit within a single <x:ref>HEADERS</x:ref> or <x:ref>PUSH_PROMISE</x:ref> frame
+	  whose size may not exceed the applicable <x:ref>SETTINGS_HEADER_FRAME_SIZE</x:ref>.
         </t>
         <t>
           HTTP Header Compression does not preserve the relative ordering of header fields.  Header
@@ -709,22 +711,9 @@ HTTP2-Settings    = token68
           mapping (see <xref target="CompressCookie"/>).
         </t>
         <t>
-          A receiving endpoint decompresses the block to reconstruct the header set.
-        </t>
-        <t>
-          A complete header block consists of either:
-          <list style="symbols">
-            <t>
-              a single <x:ref>HEADERS</x:ref> frame, or
-            </t>
-            <t>
-              a single <x:ref>PUSH_PROMISE</x:ref> frame.
-            </t>
-          </list>
-        </t>
-        <t>
-          A header block MUST fit within a single <x:ref>HEADERS</x:ref> or 
-          <x:ref>PUSH_PROMISE</x:ref> frame.
+          A receiving endpoint decompresses the block recieved in a 
+	  <xref target="HEADERS">HEADERS</xref> or <xref target="PUSH_PROMISE">PUSH_PROMISE</xref> frame
+	  to reconstruct the header set.
         </t>
         <t>
           Header compression is stateful, using a single compression context for the entire
@@ -2043,7 +2032,7 @@ HTTP2-Settings    = token68
                 <t>
                   This setting only affects the frame payload size of <x:ref>HEADERS</x:ref> 
                   frames. All other frame types are restricted in payload size by the setting
-                  <x:ref>SETTINGS_HEADER_FRAME_SIZE</x:ref>.
+                  <x:ref>SETTINGS_FRAME_SIZE</x:ref>.
                 </t>
               </x:lt>
             </list>
@@ -2141,9 +2130,8 @@ HTTP2-Settings    = token68
         <t>
           The payload of a PUSH_PROMISE frame contains a <xref target="HeaderBlock">header block
           </xref>.
-          The header block MUST fit within a single <x:ref>PUSH_PROMISE</x:ref> frame. An extension will 
-          be published that will allow HTTP/2 hops to negotiate the use of larger header blocks 
-          (see <xref target="extensibility"/>).
+          The header block MUST fit within a single <x:ref>PUSH_PROMISE</x:ref> frame whose size
+	  does not exceed the <x:ref>SETTINGS_HEADER_FRAME_SIZE</x:ref> set by the peer.
         </t>
 
         <t>
@@ -2439,7 +2427,7 @@ HTTP2-Settings    = token68
               An optional unsigned 31-bit integer which is present only if the FRAME_SIZE flag is set,
               indicating the maximum frame size in octets that the peer can use to transmit frames
               on this stream.  The legal range for this value is 256 to
-              2<x:sup>31</x:sup> - 1 (0x7fffffff) bytes. This value overrides the SETTINGS_FRAME_SIZE 
+              2<x:sup>31</x:sup> - 1 (0x7fffffff) bytes. This value overrides the <x:ref>SETTINGS_FRAME_SIZE</x:ref> 
               set for the connection.
             </t>
           </list>
@@ -2596,7 +2584,7 @@ HTTP2-Settings    = token68
         <section anchor="MaxFrameSize" title="Setting the Stream Max Frame Size">
           <t>
             A receiver that wishes to allow a different max frame size in a specific stream 
-            that are different to SETTINGS_FRAME_SIZE for the connection, can send a Max Frame Size field in 
+            that are different to <x:ref>SETTINGS_FRAME_SIZE</x:ref> for the connection, can send a Max Frame Size field in 
             a WINDOW_UPDATE frame to indicate the size of frame that it wishes to 
             receive in that stream. 
           </t>
@@ -2604,16 +2592,16 @@ HTTP2-Settings    = token68
             A peer that receives a Max Frame Size field can send frames on the indicated stream 
             with lengths that:
             <list style="symbols">
-              <t>MUST NOT exceed the larger of the SETTINGS_FRAME_SIZE and the Max Frame Size.</t>
-              <t>MAY exceed the SETTINGS_FRAME_SIZE if the Max Frame Size is larger.</t>
-              <t>SHOULD NOT exceed the Max Frame Size even if the SETTINGS_FRAME_SIZE is larger.</t>
+              <t>MUST NOT exceed the larger of the <x:ref>SETTINGS_FRAME_SIZE</x:ref> and the Max Frame Size.</t>
+              <t>MAY exceed the <x:ref>SETTINGS_FRAME_SIZE</x:ref> if the Max Frame Size is larger.</t>
+              <t>SHOULD NOT exceed the Max Frame Size even if the <x:ref>SETTINGS_FRAME_SIZE</x:ref> is larger.</t>
               <t>MUST NOT exceed the connection flow control window size.</t>
               <t>MUST NOT exceed the stream flow control window size.</t>
             </list>
           </t>
           <t>
             A sender MAY choose to ignore a received Max Frame Size, thus a receiver MUST always be 
-            prepared to receive a frame up to the size set in the SETTINGS_FRAME_SIZE for the 
+            prepared to receive a frame up to the size set in the <x:ref>SETTINGS_FRAME_SIZE</x:ref> for the 
             connection (or the default if not set), even if it has sent a Max Frame Size field 
             that is smaller.
           </t>
