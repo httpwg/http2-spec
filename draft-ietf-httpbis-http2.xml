@@ -1577,11 +1577,6 @@ HTTP2-Settings    = token68
               the identified stream.  Setting this flag causes the stream to enter one of <xref
               target="StreamStates">the "half closed" states or the "closed" state</xref>.
             </t>
-            <t hangText="END_SEGMENT (0x2):">
-              Bit 2 being set indicates that this frame is the last for the current segment.
-              Intermediaries MUST NOT coalesce frames across a segment boundary and MUST preserve
-              segment boundaries when forwarding frames.
-            </t>
             <t hangText="PADDED (0x8):">
               Bit 4 being set indicates that the Pad Length field is present.
             </t>
@@ -1688,15 +1683,6 @@ HTTP2-Settings    = token68
                 A HEADERS frame that is followed by <x:ref>CONTINUATION</x:ref> frames carries the
                 END_STREAM flag that signals the end of a stream.  A <x:ref>CONTINUATION</x:ref>
                 frame cannot be used to terminate a stream.
-              </t>
-            </x:lt>
-            <x:lt hangText="END_SEGMENT (0x2):">
-              <t>
-                Bit 2 being set indicates that the header block starting with this frame is the last
-                for the current segment.  Intermediaries MUST NOT coalesce frames across a segment
-                boundary and MUST preserve segment boundaries when forwarding frames.  END_SEGMENT,
-                like END_STREAM, applies to a complete sequence of HEADERS and
-                <x:ref>CONTINUATION</x:ref> frames.
               </t>
             </x:lt>
             <x:lt hangText="END_HEADERS (0x4):">
@@ -2711,10 +2697,10 @@ HTTP2-Settings    = token68
           and any <x:ref>CONTINUATION</x:ref> frames that might follow.
         </t>
         <t>
-          Otherwise, frames MAY be interspersed on the stream between these frames, but those frames
-          do not carry HTTP semantics. In particular, <x:ref>HEADERS</x:ref> frames (and any
-          <x:ref>CONTINUATION</x:ref> frames that follow) other than the first and optional last
-          frames in this sequence do not carry HTTP semantics.
+          A <x:ref>HEADERS</x:ref> frame (and associated <x:ref>CONTINUATION</x:ref> frames) can
+          only appear at the start or end of a stream.  An endpoint that receives a second
+          <x:ref>HEADERS</x:ref> frame without the END_STREAM flag set MUST treat the corresponding
+          request or response as <xref target="malformed">malformed</xref>.
         </t>
 
         <t>
@@ -2732,6 +2718,8 @@ HTTP2-Settings    = token68
           (local)" for the client and "half closed (remote)" for the server.  A response starts with
           a <x:ref>HEADERS</x:ref> frame and ends with a frame bearing END_STREAM, which places the
           stream in the "closed" state.
+          <!-- Yes, the response might be completed before the request does, but that's not a detail
+               we need to expand upon.  It's complicated enough explaining this as it is.  -->
         </t>
 
         <section anchor="informational-responses" title="Informational Responses">
@@ -3039,11 +3027,12 @@ HTTP2-Settings    = token68
             </figure>
           </section>
 
-          <section anchor="malformed" title="Malformed Messages">
+          <section anchor="malformed" title="Malformed Requests and Responses">
             <t>
-              A malformed request or response is one that uses a valid sequence of HTTP/2 frames,
-              but is otherwise invalid due to the presence of prohibited header fields, the absence
-              of mandatory header fields, or the inclusion of uppercase header field names.
+              A malformed request or response is one that is an otherwise valid sequence of HTTP/2
+              frames, but is otherwise invalid due to the presence of extraneous frames, prohibited
+              header fields, the absence of mandatory header fields, or the inclusion of uppercase
+              header field names.
             </t>
             <t>
               A request or response that includes an entity body can include a <spanx
@@ -4628,7 +4617,10 @@ HTTP2-Settings    = token68
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
        <section title="Since draft-ietf-httpbis-http2-13" anchor="changes.since.draft-ietf-httpbis-http2-13">
          <t>
-           None (yet).
+           Removed segments.
+         </t>
+         <t>
+           Made non-semantic-bearing <x:ref>HEADERS</x:ref> frames illegal in HTTP mapping.
          </t>
        </section>
 
