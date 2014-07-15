@@ -184,7 +184,7 @@
               structured and formed into multiplexed streams.
             </t>
             <t>
-              <xref target="frame-types">Frame</xref> and <xref target="ErrorCodes">error</xref>
+              <xref target="FrameTypes">Frame</xref> and <xref target="ErrorCodes">error</xref>
               definitions include details of the frame and error types used in HTTP/2.
             </t>
             <t>
@@ -556,15 +556,16 @@ HTTP2-Settings    = token68
 
       <section anchor="FrameHeader" title="Frame Format">
         <t>
-          All frames begin with a fixed 8-octet header followed by a payload of between 0 and 16,383
-          octets.
+          All frames begin with a fixed 9-octet header followed by a variable-length payload.
         </t>
         <figure title="Frame Layout">
           <artwork type="inline"><![CDATA[
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- | R |     Length (14)           |   Type (8)    |   Flags (8)   |
+ |                 Length (24)                   |
+ +---------------+---------------+---------------+
+ |   Type (8)    |   Flags (8)   |
  +-+-+-----------+---------------+-------------------------------+
  |R|                 Stream Identifier (31)                      |
  +=+=============================================================+
@@ -575,16 +576,14 @@ HTTP2-Settings    = token68
         <t>
           The fields of the frame header are defined as:
           <list style="hanging">
-            <x:lt hangText="R:">
-              <t>
-                A reserved 2-bit field.  The semantics of these bits are undefined and the bits MUST
-                remain unset (0) when sending and MUST be ignored when receiving.
-              </t>
-            </x:lt>
             <x:lt hangText="Length:">
               <t>
-                The length of the frame payload expressed as an unsigned 14-bit integer. The 8
-                octets of the frame header are not included in this value.
+                The length of the frame payload expressed as an unsigned 24-bit integer.  Values
+                greater than 2<x:sup>16</x:sup> (16,384) MUST NOT be sent unless the receiver has
+                set a larger value for <x:ref>SETTINGS_MAX_FRAME_SIZE</x:ref>.
+              </t>
+              <t>
+                The 9 octets of the frame header are not included in this value.
               </t>
             </x:lt>
             <x:lt hangText="Type:">
@@ -626,14 +625,21 @@ HTTP2-Settings    = token68
 
       <section anchor="FrameSize" title="Frame Size">
         <t>
-          The maximum size of a frame payload varies by frame type. The absolute maximum size of a
-          frame payload is 2<x:sup>14</x:sup>-1 (16,383) octets, meaning that the maximum frame
-          size is 16,391 octets. All implementations MUST be capable of receiving and minimally
-          processing frames up to this maximum size.
+          The maximum size of a frame payload varies by <xref target="FrameTypes">frame type</xref>
+          and the maximum size that a receiver advertises in the
+          <x:ref>SETTINGS_MAX_FRAME_SIZE</x:ref> setting.  This setting can have any value between
+          2<x:sup>14</x:sup> (16,384) and 2<x:sup>24</x:sup>-1 (16,777,215) octets.
         </t>
         <t>
-          Certain frame types, such as <xref target="PING">PING</xref>, impose additional limits on
-          the amount of payload data allowed.
+          All implementations MUST be capable of receiving and minimally processing frames up to
+          2<x:sup>14</x:sup> octets in length, plus the 9 octet <xref target="FrameHeader">frame
+          header</xref>.  The size of the frame header is not included when describing frame sizes.
+          <list style="hanging">
+            <t hangText="Note:">
+              Certain frame types, such as <xref target="PING">PING</xref>, impose additional limits
+              on the amount of payload data allowed.
+            </t>
+          </list>
         </t>
         <t>
           If a frame size exceeds any defined limit, or is too small to contain mandatory frame
@@ -643,6 +649,13 @@ HTTP2-Settings    = token68
           a <xref target="HeaderBlock">header block</xref> (that is, <x:ref>HEADERS</x:ref>,
           <x:ref>PUSH_PROMISE</x:ref>, and <x:ref>CONTINUATION</x:ref>), <x:ref>SETTINGS</x:ref>,
           and any <x:ref>WINDOW_UPDATE</x:ref> frame with a stream identifier of 0.
+        </t>
+        <t>
+          Endpoints are not obligated to use all available space in a frame.  Responsiveness can be
+          improved by using frames that are smaller than the permitted maximum size.  Sending large
+          frames can result in delays in sending maintenance frames, such <x:ref>RST_STREAM</x:ref>,
+          <x:ref>WINDOW_UPDATE</x:ref>, or <x:ref>PRIORITY</x:ref>, which if blocked by the
+          transmission of a large frame, could affect performance.
         </t>
       </section>
 
@@ -1515,7 +1528,7 @@ HTTP2-Settings    = token68
       </section>
     </section>
 
-    <section anchor="frame-types" title="Frame Definitions">
+    <section anchor="FrameTypes" title="Frame Definitions">
       <t>
         This specification defines a number of frame types, each identified by a unique 8-bit type
         code. Each frame type serves a distinct purpose either in the establishment and management
@@ -1929,7 +1942,8 @@ HTTP2-Settings    = token68
           <t>
             The following parameters are defined:
             <list style="hanging">
-              <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (0x1):" anchor="SETTINGS_HEADER_TABLE_SIZE">
+              <x:lt hangText="SETTINGS_HEADER_TABLE_SIZE (0x1):"
+                    anchor="SETTINGS_HEADER_TABLE_SIZE">
                 <t>
                   Allows the sender to inform the remote endpoint of the maximum size of the header
                   compression table used to decode header blocks. The encoder can select any size
@@ -1937,7 +1951,8 @@ HTTP2-Settings    = token68
                   format inside a header block.  The initial value is 4,096 bytes.
                 </t>
               </x:lt>
-              <x:lt hangText="SETTINGS_ENABLE_PUSH (0x2):" anchor="SETTINGS_ENABLE_PUSH">
+              <x:lt hangText="SETTINGS_ENABLE_PUSH (0x2):"
+                    anchor="SETTINGS_ENABLE_PUSH">
                 <t>
                   This setting can be use to disable <xref target="PushResources">server
                   push</xref>. An endpoint MUST NOT send a <x:ref>PUSH_PROMISE</x:ref> frame if it
@@ -1954,7 +1969,8 @@ HTTP2-Settings    = token68
                   <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
               </x:lt>
-              <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (0x3):" anchor="SETTINGS_MAX_CONCURRENT_STREAMS">
+              <x:lt hangText="SETTINGS_MAX_CONCURRENT_STREAMS (0x3):"
+                    anchor="SETTINGS_MAX_CONCURRENT_STREAMS">
                 <t>
                   Indicates the maximum number of concurrent streams that the sender will allow.
                   This limit is directional: it applies to the number of streams that the sender
@@ -1970,19 +1986,35 @@ HTTP2-Settings    = token68
                   accept requests, closing the connection could be preferable.
                 </t>
               </x:lt>
-              <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (0x4):" anchor="SETTINGS_INITIAL_WINDOW_SIZE">
+              <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (0x4):"
+                    anchor="SETTINGS_INITIAL_WINDOW_SIZE">
                 <t>
                   Indicates the sender's initial window size (in bytes) for stream level flow
-                  control.  The initial value is 65,535.
+                  control.  The initial value is 2<x:sup>16</x:sup>-1 (65,535) octets.
                 </t>
                 <t>
                   This setting affects the window size of all streams, including existing streams,
                   see <xref target="InitialWindowSize"/>.
                 </t>
                 <t>
-                  Values above the maximum flow control window size of 2<x:sup>31</x:sup> - 1 MUST
+                  Values above the maximum flow control window size of 2<x:sup>31</x:sup>-1 MUST
                   be treated as a <xref target="ConnectionErrorHandler">connection error</xref> of
                   type <x:ref>FLOW_CONTROL_ERROR</x:ref>.
+                </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_MAX_FRAME_SIZE (0x5):"
+                    anchor="SETTINGS_MAX_FRAME_SIZE">
+                <t>
+                  Indicates the size of the largest frame that a receiver is willing to accept.
+                </t>
+                <t>
+                  The initial value is 2<x:sup>14</x:sup> (16,384) octets.  Endpoints MUST NOT
+                  reduce this value, but they MAY increase it to any value up to the maximum allowed
+                  frame size (2<x:sup>24</x:sup>-1 or 16,777,215 octets).  Values outside this range
+                  MUST be treated as a <xref target="ConnectionErrorHandler">connection error</xref>
+                  of type <x:ref>PROTOCOL_ERROR</x:ref>.
+                </t>
+                <t>
                 </t>
               </x:lt>
             </list>
@@ -2368,7 +2400,7 @@ HTTP2-Settings    = token68
           The payload of a WINDOW_UPDATE frame is one reserved bit, plus an unsigned 31-bit integer
           indicating the number of bytes that the sender can transmit in addition to the existing
           flow control window.  The legal range for the increment to the flow control window is 1 to
-          2<x:sup>31</x:sup> - 1 (0x7fffffff) bytes.
+          2<x:sup>31</x:sup>-1 (0x7fffffff) bytes.
         </t>
         <t>
           The WINDOW_UPDATE frame does not define any flags.
@@ -2431,7 +2463,7 @@ HTTP2-Settings    = token68
             amount specified in the frame.
           </t>
           <t>
-            A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup> - 1 bytes.
+            A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup>-1 bytes.
             If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
             maximum it MUST terminate either the stream or the connection, as appropriate.  For
             streams, the sender sends a <x:ref>RST_STREAM</x:ref> with the error code of
@@ -4617,6 +4649,10 @@ HTTP2-Settings    = token68
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
        <section title="Since draft-ietf-httpbis-http2-13" anchor="changes.since.draft-ietf-httpbis-http2-13">
+         <t>
+           Changed frame length field 24-bits.  Expanded frame header to 9 octets.  Added a setting
+           to limit the damage.
+         </t>
          <t>
            Removed segments.
          </t>
