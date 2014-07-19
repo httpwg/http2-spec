@@ -222,6 +222,16 @@
   </xsl:call-template>
 </xsl:param>
 
+<!-- paragraph links? -->
+
+<xsl:param name="xml2rfc-ext-paragraph-links">
+  <xsl:call-template name="parse-pis">
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="attr" select="'paragraph-links'"/>
+    <xsl:with-param name="default" select="'no'"/>
+  </xsl:call-template>
+</xsl:param>
+
 <!-- extension for XML parsing in artwork -->
 
 <xsl:param name="xml2rfc-ext-parse-xml-in-artwork">
@@ -353,7 +363,7 @@
 
 <xsl:param name="xml2rfc-linkmailto">
   <xsl:call-template name="parse-pis">
-    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc')"/>
     <xsl:with-param name="attr" select="'linkmailto'"/>
     <xsl:with-param name="default" select="'yes'"/>
   </xsl:call-template>
@@ -387,6 +397,33 @@
 <!-- the format we're producing -->
 <xsl:param name="outputExtension" select="'html'"/>
 
+<!-- source for autorefresh -->
+<xsl:param name="xml2rfc-ext-refresh-from">
+  <xsl:call-template name="parse-pis">
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="attr" select="'refresh-from'"/>
+    <xsl:with-param name="default" select="''"/>
+  </xsl:call-template>
+</xsl:param>
+
+<!-- XSLT for autorefresh -->
+<xsl:param name="xml2rfc-ext-refresh-xslt">
+  <xsl:call-template name="parse-pis">
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="attr" select="'refresh-xslt'"/>
+    <xsl:with-param name="default" select="'rfc2629.xslt'"/>
+  </xsl:call-template>
+</xsl:param>
+
+<!-- interval for autorefresh -->
+<xsl:param name="xml2rfc-ext-refresh-interval">
+  <xsl:call-template name="parse-pis">
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="attr" select="'refresh-interval'"/>
+    <xsl:with-param name="default" select="10"/>
+  </xsl:call-template>
+</xsl:param>
+
 <!-- warning re: absent node-set ext. function -->
 <xsl:variable name="node-set-warning">
   This stylesheet requires either an XSLT-1.0 processor with node-set()
@@ -398,6 +435,8 @@
 <xsl:variable name="lcase" select="'abcdefghijklmnopqrstuvwxyz'" />
 <xsl:variable name="ucase" select="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'" />
 <xsl:variable name="digits" select="'0123456789'" />
+<xsl:variable name="alpha" select="concat($lcase,$ucase)"/>
+<xsl:variable name="alnum" select="concat($alpha,$digits)"/>
 
 <!-- build help keys for indices -->
 <xsl:key name="index-first-letter"
@@ -664,7 +703,7 @@
     <xsl:when test="starts-with(@type,'drawing')">
       <xsl:attribute name="class">drawing</xsl:attribute>
     </xsl:when>
-    <xsl:when test="starts-with(@type,'text/plain') or @type='example' or @type='code'">
+    <xsl:when test="starts-with(@type,'text/plain') or @type='example' or @type='code' or @type='application/xml-dtd'">
       <xsl:attribute name="class">text</xsl:attribute>
     </xsl:when>
     <xsl:otherwise/>
@@ -989,12 +1028,14 @@
         <xsl:when test="$xml2rfc-rfcedstyle='yes'">Email: </xsl:when>
         <xsl:otherwise>EMail: </xsl:otherwise>
       </xsl:choose>
-      <a>
-        <xsl:if test="$xml2rfc-linkmailto!='no'">
-          <xsl:attribute name="href">mailto:<xsl:value-of select="$email" /></xsl:attribute>
-        </xsl:if>
-        <xsl:value-of select="$email" />
-      </a>
+      <xsl:choose>
+        <xsl:when test="$xml2rfc-linkmailto!='no'">
+          <a href="mailto:{$email}"><xsl:value-of select="$email" /></a>   
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="$email" />
+        </xsl:otherwise>
+      </xsl:choose>
     </xsl:for-each>
     <xsl:for-each select="address/uri">
       <xsl:variable name="uri">
@@ -1089,7 +1130,7 @@
   <xsl:if test="@anchor!=''">
     <xsl:call-template name="check-anchor"/>
     <xsl:element name="{$anch-container}">
-    <xsl:attribute name="id"><xsl:value-of select="@anchor"/></xsl:attribute>
+      <xsl:attribute name="id"><xsl:value-of select="@anchor"/></xsl:attribute>
     </xsl:element>
   </xsl:if>
   <xsl:variable name="anch">
@@ -1097,8 +1138,8 @@
   </xsl:variable>
   <xsl:element name="{$anch-container}">
     <xsl:attribute name="id"><xsl:value-of select="$anch"/></xsl:attribute>
+    <xsl:apply-templates />
   </xsl:element>
-  <xsl:apply-templates />
   <xsl:if test="(@title!='') or (@anchor!='' and not(@suppress-title='true'))">
     <xsl:variable name="n"><xsl:call-template name="get-figure-number"/></xsl:variable>
     <p class="figure">
@@ -1130,7 +1171,7 @@
     </xsl:variable>
 
     <!-- insert the collected information -->
-    <table class="header">
+    <table class="header" id="{$anchor-prefix}.headerblock">
       <xsl:choose>
         <xsl:when test="function-available('exslt:node-set')">
           <xsl:call-template name="emitheader">
@@ -1147,7 +1188,7 @@
     </table>
   </xsl:if>
 
-  <p class="title">
+  <p class="title" id="{$anchor-prefix}.title">
     <!-- main title -->
 
     <xsl:apply-templates select="title"/>
@@ -1326,13 +1367,18 @@
 
 <xsl:template name="compute-iref-anchor">
   <xsl:variable name="first" select="translate(substring(@item,1,1),$ucase,$lcase)"/>
-  <xsl:variable name="nkey" select="translate($first,$lcase,'')"/>
+  <xsl:variable name="nkey" select="translate($first,$alnum,'')"/>
   <xsl:choose>
+    <xsl:when test="count(.|$section-level-irefs)=count($section-level-irefs)">
+      <xsl:for-each select="..">
+        <xsl:value-of select="$anchor-prefix"/>.section.<xsl:call-template name="get-section-number"/>
+      </xsl:for-each>
+    </xsl:when>
     <xsl:when test="$nkey=''">
-      <xsl:value-of select="$anchor-prefix"/>.iref.<xsl:value-of select="$first"/>.<xsl:number level="any" count="iref[starts-with(translate(@item,$ucase,$lcase),$first)]"/>
+      <xsl:value-of select="$anchor-prefix"/>.iref.<xsl:value-of select="$first"/>.<xsl:number level="any" count="iref[starts-with(translate(@item,$ucase,$lcase),$first) and count(.|$section-level-irefs)!=count($section-level-irefs)]"/>
     </xsl:when>
     <xsl:otherwise>
-      <xsl:value-of select="$anchor-prefix"/>.iref.<xsl:number level="any" count="iref[translate(substring(@item,1,1),concat($lcase,$ucase),'')='']"/>
+      <xsl:value-of select="$anchor-prefix"/>.iref.<xsl:number level="any" count="iref[translate(substring(@item,1,1),$alnum,'')!='' and count(.|$section-level-irefs)!=count($section-level-irefs)]"/>
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
@@ -1352,7 +1398,7 @@
 
 <!-- list templates depend on the list style -->
 
-<xsl:template match="list[@style='empty' or not(@style)]">
+<xsl:template match="list[@style='empty' or (not(@style) and not(ancestor::list[@style]) or (not(@style) and ancestor::list[@style='empty']))]">
   <xsl:call-template name="check-no-text-content"/>
   <ul class="empty">
     <xsl:call-template name="insertInsDelClass"/>
@@ -1376,7 +1422,7 @@
   </dl>
 </xsl:template>
 
-<xsl:template match="list[@style='numbers']">
+<xsl:template match="list[@style='numbers' or (not(@style) and ancestor::list[@style='numbers'])]">
   <xsl:call-template name="check-no-text-content"/>
   <ol>
     <xsl:call-template name="insertInsDelClass"/>
@@ -1384,7 +1430,7 @@
   </ol>
 </xsl:template>
 
-<xsl:template match="list[@style='letters']">
+<xsl:template match="list[@style='letters' or (not(@style) and ancestor::list[@style='letters'])]">
   <xsl:call-template name="check-no-text-content"/>
   <xsl:variable name="style">
     <xsl:choose>
@@ -1400,7 +1446,7 @@
   </ol>
 </xsl:template>
 
-<xsl:template match="list[@style='symbols']">
+<xsl:template match="list[@style='symbols' or (not(@style) and ancestor::list[@style='symbols'])]">
   <xsl:call-template name="check-no-text-content"/>
   <ul>
     <xsl:call-template name="insertInsDelClass"/>
@@ -1832,16 +1878,8 @@
               </xsl:if>
             </xsl:variable>
             <xsl:choose>
-              <xsl:when test="address/email">
-                <a>
-                  <xsl:if test="$xml2rfc-linkmailto!='no'">
-                    <xsl:attribute name="href">mailto:<xsl:value-of select="address/email" /></xsl:attribute>
-                  </xsl:if>
-                  <xsl:if test="organization/text()">
-                    <xsl:attribute name="title"><xsl:value-of select="organization/text()"/></xsl:attribute>
-                  </xsl:if>
-                  <xsl:value-of select="$displayname" />
-                </a>
+              <xsl:when test="address/email and $xml2rfc-linkmailto!='no'">
+                <a href="mailto:{address/email}"><xsl:value-of select="$displayname" /></a>
               </xsl:when>
               <xsl:otherwise>
                 <xsl:value-of select="$displayname" />
@@ -2184,10 +2222,14 @@
 
     </head>
     <body>
-      <xsl:if test="/rfc/x:feedback or ($xml2rfc-ext-insert-metadata='yes' and /rfc/@number)">
+      <xsl:variable name="onload">
+        <xsl:if test="$xml2rfc-ext-insert-metadata='yes' and /rfc/@number">getMeta(<xsl:value-of select="/rfc/@number"/>,"rfc.meta");</xsl:if>
+        <xsl:if test="/rfc/x:feedback">initFeedback();</xsl:if>
+        <xsl:if test="$xml2rfc-ext-refresh-from!=''">RfcRefresh.initRefresh()</xsl:if>
+      </xsl:variable>
+      <xsl:if test="$onload!=''">
         <xsl:attribute name="onload">
-          <xsl:if test="$xml2rfc-ext-insert-metadata='yes' and /rfc/@number">getMeta(<xsl:value-of select="/rfc/@number"/>,"rfc.meta");</xsl:if>
-          <xsl:if test="/rfc/x:feedback">initFeedback();</xsl:if>
+          <xsl:value-of select="$onload"/>
         </xsl:attribute>
       </xsl:if>
 
@@ -2234,14 +2276,30 @@
 
   <!-- do not open a new p element if this is a whitespace-only text node and no siblings follow -->
   <xsl:if test="not(self::text() and normalize-space(.)='' and not(following-sibling::node()))">
-    <p>
-      <xsl:if test="$p!='' and not(ancestor::ed:del) and not(ancestor::ed:ins) and not(ancestor::x:lt) and count(preceding-sibling::node())=0">
-        <xsl:attribute name="id"><xsl:value-of select="$anchor-prefix"/>.section.<xsl:value-of select="$p"/></xsl:attribute>
-      </xsl:if>
-      <xsl:call-template name="insertInsDelClass"/>
-      <xsl:call-template name="editingMark" />
+    <xsl:variable name="textcontent">
       <xsl:apply-templates mode="t-content2" select="." />
-    </p>
+    </xsl:variable>
+
+    <xsl:if test="normalize-space($textcontent)!=''">
+      <p>
+        <xsl:variable name="anchor">
+          <xsl:if test="$p!='' and not(ancestor::ed:del) and not(ancestor::ed:ins) and not(ancestor::x:lt) and not(preceding-sibling::node())">
+            <xsl:value-of select="concat($anchor-prefix,'.section.',$p)"/>
+          </xsl:if>
+        </xsl:variable>
+        <xsl:if test="$anchor!=''">
+          <xsl:attribute name="id"><xsl:value-of select="$anchor"/></xsl:attribute>
+        </xsl:if>
+        <xsl:call-template name="insertInsDelClass"/>
+        <xsl:call-template name="editingMark" />
+        <xsl:apply-templates mode="t-content2" select="." />
+        <xsl:if test="$xml2rfc-ext-paragraph-links='yes'">
+          <xsl:if test="$anchor!=''">
+            <a class='self' href='#{$anchor}'>&#xb6;</a>
+          </xsl:if>
+        </xsl:if>
+      </p>
+    </xsl:if>
   </xsl:if>
   <xsl:apply-templates mode="t-content" select="following-sibling::*[self::list or self::figure or self::texttable][1]" />
 </xsl:template>
@@ -2268,15 +2326,24 @@
 </xsl:template>
 
 <xsl:template match="title">
-  <xsl:if test="@abbrev and string-length(@abbrev) > 40">
+  <xsl:variable name="tlen" select="string-length(.)"/>
+  <xsl:variable name="alen" select="string-length(@abbrev)"/>
+
+  <xsl:if test="@abbrev and $alen > 40">
     <xsl:call-template name="warning">
       <xsl:with-param name="msg">title/@abbrev too long (max 40 characters)</xsl:with-param>
     </xsl:call-template>
   </xsl:if>
 
-  <xsl:if test="string-length(.) > 40 and (not(@abbrev) or @abbrev='')">
+  <xsl:if test="$tlen > 40 and (not(@abbrev) or @abbrev='')">
     <xsl:call-template name="warning">
       <xsl:with-param name="msg">title too long, should supply title/@abbrev attribute with less than 40 characters</xsl:with-param>
+    </xsl:call-template>
+  </xsl:if>
+
+  <xsl:if test="$tlen &lt;= 40 and @abbrev!=''">
+    <xsl:call-template name="warning">
+      <xsl:with-param name="msg">title/@abbrev was specified despite the title being short enough (<xsl:value-of select="$tlen"/>)</xsl:with-param>
     </xsl:call-template>
   </xsl:if>
 
@@ -2304,6 +2371,9 @@
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
+
+<!-- irefs that are section-level thus can use the section anchor -->
+<xsl:variable name="section-level-irefs" select="//section/iref[count(preceding-sibling::*[not(self::iref) and not(self::x:anchor-alias)])=0]"/>
 
 <xsl:template match="section|appendix">
   <xsl:call-template name="check-no-text-content"/>
@@ -2334,7 +2404,7 @@
   </xsl:variable>
 
   <xsl:if test="$xml2rfc-ext-insert-metadata='yes' and $rfcno!='' and @anchor='rfc.status'">
-    <div id="rfc.meta" style="float: right; border: 1px solid black; margin: 2em; padding: 1em; display: none;"></div>
+    <div id="{$anchor-prefix}.meta" style="float: right; border: 1px solid black; margin: 2em; padding: 1em; display: none;"></div>
   </xsl:if>
   <div>
     <xsl:if test="@anchor">
@@ -2342,9 +2412,11 @@
       <xsl:attribute name="id"><xsl:value-of select="@anchor"/></xsl:attribute>
     </xsl:if>
 
-    <!-- process irefs immediately following the section so that their anchor
-    actually is the section heading -->
-    <xsl:apply-templates select="iref[count(preceding-sibling::*[not(self::iref)])=0]"/>
+    <!--<xsl:for-each select="iref">
+      <xsl:if test="count(.|$section-level-irefs)=count($section-level-irefs)">
+        <xsl:apply-templates select="."/>
+      </xsl:if>
+    </xsl:for-each>-->
 
     <xsl:element name="{$elemtype}">
       <xsl:if test="$sectionNumber!=''">
@@ -2387,8 +2459,13 @@
         </xsl:otherwise>
       </xsl:choose>
     </xsl:element>
+
     <!-- continue with all child elements but the irefs processed above -->
-    <xsl:apply-templates select="*[not(self::iref)]|iref[count(preceding-sibling::*[not(self::iref)])!=0]" />
+    <xsl:for-each select="*">
+      <xsl:if test="count(.|$section-level-irefs)!=count($section-level-irefs)">
+        <xsl:apply-templates select="."/>
+      </xsl:if>
+    </xsl:for-each>
   </div>
 </xsl:template>
 
@@ -3063,7 +3140,7 @@
     <!-- check <area> value -->
     <xsl:for-each select="/rfc/front/area">
       <xsl:variable name="area" select="normalize-space(.)"/>
-      <xsl:variable name="allowed">
+      <xsl:variable name="rallowed">
         <ed:v>Applications</ed:v>
         <ed:v>app</ed:v>
         <ed:v>General</ed:v>
@@ -3081,6 +3158,7 @@
         <ed:v>Transport</ed:v>
         <ed:v>tsv</ed:v>
       </xsl:variable>
+      <xsl:variable name="allowed" select="exslt:node-set($rallowed)"/>
       <xsl:choose>
         <xsl:when test="$allowed/ed:v=$area">
           <!-- ok -->
@@ -3598,6 +3676,229 @@
 
 <!-- optional scripts -->
 <xsl:template name="insertScripts">
+<xsl:if test="$xml2rfc-ext-refresh-from!=''">
+<script>
+var RfcRefresh = {};
+RfcRefresh.NS_XHTML = "http://www.w3.org/1999/xhtml";
+RfcRefresh.NS_MOZERR = "http://www.mozilla.org/newlayout/xml/parsererror.xml";
+RfcRefresh.lastTxt = "";
+RfcRefresh.lastEtag = "";
+RfcRefresh.xslt = null;
+RfcRefresh.xmlsource = "<xsl:value-of select='$xml2rfc-ext-refresh-from'/>";
+RfcRefresh.xsltsource = "<xsl:value-of select='$xml2rfc-ext-refresh-xslt'/>";
+RfcRefresh.interval = "<xsl:value-of select='number($xml2rfc-ext-refresh-interval)'/>";
+
+RfcRefresh.getXSLT = function() {
+  if (! window.XSLTProcessor) {
+    var err = document.createElement("pre");
+    err.className = "refreshbrowsererror noprint";
+    var msg = "This browser does not support the window.XSLTProcessor functionality.";
+    err.appendChild(document.createTextNode(msg));
+    RfcRefresh.showMessage("refreshxmlerror", err);
+  }
+  else {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", RfcRefresh.xsltsource, true);
+      xhr.onload = function (e) {
+        if (xhr.readyState === 4) {
+          RfcRefresh.xslt = new XSLTProcessor();
+          RfcRefresh.xslt.importStylesheet(xhr.responseXML);
+        }
+      }
+      xhr.onerror = function (e) {
+        console.error(xhr.status + " " + xhr.statusText);
+      };
+      xhr.send(null);
+    }
+    catch (e) {
+      var err = document.createElement("pre");
+      err.className = "refreshbrowsererror noprint";
+      var msg = "Failed to load XSLT code from &lt;" + RfcRefresh.xsltsource + "&gt;.\n";
+      msg += "Your browser might not support loading from a file: URI.\n";
+      msg += "Error details: " + e;
+      err.appendChild(document.createTextNode(msg));
+      RfcRefresh.showMessage("refreshxmlerror", err);
+    }
+  }
+}
+
+RfcRefresh.findAndUpdate = function(olddoc, elem) {
+  var changed = "";
+  var children = elem.childNodes;
+  for (var i = 0; i != children.length; i++) {
+    var n = children[i];
+    if (n.nodeType == 1) {
+      var c = RfcRefresh.findAndUpdate(olddoc, n);
+      if (changed == '') {
+        changed = c;
+      }
+      var id = n.id;
+      if (id != "") {
+        var old = olddoc.getElementById(id);
+        var newtext = n.innerHTML;
+        if (!old) {
+          console.debug("new " + id);
+        } else {
+          var oldtext = old.innerHTML;
+          if (oldtext != newtext) {
+            console.debug("updating " + id);
+            old.innerHTML = n.innerHTML;
+            if (changed == '') {
+              changed = id;
+            }
+          }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
+RfcRefresh.findDifferences = function(olddoc, newdoc) {
+  var changed = RfcRefresh.findAndUpdate(olddoc, newdoc.documentElement);
+  if (changed != "") {
+    console.debug("changed: " + changed);
+    document.location = "#" + changed;
+  }
+  // final check for changes; if those were not processed earlier,
+  // we refresh the whole document
+  var oldtext = olddoc.documentElement.getElementsByTagName("body")[0].innerHTML;
+  var newtext = newdoc.documentElement.getElementsByTagName("body")[0].innerHTML;
+  if (oldtext != newtext) {
+    console.debug("full refresh: " + newtext);
+    olddoc.documentElement.innerHTML = newdoc.documentElement.innerHTML;
+  }
+}
+
+RfcRefresh.getNodeText = function(elem) {
+  var result = "";
+  var children = elem.childNodes;
+  for (var i = 0; i != children.length; i++) {
+    if (children[i].nodeType == 3) {
+      result += children[i].nodeValue;
+    }
+  }
+  return result; 
+}
+
+RfcRefresh.getParserError = function(dom) {
+  // FIREFOX
+  if ("parsererror" == dom.documentElement.nodeName &amp;&amp; RfcRefresh.NS_MOZERR == dom.documentElement.namespaceURI) {
+    var errmsg = new Object();
+    errmsg.msg = "";
+    errmsg.src = "";
+    var children = dom.documentElement.childNodes;
+    for (var i = 0; i != children.length; i++) {
+      if (children[i].nodeType == 3) {
+        errmsg.msg += children[i].nodeValue;
+      } else if (children[i].nodeName == "sourcetext") {
+        errmsg.src = RfcRefresh.getNodeText(children[i]);
+      }
+    }
+    return errmsg;
+  }
+  
+  var list = dom.getElementsByTagNameNS(RfcRefresh.NS_XHTML, "parsererror");
+  if (list.length != 0) {
+    // Webkit
+    var errmsg = new Object();
+    errmsg.msg = "XML parse error";
+    list = dom.getElementsByTagNameNS(RfcRefresh.NS_XHTML, "div");
+    if (list.length != 0) {
+      errmsg.msg = RfcRefresh.getNodeText(list[0]);
+    }
+    return errmsg;
+  }  
+  
+  
+  return null;
+}
+
+RfcRefresh.showMessage = function(cls, node) {
+  // remove previous message
+  var list = document.getElementsByClassName(cls);
+  if (list.length != 0) {
+    list[0].parentNode.removeChild(list[0]);
+  }
+  document.body.appendChild(node);
+}
+
+RfcRefresh.refresh = function(txt) {
+  if (txt != RfcRefresh.lastTxt) {
+    RfcRefresh.lastTxt = txt;
+    // try to parse
+    var parser = new DOMParser();
+    var dom = parser.parseFromString(txt, "text/xml");
+    var errmsg = RfcRefresh.getParserError(dom);
+    
+    if (errmsg != null) {
+      var err = document.createElement("pre");
+      err.className = "refreshxmlerror noprint";
+      err.appendChild(document.createTextNode(errmsg.msg));
+      if (errmsg.src != null) {
+        err.appendChild(document.createElement("hr"));
+        err.appendChild(document.createTextNode(errmsg.src));
+      }
+      RfcRefresh.showMessage("refreshxmlerror", err);
+    } else {
+      // find new refresh
+      var children = dom.childNodes;
+      for (var i = 0; i != children.length; i++) {
+        if (children[i].nodeType == 7 &amp;&amp; children[i].target == "rfc-ext") {
+          var s = "&lt;foo " + children[i].data + "/>";
+          var sd = parser.parseFromString(s, "text/xml");
+          var refresh = sd.documentElement.getAttribute("refresh-interval");
+          if (refresh != null &amp;&amp; refresh != "") {
+            refresh = parseInt(refresh, 10);
+            if (RfcRefresh.interval != refresh) {
+              if (Number.isNaN(refresh) || refresh &lt; 5) {
+                console.debug("refresh requested to be: " + refresh + " - ignored, using 5 instead.");
+                RfcRefresh.interval = 5;
+              } else {
+                RfcRefresh.interval = refresh;
+                console.debug("refresh changed to: " + refresh);
+              }
+            }
+          }
+        }
+      }
+    
+      var html = RfcRefresh.xslt.transformToDocument(dom);
+      RfcRefresh.findDifferences(document, html);
+    }
+  }
+}
+
+RfcRefresh.initRefresh = function() {
+  RfcRefresh.getXSLT();
+    
+  window.setTimeout(function(){
+    if (RfcRefresh.xslt != null) {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", RfcRefresh.xmlsource, true);
+      if (RfcRefresh.lastEtag != "") {
+        xhr.setRequestHeader("If-None-Match", RfcRefresh.lastEtag);
+      }
+      xhr.onload = function (e) {
+        if (xhr.readyState === 4) {
+          console.debug(xhr.status + " " + xhr.statusText);
+          if (xhr.status != 304) {
+            RfcRefresh.refresh(xhr.responseText);
+          }
+          RfcRefresh.lastEtag = xhr.getResponseHeader("ETag");
+        }
+      }
+      xhr.onerror = function (e) {
+        console.error(xhr.status + " " + xhr.statusText);
+      };
+      xhr.send(null);
+      setTimeout(arguments.callee, RfcRefresh.interval * 1000);
+    }
+  }, RfcRefresh.interval * 1000);
+}
+</script>
+</xsl:if>
 <xsl:if test="/rfc/x:feedback">
 <script>
 var buttonsAdded = false;
@@ -3608,8 +3909,7 @@ function initFeedback() {
   fb.setAttribute("onclick", "feedback();");
   fb.appendChild(document.createTextNode("feedback"));
 
-  var bodyl = document.getElementsByTagName("body");
-  bodyl.item(0).appendChild(fb);
+  document.body.appendChild(fb);
 }
 
 function feedback() {
@@ -3846,8 +4146,12 @@ body {<xsl:if test="$xml2rfc-background!=''">
   background: url(<xsl:value-of select="$xml2rfc-background" />) #ffffff left top;</xsl:if>
   color: black;
   font-family: cambria, helvetica, arial, sans-serif;
-  font-size: 11pt;
-  margin-right: 2em;
+  font-size: 12pt;
+  margin: 2em auto;
+  max-width: 1000px;
+}
+samp, tt, code, pre {
+  font-family: consolas, monospace;
 }<xsl:if test="//xhtml:p">
 br.p {
   line-height: 150%;
@@ -3921,6 +4225,7 @@ p {
   margin-left: 2em;
 }
 pre {
+  font-size: 11pt;
   margin-left: 3em;
   background-color: lightyellow;
   padding: .25em;
@@ -3943,7 +4248,6 @@ pre.text2 {
   border-style: dotted;
   border-width: 1px;
   background-color: #f0f0f0;
-  width: 69em;
 }
 pre.inline {
   background-color: white;
@@ -3953,7 +4257,6 @@ pre.text {
   border-style: dotted;
   border-width: 1px;
   background-color: #f8f8f8;
-  width: 69em;
 }
 pre.drawing {
   border-style: solid;
@@ -4073,7 +4376,7 @@ ul.toc li {
 ul.toc li li {
   line-height: normal;
   font-weight: normal;
-  font-size: 10pt;
+  font-size: 11pt;
   margin-left: 0em;
 }
 li.excluded {
@@ -4161,8 +4464,22 @@ blockquote > * .bcp14 {
 .warning {
   font-size: 130%;
   background-color: yellow;
+}<xsl:if test="$xml2rfc-ext-paragraph-links='yes'">
+.self {
+    color: #999999;
+    margin-left: .3em;
+    text-decoration: none;
+    visibility: hidden;
+    -webkit-user-select: none;<!-- not std CSS yet--> 
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
-<xsl:if test="$has-edits">del {
+.self:hover {
+    text-decoration: none;
+}
+p:hover .self {
+    visibility: visible;
+}</xsl:if><xsl:if test="$has-edits">del {
   color: red;
   text-decoration: line-through;
 }
@@ -4222,6 +4539,21 @@ thead th {
   background-color: yellow;
   font-size: smaller;
   font-weight: bold;
+}</xsl:if><xsl:if test="$xml2rfc-ext-refresh-from!=''">.refreshxmlerror {
+  position: fixed;
+  top: 1%;
+  right: 1%;
+  padding: 5px 5px;
+  color: yellow;
+  background: black;
+}
+.refreshbrowsererror {
+  position: fixed;
+  top: 1%;
+  left: 1%;
+  padding: 5px 5px;
+  color: red;
+  background: black;
 }</xsl:if><xsl:if test="/rfc/x:feedback">.feedback {
   position: fixed;
   bottom: 1%;
@@ -4245,6 +4577,12 @@ thead th {
 dd, li, p {
   text-align: justify;
 }</xsl:if>
+
+@media screen {
+  pre.text, pre.text2 {
+    width: 69em;
+  }
+}
 
 @media print {
   .noprint {
@@ -4274,6 +4612,10 @@ dd, li, p {
 
   ul.ind li li a {<!-- links in the leaf nodes of the index should go to page numbers -->
     content: target-counter(attr(href), page);
+  }
+
+  pre {
+    font-size: 10pt;
   }
 
   .print2col {
@@ -5278,13 +5620,15 @@ dd, li, p {
 <xsl:template match="/" mode="toc">
   <hr class="noprint"/>
 
-  <h1 class="np" id="{$anchor-prefix}.toc"> <!-- this pagebreak occurs always -->
-    <a href="#{$anchor-prefix}.toc">Table of Contents</a>
-  </h1>
-
-  <ul class="toc">
-    <xsl:apply-templates mode="toc" />
-  </ul>
+  <div id="{$anchor-prefix}.toc">
+    <h1 class="np"> <!-- this pagebreak occurs always -->
+      <a href="#{$anchor-prefix}.toc">Table of Contents</a>
+    </h1>
+  
+    <ul class="toc">
+      <xsl:apply-templates mode="toc" />
+    </ul>
+  </div>
 </xsl:template>
 
 <xsl:template name="insert-toc-line">
@@ -5776,9 +6120,9 @@ dd, li, p {
 </xsl:template>
 
 <xsl:template name="get-paragraph-number">
-  <!-- get section number of ancestor section element, then add t or figure number -->
+  <!-- get section number of ancestor section element, then add t number -->
   <xsl:if test="ancestor::section and not(ancestor::section[@myns:unnumbered='unnumbered']) and not(ancestor::x:blockquote) and not(ancestor::x:note)">
-    <xsl:for-each select="ancestor::section[1]"><xsl:call-template name="get-section-number" />.p.</xsl:for-each><xsl:number count="t|figure|x:blockquote|x:note" />
+    <xsl:for-each select="ancestor::section[1]"><xsl:call-template name="get-section-number" />.p.</xsl:for-each><xsl:number count="t|x:blockquote|x:note" />
   </xsl:if>
 </xsl:template>
 
@@ -5794,7 +6138,6 @@ dd, li, p {
 <xsl:template match="x:ref">
   <xsl:variable name="val" select="normalize-space(.)"/>
   <xsl:variable name="target" select="key('anchor-item',$val) | key('anchor-item-alias',$val) | //reference/x:source[x:defines=$val]"/>
-  <xsl:variable name="irefs" select="//iref[@x:for-anchor=$val]"/>
   <xsl:if test="count($target)>1">
     <xsl:call-template name="warning">
       <xsl:with-param name="msg">internal link target for '<xsl:value-of select="."/>' is ambiguous; picking first.</xsl:with-param>
@@ -5804,8 +6147,8 @@ dd, li, p {
     <xsl:when test="$target[1]/@anchor">
       <a href="#{$target[1]/@anchor}" class="smpl">
         <xsl:call-template name="copy-anchor"/>
-        <!-- to be indexed? -->
-        <xsl:if test="$irefs">
+        <!-- insert id when a backlink to this xref is needed in the index -->
+        <xsl:if test="//iref[@x:for-anchor=$val] | //iref[@x:for-anchor='' and ../@anchor=$val]">
           <xsl:attribute name="id"><xsl:call-template name="compute-extref-anchor"/></xsl:attribute>
         </xsl:if>
         <xsl:value-of select="."/>
@@ -6733,7 +7076,14 @@ dd, li, p {
   <xsl:variable name="message"><xsl:value-of select="$level"/>: <xsl:value-of select="$msg"/><xsl:value-of select="$msg2"/><xsl:call-template name="lineno"/></xsl:variable>
   <xsl:choose>
     <xsl:when test="$inline!='no'">
-      <div class="error"><xsl:value-of select="$message"/></div>
+      <xsl:choose>
+        <xsl:when test="ancestor::t">
+          <span class="error"><xsl:value-of select="$message"/></span>
+        </xsl:when>
+        <xsl:otherwise>
+          <div class="error"><xsl:value-of select="$message"/></div>
+        </xsl:otherwise>
+      </xsl:choose>
     </xsl:when>
     <xsl:otherwise>
       <!-- this fails when the message contains characters not encodable in the output encoding -->
@@ -7070,11 +7420,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.638 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.638 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.662 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.662 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2014/05/31 12:29:37 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2014/05/31 12:29:37 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2014/07/19 09:19:17 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2014/07/19 09:19:17 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
@@ -7491,6 +7841,9 @@ prev: <xsl:value-of select="$prev"/>
                       <xsl:when test="$attrname='include-references-in-index'"/>
                       <xsl:when test="$attrname='justification'"/>
                       <xsl:when test="$attrname='parse-xml-in-artwork'"/>
+                      <xsl:when test="$attrname='refresh-from'"/>
+                      <xsl:when test="$attrname='refresh-interval'"/>
+                      <xsl:when test="$attrname='refresh-xslt'"/>
                       <xsl:when test="$attrname='sec-no-trailing-dots'"/>
                       <xsl:when test="$attrname='trace-parse-xml'"/>
                       <xsl:when test="$attrname='vspace-pagebreak'"/>
@@ -7504,12 +7857,33 @@ prev: <xsl:value-of select="$prev"/>
 
                   <xsl:if test="name()='rfc' and $attr='SANITYCHECK'">
                     <xsl:choose>
+                      <xsl:when test="$attrname='comments'"/>
+                      <xsl:when test="$attrname='compact'"/>
+                      <xsl:when test="$attrname='editing'"/>
+                      <xsl:when test="$attrname='footer'"/>
+                      <xsl:when test="$attrname='header'"/>
                       <xsl:when test="$attrname='include'">
                         <xsl:call-template name="warning">
                           <xsl:with-param name="msg">the rfc include pseudo-attribute is not supported by this processor, see http://greenbytes.de/tech/webdav/rfc2629xslt/rfc2629xslt.html#examples.internalsubset for help.</xsl:with-param>
                         </xsl:call-template>
                       </xsl:when>
-                      <xsl:otherwise/>
+                      <xsl:when test="$attrname='inline'"/>
+                      <xsl:when test="$attrname='iprnotified'"/>
+                      <xsl:when test="$attrname='linefile'"/>
+                      <xsl:when test="$attrname='linkmailto'"/>
+                      <xsl:when test="$attrname='multiple-initials'"/>
+                      <xsl:when test="$attrname='private'"/>
+                      <xsl:when test="$attrname='rfcedstyle'"/>
+                      <xsl:when test="$attrname='sortrefs'"/>
+                      <xsl:when test="$attrname='strict'"/>
+                      <xsl:when test="$attrname='symrefs'"/>
+                      <xsl:when test="$attrname='toc'"/>
+                      <xsl:when test="$attrname='tocdepth'"/>
+                      <xsl:otherwise>
+                        <xsl:call-template name="info">
+                          <xsl:with-param name="msg">unsupported rfc pseudo-attribute '<xsl:value-of select="$attrname"/>'</xsl:with-param>
+                        </xsl:call-template>
+                      </xsl:otherwise>
                     </xsl:choose>
                   </xsl:if>
 
