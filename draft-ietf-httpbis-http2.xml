@@ -2015,7 +2015,18 @@ HTTP2-Settings    = token68
                   MUST be treated as a <xref target="ConnectionErrorHandler">connection error</xref>
                   of type <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
+              </x:lt>
+              <x:lt hangText="SETTINGS_MAX_HEADER_BLOCK_SIZE (0x6):"
+                    anchor="SETTINGS_MAX_HEADER_BLOCK_SIZE">
                 <t>
+                  This advisory setting informs a peer of the maximum size of header block that the
+                  sender is prepared to accept.  The value is based on the uncompressed size of
+                  header fields, including the length of the name and value in octets plus an
+                  overhead of 32 octets for each header field.
+                </t>
+                <t>
+                  For any given request, a lower limit than what is advertised MAY be enforced.  The
+                  initial value of this setting is unlimited.
                 </t>
               </x:lt>
             </list>
@@ -3791,7 +3802,7 @@ HTTP2-Settings    = token68
           <x:ref>ENHANCE_YOUR_CALM</x:ref>.
         </t>
 
-        <section title="Limits on Header Block Size">
+        <section anchor="MaxHeaderBlock" title="Limits on Header Block Size">
           <t>
             A large <xref target="HeaderBlock">header block</xref> can cause an implementation to
             commit a large amount of state.  In servers and intermediaries, header fields that are
@@ -3804,6 +3815,15 @@ HTTP2-Settings    = token68
             This can prevent streaming of the header fields to their ultimate destination, and
             forces the endpoint to buffer the entire header block.  Since there is no hard limit to
             the size of a header block, an endpoint could be forced to exhaust available memory.
+          </t>
+          <t>
+            An endpoint can use the <x:ref>SETTINGS_MAX_HEADER_BLOCK_SIZE</x:ref> to avise peers of
+            limits that might apply on the size of header blocks.  This setting is only advisory, so
+            endpoints MAY choose to send header blocks that exceed this limit and risk having the
+            request or response being treated as malformed.  This setting is advertised hop-by-hop,
+            so any request or response could encounter a hop with a lower, unknown limit.  An
+            intermediary can attempt to avoid this problem by passing on values presented by
+            different peers, but they are not obligated to do so.
           </t>
           <t>
             A server that receives a larger header block than it is willing to handle can send an
