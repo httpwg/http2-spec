@@ -2720,6 +2720,12 @@ HTTP2-Settings    = token68
           An HTTP message (request or response) consists of:
           <list style="numbers">
             <t>
+              zero or more <x:ref>HEADERS</x:ref> frames (followed by zero or more
+              <x:ref>CONTINUATION</x:ref> frames) containing the message headers of non-final (1xx)
+              HTTP responses (see <xref target="RFC7230" x:fmt="," x:rel="#header.fields"/> and
+              <xref target="RFC7231" x:fmt="," x:rel="#status.1xx"/>), and
+            </t>
+            <t>
               one <x:ref>HEADERS</x:ref> frame (followed by zero or more <x:ref>CONTINUATION</x:ref>
               frames) containing the message headers (see <xref target="RFC7230" x:fmt=","
               x:rel="#header.fields"/>), and
@@ -2770,11 +2776,12 @@ HTTP2-Settings    = token68
 
         <section anchor="informational-responses" title="Informational Responses">
           <t>
-            The 1xx series of HTTP response status codes (<xref target="RFC7231" x:fmt=","
-            x:rel="#status.1xx"/>) are not supported in HTTP/2.
+            HTTP/2 removes support for the two 1xx series status codes defined in <xref
+            target="RFC7231" x:fmt="," x:rel="#status.1xx"/>): 100 (Continue), and 101 (Switching
+            Protocols).
           </t>
           <t>
-            The most common use case for 1xx is using an Expect header field with a <spanx
+            The 100 (Continue) information status code was used with the <spanx
             style="verb">100-continue</spanx> token (colloquially, "Expect/continue") to indicate
             that the client expects a 100 (Continue) non-final response status code, receipt of
             which indicates that the client should continue sending the request body if it has not
@@ -2797,12 +2804,9 @@ HTTP2-Settings    = token68
             clients, in anticipation of a final status code.
           </t>
           <t>
-            Other defined 1xx status codes are not applicable to HTTP/2. For example, the semantics
-            of 101 (Switching Protocols) aren't suitable to a multiplexed protocol. Likewise, <xref
-            target="RFC2518">102 (Processing)</xref> is no longer necessary to ensure connection
-            liveness, because HTTP/2 has a separate means of keeping the connection alive.  The use
-            of the 102 (Processing) status code for progress reporting has since been deprecated and
-            is not retained.
+            The semantics of 101 (Switching Protocols) aren't applicable to a multiplexed protocol.
+            Alternative protocols are able to use the same mechanisms that HTTP/2 uses to negotiate
+            their use (see <xref target="starting"/>).
           </t>
           <t>
             This difference between protocol versions necessitates special handling by
@@ -2821,10 +2825,6 @@ HTTP2-Settings    = token68
                 with a <spanx style="verb">100-continue</spanx> expectation when forwarding a
                 request that has a body; see <xref target="RFC7231" x:fmt=","
                 x:rel="#header.expect"/> for specific requirements.
-              </t>
-              <t>
-                An intermediary that gateways HTTP/2 to HTTP/1.1 MUST discard all other 1xx
-                informational responses.
               </t>
             </list>
           </t>
@@ -3229,6 +3229,22 @@ HTTP2-Settings    = token68
                                        foo = bar
 ]]></artwork>
           </figure>
+
+
+          <figure>
+           <preamble>
+             A non-final response using a 1xx status code other than 100 or 101 is transmitted as a
+             <x:ref>HEADERS</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref>
+             frames:
+           </preamble>
+           <artwork type="inline"><![CDATA[
+  HTTP/1.1 103 BAR                 HEADERS
+  Extension-Field: bar       ==>     - END_STREAM
+                                     + END_HEADERS
+                                       :status = 103
+                                       extension-field = bar
+]]></artwork>
+ </figure>
         </section>
 
         <section anchor="Reliability" title="Request Reliability Mechanisms in HTTP/2">
@@ -4496,21 +4512,6 @@ HTTP2-Settings    = token68
           <date year="1992" month="May" />
         </front>
         <seriesInfo name="RFC" value="1323" />
-      </reference>
-
-      <reference anchor="RFC2518">
-        <front>
-          <title>
-            HTTP Extensions for Distributed Authoring -- WEBDAV
-          </title>
-          <author initials="Y." surname="Goland" fullname="Y. Y. Goland"/>
-          <author initials="E." surname="Whitehead" fullname="E. J. Whitehead, Jr."/>
-          <author initials="A." surname="Faizi" fullname="A. Faizi"/>
-          <author initials="S." surname="Carter" fullname="S. R. Carter"/>
-          <author initials="D." surname="Jensen" fullname="D. Jensen"/>
-          <date year="1999" month="February" />
-        </front>
-        <seriesInfo name="RFC" value="2518" />
       </reference>
 
       <reference anchor="RFC3749">
