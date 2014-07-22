@@ -2775,59 +2775,15 @@ HTTP2-Settings    = token68
                we need to expand upon.  It's complicated enough explaining this as it is.  -->
         </t>
 
-        <section anchor="informational-responses" title="Informational Responses">
+        <section anchor="informational-responses" title="Upgrading From HTTP/2">
           <t>
-            HTTP/2 removes support for the two 1xx series status codes defined in <xref
-            target="RFC7231" x:fmt="," x:rel="#status.1xx"/>): 100 (Continue), and 101 (Switching
-            Protocols).
-          </t>
-          <t>
-            The 100 (Continue) information status code was used with the <spanx
-            style="verb">100-continue</spanx> token (colloquially, "Expect/continue") to indicate
-            that the client expects a 100 (Continue) non-final response status code, receipt of
-            which indicates that the client should continue sending the request body if it has not
-            already done so.
-          </t>
-          <t>
-            Typically, Expect/continue is used by clients wishing to avoid sending a large amount of
-            data in a request body, only to have the request rejected by the origin server, thereby
-            leaving the connection potentially unusable.
-          </t>
-          <t>
-            HTTP/2 does not enable the Expect/continue mechanism; if the server sends a final status
-            code to reject the request, it can do so without making the underlying connection
-            unusable.
-          </t>
-          <t>
-            Note that this means HTTP/2 clients sending requests with bodies may waste at least one
-            round trip of sent data when the request is rejected. This can be mitigated by
-            restricting the amount of data sent for the first round trip by bandwidth-constrained
-            clients, in anticipation of a final status code.
+            HTTP/2 removes support for the 101 (Switching Protocols) informational status code
+            (<xref target="RFC7231" x:fmt="," x:rel="#status.101"/>).
           </t>
           <t>
             The semantics of 101 (Switching Protocols) aren't applicable to a multiplexed protocol.
             Alternative protocols are able to use the same mechanisms that HTTP/2 uses to negotiate
             their use (see <xref target="starting"/>).
-          </t>
-          <t>
-            This difference between protocol versions necessitates special handling by
-            intermediaries that translate between them:
-            <list style="symbols">
-              <t>
-                An intermediary that translates HTTP/1.1 requests to HTTP/2 MUST generate a 100
-                (Continue) response if a received request includes and Expect header field with a
-                <spanx style="verb">100-continue</spanx> token (<xref target="RFC7231" x:fmt=","
-                x:rel="#header.expect"/>), unless it can immediately generate a final status code.
-                It MUST NOT forward the <spanx style="verb">100-continue</spanx> expectation in the
-                request header fields.
-              </t>
-              <t>
-                An intermediary that translates HTTP/2 to HTTP/1.1 MAY add an Expect header field
-                with a <spanx style="verb">100-continue</spanx> expectation when forwarding a
-                request that has a body; see <xref target="RFC7231" x:fmt=","
-                x:rel="#header.expect"/> for specific requirements.
-              </t>
-            </list>
           </t>
         </section>
 
@@ -3234,7 +3190,7 @@ HTTP2-Settings    = token68
 
           <figure>
            <preamble>
-             A non-final response using a 1xx status code other than 100 or 101 is transmitted as a
+             An informational response using a 1xx status code other than 101 is transmitted as a
              <x:ref>HEADERS</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref>
              frames:
            </preamble>
@@ -4671,6 +4627,9 @@ HTTP2-Settings    = token68
 
     <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
        <section title="Since draft-ietf-httpbis-http2-13" anchor="changes.since.draft-ietf-httpbis-http2-13">
+         <t>
+           Restored 1xx series status codes, except 101.
+         </t>
          <t>
            Changed frame length field 24-bits.  Expanded frame header to 9 octets.  Added a setting
            to limit the damage.
