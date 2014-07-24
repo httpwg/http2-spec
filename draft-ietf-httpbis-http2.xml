@@ -668,8 +668,8 @@ HTTP2-Settings    = token68
           <xref target="PushResources" />).
         </t>
         <t>
-          Header sets are collections of zero or more header fields.  When transmitted over a
-          connection, a header set is serialized into a header block using <xref
+          Header lists are collections of zero or more header fields.  When transmitted over a
+          connection, a header list is serialized into a header block using <xref
           target="COMPRESSION">HTTP Header Compression</xref>.  The serialized header block is then
           divided into one or more octet sequences, called header block fragments, and transmitted
           within the payload of <xref target="HEADERS">HEADERS</xref>, <xref
@@ -677,18 +677,12 @@ HTTP2-Settings    = token68
           target="CONTINUATION">CONTINUATION</xref> frames.
         </t>
         <t>
-          HTTP Header Compression does not preserve the relative ordering of header fields.  Header
-          fields with multiple values are encoded into a single header field using a special
-          delimiter (see <xref target="HeaderOrdering"/>), this preserves the relative order of
-          values for that header field.
-        </t>
-        <t>
           The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
           mapping (see <xref target="CompressCookie"/>).
         </t>
         <t>
           A receiving endpoint reassembles the header block by concatenating its fragments, then
-          decompresses the block to reconstruct the header set.
+          decompresses the block to reconstruct the header list.
         </t>
         <t>
           A complete header block consists of either:
@@ -2018,10 +2012,10 @@ HTTP2-Settings    = token68
                   of type <x:ref>PROTOCOL_ERROR</x:ref>.
                 </t>
               </x:lt>
-              <x:lt hangText="SETTINGS_MAX_HEADER_SET_SIZE (0x6):"
-                    anchor="SETTINGS_MAX_HEADER_SET_SIZE">
+              <x:lt hangText="SETTINGS_MAX_HEADER_LIST_SIZE (0x6):"
+                    anchor="SETTINGS_MAX_HEADER_LIST_SIZE">
                 <t>
-                  This advisory setting informs a peer of the maximum size of header block that the
+                  This advisory setting informs a peer of the maximum size of header list that the
                   sender is prepared to accept.  The value is based on the uncompressed size of
                   header fields, including the length of the name and value in octets plus an
                   overhead of 32 octets for each header field.
@@ -2793,6 +2787,8 @@ HTTP2-Settings    = token68
             registered HTTP headers, see the Message Header Field Registry maintained at <eref
             target="https://www.iana.org/assignments/message-headers"/>.
           </t>
+
+          <section anchor="PseudoHeaderFields" title="Pseudo-Header Fields">
           <t>
             While HTTP/1.x used the message start-line (see <xref target="RFC7230" x:fmt=","
             x:rel="#start.line"/>) to convey the target URI and method of the request, and the
@@ -2817,6 +2813,15 @@ HTTP2-Settings    = token68
             lowercase prior to their encoding in HTTP/2. A request or response containing uppercase
             header field names MUST be treated as <xref target="malformed">malformed</xref>.
           </t>
+          <t>
+            All pseudo-header fields MUST appear in the header block before regular header fields.
+            Any request or response that contains any pseudo-header field that appears in a header
+            block after a regular header field MUST treated as <xref
+            target="malformed">malformed</xref>.
+          </t>
+          </section>
+
+          <section title="Hop-by-Hop Header Fields">
           <t>
             HTTP/2 does not use the Connection header field to indicate "hop-by-hop" header fields;
             in this protocol, connection-specific metadata is conveyed by other means. As such, a
@@ -2843,6 +2848,7 @@ HTTP2-Settings    = token68
               </t>
             </list>
           </t>
+          </section>
 
           <section anchor="HttpRequest" title="Request Header Fields">
             <t>
@@ -2933,66 +2939,7 @@ HTTP2-Settings    = token68
             </t>
           </section>
 
-          <section anchor="HeaderOrdering" title="Header Field Ordering">
-            <t>
-              <xref target="COMPRESSION">HTTP Header Compression</xref> does not preserve the order
-              of header fields, because the relative order of header fields with different names is
-              not important.  However, the same header field can be repeated to form a list (see
-              <xref target="RFC7230" x:fmt="," x:rel="#field.order"/>), where the relative order of
-              header field values is significant. This repetition can occur either as a single
-              header field with a comma-separated list of values, or as several header fields with a
-              single value, or any combination thereof. Therefore, in the latter case, ordering
-              needs to be preserved before compression takes place.
-            </t>
-            <t>
-              To preserve the order of multiple occurrences of a header field with the same name,
-              its ordered values are concatenated into a single value using a zero-valued octet
-              (0x0) to delimit them.
-            </t>
-            <t>
-              After decompression, header fields that have values containing zero octets (0x0) MUST
-              be split into multiple header fields before being processed.
-            </t>
-            <t>
-              For example, the following HTTP/1.x header block:
-            </t>
-            <figure>
-              <artwork type="inline"><![CDATA[
-  Content-Type: text/html
-  Cache-Control: max-age=60, private
-  Cache-Control: must-revalidate
-]]></artwork>
-            </figure>
-            <t>
-              contains three Cache-Control directives; two directives in the first Cache-Control
-              header field, and the third directive in the second Cache-Control field. Before
-              compression, they would need to be converted to a form similar to this (with 0x0
-              represented as '\0'):
-            </t>
-            <figure>
-              <artwork type="inline"><![CDATA[
-  cache-control = max-age=60, private\0must-revalidate
-  content-type = text/html
-]]></artwork>
-            </figure>
-            <t>
-              Note here that the ordering between Content-Type and Cache-Control is not preserved,
-              but the relative ordering of the Cache-Control directives - as well as the fact that
-              the first two were comma-separated, while the last was on a different line - is.
-            </t>
-            <t>
-              Header fields containing multiple values MUST be concatenated into a single value
-              unless the ordering of that header field is known to be not significant.
-            </t>
-            <t>
-              The special case of <spanx style="verb">set-cookie</spanx> - which does not form a
-              comma-separated list, but can have multiple values - does not depend on ordering.  The
-              <spanx style="verb">set-cookie</spanx> header field MAY be encoded as multiple header
-              field values, or as a single concatenated value.
-            </t>
-          </section>
-
-          <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
+         <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
             <t>
               The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
               redundant data.
@@ -3010,21 +2957,13 @@ HTTP2-Settings    = token68
               Cookie header fields after decompression, these MUST be concatenated into a single
               octet string using the two octet delimiter of 0x3B, 0x20 (the ASCII string "; ").
             </t>
-            <t>
-              The Cookie header field MAY be split using a zero octet (0x0), as defined in <xref
-              target="HeaderOrdering"/>.  When decoding, zero octets MUST be replaced with the
-              cookie delimiter ("; ").
-            </t>
             <figure>
               <preamble>
-                Therefore, the following sets of Cookie header fields are semantically equivalent,
-                though the final form might appear in a different order after compression and
-                decompression.
+                Therefore, the following two lists of Cookie header fields are semantically
+                equivalent.
               </preamble>
               <artwork type="inline"><![CDATA[
   cookie: a=b; c=d; e=f
-
-  cookie: a=b\0c=d; e=f
 
   cookie: a=b
   cookie: c=d
@@ -3799,7 +3738,7 @@ HTTP2-Settings    = token68
             the size of a header block, an endpoint could be forced to exhaust available memory.
           </t>
           <t>
-            An endpoint can use the <x:ref>SETTINGS_MAX_HEADER_SET_SIZE</x:ref> to avise peers of
+            An endpoint can use the <x:ref>SETTINGS_MAX_HEADER_LIST_SIZE</x:ref> to avise peers of
             limits that might apply on the size of header blocks.  This setting is only advisory, so
             endpoints MAY choose to send header blocks that exceed this limit and risk having the
             request or response being treated as malformed.  This setting is advertised hop-by-hop,
@@ -4015,6 +3954,10 @@ HTTP2-Settings    = token68
           <c>0x3</c><c>(infinite)</c><c><xref target="SettingValues"/></c>
           <c>INITIAL_WINDOW_SIZE</c>
           <c>0x4</c><c>65535</c><c><xref target="SettingValues"/></c>
+          <c>MAX_FRAME_SIZE</c>
+          <c>0x5</c><c>65536</c><c><xref target="SettingValues"/></c>
+          <c>MAX_HEADER_LIST_SIZE</c>
+          <c>0x6</c><c>(infinite)</c><c><xref target="SettingValues"/></c>
         </texttable>
 
       </section>
@@ -4634,25 +4577,32 @@ HTTP2-Settings    = token68
       </reference>
     </references>
 
-    <section title="Change Log (to be removed by RFC Editor before publication)" anchor="change.log">
-       <section title="Since draft-ietf-httpbis-http2-13" anchor="changes.since.draft-ietf-httpbis-http2-13">
-         <t>
-           Restored 1xx series status codes, except 101.
-         </t>
-         <t>
-           Changed frame length field 24-bits.  Expanded frame header to 9 octets.  Added a setting
-           to limit the damage.
-         </t>
-         <t>
-           Added a setting to advise peers of header set size limits.
-         </t>
-         <t>
-           Removed segments.
-         </t>
-         <t>
-           Made non-semantic-bearing <x:ref>HEADERS</x:ref> frames illegal in the HTTP mapping.
-         </t>
-       </section>
+    <section title="Change Log" anchor="change.log">
+      <t>
+        This section is to be removed by RFC Editor before publication.
+      </t>
+
+      <section title="Since draft-ietf-httpbis-http2-13" anchor="changes.since.draft-ietf-httpbis-http2-13">
+        <t>
+          Pseudo-header fields are now required to appear strictly before regular ones.
+        </t>
+        <t>
+          Restored 1xx series status codes, except 101.
+        </t>
+        <t>
+          Changed frame length field 24-bits.  Expanded frame header to 9 octets.  Added a setting
+          to limit the damage.
+        </t>
+        <t>
+          Added a setting to advise peers of header set size limits.
+        </t>
+        <t>
+          Removed segments.
+        </t>
+        <t>
+          Made non-semantic-bearing <x:ref>HEADERS</x:ref> frames illegal in the HTTP mapping.
+        </t>
+      </section>
 
        <section title="Since draft-ietf-httpbis-http2-12" anchor="changes.since.draft-ietf-httpbis-http2-12">
          <t>
