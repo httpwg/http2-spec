@@ -125,26 +125,12 @@
                     using a mixture of references and literal values.
                 </t>
                 <t>
-                    As two consecutive sets of header fields often have header
-                    fields in common, each set is coded as a difference from the
-                    previous set. The goal is to only encode the changes between
-                    the two sets of header fields (that is, header fields that
-                    are present in only one of the sets) and eliminate
-                    redundancy (header fields present in both sets).
-                </t>
-                <t>
-                    A subset of the header fields that are encoded as references to
-                    the header table are maintained in a reference set that is
-                    used as the initial set of header fields for the next
-                    encoding.
-                </t>
-                <t>
                     The encoder is responsible for deciding which header fields
                     to insert as new entries in the header table.  The decoder
-                    executes the modifications to the header table and reference
-                    set prescribed by the encoder, reconstructing the set of
-                    header fields in the process.  This enables decoders to
-                    remain simple and understand a wide variety of encoders.
+                    executes the modifications to the header table prescribed by
+                    the encoder, reconstructing the set of header fields in the
+                    process.  This enables decoders to remain simple and
+                    understand a wide variety of encoders.
                 </t>
                 <t>
                     Examples illustrating the use of these different mechanisms
@@ -198,14 +184,6 @@
                             contained in a HTTP request or response is a header
                             set.
                         </t>
-                        <t hangText="Reference Set:">
-                            The reference set (see <xref
-                            target="reference.set"/>) is a component containing
-                            an unordered set of references to entries in the
-                            header table. It doesn't contain duplicate
-                            references. The reference set is used for the
-                            differential encoding of a new header set.
-                        </t>
                         <t hangText="Header Field Representation:">
                             A header field can be represented in encoded form
                             either as a literal or as an index (see <xref
@@ -217,11 +195,9 @@
                             complete header set.
                         </t>
                         <t hangText="Header Field Emission:">
-                            When decoding a set of header field representations,
-                            some operations emit a header field (see <xref
-                            target="header.emission"/>).  Emitted header fields
-                            are added to the output header set and cannot be
-                            removed.
+                            Each header field representation results in the
+                            emission of a header field (see <xref
+                                target="header.emission"/>).
                         </t>
                     </list>
                 </t>
@@ -239,11 +215,8 @@
             <section title="Encoding and Decoding Contexts"
                 anchor="encoding.context">
                 <t>
-                    HPACK requires that a decoder maintains both a header table
-                    and a reference set.  No other state information is needed
-                    to decode messages.  An encoder that wishes to reference
-                    entries in the header table, reference set, or static table
-                    needs to maintain a copy of the information a decoder holds.
+                    HPACK requires that a decoder maintains a header table. No
+                    other state information is needed to decode messages.
                 </t>
                 <t>
                     When used for bidirectional communication, such as in HTTP,
@@ -254,9 +227,10 @@
                     state.
                 </t>
                 <t>
-                    Each endpoint maintains a header table and a reference set in
-                    order to decode header blocks, and optionally a copy of the
-                    information maintained by their peer.
+                    Each endpoint maintains a header table in order to decode
+                    header blocks.  An encoder that wishes to reference entries
+                    in the header table needs to maintain a copy of the header
+                    table used by its peer for decoding.
                 </t>
             </section>
 
@@ -286,42 +260,6 @@
                 <t>
                     The header table is updated during the processing of a set
                     of header field representations (see <xref
-                    target="header.representation.processing"/>).
-                </t>
-            </section>
-
-            <section title="Reference Set" anchor="reference.set">
-                <t>
-                    A reference set is an unordered set of references to entries
-                    of the header table. It never contains duplicate references.
-                </t>
-                <t>
-                    The reference set is initially empty.
-                </t>
-                <t>
-                    The reference set is updated during the processing of a set
-                    of header field representations (see <xref
-                    target="header.representation.processing"/>).
-                </t>
-                <t>
-                    The reference set enables differential encoding, where
-                    only differences between the previous header set and the
-                    current header set need to be encoded. The use of
-                    differential encoding is optional for any header set.
-                </t>
-                <t>
-                    When an entry is evicted from the header table, if it was
-                    referenced from the reference set, its reference is removed
-                    from the reference set.
-                </t>
-                <t>
-                    To limit the memory requirements on the decoder side for
-                    handling the reference set, only entries within the header
-                    table can be contained in the reference set. To still allow
-                    entries from the static table to take advantage of the
-                    differential encoding, when a header field is represented as
-                    a reference to an entry of the static table, this entry is
-                    inserted into the header table (see <xref
                     target="header.representation.processing"/>).
                 </t>
             </section>
@@ -363,6 +301,11 @@
                     </list>
                 </t>
                 <t>
+                    <cref>
+                        Keep ordering of header table and static table?
+                    </cref>
+                </t>
+                <t>
                     An indexed representation defines a header field as a
                     reference to an entry in either the header table or the
                     static table (see <xref
@@ -370,28 +313,19 @@
                 </t>
                 <t>
                     Indices between 1 and the length of the header table
-                    (inclusive) refer to elements in the header table, with
-                    index 1 referring to the beginning of the header
-                    table.
+                    (inclusive) refer to elements in the <xref
+                        target="header.table">header table</xref>.
                 </t>
                 <t>
                     Indices strictly greater than the length of the header
-                    table refer to elements in the static table.  The length
-                    of the header table is subtracted to find the index into
-                    the static table.
+                    table refer to elements in the <xref
+                        target="static.table">static table</xref>.  The length
+                    of the header table is subtracted to find the index into the
+                    static table.
                 </t>
                 <t>
                     Indices strictly greater than the sum of the lengths of
                     both tables MUST be treated as a decoding error.
-                </t>
-                <t>
-                    An indexed representation using an entry of the static
-                    table induces a copy of this entry into the header table
-                    (see <xref target="header.representation.processing"/>)
-                    for bounding memory requirements on the decoder side (see
-                    <xref target="maximum.table.size"/>). For this reason, the
-                    header table is accessed more frequently than the static
-                    table and has the lower indices.
                 </t>
 
                 <figure title="Index Address Space">
@@ -426,18 +360,18 @@
                     from the decoder output.
                 </t>
                 <t>
-                    An emitted header field can be safely
-                    passed to the upper processing layer as part of the current
-                    header set. The decoder can pass emitted header fields
-                    to the upper processing layer in any order.
+                    An emitted header field can be safely passed to the upper
+                    processing layer as part of the current header set. The
+                    decoder can pass emitted header fields to the upper
+                    processing layer in any order.
                 </t>
                 <t>
-                    By emitting header fields instead of emitting header sets, a
-                    decoder can be implemented with minimal memory commitment in
-                    addition to the header table and the reference set. The
-                    management of memory for handling very large sets of header
-                    fields can therefore be deferred to the upper processing
-                    layers.
+                    By emitting header fields instead of emitting header sets,
+                    a decoder can be implemented with minimal transitory
+                    memory commitment in addition to the header table. The
+                    management of memory for handling very large sets of
+                    header fields can therefore be deferred to the upper
+                    processing layers.
                 </t>
             </section>
         </section>
@@ -458,40 +392,16 @@
                     block are processed in the order in which they appear, as
                     specified below.  Details on the formatting of the various
                     header field representations, and some additional processing
-                    instructions are found in <xref
-                    target="detailed.format"/>.
+                    instructions are found in <xref target="detailed.format"/>.
                 </t>
                 <t>
-                    An <spanx>indexed representation</spanx> corresponding to an
-                    entry <spanx>present</spanx> in the reference set entails
-                    the following actions:
+                    An <spanx>indexed representation</spanx> entails the
+                    following actions:
                     <list style="symbols">
-                        <t>The entry is removed from the reference set.</t>
-                    </list>
-                </t>
-                <t>
-                    An <spanx>indexed representation</spanx> corresponding to an
-                    entry <spanx>not present</spanx> in the reference set
-                    entails the following actions:
-                    <list style="symbols">
-                        <t>If referencing an element of the static table:
-                        <list style="symbols">
-                            <t>The header field corresponding to the referenced
-                            entry is emitted.</t>
-                            <t>The referenced static entry is inserted at the
-                            beginning of the header table.</t>
-                            <t>A reference to this new header table entry is
-                            added to the reference set, unless this new entry
-                            didn't fit in the header table.</t>
-                        </list>
-                        </t>
-                        <t>If referencing an element of the header table:
-                        <list style="symbols">
-                            <t>The header field corresponding to the referenced
-                            entry is emitted.</t>
-                            <t>The referenced header table entry is added to the
-                            reference set.</t>
-                        </list>
+                        <t>
+                            The header field corresponding to the referenced
+                            entry in either the header table or static table is
+                            emitted.
                         </t>
                     </list>
                 </t>
@@ -500,7 +410,9 @@
                     added</spanx> to the header table entails the following
                     action:
                     <list style="symbols">
-                        <t>The header field is emitted.</t>
+                        <t>
+                            The header field is emitted.
+                        </t>
                     </list>
                 </t>
                 <t>
@@ -508,27 +420,14 @@
                     <spanx>added</spanx> to the header table entails the
                     following actions:
                     <list style="symbols">
-                        <t>The header field is emitted.</t>
-                        <t>The header field is inserted at the beginning of the
-                        header table.</t>
-                        <t>A reference to the new entry is added to the
-                        reference set, unless this new entry didn't fit in
-                        the header table.</t>
+                        <t>
+                            The header field is emitted.
+                        </t>
+                        <t>
+                            The header field is inserted at the beginning of the
+                            header table.
+                        </t>
                     </list>
-                </t>
-            </section>
-
-            <section title="Reference Set Emission"
-                     anchor="reference.set.emission">
-                <t>
-                    Once all the representations contained in a header block
-                    have been processed, any header fields included in the
-                    reference set that have not previously been emitted during
-                    the processing of this header block are emitted.
-                </t>
-                <t>
-                    After the emission of these remaining header fields, the
-                    header set is complete.
                 </t>
             </section>
         </section>
@@ -539,21 +438,12 @@
                      anchor="maximum.table.size">
                 <t>
                     To limit the memory requirements on the decoder side, the
-                    mutable structures used in an encoding context are
-                    constrained in size. These mutable structures are the header
-                    table and the reference set.
+                    header table is constrained in size.
                 </t>
                 <t>
                     The size of the header table is bounded by a maximum size
                     defined by the decoder.  The size of the header table MUST
                     always be lower than or equal to this maximum size.
-                </t>
-                <t>
-                    The reference set can only contain references to entries of
-                    the header table, and can't contain references to entries of
-                    the static table. In addition, it can't contain duplicate
-                    references.  Therefore, its maximum size is bounded by the
-                    size of the header table.
                 </t>
                 <t>
                     By default, the maximum size of the header table is equal to
@@ -599,6 +489,7 @@
                     overhead.
                 </t>
             </section>
+
             <section title="Entry Eviction When Header Table Size Changes"
                      anchor="entry.eviction">
                 <t>
@@ -607,16 +498,8 @@
                     the size of the header table is less than or equal to the
                     maximum size.
                 </t>
-                <t>
-                    Whenever an entry is evicted from the header table, any
-                    reference to that entry from the reference set is removed.
-                </t>
-                <t>
-                    The eviction of an entry from the header table causes the
-                    index of the entries in the static table to be reduced by
-                    one.
-                </t>
             </section>
+
             <section title="Entry Eviction when Adding New Entries"
                      anchor="entry.addition">
                 <t>
@@ -812,10 +695,9 @@ else
                     in either the header table or the static table.
                 </t>
                 <t>
-                    An indexed header field representation can either causes a
-                    header field to be emitted or to be removed from the
-                    reference set, as described in <xref
-                    target="header.representation.processing"/>.
+                    An indexed header field representation causes a
+                    header field to be emitted, as described in <xref
+                        target="header.representation.processing"/>.
                 </t>
 
                 <figure title="Indexed Header Field">
@@ -829,7 +711,8 @@ else
                 <t>
                     An indexed header field starts with the '1' 1-bit pattern,
                     followed by the index of the matching pair, represented as
-                    an integer with a 7-bit prefix.
+                    an integer with a 7-bit prefix (see <xref
+                        target="integer.representation"/>).
                 </t>
                 <t>
                     The index value of 0 is not used. It MUST be treated as a
@@ -847,8 +730,8 @@ else
                     either from the header table or the static table.
                 </t>
                 <t>
-                    A literal representation always result in the emission of a
-                    header field when decoded.
+                    A literal representation causes a header field to be
+                    emitted.
                 </t>
 
                 <section title="Literal Header Field with Incremental Indexing"
@@ -1040,60 +923,31 @@ else
                 </section>
             </section>
 
-            <section title="Encoding Context Update"
+            <section title="Header Table Size Update"
                 anchor="encoding.context.update">
                 <t>
-                    An encoding context update causes the immediate application
-                    of a change to the encoding context.
-                </t>
-                <figure title="Context Update">
-                    <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 | 1 | F |      ...      |
-+---+---------------------------+
-]]></artwork>
-                </figure>
-                <t>
-                    An encoding context update starts with the '001' 3-bit
-                    pattern.
-                </t>
-                <t>
-                    It is followed by a flag specifying the type of the change,
-                    and by any data necessary to describe the change itself.
-                </t>
-                <figure title="Reference Set Emptying">
-                    <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| 0 | 0 | 1 | 1 |       0       |
-+---+---------------------------+
-]]></artwork>
-                </figure>
-                <t>
-                    The flag bit being set to '1' signals that the reference set
-                    is emptied. The remaining bits MUST be set to '0', non-zero
-                    values MUST be treated as a decoding error.
+                    An header table size update signals a change to the size of
+                    the header table.
                 </t>
                 <figure title="Maximum Header Table Size Change">
                     <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| 0 | 0 | 1 | 0 | Max size (4+) |
+| 0 | 0 | 1 |   Max size (5+)   |
 +---+---------------------------+
 ]]></artwork>
                 </figure>
                 <t>
-                    The flag bit being set to '0' signals that a change to the
-                    maximum size of the header table. This new maximum size MUST
-                    be lower than or equal to the maximum set by the decoder.
-                    That is, the value of the HTTP/2 setting
-                    SETTINGS_HEADER_TABLE_SIZE, defined in <xref target="HTTP2"
-                    x:fmt="of" x:rel="#SettingValues"/>.
+                    An header table size update starts with the '001' 3-bit
+                    pattern, followed by the new maximum size, represented as an
+                    integer with a 5-bit prefix (see <xref
+                        target="integer.representation"/>).
                 </t>
                 <t>
-                    The new maximum size is encoded as an integer with a 4-bit
-                    prefix (see <xref target="integer.representation"/>).
+                    The new maximum size MUST be lower than or equal to the
+                    maximum set by the decoder.  That is, the value of the
+                    HTTP/2 setting SETTINGS_HEADER_TABLE_SIZE, defined in <xref
+                        target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>.
                 </t>
                 <t>
                     Reducing the maximum size of the header table causes entries
@@ -1525,6 +1379,7 @@ else
                 anchor="changes.since.draft-ietf-httpbis-header-compression-08">
                 <t><list style="symbols">
                     <t>
+                        Removed the reference set.
                     </t>
                 </list></t>
             </section>
@@ -2132,6 +1987,13 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
 
 
         <section title="Examples" anchor="examples">
+            <t>
+                <cref>
+                    Need to be updated to reflect the removal of the reference
+                    set. In addition, lengths for Huffman-encoded strings are
+                    wrong.
+                </cref>
+            </t>
             <t>
                 A number of examples are worked through here, covering integer
                 encoding, header field representation, and the encoding of whole
@@ -3580,5 +3442,5 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
     </back>
 </rfc>
 <!--
-  vim:et:tw=78:sw=4:
+  vim:et:tw=80:sw=4:
  -->
