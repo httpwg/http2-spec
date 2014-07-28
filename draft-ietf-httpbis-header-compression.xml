@@ -435,8 +435,9 @@
                 </t>
                 <t>
                     By default, the maximum size of the header table is equal to
-                    the value of the HTTP/2 setting SETTINGS_HEADER_TABLE_SIZE
-                    defined by the decoder (see <xref target="HTTP2"
+                    the value of the HTTP/2 setting parameter
+                    SETTINGS_HEADER_TABLE_SIZE defined by the decoder (see <xref
+                        target="HTTP2"
                         x:fmt="of" x:rel="#SettingValues"/>).  The encoder can
                     change this maximum size (see <xref
                         target="encoding.context.update"/>), but it MUST stay
@@ -444,14 +445,30 @@
                     SETTINGS_HEADER_TABLE_SIZE.
                 </t>
                 <t>
-                    After applying an updated value of the HTTP/2 setting
-                    SETTINGS_HEADER_TABLE_SIZE that changes the maximum size of
-                    the header table used by the encoder, the encoder MUST
-                    signal this change via an encoding context update (see <xref
-                    target="encoding.context.update"/>). This encoding context
-                    update MUST occur at the beginning of the first header
-                    block following the SETTINGS frame sent to acknowledge the
-                    application of the updated settings.
+                    After applying an updated value of the
+                    SETTINGS_HEADER_TABLE_SIZE parameter that changes the
+                    maximum size of the header table used by the encoder, the
+                    encoder MUST signal this change via an encoding context
+                    update (see <xref target="encoding.context.update"/>). This
+                    encoding context update MUST occur at the beginning of the
+                    first header block following the SETTINGS frame sent to
+                    acknowledge the application of the updated settings.
+                </t>
+                <t>
+                    Several updated values for the SETTINGS_HEADER_TABLE_SIZE
+                    parameter can be acknowledged between the sending of two
+                    header blocks. In the case that the value is changed more
+                    that once, if a change causes the
+                    SETTINGS_HEADER_TABLE_SIZE parameter to be less than the new
+                    maximum size, the smallest value for this parameter MUST be
+                    sent before the new maximum size, using two encoding context
+                    updates. This ensures that the receiver is able to perform
+                    eviction based on the lower table size.
+                </t>
+                <t>
+                    This mechanism can be used in combination with a
+                    SETTINGS_HEADER_TABLE_SIZE parameter value of 0 to
+                    completely clear entries from the header table.
                 </t>
                 <t>
                     The size of the header table is the sum of the size of its
@@ -938,8 +955,8 @@ else
                 <t>
                     The new maximum size MUST be lower than or equal to the
                     maximum set by the decoder.  That is, the value of the
-                    HTTP/2 setting SETTINGS_HEADER_TABLE_SIZE, defined in <xref
-                        target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>.
+                    HTTP/2 setting parameter SETTINGS_HEADER_TABLE_SIZE, defined
+                    in <xref target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>.
                 </t>
                 <t>
                     Reducing the maximum size of the header table causes entries
@@ -1157,18 +1174,19 @@ else
                 <t>
                     The amount of memory used by the compressor state is limited
                     by the decoder using the value of the HTTP/2 setting
-                    SETTINGS_HEADER_TABLE_SIZE (see <xref target="HTTP2"
-                    x:fmt="of" x:rel="#SettingValues"/>). This limit takes into
-                    account both the size of the data stored in the header
-                    table, plus a small allowance for overhead.
+                    parameter SETTINGS_HEADER_TABLE_SIZE (see <xref
+                        target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>).
+                    This limit takes into account both the size of the data
+                    stored in the header table, plus a small allowance for
+                    overhead.
                 </t>
                 <t>
                     A decoder can limit the amount of state memory used by
-                    setting an appropriate value for the setting
-                    SETTINGS_HEADER_TABLE_SIZE.  An encoder can limit the amount
-                    of state memory it uses by signaling lower header table size
-                    than the decoder allows (see <xref
-                    target="encoding.context.update"/>).
+                    setting an appropriate value for the
+                    SETTINGS_HEADER_TABLE_SIZE parameter.  An encoder can limit
+                    the amount of state memory it uses by signaling lower header
+                    table size than the decoder allows (see <xref
+                        target="encoding.context.update"/>).
                 </t>
                 <t>
                     The amount of temporary memory consumed by an encoder or
@@ -1372,6 +1390,13 @@ else
                 <t><list style="symbols">
                     <t>
                         Removed the reference set.
+                    </t>
+                    <t>
+                        Removed header emission.
+                    </t>
+                    <t>
+                        Explicit handling of several SETTINGS_HEADER_TABLE_SIZE
+                        parameter changes.
                     </t>
                 </list></t>
             </section>
