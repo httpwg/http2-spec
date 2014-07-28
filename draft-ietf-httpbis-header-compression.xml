@@ -112,7 +112,7 @@
                     values are encoded or decoded.
                 </t>
                 <t>
-                    A set of header fields is treated as an unordered collection
+                    A list of header fields is treated as an ordered collection
                     of name-value pairs that can include duplicates.  Names and
                     values are considered to be opaque sequences of octets.  The
                     order of header fields is not guaranteed to be preserved
@@ -121,14 +121,14 @@
                 <t>
                     In the encoded form, a header field is represented either
                     literally or as a reference to a name-value pair in a header
-                    table.  A set of header fields can therefore be encoded
+                    table.  A list of header fields can therefore be encoded
                     using a mixture of references and literal values.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header fields
                     to insert as new entries in the header table.  The decoder
                     executes the modifications to the header table prescribed by
-                    the encoder, reconstructing the set of header fields in the
+                    the encoder, reconstructing the list of header fields in the
                     process.  This enables decoders to remain simple and
                     understand a wide variety of encoders.
                 </t>
@@ -178,11 +178,11 @@
                             amongst all encoding contexts.
                         </t>
                         <t hangText="Header Set:">
-                            A header set is an unordered group of header fields
-                            that are encoded jointly. It can contain duplicate
-                            header fields. A complete set of key-value pairs
-                            contained in a HTTP request or response is a header
-                            set.
+                            A header list is an ordered collection of header
+                            fields that are encoded jointly. It can contain
+                            duplicate header fields. A complete list of
+                            key-value pairs contained in a HTTP request or
+                            response is a header list.
                         </t>
                         <t hangText="Header Field Representation:">
                             A header field can be represented in encoded form
@@ -190,16 +190,16 @@
                             target="header.representation"/>).
                         </t>
                         <t hangText="Header Block:">
-                            The entire set of encoded header field
+                            An ordered list of encoded header field
                             representations which, when decoded, yields a
-                            complete header set.
+                            complete header list.
                         </t>
                     </list>
                 </t>
             </section>
         </section>
 
-        <section title="Decoding Process Overview" anchor="header.encoding">
+        <section title="Compression Process Overview" anchor="header.encoding">
             <t>
                 This specification does not describe a specific algorithm for an
                 encoder.  Instead, it defines precisely how a decoder is
@@ -253,7 +253,7 @@
                     target="maximum.table.size"/>).
                 </t>
                 <t>
-                    The header table is updated during the processing of a set
+                    The header table is updated during the processing of a list
                     of header field representations (see <xref
                     target="header.representation.processing"/>).
                 </t>
@@ -349,19 +349,19 @@
                 anchor="header.block.processing">
                 <t>
                     A decoder processes an encoded header block sequentially to
-                    reconstruct the original header set.
+                    reconstruct the original header list.
                 </t>
                 <t>
                     Once a header field is decoded and added to the
-                    reconstructed header set, it cannot be removed from it. A
-                    header field added to the header set can be safely passed to
-                    the upper processing layer.
+                    reconstructed header list, it cannot be removed from it. A
+                    header field added to the header list can be safely passed
+                    to the upper processing layer.
                 </t>
                 <t>
                     By passing decoded header fields to the upper processing
                     layer, a decoder can be implemented with minimal transitory
                     memory commitment in addition to the header table. The
-                    management of memory for handling very large sets of header
+                    management of memory for handling very large lists of header
                     fields can therefore be deferred to the upper processing
                     layers.
                 </t>
@@ -370,9 +370,9 @@
             <section title="Header Field Representation Processing"
                      anchor="header.representation.processing">
                 <t>
-                    The processing of a header block to obtain a header set is
+                    The processing of a header block to obtain a header list is
                     defined in this section.  To ensure that the decoding will
-                    successfully produce a header set, a decoder MUST obey the
+                    successfully produce a header list, a decoder MUST obey the
                     following rules.
                 </t>
                 <t>
@@ -389,7 +389,7 @@
                         <t>
                             The header field corresponding to the referenced
                             entry in either the header table or static table is
-                            added to the decoded header set.
+                            added to the decoded header list.
                         </t>
                     </list>
                 </t>
@@ -399,7 +399,8 @@
                     action:
                     <list style="symbols">
                         <t>
-                            The header field is added to the decoded header set.
+                            The header field is added to the decoded header
+                            list.
                         </t>
                     </list>
                 </t>
@@ -409,7 +410,8 @@
                     following actions:
                     <list style="symbols">
                         <t>
-                            The header field is added to the decoded header set.
+                            The header field is added to the decoded header
+                            list.
                         </t>
                         <t>
                             The header field is inserted at the beginning of the
@@ -701,7 +703,7 @@ else
                 </t>
                 <t>
                     An indexed header field representation causes a
-                    header field to be added to the decoded header set, as
+                    header field to be added to the decoded header list, as
                     described in <xref
                         target="header.representation.processing"/>.
                 </t>
@@ -737,7 +739,7 @@ else
                 </t>
                 <t>
                     A literal representation causes a header field to be
-                    added to the decoded header set, as described in <xref
+                    added to the decoded header list, as described in <xref
                         target="header.representation.processing"/>.
                 </t>
 
@@ -746,7 +748,7 @@ else
                     <t>
                         A literal header field with incremental indexing
                         representation results in adding a header field to the
-                        decoded header set and inserting it as a new entry
+                        decoded header list and inserting it as a new entry
                         into the header table.
                     </t>
                     <figure title="Literal Header Field with Incremental Indexing -
@@ -811,7 +813,7 @@ else
                     <t>
                         A literal header field without indexing representation
                         results in adding a header field to the decoded header
-                        set without altering the header table.
+                        list without altering the header table.
                     </t>
                     <figure title="Literal Header Field without Indexing - Indexed Name">
                         <artwork type="inline"><![CDATA[
@@ -873,7 +875,7 @@ else
                     <t>
                         A literal header field never indexed representation
                         results in adding a header field to the decoded header
-                        set without altering the header table.  Intermediaries
+                        list without altering the header table.  Intermediaries
                         MUST use the same representation for encoding this
                         header field.
                     </t>
@@ -1191,10 +1193,11 @@ else
                     The amount of temporary memory consumed by an encoder or
                     decoder can be limited by processing header fields
                     sequentially.  An implementation does not need to retain a
-                    complete set of header fields.  Note however that it might
+                    complete list of header fields.  Note however that it might
                     be necessary for an application to retain a complete header
-                    set for other reasons; even though HPACK does not force this
-                    to occur, application constraints might make this necessary.
+                    list for other reasons; even though HPACK does not force
+                    this to occur, application constraints might make this
+                    necessary.
                 </t>
             </section>
 
@@ -1396,6 +1399,9 @@ else
                     <t>
                         Explicit handling of several SETTINGS_HEADER_TABLE_SIZE
                         parameter changes.
+                    </t>
+                    <t>
+                        Changes header set to header list, and force ordering.
                     </t>
                 </list></t>
             </section>
@@ -2013,8 +2019,8 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
             <t>
                 A number of examples are worked through here, covering integer
                 encoding, header field representation, and the encoding of whole
-                sets of header fields, for both requests and responses, and with
-                and without Huffman coding.
+                lists of header fields, for both requests and responses, and
+                with and without Huffman coding.
             </t>
 
             <section title="Integer Representation Examples"
