@@ -167,15 +167,16 @@
                         </t>
                         <t hangText="Header Table:">
                             The header table (see <xref target="header.table"/>)
-                            is a component used to associate stored header
-                            fields to index values.
+                            is used to associate stored header fields to index
+                            values. This table is dynamic and specific to an
+                            encoding or decoding context.
                         </t>
                         <t hangText="Static Table:">
                             The static table (see <xref target="static.table"/>)
-                            is a component used to associate static header
-                            fields to index values.  This data is ordered,
-                            read-only, always accessible, and may be shared
-                            amongst all encoding or decoding contexts.
+                            is used to associate static header fields to index
+                            values.  This table is ordered, read-only, always
+                            accessible, and may be shared amongst all encoding
+                            or decoding contexts.
                         </t>
                         <t hangText="Header List:">
                             A header list is an ordered collection of header
@@ -187,12 +188,11 @@
                         <t hangText="Header Field Representation:">
                             A header field can be represented in encoded form
                             either as a literal or as an index (see <xref
-                            target="header.representation"/>).
+                                target="header.representation"/>).
                         </t>
                         <t hangText="Header Block:">
-                            An ordered list of encoded header field
-                            representations which, when decoded, yields a
-                            complete header list.
+                            An ordered list of header field representations
+                            which, when decoded, yields a complete header list.
                         </t>
                     </list>
                 </t>
@@ -218,9 +218,9 @@
                     header list according to their ordering in the header block.
                 </t>
                 <t>
-                    In particular, representations for pseudo-header fields 
-                    <!-- (see <xref target="HTTP2" x:fmt="of" x:rel="#PseudoHeaderFields"/>) -->
-                    MUST appear before
+                    In particular, representations for pseudo-header fields (see
+                    <xref target="HTTP2" x:fmt="of"
+                        x:rel="#PseudoHeaderFields"/>) MUST appear before
                     representations for regular header fields in a header block.
                     In a decoded header list, pseudo-header fields MUST appear
                     before regular header fields.
@@ -230,9 +230,9 @@
             <section title="Encoding and Decoding Contexts"
                 anchor="encoding.context">
                 <t>
-                    To decode header blocks, a decoder only needs to maintain a
-                    header table (see <xref target="header.table"/>) as a
-                    decoding context. No other state information is needed.
+                    To decompress header blocks, a decoder only needs to
+                    maintain a header table (see <xref target="header.table"/>)
+                    as a decoding context. No other state information is needed.
                 </t>
                 <t>
                     An encoder that wishes to reference entries in the header
@@ -249,34 +249,103 @@
                 </t>
             </section>
 
-            <section title="Header Table" anchor="header.table">
+            <section title="Indexing Tables"
+                anchor="indexing.tables">
                 <t>
-                    A header table consists of a list of header fields
-                    maintained in first-in, first-out order.  The first and
-                    newest entry in a header table is always at index 1, and the
-                    oldest entry of a header table is at the index corresponding
-                    to the number of entries in the header table.
+                    HPACK uses two tables for associating header fields to
+                    indexes. The static table (see <xref
+                        target="static.table"/>) is predefined and contains
+                    common header fields (most of them with an empty value). The
+                    header table (see <xref target="header.table"/>) is dynamic
+                    and can be used by the encoder to index header fields
+                    repeated in the encoded header lists.
                 </t>
                 <t>
-                    The header table is initially empty.
+                    These two tables are combined into a single address space
+                    for defining index values (see <xref
+                        target="index.address.space"/>).
                 </t>
-                <t>
-                    The header table can contain duplicate entries. Therefore,
-                    duplicate entries MUST NOT be treated as an error by a
-                    decoder.
-                </t>
-                <t>
-                    The encoder decides how to update the header table and as
-                    such can control how much memory is used by the header
-                    table. To limit the memory requirements of the decoder, the
-                    header table size is strictly bounded (see <xref
-                    target="maximum.table.size"/>).
-                </t>
-                <t>
-                    The header table is updated during the processing of a list
-                    of header field representations (see <xref
-                    target="header.representation.processing"/>).
-                </t>
+
+                <section title="Static Table" anchor="static.table">
+                    <t>
+                        The static table consists of a predefined static list of
+                        header fields. Its entries are defined in <xref
+                            target="static.table.definition"/>.
+                    </t>
+                </section>
+
+                <section title="Header Table" anchor="header.table">
+                    <t>
+                        The header table consists of a list of header fields
+                        maintained in first-in, first-out order.  The first and
+                        newest entry in a header table is always at index 1, and
+                        the oldest entry of a header table is at the index
+                        corresponding to the number of entries in the header
+                        table.
+                    </t>
+                    <t>
+                        The header table is initially empty.
+                    </t>
+                    <t>
+                        The header table can contain duplicate entries.
+                        Therefore, duplicate entries MUST NOT be treated as an
+                        error by a decoder.
+                    </t>
+                    <t>
+                        The encoder decides how to update the header table and
+                        as such can control how much memory is used by the
+                        header table. To limit the memory requirements of the
+                        decoder, the header table size is strictly bounded (see
+                        <xref target="maximum.table.size"/>).
+                    </t>
+                    <t>
+                        The header table is updated during the processing of a
+                        list of header field representations (see <xref
+                            target="header.representation.processing"/>).
+                    </t>
+                </section>
+
+                <section title="Index Address Space"
+                    anchor="index.address.space">
+                    <t>
+                        The static table and the header table are combined into
+                        a single index address space.
+                    </t>
+                    <t>
+                        Indices between 1 and the length of the static table
+                        (inclusive) refer to elements in the static table (see <xref
+                            target="static.table"/>).
+                    </t>
+                    <t>
+                        Indices strictly greater than the length of the static
+                        table refer to elements in the header table (see <xref
+                            target="header.table"/>).  The length
+                        of the static table is subtracted to find the index into the
+                        header table.
+                    </t>
+                    <t>
+                        Indices strictly greater than the sum of the lengths of
+                        both tables MUST be treated as a decoding error.
+                    </t>
+
+                    <figure title="Index Address Space">
+                        <preamble>
+                            For a static table size of s and a header table size of
+                            k, the following diagram shows the entire valid index
+                            address space.
+                        </preamble>
+                    <artwork type="drawing"><![CDATA[
+        <----------  Index Address Space ---------->
+        <-- Static  Table -->  <-- Header  Table -->
+        +---+-----------+---+  +---+-----------+---+
+        | 1 |    ...    | s |  |s+1|    ...    |s+k|
+        +---+-----------+---+  +---+-----------+---+
+                               ^                   |
+                               |                   V
+                        Insertion Point      Dropping Point
+]]></artwork>
+                    </figure>
+                </section>
             </section>
 
             <section title="Header Field Representation"
@@ -286,10 +355,11 @@
                     literal or as an index.
                 </t>
                 <t>
-                    A literal representation defines a new header field. The
-                    header field name can be represented literally or as a
-                    reference to an entry of the header table. The header field
-                    value is represented literally.
+                    A literal representation defines a header field by
+                    specifying its name and value. The header field name can be
+                    represented literally or as a reference to an entry in
+                    either the static table or the header table. The header
+                    field value is represented literally.
                 </t>
                 <t>
                     Three different literal representations are provided:
@@ -321,40 +391,6 @@
                     header table (see <xref
                     target="indexed.header.representation"/>).
                 </t>
-                <t>
-                    Indices between 1 and the length of the static table
-                    (inclusive) refer to elements in the static table (see <xref
-                        target="static.table"/>).
-                </t>
-                <t>
-                    Indices strictly greater than the length of the static
-                    table refer to elements in the header table (see <xref
-                        target="header.table"/>).  The length
-                    of the static table is subtracted to find the index into the
-                    header table.
-                </t>
-                <t>
-                    Indices strictly greater than the sum of the lengths of
-                    both tables MUST be treated as a decoding error.
-                </t>
-
-                <figure title="Index Address Space">
-                    <preamble>
-                        For a static table size of s and a header table size of
-                        k, the following diagram shows the entire valid index
-                        address space.
-                    </preamble>
-                    <artwork type="drawing"><![CDATA[
-        <----------  Index Address Space ---------->
-        <-- Static  Table -->  <-- Header  Table -->
-        +---+-----------+---+  +---+-----------+---+
-        | 1 |    ...    | s |  |s+1|    ...    |s+k|
-        +---+-----------+---+  +---+-----------+---+
-                               ^                   |
-                               |                   V
-                        Insertion Point      Dropping Point
-]]></artwork>
-                </figure>
             </section>
         </section>
 
@@ -447,7 +483,7 @@
                 </t>
                 <t>
                     The size of the header table is bounded by a maximum size
-                    defined by the decoder.  The size of the header table MUST
+                    defined by the encoder.  The size of the header table MUST
                     always be lower than or equal to this maximum size.
                 </t>
                 <t>
@@ -469,23 +505,24 @@
                     update (see <xref target="encoding.context.update"/>). This
                     encoding context update MUST occur at the beginning of the
                     first header block following the SETTINGS frame sent to
-                    acknowledge the application of the updated settings.
+                    acknowledge the application of the updated settings (see
+                    <xref target="HTTP2" x:fmt="of" x:rel="#SettingsSync"/>).
                 </t>
                 <t>
-                    Several updated values for the SETTINGS_HEADER_TABLE_SIZE
-                    parameter can be acknowledged between the sending of two
-                    header blocks. In the case that the value is changed more
-                    that once, if a change causes the
-                    SETTINGS_HEADER_TABLE_SIZE parameter to be less than the new
-                    maximum size, the smallest value for this parameter MUST be
-                    sent before the new maximum size, using two encoding context
-                    updates. This ensures that the receiver is able to perform
-                    eviction based on the lower table size.
+                    Several updates to the value of the
+                    SETTINGS_HEADER_TABLE_SIZE parameter can occur between the
+                    sending of two header blocks. In the case that the value of
+                    this parameter is changed more that once, if one of its
+                    value is smaller than the new maximum size, the smallest
+                    value for the parameter MUST be sent before the new maximum
+                    size, using two encoding context updates. This ensures that
+                    the decoder is able to perform eviction based on the decoder
+                    table size (see <xref target="entry.eviction"/>).
                 </t>
                 <t>
-                    This mechanism can be used in combination with a
-                    SETTINGS_HEADER_TABLE_SIZE parameter value of 0 to
-                    completely clear entries from the header table.
+                    This mechanism can be used with a SETTINGS_HEADER_TABLE_SIZE
+                    parameter value of 0 to completely clear entries from the
+                    header table.
                 </t>
                 <t>
                     The size of the header table is the sum of the size of its
@@ -495,7 +532,7 @@
                     The size of an entry is the sum of its name's length in
                     octets (as defined in <xref
                     target="string.literal.representation" />), its value's
-                    length in octets (<xref
+                    length in octets (see <xref
                     target="string.literal.representation" />), plus 32.
                 </t>
                 <t>
@@ -503,7 +540,7 @@
                     name and value without any Huffman encoding applied.
                 </t>
                 <t>
-                    The additional 32 octets account for overhead associated
+                    The additional 32 octets account for the overhead associated
                     with an entry. For example, an entry structure using two
                     64-bit pointers to reference the name and the value of the
                     entry, and two 64-bit integers for counting the number of
@@ -525,7 +562,7 @@
             <section title="Entry Eviction when Adding New Entries"
                      anchor="entry.addition">
                 <t>
-                    Whenever a new entry is to be added to the header table
+                    Whenever a new entry is to be added to the header table,
                     entries are evicted from the end of the header table until
                     the size of the header table is less than or equal to
                     (maximum size - new entry size), or until the table is
@@ -674,20 +711,19 @@ else
                 <t>
                     String literals which use Huffman encoding are encoded with
                     the Huffman code defined in <xref target="huffman.code"/>
-                    (see examples in <xref
-                        target="request.examples.with.huffman.coding">Request
-                        Examples with Huffman Coding</xref> and in <xref
-                        target="response.examples.with.huffman.coding">Response
-                        Examples with Huffman Coding</xref>). The encoded data
-                    is the bitwise concatenation of the codes corresponding to
-                    each octet of the string literal.
+                    (see examples for requests in <xref
+                        target="request.examples.with.huffman.coding"/> and for
+                    responses in <xref
+                        target="response.examples.with.huffman.coding"/>). The
+                    encoded data is the bitwise concatenation of the codes
+                    corresponding to each octet of the string literal.
                 </t>
                 <t>
                     As the Huffman encoded data doesn't always end at an octet
-                    boundary, some padding is inserted after it up to the next
+                    boundary, some padding is inserted after it, up to the next
                     octet boundary. To prevent this padding to be misinterpreted
                     as part of the string literal, the most significant bits of
-                    code corresponding to the EOS (end-of-string) symbol are
+                    the code corresponding to the EOS (end-of-string) symbol are
                     used.
                 </t>
                 <t>
@@ -714,7 +750,8 @@ else
                 anchor="indexed.header.representation">
                 <t>
                     An indexed header field representation identifies an entry
-                    in either the static table or the header table.
+                    in either the static table or the header table (see <xref
+                        target="indexing.tables"/>).
                 </t>
                 <t>
                     An indexed header field representation causes a
@@ -750,7 +787,8 @@ else
                     A literal header field representation contains a literal
                     header field value.  Header field names are either provided
                     as a literal or by reference to an existing table entry,
-                    either from the static table or the header table.
+                    either from the static table or the header table (see <xref
+                        target="indexing.tables"/>).
                 </t>
                 <t>
                     A literal representation causes a header field to be
@@ -811,15 +849,16 @@ else
                     </t>
                     <t>
                         Otherwise, the header field name is represented as a
-                        literal. A value 0 is used in place of the 6-bit index,
-                        followed by the header field name (see <xref
-                        target="string.literal.representation" />).
+                        literal string (see <xref
+                            target="string.literal.representation" />). A value
+                        0 is used in place of the 6-bit index, followed by the
+                        header field name.
                     </t>
                     <t>
                         Either form of header field name representation is
                         followed by the header field value represented as a
-                        literal string as described in <xref
-                        target="string.literal.representation" />.
+                        literal string (see <xref
+                            target="string.literal.representation" />).
                     </t>
                 </section>
 
@@ -873,15 +912,16 @@ else
                     </t>
                     <t>
                         Otherwise, the header field name is represented as a
-                        literal. A value 0 is used in place of the 4-bit index,
-                        followed by the header field name (see <xref
-                        target="string.literal.representation" />).
+                        literal string (see <xref
+                            target="string.literal.representation" />). A value
+                        0 is used in place of the 4-bit index, followed by the
+                        header field name.
                     </t>
                     <t>
                         Either form of header field name representation is
                         followed by the header field value represented as a
-                        literal string as described in <xref
-                        target="string.literal.representation" />.
+                        literal string (see <xref
+                            target="string.literal.representation" />).
                     </t>
                 </section>
 
@@ -970,14 +1010,16 @@ else
                         target="integer.representation"/>).
                 </t>
                 <t>
-                    The new maximum size MUST be lower than or equal to the
-                    maximum set by the decoder.  That is, the value of the
-                    HTTP/2 setting parameter SETTINGS_HEADER_TABLE_SIZE, defined
-                    in <xref target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>.
+                    The new maximum size MUST be lower than or equal to the last
+                    value of the SETTINGS_HEADER_TABLE_SIZE parameter (see <xref
+                        target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>)
+                    received from the decoder and acknowledged by the encoder
+                    (see <xref target="HTTP2" x:fmt="of"
+                        x:rel="#SettingsSync"/>).
                 </t>
                 <t>
-                    Reducing the maximum size of the header table causes entries
-                    to be evicted (see <xref target="entry.eviction"/>).
+                    Reducing the maximum size of the header table can cause
+                    entries to be evicted (see <xref target="entry.eviction"/>).
                 </t>
             </section>
         </section>
@@ -1043,7 +1085,7 @@ else
                         target="DEFLATE">DEFLATE</xref> removes redundancy based
                     on prefix matching.  This permitted the attacker to confirm
                     guesses a character at a time, reducing an exponential-time
-                    attack into a constant time attack.
+                    attack into a linear-time attack.
                 </t>
 
                 <section title="Applicability to HPACK and HTTP">
@@ -1159,12 +1201,12 @@ else
                     <t>
                         Refusing to generate an indexed representation for a
                         header field is only effective if compression is avoided
-                        on all hops.  The new indexed literal (see <xref
+                        on all hops.  The never indexed literal (see <xref
                             target="literal.header.never.indexed"/>) can be used
                         to signal to intermediaries that a particular value was
                         intentionally sent as a literal.  An intermediary MUST
                         NOT re-encode a value that uses the never indexed
-                        literal as an indexed representation.
+                        literal with a representation that would index it.
                     </t>
                 </section>
             </section>
@@ -1619,13 +1661,10 @@ else
                 </t>
             </section>
         </section>
-        <section title="Static Table" anchor="static.table">
+        <section title="Static Table Definition" anchor="static.table.definition">
             <t>
-                The static table consists of an unchangeable ordered list of
-                (name, value) pairs. The first entry in the table is always
-                represented by the index len(header table) + 1, and the last
-                entry in the table is represented by the index len(header table)
-                + len(static table).
+                The static table (see <xref target="static.table"/>) consists of
+                a predefined and unchangeable list of header fields.
             </t>
             <t>
                 The static table was created by listing the most common
@@ -1713,9 +1752,7 @@ else
             </texttable>
             <t>
                 <xref target="static.table.entries"/> gives the index of each
-                entry in the static table.  The full index of each entry, to be
-                used for encoding a reference to this entry, is computed by
-                adding the number of entries in the header table to this index.
+                entry in the static table.
             </t>
         </section>
 
@@ -1763,10 +1800,10 @@ else
             </t>
             <figure>
                 <artwork><![CDATA[
-                                                    code
-                       code as bits                as hex    len
-     sym              aligned to MSB               aligned    in
-                                                   to LSB    bits
+                                                     code
+                       code as bits                 as hex   len
+     sym              aligned to MSB                aligned   in
+                                                    to LSB   bits
     (  0)  |11111111|11000                             1ff8  [13]
     (  1)  |11111111|11111111|1011000                7fffd8  [23]
     (  2)  |11111111|11111111|11111110|0010         fffffe2  [28]
