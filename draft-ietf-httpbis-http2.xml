@@ -545,7 +545,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Clients and servers MUST terminate the TCP connection if either peer does not begin with a
-          valid connection preface.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) can be
+          valid connection preface.  A <x:ref>GO_AWAY</x:ref> frame (<xref target="GO_AWAY"/>) can be
           omitted if it is clear that the peer is not using HTTP/2.
         </t>
       </section>
@@ -1071,7 +1071,7 @@ HTTP2-Settings    = token68
             exhausting the available range of stream identifiers.  A client that is unable to
             establish a new stream identifier can establish a new connection for new streams.  A
             server that is unable to establish a new stream identifier can send a
-            <x:ref>GOAWAY</x:ref> frame so that the client is forced to open a new connection for
+            <x:ref>GO_AWAY</x:ref> frame so that the client is forced to open a new connection for
             new streams.
           </t>
         </section>
@@ -1427,22 +1427,22 @@ HTTP2-Settings    = token68
             or which corrupts any connection state.
           </t>
           <t>
-            An endpoint that encounters a connection error SHOULD first send a <x:ref>GOAWAY</x:ref>
-            frame (<xref target="GOAWAY"/>) with the stream identifier of the last stream that it
-            successfully received from its peer.  The <x:ref>GOAWAY</x:ref> frame includes an error
+            An endpoint that encounters a connection error SHOULD first send a <x:ref>GO_AWAY</x:ref>
+            frame (<xref target="GO_AWAY"/>) with the stream identifier of the last stream that it
+            successfully received from its peer.  The <x:ref>GO_AWAY</x:ref> frame includes an error
             code that indicates why the connection is terminating.  After sending the
-            <x:ref>GOAWAY</x:ref> frame, the endpoint MUST close the TCP connection.
+            <x:ref>GO_AWAY</x:ref> frame, the endpoint MUST close the TCP connection.
           </t>
           <t>
-            It is possible that the <x:ref>GOAWAY</x:ref> will not be reliably received by the
-            receiving endpoint.  In the event of a connection error, <x:ref>GOAWAY</x:ref> only
+            It is possible that the <x:ref>GO_AWAY</x:ref> will not be reliably received by the
+            receiving endpoint.  In the event of a connection error, <x:ref>GO_AWAY</x:ref> only
             provides a best effort attempt to communicate with the peer about why the connection is
             being terminated.
           </t>
           <t>
             An endpoint can end a connection at any time.  In particular, an endpoint MAY choose to
             treat a stream error as a connection error.  Endpoints SHOULD send a
-            <x:ref>GOAWAY</x:ref> frame when ending a connection, providing that circumstances
+            <x:ref>GO_AWAY</x:ref> frame when ending a connection, providing that circumstances
             permit it.
           </t>
         </section>
@@ -2238,12 +2238,12 @@ HTTP2-Settings    = token68
 
       </section>
 
-      <section anchor="GOAWAY" title="GOAWAY">
+      <section anchor="GO_AWAY" title="GO_AWAY">
         <t>
-          The GOAWAY frame (type=0x7) informs the remote peer to stop creating streams on this
-          connection.  GOAWAY can be sent by either the client or the server.  Once sent, the sender
+          The GO_AWAY frame (type=0x7) informs the remote peer to stop creating streams on this
+          connection.  GO_AWAY can be sent by either the client or the server.  Once sent, the sender
           will ignore frames sent on any new streams with identifiers higher than the included last
-          stream identifier.  Receivers of a GOAWAY frame MUST NOT open additional streams on the
+          stream identifier.  Receivers of a GO_AWAY frame MUST NOT open additional streams on the
           connection, although a new connection can be established for new streams.
         </t>
         <t>
@@ -2253,31 +2253,31 @@ HTTP2-Settings    = token68
         </t>
         <t>
           There is an inherent race condition between an endpoint starting new streams and the
-          remote sending a GOAWAY frame.  To deal with this case, the GOAWAY contains the stream
+          remote sending a GO_AWAY frame.  To deal with this case, the GO_AWAY contains the stream
           identifier of the last peer-initiated stream which was or might be processed on the
-          sending endpoint in this connection.  For instance, if the server sends a GOAWAY frame,
+          sending endpoint in this connection.  For instance, if the server sends a GO_AWAY frame,
           the identifed stream is the highest numbered stream initiated by the client.
         </t>
         <t>
-          If the receiver of the GOAWAY has sent data on streams with a higher stream identifier
-          than what is indicated in the GOAWAY frame, those streams are not or will not be
-          processed.  The receiver of the GOAWAY frame can treat the streams as though they had
+          If the receiver of the GO_AWAY has sent data on streams with a higher stream identifier
+          than what is indicated in the GO_AWAY frame, those streams are not or will not be
+          processed.  The receiver of the GO_AWAY frame can treat the streams as though they had
           never been created at all, thereby allowing those streams to be retried later on a new
           connection.
         </t>
         <t>
-          Endpoints SHOULD always send a GOAWAY frame before closing a connection so that the remote
+          Endpoints SHOULD always send a GO_AWAY frame before closing a connection so that the remote
           can know whether a stream has been partially processed or not.  For example, if an HTTP
           client sends a POST at the same time that a server closes a connection, the client cannot
           know if the server started to process that POST request if the server does not send a
-          GOAWAY frame to indicate what streams it might have acted on.
+          GO_AWAY frame to indicate what streams it might have acted on.
         </t>
         <t>
-          An endpoint might choose to close a connection without sending GOAWAY for misbehaving
+          An endpoint might choose to close a connection without sending GO_AWAY for misbehaving
           peers.
         </t>
 
-        <figure title="GOAWAY Payload Format">
+        <figure title="GO_AWAY Payload Format">
           <artwork type="inline"><![CDATA[
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2291,17 +2291,17 @@ HTTP2-Settings    = token68
 ]]></artwork>
         </figure>
         <t>
-          The GOAWAY frame does not define any flags.
+          The GO_AWAY frame does not define any flags.
         </t>
         <t>
-          The GOAWAY frame applies to the connection, not a specific stream.  An endpoint MUST treat
-          a <x:ref>GOAWAY</x:ref> frame with a stream identifier other than 0x0 as a <xref
+          The GO_AWAY frame applies to the connection, not a specific stream.  An endpoint MUST treat
+          a <x:ref>GO_AWAY</x:ref> frame with a stream identifier other than 0x0 as a <xref
           target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
         <t>
-          The last stream identifier in the GOAWAY frame contains the highest numbered stream
-          identifier for which the sender of the GOAWAY frame might have taken some action on, or
+          The last stream identifier in the GO_AWAY frame contains the highest numbered stream
+          identifier for which the sender of the GO_AWAY frame might have taken some action on, or
           might yet take action on.  All streams up to and including the identified stream might
           have been processed in some way.  The last stream identifier can be set to 0 if no streams
           were processed.
@@ -2311,7 +2311,7 @@ HTTP2-Settings    = token68
               higher layer of software that might have taken some action as a result.
             </t>
           </list>
-          If a connection terminates without a GOAWAY frame, the last stream identifier is
+          If a connection terminates without a GO_AWAY frame, the last stream identifier is
           effectively the highest possible stream identifier.
         </t>
         <t>
@@ -2323,15 +2323,15 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Activity on streams numbered lower or equal to the last stream identifier might still
-          complete successfully.  The sender of a GOAWAY frame might gracefully shut down a
-          connection by sending a GOAWAY frame, maintaining the connection in an open state until
+          complete successfully.  The sender of a GO_AWAY frame might gracefully shut down a
+          connection by sending a GO_AWAY frame, maintaining the connection in an open state until
           all in-progress streams complete.
         </t>
         <t>
-          An endpoint MAY send multiple GOAWAY frames if circumstances change.  For instance, an
-          endpoint that sends GOAWAY with <x:ref>NO_ERROR</x:ref> during graceful shutdown could
+          An endpoint MAY send multiple GO_AWAY frames if circumstances change.  For instance, an
+          endpoint that sends GO_AWAY with <x:ref>NO_ERROR</x:ref> during graceful shutdown could
           subsequently encounter an condition that requires immediate termination of the connection.
-          The last stream identifier from the last GOAWAY frame received indicates which streams
+          The last stream identifier from the last GO_AWAY frame received indicates which streams
           could have been acted upon.  Endpoints MUST NOT increase the value they send in the last
           stream identifier, since the peers might already have retried unprocessed requests on
           another connection.
@@ -2340,16 +2340,16 @@ HTTP2-Settings    = token68
           A client that is unable to retry requests loses all requests that are in flight when the
           server closes the connection.  This is especially true for intermediaries that might
           not be serving clients using HTTP/2.  A server that is attempting to gracefully shut down
-          a connection SHOULD send an initial GOAWAY frame with the last stream identifier set to
+          a connection SHOULD send an initial GO_AWAY frame with the last stream identifier set to
           2<x:sup>31</x:sup>-1 and a <x:ref>NO_ERROR</x:ref> code.  This signals to the client that
           a shutdown is imminent and that no further requests can be initiated.  After waiting at
-          least one round trip time, the server can send another GOAWAY frame with an updated last
+          least one round trip time, the server can send another GO_AWAY frame with an updated last
           stream identifier.  This ensures that a connection can be cleanly shut down without losing
           requests.
         </t>
 
         <t>
-          After sending a GOAWAY frame, the sender can discard frames for streams with identifiers
+          After sending a GO_AWAY frame, the sender can discard frames for streams with identifiers
           higher than the identified last stream.  However, any frames that alter connection state
           cannot be completely ignored.  For instance, <x:ref>HEADERS</x:ref>,
           <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames MUST be minimally
@@ -2360,11 +2360,11 @@ HTTP2-Settings    = token68
         </t>
 
         <t>
-          The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
+          The GO_AWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
           contains the reason for closing the connection.
         </t>
         <t>
-          Endpoints MAY append opaque data to the payload of any GOAWAY frame.  Additional debug
+          Endpoints MAY append opaque data to the payload of any GO_AWAY frame.  Additional debug
           data is intended for diagnostic purposes only and carries no semantic value.  Debug
           information could contain security- or privacy-sensitive data.  Logged or otherwise
           persistently stored debug data MUST have adequate safeguards to prevent unauthorized
@@ -2476,7 +2476,7 @@ HTTP2-Settings    = token68
             If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
             maximum it MUST terminate either the stream or the connection, as appropriate.  For
             streams, the sender sends a <x:ref>RST_STREAM</x:ref> with the error code of
-            <x:ref>FLOW_CONTROL_ERROR</x:ref> code; for the connection, a <x:ref>GOAWAY</x:ref>
+            <x:ref>FLOW_CONTROL_ERROR</x:ref> code; for the connection, a <x:ref>GO_AWAY</x:ref>
             frame with a <x:ref>FLOW_CONTROL_ERROR</x:ref> code.
           </t>
           <t>
@@ -2621,7 +2621,7 @@ HTTP2-Settings    = token68
     <section anchor="ErrorCodes" title="Error Codes">
       <t>
         Error codes are 32-bit fields that are used in <x:ref>RST_STREAM</x:ref> and
-        <x:ref>GOAWAY</x:ref> frames to convey the reasons for the stream or connection error.
+        <x:ref>GO_AWAY</x:ref> frames to convey the reasons for the stream or connection error.
       </t>
 
       <t>
@@ -2634,7 +2634,7 @@ HTTP2-Settings    = token68
         <list style="hanging">
           <t hangText="NO_ERROR (0x0):" anchor="NO_ERROR">
             The associated condition is not as a result of an error.  For example, a
-            <x:ref>GOAWAY</x:ref> might include this code to indicate graceful shutdown of a
+            <x:ref>GO_AWAY</x:ref> might include this code to indicate graceful shutdown of a
             connection.
           </t>
           <t hangText="PROTOCOL_ERROR (0x1):" anchor="PROTOCOL_ERROR">
@@ -3168,7 +3168,7 @@ HTTP2-Settings    = token68
             not been processed:
             <list style="symbols">
               <t>
-                The <x:ref>GOAWAY</x:ref> frame indicates the highest stream number that might have
+                The <x:ref>GO_AWAY</x:ref> frame indicates the highest stream number that might have
                 been processed.  Requests on streams with higher numbers are therefore guaranteed to
                 be safe to retry.
               </t>
@@ -3188,7 +3188,7 @@ HTTP2-Settings    = token68
             A server MUST NOT indicate that a stream has not been processed unless it can guarantee
             that fact.  If frames that are on a stream are passed to the application layer for any
             stream, then <x:ref>REFUSED_STREAM</x:ref> MUST NOT be used for that stream, and a
-            <x:ref>GOAWAY</x:ref> frame MUST include a stream identifier that is greater than or
+            <x:ref>GO_AWAY</x:ref> frame MUST include a stream identifier that is greater than or
             equal to the given stream identifier.
           </t>
           <t>
@@ -3455,7 +3455,7 @@ HTTP2-Settings    = token68
           Servers are encouraged to maintain open connections for as long as possible, but are
           permitted to terminate idle connections if necessary.  When either endpoint chooses to
           close the transport-level TCP connection, the terminating endpoint SHOULD first send a
-          <x:ref>GOAWAY</x:ref> (<xref target="GOAWAY"/>) frame so that both endpoints can reliably
+          <x:ref>GO_AWAY</x:ref> (<xref target="GO_AWAY"/>) frame so that both endpoints can reliably
           determine whether previously sent frames have been processed and gracefully complete or
           terminate any necessary remaining tasks.
         </t>
@@ -3924,7 +3924,7 @@ HTTP2-Settings    = token68
           <c>SETTINGS</c><c>0x4</c><c><xref target="SETTINGS"/></c>
           <c>PUSH_PROMISE</c><c>0x5</c><c><xref target="PUSH_PROMISE"/></c>
           <c>PING</c><c>0x6</c><c><xref target="PING"/></c>
-          <c>GOAWAY</c><c>0x7</c><c><xref target="GOAWAY"/></c>
+          <c>GO_AWAY</c><c>0x7</c><c><xref target="GO_AWAY"/></c>
           <c>WINDOW_UPDATE</c><c>0x8</c><c><xref target="WINDOW_UPDATE"/></c>
           <c>CONTINUATION</c><c>0x9</c><c><xref target="CONTINUATION"/></c>
         </texttable>
@@ -4815,7 +4815,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Clarified requirements around handling different frames after stream close, stream reset
-          and <x:ref>GOAWAY</x:ref>.
+          and <x:ref>GO_AWAY</x:ref>.
         </t>
         <t>
           Added more specific prohibitions for sending of different frame types in various stream
@@ -4922,7 +4922,7 @@ HTTP2-Settings    = token68
           Removed section on Incompatibilities with SPDY draft#2.
         </t>
         <t>
-          Changed <x:ref>INTERNAL_ERROR</x:ref> on <x:ref>GOAWAY</x:ref> to have a value of 2 <eref
+          Changed <x:ref>INTERNAL_ERROR</x:ref> on <x:ref>GO_AWAY</x:ref> to have a value of 2 <eref
           target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
         </t>
         <t>
