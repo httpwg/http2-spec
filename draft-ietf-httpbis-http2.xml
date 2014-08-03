@@ -546,7 +546,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Clients and servers MUST terminate the TCP connection if either peer does not begin with a
-          valid connection preface.  A <x:ref>GOAWAY</x:ref> frame (<xref target="GOAWAY"/>) can be
+          valid connection preface.  A <x:ref>GO_AWAY</x:ref> frame (<xref target="GO_AWAY"/>) can be
           omitted if it is clear that the peer is not using HTTP/2.
         </t>
       </section>
@@ -656,7 +656,7 @@ HTTP2-Settings    = token68
         <t>
           Endpoints are not obligated to use all available space in a frame.  Responsiveness can be
           improved by using frames that are smaller than the permitted maximum size.  Sending large
-          frames can result in delays in sending maintenance frames, such <x:ref>RST_STREAM</x:ref>,
+          frames can result in delays in sending maintenance frames, such <x:ref>TERMINATE_STREAM</x:ref>,
           <x:ref>WINDOW_UPDATE</x:ref>, or <x:ref>PRIORITY</x:ref>, which if blocked by the
           transmission of a large frame, could affect performance.
         </t>
@@ -774,20 +774,20 @@ HTTP2-Settings    = token68
      |      v    v         +--------+         v    v      |
      |   +----------+          |           +----------+   |
      |   |   half   |          |           |   half   |   |
-     |   |  closed  |          | R         |  closed  |   |
+     |   |  closed  |          | T         |  closed  |   |
      |   | (remote) |          |           | (local)  |   |
      |   +----------+          |           +----------+   |
      |        |                v                 |        |
-     |        |  ES / R    +--------+  ES / R    |        |
+     |        |  ES / T    +--------+  ES / T    |        |
      |        `----------->|        |<-----------'        |
-     |  R                  | closed |                  R  |
+     |  T                  | closed |                  T  |
      `-------------------->|        |<--------------------'
                            +--------+
 
        H:  HEADERS frame (with implied CONTINUATIONs)
        PP: PUSH_PROMISE frame (with implied CONTINUATIONs)
        ES: END_STREAM flag
-       R:  RST_STREAM frame
+       T:  TERMINATE_STREAM frame
 ]]>
           </artwork>
         </figure>
@@ -802,7 +802,7 @@ HTTP2-Settings    = token68
           Both endpoints have a subjective view of the state of a stream that could be different
           when frames are in transit.  Endpoints do not coordinate the creation of streams; they are
           created unilaterally by either endpoint.  The negative consequences of a mismatch in
-          states are limited to the "closed" state after sending <x:ref>RST_STREAM</x:ref>, where
+          states are limited to the "closed" state after sending <x:ref>TERMINATE_STREAM</x:ref>, where
           frames might be received for some time after closing.
         </t>
         <t>
@@ -854,18 +854,18 @@ HTTP2-Settings    = token68
                     open in a "half closed (remote)" state.
                   </t>
                   <t>
-                    Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream
+                    Either endpoint can send a <x:ref>TERMINATE_STREAM</x:ref> frame to cause the stream
                     to become "closed".  This releases the stream reservation.
                   </t>
                 </list>
               </t>
               <t>
                 An endpoint MUST NOT send frames other than <x:ref>HEADERS</x:ref> or
-                <x:ref>RST_STREAM</x:ref> in this state.
+                <x:ref>TERMINATE_STREAM</x:ref> in this state.
               </t>
               <t>
                 A <x:ref>PRIORITY</x:ref> frame MAY be received in this state.  Receiving any frames
-                other than <x:ref>RST_STREAM</x:ref>, or <x:ref>PRIORITY</x:ref> MUST be treated as
+                other than <x:ref>TERMINATE_STREAM</x:ref>, or <x:ref>PRIORITY</x:ref> MUST be treated as
                 a <xref target="ConnectionErrorHandler">connection error</xref> of type
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
@@ -884,7 +884,7 @@ HTTP2-Settings    = token68
                     "half closed (local)".
                   </t>
                   <t>
-                    Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream
+                    Either endpoint can send a <x:ref>TERMINATE_STREAM</x:ref> frame to cause the stream
                     to become "closed".  This releases the stream reservation.
                   </t>
                 </list>
@@ -892,11 +892,11 @@ HTTP2-Settings    = token68
               <t>
                 An endpoint MAY send a <x:ref>PRIORITY</x:ref> frame in this state to reprioritize
                 the reserved stream.  An endpoint MUST NOT send any other type of frame other than
-                <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref>.
+                <x:ref>TERMINATE_STREAM</x:ref> or <x:ref>PRIORITY</x:ref>.
               </t>
               <t>
                 Receiving any other type of frame other than <x:ref>HEADERS</x:ref> or
-                <x:ref>RST_STREAM</x:ref> MUST be treated as a <xref
+                <x:ref>TERMINATE_STREAM</x:ref> MUST be treated as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
@@ -917,7 +917,7 @@ HTTP2-Settings    = token68
                 closed (remote)".
               </t>
               <t>
-                Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame from this state, causing
+                Either endpoint can send a <x:ref>TERMINATE_STREAM</x:ref> frame from this state, causing
                 it to transition immediately to "closed".
               </t>
             </x:lt>
@@ -927,11 +927,11 @@ HTTP2-Settings    = token68
                 <vspace blankLines="0"/>
                 A stream that is in the "half closed (local)" state cannot be used for sending
                 frames.  Only <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref> and
-                <x:ref>RST_STREAM</x:ref> frames can be sent in this state.
+                <x:ref>TERMINATE_STREAM</x:ref> frames can be sent in this state.
               </t>
               <t>
                 A stream transitions from this state to "closed" when a frame that contains an
-                END_STREAM flag is received, or when either peer sends a <x:ref>RST_STREAM</x:ref>
+                END_STREAM flag is received, or when either peer sends a <x:ref>TERMINATE_STREAM</x:ref>
                 frame.
               </t>
               <t>
@@ -954,7 +954,7 @@ HTTP2-Settings    = token68
               <t>
                 If an endpoint receives additional frames for a stream that is in this state, other
                 than <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref> or
-                <x:ref>RST_STREAM</x:ref>, it MUST respond with a <xref
+                <x:ref>TERMINATE_STREAM</x:ref>, it MUST respond with a <xref
                 target="StreamErrorHandler">stream error</xref> of type
                 <x:ref>STREAM_CLOSED</x:ref>.
               </t>
@@ -965,7 +965,7 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 A stream can transition from this state to "closed" by sending a frame that contains
-                an END_STREAM flag, or when either peer sends a <x:ref>RST_STREAM</x:ref> frame.
+                an END_STREAM flag, or when either peer sends a <x:ref>TERMINATE_STREAM</x:ref> frame.
               </t>
             </x:lt>
 
@@ -977,7 +977,7 @@ HTTP2-Settings    = token68
               <t>
                 An endpoint MUST NOT send frames other than <x:ref>PRIORITY</x:ref> on a closed
                 stream.  An endpoint that receives any frame other than <x:ref>PRIORITY</x:ref>
-                after receiving a <x:ref>RST_STREAM</x:ref> MUST treat that as a <xref
+                after receiving a <x:ref>TERMINATE_STREAM</x:ref> MUST treat that as a <xref
                 target="StreamErrorHandler">stream error</xref> of type
                 <x:ref>STREAM_CLOSED</x:ref>.  Similarly, an endpoint that receives any frames after
                 receiving a frame with the END_STREAM flag set MUST treat that as a <xref
@@ -985,12 +985,12 @@ HTTP2-Settings    = token68
                 <x:ref>STREAM_CLOSED</x:ref>, unless the frame is permitted as described below.
               </t>
               <t>
-                <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>RST_STREAM</x:ref> frames can be received in
+                <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>TERMINATE_STREAM</x:ref> frames can be received in
                 this state for a short period after a <x:ref>DATA</x:ref> or <x:ref>HEADERS</x:ref>
                 frame containing an END_STREAM flag is sent.  Until the remote peer receives and
-                processes <x:ref>RST_STREAM</x:ref> or the frame bearing the END_STREAM flag, it
+                processes <x:ref>TERMINATE_STREAM</x:ref> or the frame bearing the END_STREAM flag, it
                 might send frames of these types.  Endpoints MUST ignore
-                <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>RST_STREAM</x:ref> frames received in this
+                <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>TERMINATE_STREAM</x:ref> frames received in this
                 state, though endpoints MAY choose to treat frames that arrive a significant time
                 after sending END_STREAM as a <xref target="ConnectionErrorHandler">connection
                 error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
@@ -1002,26 +1002,26 @@ HTTP2-Settings    = token68
                 removed from the dependency tree (see <xref target="priority-gc"/>).
               </t>
               <t>
-                If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame,
-                the peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or
+                If this state is reached as a result of sending a <x:ref>TERMINATE_STREAM</x:ref> frame,
+                the peer that receives the <x:ref>TERMINATE_STREAM</x:ref> might have already sent - or
                 enqueued for sending - frames on the stream that cannot be withdrawn.  An endpoint
                 MUST ignore frames that it receives on closed streams after it has sent a
-                <x:ref>RST_STREAM</x:ref> frame.  An endpoint MAY choose to limit the period over
+                <x:ref>TERMINATE_STREAM</x:ref> frame.  An endpoint MAY choose to limit the period over
                 which it ignores frames and treat frames that arrive after this time as being in
                 error.
               </t>
               <t>
                 Flow controlled frames (i.e., <x:ref>DATA</x:ref>) received after sending
-                <x:ref>RST_STREAM</x:ref> are counted toward the connection flow control window.
+                <x:ref>TERMINATE_STREAM</x:ref> are counted toward the connection flow control window.
                 Even though these frames might be ignored, because they are sent before the sender
-                receives the <x:ref>RST_STREAM</x:ref>, the sender will consider the frames to count
+                receives the <x:ref>TERMINATE_STREAM</x:ref>, the sender will consider the frames to count
                 against the flow control window.
               </t>
               <t>
                 An endpoint might receive a <x:ref>PUSH_PROMISE</x:ref> frame after it sends
-                <x:ref>RST_STREAM</x:ref>.  <x:ref>PUSH_PROMISE</x:ref> causes a stream to become
-                "reserved" even if the associated stream has been reset.  Therefore, a
-                <x:ref>RST_STREAM</x:ref> is needed to close an unwanted promised stream.
+                <x:ref>TERMINATE_STREAM</x:ref>.  <x:ref>PUSH_PROMISE</x:ref> causes a stream to become
+                "reserved" even if the associated stream has been terminated.  Therefore, a
+                <x:ref>TERMINATE_STREAM</x:ref> is needed to close an unwanted promised stream.
               </t>
             </x:lt>
           </list>
@@ -1072,7 +1072,7 @@ HTTP2-Settings    = token68
             exhausting the available range of stream identifiers.  A client that is unable to
             establish a new stream identifier can establish a new connection for new streams.  A
             server that is unable to establish a new stream identifier can send a
-            <x:ref>GOAWAY</x:ref> frame so that the client is forced to open a new connection for
+            <x:ref>GO_AWAY</x:ref> frame so that the client is forced to open a new connection for
             new streams.
           </t>
         </section>
@@ -1428,22 +1428,22 @@ HTTP2-Settings    = token68
             or which corrupts any connection state.
           </t>
           <t>
-            An endpoint that encounters a connection error SHOULD first send a <x:ref>GOAWAY</x:ref>
-            frame (<xref target="GOAWAY"/>) with the stream identifier of the last stream that it
-            successfully received from its peer.  The <x:ref>GOAWAY</x:ref> frame includes an error
+            An endpoint that encounters a connection error SHOULD first send a <x:ref>GO_AWAY</x:ref>
+            frame (<xref target="GO_AWAY"/>) with the stream identifier of the last stream that it
+            successfully received from its peer.  The <x:ref>GO_AWAY</x:ref> frame includes an error
             code that indicates why the connection is terminating.  After sending the
-            <x:ref>GOAWAY</x:ref> frame, the endpoint MUST close the TCP connection.
+            <x:ref>GO_AWAY</x:ref> frame, the endpoint MUST close the TCP connection.
           </t>
           <t>
-            It is possible that the <x:ref>GOAWAY</x:ref> will not be reliably received by the
-            receiving endpoint.  In the event of a connection error, <x:ref>GOAWAY</x:ref> only
+            It is possible that the <x:ref>GO_AWAY</x:ref> will not be reliably received by the
+            receiving endpoint.  In the event of a connection error, <x:ref>GO_AWAY</x:ref> only
             provides a best effort attempt to communicate with the peer about why the connection is
             being terminated.
           </t>
           <t>
             An endpoint can end a connection at any time.  In particular, an endpoint MAY choose to
             treat a stream error as a connection error.  Endpoints SHOULD send a
-            <x:ref>GOAWAY</x:ref> frame when ending a connection, providing that circumstances
+            <x:ref>GO_AWAY</x:ref> frame when ending a connection, providing that circumstances
             permit it.
           </t>
         </section>
@@ -1454,27 +1454,27 @@ HTTP2-Settings    = token68
             of other streams.
           </t>
           <t>
-            An endpoint that detects a stream error sends a <x:ref>RST_STREAM</x:ref> frame (<xref
-            target="RST_STREAM"/>) that contains the stream identifier of the stream where the error
-            occurred.  The <x:ref>RST_STREAM</x:ref> frame includes an error code that indicates the
+            An endpoint that detects a stream error sends a <x:ref>TERMINATE_STREAM</x:ref> frame (<xref
+            target="TERMINATE_STREAM"/>) that contains the stream identifier of the stream where the error
+            occurred.  The <x:ref>TERMINATE_STREAM</x:ref> frame includes an error code that indicates the
             type of error.
           </t>
           <t>
-            A <x:ref>RST_STREAM</x:ref> is the last frame that an endpoint can send on a stream.
-            The peer that sends the <x:ref>RST_STREAM</x:ref> frame MUST be prepared to receive any
+            A <x:ref>TERMINATE_STREAM</x:ref> is the last frame that an endpoint can send on a stream.
+            The peer that sends the <x:ref>TERMINATE_STREAM</x:ref> frame MUST be prepared to receive any
             frames that were sent or enqueued for sending by the remote peer.  These frames can be
             ignored, except where they modify connection state (such as the state maintained for
             <xref target="HeaderBlock">header compression</xref>, or flow control).
           </t>
           <t>
-            Normally, an endpoint SHOULD NOT send more than one <x:ref>RST_STREAM</x:ref> frame for
-            any stream. However, an endpoint MAY send additional <x:ref>RST_STREAM</x:ref> frames if
+            Normally, an endpoint SHOULD NOT send more than one <x:ref>TERMINATE_STREAM</x:ref> frame for
+            any stream. However, an endpoint MAY send additional <x:ref>TERMINATE_STREAM</x:ref> frames if
             it receives frames on a closed stream after more than a round-trip time.  This behavior
             is permitted to deal with misbehaving implementations.
           </t>
           <t>
-            An endpoint MUST NOT send a <x:ref>RST_STREAM</x:ref> in response to an
-            <x:ref>RST_STREAM</x:ref> frame, to avoid looping.
+            An endpoint MUST NOT send a <x:ref>TERMINATE_STREAM</x:ref> in response to an
+            <x:ref>TERMINATE_STREAM</x:ref> frame, to avoid looping.
           </t>
         </section>
 
@@ -1811,15 +1811,15 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section anchor="RST_STREAM" title="RST_STREAM">
+      <section anchor="TERMINATE_STREAM" title="TERMINATE_STREAM">
         <t>
-          The RST_STREAM frame (type=0x3) allows for abnormal termination of a stream.  When sent by
+          The TERMINATE_STREAM frame (type=0x3) allows for abnormal termination of a stream.  When sent by
           the initiator of a stream, it indicates that they wish to cancel the stream or that an
           error condition has occurred.  When sent by the receiver of a stream, it indicates that
           either the receiver is rejecting the stream, requesting that the stream be cancelled, or
           that an error condition has occurred.
         </t>
-        <figure title="RST_STREAM Frame Payload">
+        <figure title="TERMINATE_STREAM Frame Payload">
           <artwork type="inline"><![CDATA[
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1830,32 +1830,32 @@ HTTP2-Settings    = token68
         </figure>
 
         <t>
-          The RST_STREAM frame contains a single unsigned, 32-bit integer identifying the <xref
+          The TERMINATE_STREAM frame contains a single unsigned, 32-bit integer identifying the <xref
           target="ErrorCodes">error code</xref>.  The error code indicates why the stream is being
           terminated.
         </t>
 
         <t>
-          The RST_STREAM frame does not define any flags.
+          The TERMINATE_STREAM frame does not define any flags.
         </t>
 
         <t>
-          The RST_STREAM frame fully terminates the referenced stream and causes it to enter the
-          closed state. After receiving a RST_STREAM on a stream, the receiver MUST NOT send
-          additional frames for that stream. However, after sending the RST_STREAM, the sending
+          The TERMINATE_STREAM frame fully terminates the referenced stream and causes it to enter the
+          closed state. After receiving a TERMINATE_STREAM on a stream, the receiver MUST NOT send
+          additional frames for that stream. However, after sending the TERMINATE_STREAM, the sending
           endpoint MUST be prepared to receive and process additional frames sent on the stream that
-          might have been sent by the peer prior to the arrival of the RST_STREAM.
+          might have been sent by the peer prior to the arrival of the TERMINATE_STREAM.
         </t>
 
         <t>
-          RST_STREAM frames MUST be associated with a stream.  If a RST_STREAM frame is received
+          TERMINATE_STREAM frames MUST be associated with a stream.  If a TERMINATE_STREAM frame is received
           with a stream identifier of 0x0, the recipient MUST treat this as a <xref
           target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
 
         <t>
-          RST_STREAM frames MUST NOT be sent for a stream in the "idle" state.  If a RST_STREAM
+          TERMINATE_STREAM frames MUST NOT be sent for a stream in the "idle" state.  If a TERMINATE_STREAM
           frame identifying an idle stream is received, the recipient MUST treat this as a <xref
           target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
@@ -2155,7 +2155,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Recipients of PUSH_PROMISE frames can choose to reject promised streams by returning a
-          <x:ref>RST_STREAM</x:ref> referencing the promised stream identifier back to the sender of
+          <x:ref>TERMINATE_STREAM</x:ref> referencing the promised stream identifier back to the sender of
           the PUSH_PROMISE.
         </t>
 
@@ -2239,12 +2239,12 @@ HTTP2-Settings    = token68
 
       </section>
 
-      <section anchor="GOAWAY" title="GOAWAY">
+      <section anchor="GO_AWAY" title="GO_AWAY">
         <t>
-          The GOAWAY frame (type=0x7) informs the remote peer to stop creating streams on this
-          connection.  GOAWAY can be sent by either the client or the server.  Once sent, the sender
+          The GO_AWAY frame (type=0x7) informs the remote peer to stop creating streams on this
+          connection.  GO_AWAY can be sent by either the client or the server.  Once sent, the sender
           will ignore frames sent on any new streams with identifiers higher than the included last
-          stream identifier.  Receivers of a GOAWAY frame MUST NOT open additional streams on the
+          stream identifier.  Receivers of a GO_AWAY frame MUST NOT open additional streams on the
           connection, although a new connection can be established for new streams.
         </t>
         <t>
@@ -2254,31 +2254,31 @@ HTTP2-Settings    = token68
         </t>
         <t>
           There is an inherent race condition between an endpoint starting new streams and the
-          remote sending a GOAWAY frame.  To deal with this case, the GOAWAY contains the stream
+          remote sending a GO_AWAY frame.  To deal with this case, the GO_AWAY contains the stream
           identifier of the last peer-initiated stream which was or might be processed on the
-          sending endpoint in this connection.  For instance, if the server sends a GOAWAY frame,
+          sending endpoint in this connection.  For instance, if the server sends a GO_AWAY frame,
           the identifed stream is the highest numbered stream initiated by the client.
         </t>
         <t>
-          If the receiver of the GOAWAY has sent data on streams with a higher stream identifier
-          than what is indicated in the GOAWAY frame, those streams are not or will not be
-          processed.  The receiver of the GOAWAY frame can treat the streams as though they had
+          If the receiver of the GO_AWAY has sent data on streams with a higher stream identifier
+          than what is indicated in the GO_AWAY frame, those streams are not or will not be
+          processed.  The receiver of the GO_AWAY frame can treat the streams as though they had
           never been created at all, thereby allowing those streams to be retried later on a new
           connection.
         </t>
         <t>
-          Endpoints SHOULD always send a GOAWAY frame before closing a connection so that the remote
+          Endpoints SHOULD always send a GO_AWAY frame before closing a connection so that the remote
           can know whether a stream has been partially processed or not.  For example, if an HTTP
           client sends a POST at the same time that a server closes a connection, the client cannot
           know if the server started to process that POST request if the server does not send a
-          GOAWAY frame to indicate what streams it might have acted on.
+          GO_AWAY frame to indicate what streams it might have acted on.
         </t>
         <t>
-          An endpoint might choose to close a connection without sending GOAWAY for misbehaving
+          An endpoint might choose to close a connection without sending GO_AWAY for misbehaving
           peers.
         </t>
 
-        <figure title="GOAWAY Payload Format">
+        <figure title="GO_AWAY Payload Format">
           <artwork type="inline"><![CDATA[
   0                   1                   2                   3
   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -2292,17 +2292,17 @@ HTTP2-Settings    = token68
 ]]></artwork>
         </figure>
         <t>
-          The GOAWAY frame does not define any flags.
+          The GO_AWAY frame does not define any flags.
         </t>
         <t>
-          The GOAWAY frame applies to the connection, not a specific stream.  An endpoint MUST treat
-          a <x:ref>GOAWAY</x:ref> frame with a stream identifier other than 0x0 as a <xref
+          The GO_AWAY frame applies to the connection, not a specific stream.  An endpoint MUST treat
+          a <x:ref>GO_AWAY</x:ref> frame with a stream identifier other than 0x0 as a <xref
           target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
         <t>
-          The last stream identifier in the GOAWAY frame contains the highest numbered stream
-          identifier for which the sender of the GOAWAY frame might have taken some action on, or
+          The last stream identifier in the GO_AWAY frame contains the highest numbered stream
+          identifier for which the sender of the GO_AWAY frame might have taken some action on, or
           might yet take action on.  All streams up to and including the identified stream might
           have been processed in some way.  The last stream identifier can be set to 0 if no streams
           were processed.
@@ -2312,7 +2312,7 @@ HTTP2-Settings    = token68
               higher layer of software that might have taken some action as a result.
             </t>
           </list>
-          If a connection terminates without a GOAWAY frame, the last stream identifier is
+          If a connection terminates without a GO_AWAY frame, the last stream identifier is
           effectively the highest possible stream identifier.
         </t>
         <t>
@@ -2324,15 +2324,15 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Activity on streams numbered lower or equal to the last stream identifier might still
-          complete successfully.  The sender of a GOAWAY frame might gracefully shut down a
-          connection by sending a GOAWAY frame, maintaining the connection in an open state until
+          complete successfully.  The sender of a GO_AWAY frame might gracefully shut down a
+          connection by sending a GO_AWAY frame, maintaining the connection in an open state until
           all in-progress streams complete.
         </t>
         <t>
-          An endpoint MAY send multiple GOAWAY frames if circumstances change.  For instance, an
-          endpoint that sends GOAWAY with <x:ref>NO_ERROR</x:ref> during graceful shutdown could
+          An endpoint MAY send multiple GO_AWAY frames if circumstances change.  For instance, an
+          endpoint that sends GO_AWAY with <x:ref>NO_ERROR</x:ref> during graceful shutdown could
           subsequently encounter an condition that requires immediate termination of the connection.
-          The last stream identifier from the last GOAWAY frame received indicates which streams
+          The last stream identifier from the last GO_AWAY frame received indicates which streams
           could have been acted upon.  Endpoints MUST NOT increase the value they send in the last
           stream identifier, since the peers might already have retried unprocessed requests on
           another connection.
@@ -2341,16 +2341,16 @@ HTTP2-Settings    = token68
           A client that is unable to retry requests loses all requests that are in flight when the
           server closes the connection.  This is especially true for intermediaries that might
           not be serving clients using HTTP/2.  A server that is attempting to gracefully shut down
-          a connection SHOULD send an initial GOAWAY frame with the last stream identifier set to
+          a connection SHOULD send an initial GO_AWAY frame with the last stream identifier set to
           2<x:sup>31</x:sup>-1 and a <x:ref>NO_ERROR</x:ref> code.  This signals to the client that
           a shutdown is imminent and that no further requests can be initiated.  After waiting at
-          least one round trip time, the server can send another GOAWAY frame with an updated last
+          least one round trip time, the server can send another GO_AWAY frame with an updated last
           stream identifier.  This ensures that a connection can be cleanly shut down without losing
           requests.
         </t>
 
         <t>
-          After sending a GOAWAY frame, the sender can discard frames for streams with identifiers
+          After sending a GO_AWAY frame, the sender can discard frames for streams with identifiers
           higher than the identified last stream.  However, any frames that alter connection state
           cannot be completely ignored.  For instance, <x:ref>HEADERS</x:ref>,
           <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames MUST be minimally
@@ -2361,11 +2361,11 @@ HTTP2-Settings    = token68
         </t>
 
         <t>
-          The GOAWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
+          The GO_AWAY frame also contains a 32-bit <xref target="ErrorCodes">error code</xref> that
           contains the reason for closing the connection.
         </t>
         <t>
-          Endpoints MAY append opaque data to the payload of any GOAWAY frame.  Additional debug
+          Endpoints MAY append opaque data to the payload of any GO_AWAY frame.  Additional debug
           data is intended for diagnostic purposes only and carries no semantic value.  Debug
           information could contain security- or privacy-sensitive data.  Logged or otherwise
           persistently stored debug data MUST have adequate safeguards to prevent unauthorized
@@ -2476,8 +2476,8 @@ HTTP2-Settings    = token68
             A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup>-1 bytes.
             If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
             maximum it MUST terminate either the stream or the connection, as appropriate.  For
-            streams, the sender sends a <x:ref>RST_STREAM</x:ref> with the error code of
-            <x:ref>FLOW_CONTROL_ERROR</x:ref> code; for the connection, a <x:ref>GOAWAY</x:ref>
+            streams, the sender sends a <x:ref>TERMINATE_STREAM</x:ref> with the error code of
+            <x:ref>FLOW_CONTROL_ERROR</x:ref> code; for the connection, a <x:ref>GO_AWAY</x:ref>
             frame with a <x:ref>FLOW_CONTROL_ERROR</x:ref> code.
           </t>
           <t>
@@ -2545,7 +2545,7 @@ HTTP2-Settings    = token68
             receiver has two options for handling streams that exceed flow control limits:
             <list style="numbers">
               <t>
-                The receiver can immediately send <x:ref>RST_STREAM</x:ref> with
+                The receiver can immediately send <x:ref>TERMINATE_STREAM</x:ref> with
                 <x:ref>FLOW_CONTROL_ERROR</x:ref> error code for the affected streams.
               </t>
               <t>
@@ -2621,8 +2621,8 @@ HTTP2-Settings    = token68
 
     <section anchor="ErrorCodes" title="Error Codes">
       <t>
-        Error codes are 32-bit fields that are used in <x:ref>RST_STREAM</x:ref> and
-        <x:ref>GOAWAY</x:ref> frames to convey the reasons for the stream or connection error.
+        Error codes are 32-bit fields that are used in <x:ref>TERMINATE_STREAM</x:ref> and
+        <x:ref>GO_AWAY</x:ref> frames to convey the reasons for the stream or connection error.
       </t>
 
       <t>
@@ -2635,7 +2635,7 @@ HTTP2-Settings    = token68
         <list style="hanging">
           <t hangText="NO_ERROR (0x0):" anchor="NO_ERROR">
             The associated condition is not as a result of an error.  For example, a
-            <x:ref>GOAWAY</x:ref> might include this code to indicate graceful shutdown of a
+            <x:ref>GO_AWAY</x:ref> might include this code to indicate graceful shutdown of a
             connection.
           </t>
           <t hangText="PROTOCOL_ERROR (0x1):" anchor="PROTOCOL_ERROR">
@@ -2659,8 +2659,9 @@ HTTP2-Settings    = token68
             The endpoint received a frame that was larger than the maximum size that it
             supports.
           </t>
-          <t hangText="REFUSED_STREAM (0x7):" anchor="REFUSED_STREAM">
-            The endpoint refuses the stream prior to performing any application processing, see
+          <t hangText="RETRY_STREAM (0x7):" anchor="RETRY_STREAM">
+	    The endpoint closed the stream prior to performing any application processing.  Any 
+	    request that was sent on the terminated stream can be safely retried, see 
             <xref target="Reliability"/> for details.
           </t>
           <t hangText="CANCEL (0x8):" anchor="CANCEL">
@@ -3005,7 +3006,7 @@ HTTP2-Settings    = token68
             </t>
             <t>
               For malformed requests, a server MAY send an HTTP response prior to closing or
-              resetting the stream.  Clients MUST NOT accept a malformed response. Note that these
+              terminating the stream.  Clients MUST NOT accept a malformed response. Note that these
               requirements are intended to protect against several types of common attacks against
               HTTP; they are deliberately strict, because being permissive can expose
               implementations to these vulnerabilities.
@@ -3171,14 +3172,14 @@ HTTP2-Settings    = token68
             not been processed:
             <list style="symbols">
               <t>
-                The <x:ref>GOAWAY</x:ref> frame indicates the highest stream number that might have
+                The <x:ref>GO_AWAY</x:ref> frame indicates the highest stream number that might have
                 been processed.  Requests on streams with higher numbers are therefore guaranteed to
                 be safe to retry.
               </t>
               <t>
-                The <x:ref>REFUSED_STREAM</x:ref> error code can be included in a
-                <x:ref>RST_STREAM</x:ref> frame to indicate that the stream is being closed prior to
-                any processing having occurred.  Any request that was sent on the reset stream can
+                The <x:ref>RETRY_STREAM</x:ref> error code can be included in a
+                <x:ref>TERMINATE_STREAM</x:ref> frame to indicate that the stream is being closed prior to
+                any processing having occurred.  Any request that was sent on the terminated stream can
                 be safely retried.
               </t>
             </list>
@@ -3190,8 +3191,8 @@ HTTP2-Settings    = token68
           <t>
             A server MUST NOT indicate that a stream has not been processed unless it can guarantee
             that fact.  If frames that are on a stream are passed to the application layer for any
-            stream, then <x:ref>REFUSED_STREAM</x:ref> MUST NOT be used for that stream, and a
-            <x:ref>GOAWAY</x:ref> frame MUST include a stream identifier that is greater than or
+            stream, then <x:ref>RETRY_STREAM</x:ref> MUST NOT be used for that stream, and a
+            <x:ref>GO_AWAY</x:ref> frame MUST include a stream identifier that is greater than or
             equal to the given stream identifier.
           </t>
           <t>
@@ -3322,8 +3323,8 @@ HTTP2-Settings    = token68
           <t>
             If the client determines, for any reason, that it does not wish to receive the pushed
             response from the server, or if the server takes too long to begin sending the promised
-            response, the client can send an <x:ref>RST_STREAM</x:ref> frame, using either the
-            <x:ref>CANCEL</x:ref> or <x:ref>REFUSED_STREAM</x:ref> codes, and referencing the pushed
+            response, the client can send an <x:ref>TERMINATE_STREAM</x:ref> frame, using either the
+            <x:ref>CANCEL</x:ref> or <x:ref>RETRY_STREAM</x:ref> codes, and referencing the pushed
             stream's identifier.
           </t>
           <t>
@@ -3331,7 +3332,7 @@ HTTP2-Settings    = token68
             number of responses that can be concurrently pushed by a server.  Advertising a
             <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> value of zero disables server push by
             preventing the server from creating the necessary streams.  This does not prohibit a
-            server from sending PUSH_PROMISE frames; clients need to reset any promised streams that
+            server from sending PUSH_PROMISE frames; clients need to terminate any promised streams that
             are not wanted.
           </t>
 
@@ -3398,7 +3399,7 @@ HTTP2-Settings    = token68
           any <x:ref>DATA</x:ref> frames sent by the client are transmitted by the proxy to the TCP
           server; data received from the TCP server is assembled into <x:ref>DATA</x:ref> frames by
           the proxy.  Frame types other than <x:ref>DATA</x:ref> or stream management frames
-          (<x:ref>RST_STREAM</x:ref>, <x:ref>WINDOW_UPDATE</x:ref>, and <x:ref>PRIORITY</x:ref>)
+          (<x:ref>TERMINATE_STREAM</x:ref>, <x:ref>WINDOW_UPDATE</x:ref>, and <x:ref>PRIORITY</x:ref>)
           MUST NOT be sent on a connected stream, and MUST be treated as a <xref
           target="StreamErrorHandler">stream error</xref> if received.
         </t>
@@ -3413,7 +3414,7 @@ HTTP2-Settings    = token68
           or <x:ref>DATA</x:ref> frame could be empty.
         </t>
         <t>
-          A TCP connection error is signaled with <x:ref>RST_STREAM</x:ref>.  A proxy treats any
+          A TCP connection error is signaled with <x:ref>TERMINATE_STREAM</x:ref>.  A proxy treats any
           error in the TCP connection, which includes receiving a TCP segment with the RST bit set,
           as a <xref target="StreamErrorHandler">stream error</xref> of type
           <x:ref>CONNECT_ERROR</x:ref>.  Correspondingly, a proxy MUST send a TCP segment with the
@@ -3458,7 +3459,7 @@ HTTP2-Settings    = token68
           Servers are encouraged to maintain open connections for as long as possible, but are
           permitted to terminate idle connections if necessary.  When either endpoint chooses to
           close the transport-level TCP connection, the terminating endpoint SHOULD first send a
-          <x:ref>GOAWAY</x:ref> (<xref target="GOAWAY"/>) frame so that both endpoints can reliably
+          <x:ref>GO_AWAY</x:ref> (<xref target="GO_AWAY"/>) frame so that both endpoints can reliably
           determine whether previously sent frames have been processed and gracefully complete or
           terminate any necessary remaining tasks.
         </t>
@@ -3919,11 +3920,11 @@ HTTP2-Settings    = token68
           <c>DATA</c><c>0x0</c><c><xref target="DATA"/></c>
           <c>HEADERS</c><c>0x1</c><c><xref target="HEADERS"/></c>
           <c>PRIORITY</c><c>0x2</c><c><xref target="PRIORITY"/></c>
-          <c>RST_STREAM</c><c>0x3</c><c><xref target="RST_STREAM"/></c>
+          <c>TERMINATE_STREAM</c><c>0x3</c><c><xref target="TERMINATE_STREAM"/></c>
           <c>SETTINGS</c><c>0x4</c><c><xref target="SETTINGS"/></c>
           <c>PUSH_PROMISE</c><c>0x5</c><c><xref target="PUSH_PROMISE"/></c>
           <c>PING</c><c>0x6</c><c><xref target="PING"/></c>
-          <c>GOAWAY</c><c>0x7</c><c><xref target="GOAWAY"/></c>
+          <c>GO_AWAY</c><c>0x7</c><c><xref target="GO_AWAY"/></c>
           <c>WINDOW_UPDATE</c><c>0x8</c><c><xref target="WINDOW_UPDATE"/></c>
           <c>CONTINUATION</c><c>0x9</c><c><xref target="CONTINUATION"/></c>
         </texttable>
@@ -4036,8 +4037,8 @@ HTTP2-Settings    = token68
           <c>FRAME_SIZE_ERROR</c><c>0x6</c>
           <c>Frame size incorrect</c>
           <c><xref target="ErrorCodes"/></c>
-          <c>REFUSED_STREAM</c><c>0x7</c>
-          <c>Stream not processed</c>
+          <c>RETRY_STREAM</c><c>0x7</c>
+          <c>Stream not processed; safe to retry</c>
           <c><xref target="ErrorCodes"/></c>
           <c>CANCEL</c><c>0x8</c>
           <c>Stream cancelled</c>
@@ -4814,7 +4815,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Clarified requirements around handling different frames after stream close, stream reset
-          and <x:ref>GOAWAY</x:ref>.
+          and <x:ref>GO_AWAY</x:ref>.
         </t>
         <t>
           Added more specific prohibitions for sending of different frame types in various stream
@@ -4921,7 +4922,7 @@ HTTP2-Settings    = token68
           Removed section on Incompatibilities with SPDY draft#2.
         </t>
         <t>
-          Changed <x:ref>INTERNAL_ERROR</x:ref> on <x:ref>GOAWAY</x:ref> to have a value of 2 <eref
+          Changed <x:ref>INTERNAL_ERROR</x:ref> on <x:ref>GO_AWAY</x:ref> to have a value of 2 <eref
           target="https://groups.google.com/forum/?fromgroups#!topic/spdy-dev/cfUef2gL3iU"/>.
         </t>
         <t>
