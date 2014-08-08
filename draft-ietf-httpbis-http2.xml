@@ -59,9 +59,9 @@
 
     <abstract>
       <t>
-        This specification describes an optimized expression of the syntax of the Hypertext Transfer
-        Protocol (HTTP). HTTP/2 enables a more efficient use of network resources and a reduced
-        perception of latency by introducing header field compression and allowing multiple
+        This specification describes an optimized expression of the semantics of the Hypertext
+        Transfer Protocol (HTTP). HTTP/2 enables a more efficient use of network resources and a
+        reduced perception of latency by introducing header field compression and allowing multiple
         concurrent messages on the same connection. It also introduces unsolicited push of
         representations from servers to clients.
       </t>
@@ -95,39 +95,39 @@
 
       <t>
         The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the
-        HTTP/1.1 message format (<xref target="RFC7230" x:fmt="," x:rel="#http.message"/>) was
-        designed to be implemented with the tools at hand in the 1990s, not modern Web application
-        performance. As such it has several characteristics that have a negative overall effect on
-        application performance today.
+        HTTP/1.1 message format (<xref target="RFC7230" x:fmt="," x:rel="#http.message"/>) has
+        several characteristics that have a negative overall effect on application performance
+        today.
       </t>
       <t>
-        In particular, HTTP/1.0 only allows one request to be outstanding at a time on a given
-        connection.  HTTP/1.1 pipelining only partially addressed request concurrency and
-        suffers from head-of-line blocking.  Therefore, clients that need to make many requests
-        typically use multiple connections to a server in order to reduce latency.
+        In particular, HTTP/1.0 allowed only one request to be outstanding at a time on a given
+        TCP connection. HTTP/1.1 added request pipelining, but this only partially addressed
+        request concurrency and still suffers from head-of-line blocking. Therefore, HTTP/1.1
+        clients that need to make many requests typically use multiple connections to a server in
+        order to achieve concurrency and thereby reduce latency.
       </t>
       <t>
-        Furthermore, HTTP/1.1 header fields are often repetitive and verbose, which, in addition to
-        generating more or larger network packets, can cause the small initial <xref
-        target="TCP">TCP</xref> congestion window to quickly fill.  This can result in excessive
-        latency when multiple requests are made on a single new TCP connection.
+        Furthermore, HTTP header fields are often repetitive and verbose, causing unnecessary
+        network traffic, as well as causing the initial <xref target="TCP">TCP</xref> congestion
+        window to quickly fill. This can result in excessive latency when multiple requests are
+        made on a new TCP connection.
       </t>
       <t>
-        This specification addresses these issues by defining an optimized mapping of HTTP's
-        semantics to an underlying connection.  Specifically, it allows interleaving of request and
-        response messages on the same connection and uses an efficient coding for HTTP header
-        fields.  It also allows prioritization of requests, letting more important requests complete
-        more quickly, further improving performance.
+        HTTP/2 addresses these issues by defining an optimized mapping of HTTP's semantics to an
+        underlying connection. Specifically, it allows interleaving of request and response
+        messages on the same connection and uses an efficient coding for HTTP header fields. It
+        also allows prioritization of requests, letting more important requests complete more
+        quickly, further improving performance.
       </t>
       <t>
-        The resulting protocol is designed to be more friendly to the network, because fewer TCP
-        connections can be used in comparison to HTTP/1.x. This means less competition with other
-        flows, and longer-lived connections, which in turn leads to better utilization of available
-        network capacity.
+        The resulting protocol is more friendly to the network, because fewer TCP connections can
+        be used in comparison to HTTP/1.x. This means less competition with other flows, and
+        longer-lived connections, which in turn leads to better utilization of available network
+        capacity.
       </t>
       <t>
-        Finally, this encapsulation also enables more efficient processing of messages through use
-        of binary message framing.
+        Finally, HTTP/2 also enables more efficient processing of messages through use of binary
+        message framing.
       </t>
     </section>
 
@@ -145,16 +145,17 @@
         HTTP/2 features.
       </t>
       <t>
-        Multiplexing of requests is achieved by having each HTTP request-response exchanged assigned
-        to a single <xref target="StreamsLayer">stream</xref>.  Streams are largely independent of
-        each other, so a blocked or stalled request does not prevent progress on other requests.
+        Multiplexing of requests is achieved by having each HTTP request-response exchange
+        associated with its own <xref target="StreamsLayer">stream</xref>. Streams are largely
+        independent of each other, so a blocked or stalled request or response does not prevent
+        progress on other streams.
       </t>
       <t>
-        Flow control and prioritization ensure that it is possible to properly use multiplexed
+        Flow control and prioritization ensure that it is possible to efficiently use multiplexed
         streams.  <xref target="FlowControl">Flow control</xref> helps to ensure that only data that
         can be used by a receiver is transmitted.  <xref
         target="StreamPriority">Prioritization</xref> ensures that limited resources can be directed
-        to the most important requests first.
+        to the most important streams first.
       </t>
       <t>
         HTTP/2 adds a new interaction mode, whereby a server can <xref target="PushResources">push
@@ -195,9 +196,9 @@
           </list>
         </t>
         <t>
-          While some of the frame and stream layer concepts are isolated from HTTP, the intent is
-          not to define a completely generic framing layer. The framing and streams layers are
-          tailored to the needs of the HTTP protocol and server push.
+          While some of the frame and stream layer concepts are isolated from HTTP, this
+          specification does not define a completely generic framing layer. The framing and streams
+          layers are tailored to the needs of the HTTP protocol and server push.
         </t>
       </section>
 
@@ -220,7 +221,7 @@
               The endpoint initiating the HTTP/2 connection.
             </t>
             <t hangText="connection:">
-              A transport-level connection between two endpoints.
+              A transport-layer connection between two endpoints.
             </t>
             <t hangText="connection error:">
               An error that affects the entire HTTP/2 connection.
@@ -230,7 +231,7 @@
             </t>
             <t hangText="frame:">
               The smallest unit of communication within an HTTP/2 connection, consisting of a header
-              and a variable-length sequence of bytes structured according to the frame type.
+              and a variable-length sequence of octets structured according to the frame type.
             </t>
             <t hangText="peer:">
               An endpoint.  When discussing a particular endpoint, "peer" refers to the endpoint
@@ -262,7 +263,7 @@
 
     <section anchor="starting" title="Starting HTTP/2">
       <t>
-        An HTTP/2 connection is an application level protocol running on top of a TCP connection
+        An HTTP/2 connection is an application layer protocol running on top of a TCP connection
         (<xref target="TCP"/>). The client is the TCP connection initiator.
       </t>
       <t>
@@ -341,7 +342,7 @@
 
       <section anchor="discover-http" title="Starting HTTP/2 for &quot;http&quot; URIs">
         <t>
-          A client that makes a request to an "http" URI without prior knowledge about support for
+          A client that makes a request for an "http" URI without prior knowledge about support for
           HTTP/2 uses the HTTP Upgrade mechanism (<xref target="RFC7230" x:fmt="of"
           x:rel="#header.upgrade"/>).  The client makes an HTTP/1.1 request that includes an Upgrade
           header field identifying HTTP/2 with the "h2c" token.  The HTTP/1.1 request MUST include
@@ -404,7 +405,8 @@ Upgrade: h2c
         </figure>
         <t>
           The first HTTP/2 frame sent by the server is a <x:ref>SETTINGS</x:ref> frame (<xref
-          target="SETTINGS"/>). Upon receiving the 101 response, the client sends a <xref
+          target="SETTINGS"/>) as the server connection preface (<xref
+          target="ConnectionHeader"/>). Upon receiving the 101 response, the client sends a <xref
           target="ConnectionHeader">connection preface</xref>, which includes a
           <x:ref>SETTINGS</x:ref> frame.
         </t>
@@ -430,8 +432,8 @@ HTTP2-Settings    = token68
 ]]></artwork>
           </figure>
           <t>
-            A server MUST reject an attempt to upgrade if this header field is not present.  A
-            server MUST NOT send this header field.
+            A server MUST NOT upgrade the connection to HTTP/2 if this header field is not present,
+            or if more than one is present. A server MUST NOT send this header field.
           </t>
 
           <t>
@@ -443,9 +445,9 @@ HTTP2-Settings    = token68
             defined in <xref target="RFC7235" x:fmt="of" x:rel="#challenge.and.response"/>.
           </t>
           <t>
-            As a hop-by-hop header field, the <spanx style="verb">Connection</spanx> header field
-            MUST include a value of <spanx style="verb">HTTP2-Settings</spanx> in addition to <spanx
-            style="verb">Upgrade</spanx> when upgrading to HTTP/2.
+            The <spanx style="verb">Connection</spanx> header field MUST include a value of <spanx
+            style="verb">HTTP2-Settings</spanx> in addition to <spanx style="verb">Upgrade</spanx>
+            when upgrading to HTTP/2.
           </t>
           <t>
             A server decodes and interprets these values as it would any other
@@ -481,17 +483,16 @@ HTTP2-Settings    = token68
         </t>
         <t>
           A client MAY immediately send HTTP/2 frames to a server that is known to support HTTP/2,
-          after the <xref target="ConnectionHeader">connection preface</xref>.  A server can
-          identify such a connection by the use of the "PRI" method in the connection preface. This
-          only affects the establishment of HTTP/2 connections over cleartext TCP; implementations
-          that support HTTP/2 over TLS MUST use <xref target="TLS-ALPN">protocol negotiation in
-          TLS</xref>.
+          after the <xref target="ConnectionHeader">connection preface</xref>; a server can
+          identify such a connection by the presence of the connection preface. This only affects
+          the establishment of HTTP/2 connections over cleartext TCP; implementations that support
+          HTTP/2 over TLS MUST use <xref target="TLS-ALPN">protocol negotiation in TLS</xref>.
         </t>
         <t>
-          Prior support for HTTP/2 is not a strong signal that a given server will support HTTP/2
-          for future connections.  It is possible for server configurations to change; for
-          configurations to differ between instances in clustered server; or network conditions to
-          change.
+          Without additional information, prior support for HTTP/2 is not a strong signal that a
+          given server will support HTTP/2 for future connections. For example, it is possible for
+          server configurations to change, for configurations to differ between instances in
+          clustered servers, or for network conditions to change.
         </t>
       </section>
 
@@ -656,19 +657,19 @@ HTTP2-Settings    = token68
           and any <x:ref>WINDOW_UPDATE</x:ref> frame with a stream identifier of 0.
         </t>
         <t>
-          Endpoints are not obligated to use all available space in a frame.  Responsiveness can be
-          improved by using frames that are smaller than the permitted maximum size.  Sending large
-          frames can result in delays in sending maintenance frames, such <x:ref>RST_STREAM</x:ref>,
-          <x:ref>WINDOW_UPDATE</x:ref>, or <x:ref>PRIORITY</x:ref>, which if blocked by the
-          transmission of a large frame, could affect performance.
+          Endpoints are not obligated to use all available space in a frame. Responsiveness can be
+          improved by using frames that are smaller than the permitted maximum size. Sending large
+          frames can result in delays in sending time-sensitive frames (such
+          <x:ref>RST_STREAM</x:ref>, <x:ref>WINDOW_UPDATE</x:ref>, or <x:ref>PRIORITY</x:ref>)
+          which if blocked by the transmission of a large frame, could affect performance.
         </t>
       </section>
 
       <section anchor="HeaderBlock" title="Header Compression and Decompression">
         <t>
-          A header field in HTTP/2 is a name with one or more associated values. They are
-          used within HTTP request and response messages as well as server push operations (see
-          <xref target="PushResources" />).
+          Just as in HTTP/1, a header field in HTTP/2 is a name with one or more associated values.
+          They are used within HTTP request and response messages as well as server push operations
+          (see <xref target="PushResources" />).
         </t>
         <t>
           Header lists are collections of zero or more header fields.  When transmitted over a
@@ -842,7 +843,7 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 Receiving any frames other than <x:ref>HEADERS</x:ref> or
-                <x:ref>PUSH_PROMISE</x:ref> MUST be treated as a <xref
+                <x:ref>PUSH_PROMISE</x:ref> on a stream in this state MUST be treated as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
@@ -874,10 +875,10 @@ HTTP2-Settings    = token68
                 <x:ref>RST_STREAM</x:ref> in this state.
               </t>
               <t>
-                A <x:ref>PRIORITY</x:ref> frame MAY be received in this state.  Receiving any frames
-                other than <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> MUST be treated as a
-                <xref target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
+                A <x:ref>PRIORITY</x:ref> frame MAY be received in this state. Receiving any frames
+                other than <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> on a stream in this
+                state MUST be treated as a <xref target="ConnectionErrorHandler">connection
+                error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
 
@@ -906,7 +907,7 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 Receiving any other type of frame other than <x:ref>HEADERS</x:ref> or
-                <x:ref>RST_STREAM</x:ref> MUST be treated as a <xref
+                <x:ref>RST_STREAM</x:ref> on a stream in this state MUST be treated as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
@@ -1130,15 +1131,16 @@ HTTP2-Settings    = token68
 
         <section anchor="fc-principles" title="Flow Control Principles">
           <t>
-            HTTP/2 stream flow control aims to allow for future improvements to flow control
-            algorithms without requiring protocol changes.  Flow control in HTTP/2 has the following
+            HTTP/2 stream flow control aims to allow a variety of flow control algorithms to be
+            used without requiring protocol changes. Flow control in HTTP/2 has the following
             characteristics:
             <list style="numbers">
               <t>
-                Flow control is hop-by-hop, not end-to-end.
+                Flow control is specific to a connection; i.e., it is "hop-by-hop", not
+                "end-to-end".
               </t>
               <t>
-                Flow control is based on window update frames.  Receivers advertise how many bytes
+                Flow control is based on window update frames.  Receivers advertise how many octets
                 they are prepared to receive on a stream and for the entire connection.  This is a
                 credit-based scheme.
               </t>
@@ -1151,7 +1153,7 @@ HTTP2-Settings    = token68
                 their peer when sending.
               </t>
               <t>
-                The initial value for the flow control window is 65,535 bytes for both new streams
+                The initial value for the flow control window is 65,535 octets for both new streams
                 and the overall connection.
               </t>
               <t>
@@ -1258,10 +1260,10 @@ HTTP2-Settings    = token68
             In other words, the non-existent stream 0 forms the root of the tree.
           </t>
           <t>
-            A stream that depends on another stream is a dependent stream.  The stream upon which a
-            stream is dependent is a parent stream.  A dependency on a stream that is not currently
-            in the tree - such as a stream in the "idle" state - results in the stream being given a
-            <xref target="pri-default">default priority</xref>.
+            A stream that depends on another stream is a dependent stream. The stream upon which a
+            stream is dependent is a parent stream. A dependency on a stream that is not currently
+            in the tree - such as a stream in the "idle" state - results in that stream being given
+            a <xref target="pri-default">default priority</xref>.
           </t>
           <t>
             When assigning a dependency on another stream, the stream is added as a new dependency
@@ -1280,7 +1282,7 @@ HTTP2-Settings    = token68
           <t>
             An exclusive flag allows for the insertion of a new level of dependencies.  The
             exclusive flag causes the stream to become the sole dependency of its parent stream,
-            causing other dependencies to become dependent on the prioritized stream.  In the
+            causing other dependencies to become dependent on the exclusive stream.  In the
             previous example, if stream D is created with an exclusive dependency on stream A, this
             results in D becoming the dependency parent of B and C.
           </t>
@@ -1618,11 +1620,10 @@ HTTP2-Settings    = token68
           <x:ref>STREAM_CLOSED</x:ref>.
         </t>
         <t>
-          The total number of padding octets is determined by the value of the Pad Length field.  If
-          the length of the padding is greater than the length of the remainder of the frame
-          payload, the recipient MUST treat this as a <xref
-          target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>PROTOCOL_ERROR</x:ref>.
+          The total number of padding octets is determined by the value of the Pad Length field. If
+          the length of the padding is greater than the length of the frame payload, the recipient
+          MUST treat this as a <xref target="ConnectionErrorHandler">connection error</xref> of
+          type <x:ref>PROTOCOL_ERROR</x:ref>.
           <list style="hanging">
             <t hangText="Note:">
               A frame can be increased in size by one octet by including a Pad Length field with a
@@ -1631,16 +1632,15 @@ HTTP2-Settings    = token68
           </list>
         </t>
         <t>
-          Use of padding is a security feature; as such, its use demands some care, see <xref
-          target="padding"/>.
+          Padding is a security feature; see <xref target="padding"/>.
         </t>
       </section>
 
       <section anchor="HEADERS" title="HEADERS">
         <t>
-          The HEADERS frame (type=0x1) carries name-value pairs. It is used to <xref
-          target="StreamStates">open a stream</xref>.  HEADERS frames can be sent on a stream in the
-          "open" or "half closed (remote)" states.
+          The HEADERS frame (type=0x1) is used to <xref target="StreamStates">open a stream</xref>,
+          and additionally carries header block fragments. HEADERS frames can be sent on a stream
+          in the "open" or "half closed (remote)" states.
         </t>
         <figure title="HEADERS Frame Payload">
           <artwork type="inline"><![CDATA[
@@ -1954,9 +1954,10 @@ HTTP2-Settings    = token68
                     anchor="SETTINGS_HEADER_TABLE_SIZE">
                 <t>
                   Allows the sender to inform the remote endpoint of the maximum size of the header
-                  compression table used to decode header blocks. The encoder can select any size
-                  equal to or less than this value by using signaling specific to the header compression
-                  format inside a header block.  The initial value is 4,096 bytes.
+                  compression table used to decode header blocks, in octets. The encoder can select
+                  any size equal to or less than this value by using signaling specific to the
+                  header compression format inside a header block. The initial value is 4,096
+                  octets.
                 </t>
               </x:lt>
               <x:lt hangText="SETTINGS_ENABLE_PUSH (0x2):"
@@ -1997,7 +1998,7 @@ HTTP2-Settings    = token68
               <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (0x4):"
                     anchor="SETTINGS_INITIAL_WINDOW_SIZE">
                 <t>
-                  Indicates the sender's initial window size (in bytes) for stream level flow
+                  Indicates the sender's initial window size (in octets) for stream level flow
                   control.  The initial value is 2<x:sup>16</x:sup>-1 (65,535) octets.
                 </t>
                 <t>
@@ -2014,7 +2015,7 @@ HTTP2-Settings    = token68
                     anchor="SETTINGS_MAX_FRAME_SIZE">
                 <t>
                   Indicates the size of the largest frame payload that the sender is willing to
-                  receive.
+                  receive, in octets.
                 </t>
                 <t>
                   The initial value is 2<x:sup>14</x:sup> (16,384) octets.  The value advertised by
@@ -2028,9 +2029,9 @@ HTTP2-Settings    = token68
                     anchor="SETTINGS_MAX_HEADER_LIST_SIZE">
                 <t>
                   This advisory setting informs a peer of the maximum size of header list that the
-                  sender is prepared to accept.  The value is based on the uncompressed size of
-                  header fields, including the length of the name and value in octets plus an
-                  overhead of 32 octets for each header field.
+                  sender is prepared to accept, in octets. The value is based on the uncompressed
+                  size of header fields, including the length of the name and value in octets plus
+                  an overhead of 32 octets for each header field.
                 </t>
                 <t>
                   For any given request, a lower limit than what is advertised MAY be enforced.  The
@@ -2424,9 +2425,9 @@ HTTP2-Settings    = token68
         </figure>
         <t>
           The payload of a WINDOW_UPDATE frame is one reserved bit, plus an unsigned 31-bit integer
-          indicating the number of bytes that the sender can transmit in addition to the existing
+          indicating the number of octets that the sender can transmit in addition to the existing
           flow control window.  The legal range for the increment to the flow control window is 1 to
-          2<x:sup>31</x:sup>-1 (0x7fffffff) bytes.
+          2<x:sup>31</x:sup>-1 (0x7fffffff) octets.
         </t>
         <t>
           The WINDOW_UPDATE frame does not define any flags.
@@ -2460,7 +2461,7 @@ HTTP2-Settings    = token68
         <section title="The Flow Control Window">
           <t>
             Flow control in HTTP/2 is implemented using a window kept by each sender on every
-            stream. The flow control window is a simple integer value that indicates how many bytes
+            stream. The flow control window is a simple integer value that indicates how many octets
             of data the sender is permitted to transmit; as such, its size is a measure of the
             buffering capacity of the receiver.
           </t>
@@ -2473,7 +2474,7 @@ HTTP2-Settings    = token68
             flow control window.
           </t>
           <t>
-            For flow control calculations, the 9 byte frame header is not counted.
+            For flow control calculations, the 9 octet frame header is not counted.
           </t>
           <t>
             After sending a flow controlled frame, the sender reduces the space available in both
@@ -2489,7 +2490,7 @@ HTTP2-Settings    = token68
             amount specified in the frame.
           </t>
           <t>
-            A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup>-1 bytes.
+            A sender MUST NOT allow a flow control window to exceed 2<x:sup>31</x:sup>-1 octets.
             If a sender receives a WINDOW_UPDATE that causes a flow control window to exceed this
             maximum it MUST terminate either the stream or the connection, as appropriate.  For
             streams, the sender sends a <x:ref>RST_STREAM</x:ref> with the error code of
@@ -2506,11 +2507,11 @@ HTTP2-Settings    = token68
         <section anchor="InitialWindowSize" title="Initial Flow Control Window Size">
           <t>
             When an HTTP/2 connection is first established, new streams are created with an initial
-            flow control window size of 65,535 bytes. The connection flow control window is 65,535
-            bytes.  Both endpoints can adjust the initial window size for new streams by including a
-            value for <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> in the <x:ref>SETTINGS</x:ref>
-            frame that forms part of the connection preface.  The connection flow control window
-            can only be changed using WINDOW_UPDATE frames.
+            flow control window size of 65,535 octets. The connection flow control window is 65,535
+            octets. Both endpoints can adjust the initial window size for new streams by including
+            a value for <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> in the <x:ref>SETTINGS</x:ref>
+            frame that forms part of the connection preface. The connection flow control window can
+            only be changed using WINDOW_UPDATE frames.
           </t>
           <t>
             Prior to receiving a <x:ref>SETTINGS</x:ref> frame that sets a value for
@@ -2813,9 +2814,8 @@ HTTP2-Settings    = token68
               ':' character (ASCII 0x3a) for this purpose.
             </t>
             <t>
-              Pseudo-header fields are only valid in the HTTP/2 context.  These are not HTTP header
-              fields.  Endpoints MUST NOT generate pseudo-header fields other than those defined in
-              this document.
+              Pseudo-header fields are not HTTP header fields. Endpoints MUST NOT generate
+              pseudo-header fields other than those defined in this document.
             </t>
             <t>
               Pseudo-header fields are only valid in the context in which they are defined.
@@ -2870,21 +2870,20 @@ HTTP2-Settings    = token68
             </t>
           </section>
 
-          <section anchor="HttpRequest" title="Request Header Fields">
+          <section anchor="HttpRequest" title="Request Pseudo-Header Fields">
             <t>
-              HTTP/2 defines a number of pseudo header fields starting with a colon ':' character
-              that carry information about the request target:
+              The following pseudo-header fields are defined for HTTP/2 requests:
               <list style="symbols">
                 <x:lt>
                   <t>
-                    The <spanx style="verb">:method</spanx> header field includes the HTTP method
-                    (<xref target="RFC7231" x:fmt="," x:rel="#methods"/>).
+                    The <spanx style="verb">:method</spanx> pseudo-header field includes the HTTP
+                    method (<xref target="RFC7231" x:fmt="," x:rel="#methods"/>).
                   </t>
                 </x:lt>
                 <x:lt>
                   <t>
-                    The <spanx style="verb">:scheme</spanx> header field includes the scheme portion
-                    of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
+                    The <spanx style="verb">:scheme</spanx> pseudo-header field includes the scheme
+                    portion of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.1"/>).
                   </t>
                   <t>
                     <spanx style="verb">:scheme</spanx> is not restricted to <spanx
@@ -2895,43 +2894,48 @@ HTTP2-Settings    = token68
                 </x:lt>
                 <x:lt>
                   <t>
-                    The <spanx style="verb">:authority</spanx> header field includes the authority
-                    portion of the target URI (<xref target="RFC3986" x:fmt="," x:sec="3.2"/>).  The
-                    authority MUST NOT include the deprecated <spanx style="verb">userinfo</spanx>
-                    subcomponent for <spanx style="verb">http</spanx> or <spanx
-                    style="verb">https</spanx> schemed URIs.
+                    The <spanx style="verb">:authority</spanx> pseudo-header field includes the
+                    authority portion of the target URI (<xref target="RFC3986" x:fmt=","
+                    x:sec="3.2"/>). The authority MUST NOT include the deprecated <spanx
+                    style="verb">userinfo</spanx> subcomponent for <spanx style="verb">http</spanx>
+                    or <spanx style="verb">https</spanx> schemed URIs.
+
                   </t>
                   <t>
                     To ensure that the HTTP/1.1 request line can be reproduced accurately, this
-                    header field MUST be omitted when translating from an HTTP/1.1 request that has
-                    a request target in origin or asterisk form (see <xref target="RFC7230"
-                    x:fmt="," x:rel="#request-target"/>). Clients that generate HTTP/2 requests
-                    directly SHOULD use the <spanx>:authority</spanx> psuedo-header field instead of
-                    the <spanx style="verb">Host</spanx> header field. An intermediary that converts
-                    an HTTP/2 request to HTTP/1.1 MUST create a <spanx style="verb">Host</spanx>
-                    header field if one is not present in a request by copying the value of the
-                    <spanx style="verb">:authority</spanx> header field.
+                    pseudo-header field MUST be omitted when translating from an HTTP/1.1 request
+                    that has a request target in origin or asterisk form (see <xref
+                    target="RFC7230" x:fmt="," x:rel="#request-target"/>). Clients that generate
+                    HTTP/2 requests directly SHOULD use the <spanx>:authority</spanx> psuedo-header
+                    field instead of the <spanx style="verb">Host</spanx> header field. An
+                    intermediary that converts an HTTP/2 request to HTTP/1.1 MUST create a <spanx
+                    style="verb">Host</spanx> header field if one is not present in a request by
+                    copying the value of the <spanx style="verb">:authority</spanx> pseudo-header
+                    field.
+
                   </t>
                 </x:lt>
                 <x:lt>
                   <t>
-                    The <spanx style="verb">:path</spanx> header field includes the path and query
-                    parts of the target URI (the <spanx style="verb">path-absolute</spanx>
-                    production from <xref target="RFC3986"/> and optionally a '?' character followed
-                    by the <spanx style="verb">query</spanx> production, see <xref target="RFC3986"
-                    x:fmt="," x:sec="3.3"/> and <xref target="RFC3986" x:fmt="," x:sec="3.4"/>).  A
-                    request in asterisk form includes the value '*' for the <spanx
-                    style="verb">:path</spanx> header field.
+                    The <spanx style="verb">:path</spanx> pseudo-header field includes the path and
+                    query parts of the target URI (the <spanx style="verb">path-absolute</spanx>
+                    production from <xref target="RFC3986"/> and optionally a '?' character
+                    followed by the <spanx style="verb">query</spanx> production, see <xref
+                    target="RFC3986" x:fmt="," x:sec="3.3"/> and <xref target="RFC3986" x:fmt=","
+                    x:sec="3.4"/>). A request in asterisk form includes the value '*' for the
+                    <spanx style="verb">:path</spanx> pseudo-header field.
+
                   </t>
                   <t>
-                    This field MUST NOT be empty for <spanx style="verb">http</spanx> or <spanx
-                    style="verb">https</spanx> URIs; <spanx style="verb">http</spanx> or <spanx
-                    style="verb">https</spanx> URIs that do not contain a path component MUST
-                    include a value of '/'.  The exception to this rule is an OPTIONS request for an
-                    <spanx style="verb">http</spanx> or <spanx style="verb">https</spanx> URI that
-                    does not include a path component; these MUST include a <spanx
-                    style="verb">:path</spanx> header field with a value of '*' (see <xref
+                    This pseudo-header field MUST NOT be empty for <spanx style="verb">http</spanx>
+                    or <spanx style="verb">https</spanx> URIs; <spanx style="verb">http</spanx> or
+                    <spanx style="verb">https</spanx> URIs that do not contain a path component
+                    MUST include a value of '/'. The exception to this rule is an OPTIONS request
+                    for an <spanx style="verb">http</spanx> or <spanx style="verb">https</spanx>
+                    URI that does not include a path component; these MUST include a <spanx
+                    style="verb">:path</spanx> pseudo-header field with a value of '*' (see <xref
                     target="RFC7230" x:fmt="," x:rel="#asterisk-form"/>).
+
                   </t>
                 </x:lt>
               </list>
@@ -2939,22 +2943,21 @@ HTTP2-Settings    = token68
             <t>
               All HTTP/2 requests MUST include exactly one valid value for the <spanx
               style="verb">:method</spanx>, <spanx style="verb">:scheme</spanx>, and <spanx
-              style="verb">:path</spanx> header fields, unless this is a <xref
-              target="CONNECT">CONNECT request</xref>.  An HTTP request that omits mandatory header
-              fields is <xref target="malformed">malformed</xref>.
-            </t>
-            <t>
-              HTTP/2 does not define a way to carry the version identifier that is included in the
+              style="verb">:path</spanx> pseudo-header fields, unless it is a <xref
+              target="CONNECT">CONNECT request</xref>. An HTTP request that omits mandatory
+              pseudo-header fields is <xref target="malformed">malformed</xref>. </t> <t> HTTP/2
+              does not define a way to carry the version identifier that is included in the
               HTTP/1.1 request line.
+
             </t>
           </section>
 
-          <section anchor="HttpResponse" title="Response Header Fields">
+          <section anchor="HttpResponse" title="Response Pseudo-Header Fields">
             <t>
-              A single <spanx style="verb">:status</spanx> header field is defined that carries the
-              HTTP status code field (see <xref target="RFC7231" x:fmt="," x:rel="#status.codes"/>).
-              This header field MUST be included in all responses, otherwise the response is <xref
-              target="malformed">malformed</xref>.
+              For HTTP/2 responses, a single <spanx style="verb">:status</spanx> pseudo-header
+              field is defined that carries the HTTP status code field (see <xref target="RFC7231"
+              x:fmt="," x:rel="#status.codes"/>). This pseudo-header field MUST be included in all
+              responses, otherwise the response is <xref target="malformed">malformed</xref>.
             </t>
             <t>
               HTTP/2 does not define a way to carry the version or reason phrase that is included in
@@ -3223,23 +3226,22 @@ HTTP2-Settings    = token68
 
       <section anchor="PushResources" title="Server Push">
         <t>
-          HTTP/2 enables a server to pre-emptively send (or "push") one or more associated responses
-          to a client in response to a single request. This feature becomes particularly helpful
-          when the server knows the client will need to have those responses available in order to
-          fully process the response to the original request.
+          HTTP/2 allows a server to pre-emptively send (or "push") responses (along with
+          corresponding requests) to a client in association with a previous client-initiated
+          request. This can be useful when the server knows the client will need to have those
+          responses available in order to fully process the response to the original request.
         </t>
 
         <t>
-          Pushing additional responses is optional, and is negotiated between individual endpoints.
-          The <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting can be set to 0 to indicate that server
-          push is disabled.
+          Pushing additional message exchanges in this fashion is optional, and is negotiated
+          between individual endpoints. The <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting can be set
+          to 0 to indicate that server push is disabled.
         </t>
         <t>
-          Because pushing responses is effectively hop-by-hop, an intermediary could receive pushed
-          responses from the server and choose not to forward those on to the client. In other
-          words, how to make use of the pushed responses is up to that intermediary. Equally, the
-          intermediary might choose to push additional responses to the client, without any action
-          taken by the server.
+          Because server push is effectively hop-by-hop, an intermediary could receive pushes from
+          the server and choose not to forward them on to the client. In other words, how to make
+          use of the pushed information is up to that intermediary. Equally, the intermediary might
+          choose to make additional pushes to the client, without any action taken by the server.
         </t>
         <t>
           A client cannot push. Thus, servers MUST treat the receipt of a
@@ -3353,11 +3355,10 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            Clients receiving a pushed response MUST validate that the server is authorized to
-            provide the response, see <xref target="authority"/>.  For example, a server that offers
-            a certificate for only the <spanx style="verb">example.com</spanx> DNS-ID or Common Name
-            is not permitted to push a response for <spanx
-            style="verb">https://www.example.org/doc</spanx>.
+            Clients receiving a pushed response MUST validate that the server is authoritative for
+            it; see <xref target="authority"/>. For example, a server that offers a certificate for
+            only the <spanx style="verb">example.com</spanx> DNS-ID or Common Name is not permitted
+            to push a response for <spanx style="verb">https://www.example.org/doc</spanx>.
           </t>
           <t>
             The response for a <x:ref>PUSH_PROMISE</x:ref> stream begins with a
@@ -3474,7 +3475,7 @@ HTTP2-Settings    = token68
         <t>
           Servers are encouraged to maintain open connections for as long as possible, but are
           permitted to terminate idle connections if necessary.  When either endpoint chooses to
-          close the transport-level TCP connection, the terminating endpoint SHOULD first send a
+          close the transport-layer TCP connection, the terminating endpoint SHOULD first send a
           <x:ref>GOAWAY</x:ref> (<xref target="GOAWAY"/>) frame so that both endpoints can reliably
           determine whether previously sent frames have been processed and gracefully complete or
           terminate any necessary remaining tasks.
