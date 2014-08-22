@@ -3230,15 +3230,36 @@ HTTP2-Settings    = token68
       <section anchor="PushResources" title="Server Push">
         <t>
           HTTP/2 allows a server to pre-emptively send (or "push") responses (along with
-          corresponding requests) to a client in association with a previous client-initiated
-          request. This can be useful when the server knows the client will need to have those
-          responses available in order to fully process the response to the original request.
+          corresponding "promised" requests) to a client in association with a previous
+          client-initiated request. This can be useful when the server knows the client will need
+          to have those responses available in order to fully process the response to the original
+          request.
         </t>
 
         <t>
           Pushing additional message exchanges in this fashion is optional, and is negotiated
           between individual endpoints. The <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting can be set
           to 0 to indicate that server push is disabled.
+        </t>
+        <t>
+          Promised requests MUST be cacheable (see <xref target="RFC7231" x:fmt=","
+          x:rel="#cacheable.methods"/>), MUST be safe (see <xref target="RFC7231" x:fmt=","
+          x:rel="#safe.methods"/>) and MUST NOT include a request body. Clients that receive a
+          promised request that is not cacheable, unsafe or that includes a request body MUST
+          reset the stream with a <xref target="StreamErrorHandler">stream error</xref> of type
+          <x:ref>PROTOCOL_ERROR</x:ref>.
+        </t>
+        <t>
+          Pushed responses that are cacheable (see <xref target="RFC7234" x:fmt=","
+          x:rel="#response.cacheability"/>) SHOULD be stored by the client, if it implements a HTTP
+          cache. Such responses MAY be considered successfully validated on the origin server
+          (e.g., if the "no-cache" cache response directive <xref target="RFC7234" x:fmt=","
+          x:rel="#cache-response-directive"/> is present) while the stream identified by the
+          promised stream ID is still open.
+        </t>
+        <t>
+          Pushed responses that are not cacheable MUST NOT be stored by any HTTP cache. They MAY
+          be made available to the application separately.
         </t>
         <t>
           Because server push is effectively hop-by-hop, an intermediary could receive pushes from
@@ -3253,11 +3274,6 @@ HTTP2-Settings    = token68
           change the <x:ref>SETTINGS_ENABLE_PUSH</x:ref> setting to a value other than 0 by treating
           the message as a <xref target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
-        </t>
-        <t>
-          A server can only push responses that are cacheable (see <xref target="RFC7234" x:fmt=","
-          x:rel="#response.cacheability"/>); promised requests MUST be safe (see <xref
-          target="RFC7231" x:fmt="," x:rel="#safe.methods"/>) and MUST NOT include a request body.
         </t>
 
         <section anchor="PushRequests" title="Push Requests">
