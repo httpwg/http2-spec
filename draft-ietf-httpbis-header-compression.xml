@@ -45,7 +45,7 @@
         <abstract>
             <t>
                 This specification defines HPACK, a compression format for
-                efficiently representing HTTP header fields in the context of
+                efficiently representing HTTP header fields, to be used in
                 HTTP/2.
             </t>
         </abstract>
@@ -63,7 +63,7 @@
         </t>
         <t>
           The changes in this draft are summarized in <xref
-          target="changes.since.draft-ietf-httpbis-header-compression-08"/>.
+          target="changes.since.draft-ietf-httpbis-header-compression-09"/>.
         </t>
       </note>
     </front>
@@ -71,21 +71,11 @@
     <middle>
         <section title="Introduction">
             <t>
-                This specification defines HPACK, a compression format for
-                efficiently representing HTTP header fields in the context of
-                <xref target="HTTP2">HTTP/2</xref>.
-            </t>
-        </section>
-
-        <section title="HPACK Overview" anchor="overview">
-            <t>
                 In HTTP/1.1 (see <xref target="RFC7230"/>), header fields are
-                encoded without any form of compression.  As web pages have
-                grown to include dozens to hundreds of requests, the redundant
-                header fields in these requests now measurably increase latency
-                and unnecessarily consume bandwidth (see <xref
-                    target="SPDY-DESC-1"/>
-                and <xref target="SPDY-DESC-2"/>).
+                not compressed. As Web pages have grown to include dozens to
+                hundreds of requests, the redundant header fields in these
+                requests unnecessarily consume bandwidth, measurably increasing
+                latency.
             </t>
 
             <t>
@@ -98,31 +88,31 @@
             </t>
 
             <t>
-                This document describes HPACK, a new compressor for header
+                This specification defines HPACK, a new compressor for header
                 fields which eliminates redundant header fields, limits
                 vulnerability to known security attacks, and which has a bounded
                 memory requirement for use in constrained environments.
             </t>
 
-            <section title="Outline">
+            <section title="Overview">
                 <t>
-                    The HTTP header field encoding defined in this document is
-                    based on a header table that maps name-value pairs to index
-                    values.  The header table is incrementally updated as new
-                    values are encoded or decoded.
+                    The format defined in this specification treats a list of
+                    header fields as an ordered collection of name-value pairs
+                    that can include duplicates. Names and values are
+                    considered to be opaque sequences of octets, and the order
+                    of header fields is preserved after being compressed and
+                    decompressed.
                 </t>
                 <t>
-                    A list of header fields is treated as an ordered collection
-                    of name-value pairs that can include duplicates.  Names and
-                    values are considered to be opaque sequences of octets.  The
-                    order of header fields is preserved after being compressed
-                    and decompressed.
+                    Encoding is informed by a header table that maps
+                    name-value pairs to indexed values. The header table can be
+                    incrementally updated as new pairs are encoded or decoded.
                 </t>
                 <t>
                     In the encoded form, a header field is represented either
-                    literally or as a reference to a name-value pair in a header
-                    table.  A list of header fields can therefore be encoded
-                    using a mixture of references and literal values.
+                    literally or as a reference to a name-value pair in the
+                    header table. Therefore, a list of header fields can be
+                    encoded using a mixture of references and literal values.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header fields
@@ -130,7 +120,7 @@
                     executes the modifications to the header table prescribed by
                     the encoder, reconstructing the list of header fields in the
                     process.  This enables decoders to remain simple and
-                    understand a wide variety of encoders.
+                    interoperate with a wide variety of encoders.
                 </t>
                 <t>
                     Examples illustrating the use of these different mechanisms
@@ -150,16 +140,13 @@
                     All numeric values are in network byte order.  Values are
                     unsigned unless otherwise indicated.  Literal values are
                     provided in decimal or hexadecimal as appropriate.
-                    Hexadecimal literals are prefixed with <spanx
-                        style="verb">0x</spanx> to distinguish them from decimal
-                    literals.
                 </t>
 
             </section>
 
             <section title="Terminology" anchor="encoding.concepts">
                 <t>
-                    This document uses the following terms:
+                    This specification uses the following terms:
                     <list style="hanging">
                         <t hangText="Header Field:">
                             A name-value pair.  Both the name and value are
@@ -180,10 +167,10 @@
                         </t>
                         <t hangText="Header List:">
                             A header list is an ordered collection of header
-                            fields that are encoded jointly. It can contain
+                            fields that are encoded jointly, and can contain
                             duplicate header fields. A complete list of
-                            key-value pairs contained in a HTTP request or
-                            response is a header list.
+                            key-value pairs contained in a HTTP/2 header block
+                            is a header list.
                         </t>
                         <t hangText="Header Field Representation:">
                             A header field can be represented in encoded form
@@ -210,20 +197,12 @@
             <section title="Header List Ordering"
                 anchor="header.list.ordering">
                 <t>
-                    The compression and decompression process preserve the
-                    ordering of header fields inside the header list. An encoder
-                    SHOULD order header field representations in the header
-                    block according to their ordering in the original header
-                    list. A decoder SHOULD order header fields in the decoded
-                    header list according to their ordering in the header block.
-                </t>
-                <t>
-                    In particular, representations for pseudo-header fields (see
-                    <xref target="HTTP2" x:fmt="of"
-                        x:rel="#PseudoHeaderFields"/>) MUST appear before
-                    representations for regular header fields in a header block.
-                    In a decoded header list, pseudo-header fields MUST appear
-                    before regular header fields.
+                    HPACK preserves the ordering of header fields inside the
+                    header list. An encoder MUST order header field
+                    representations in the header block according to their
+                    ordering in the original header list. A decoder MUST
+                    order header fields in the decoded header list according to
+                    their ordering in the header block.
                 </t>
             </section>
 
@@ -232,20 +211,13 @@
                 <t>
                     To decompress header blocks, a decoder only needs to
                     maintain a header table (see <xref target="header.table"/>)
-                    as a decoding context. No other state information is needed.
-                </t>
-                <t>
-                    An encoder that wishes to reference entries in the header
-                    table needs to maintain a copy of the header table used by
-                    the decoder.
+                    as a decoding context. No other state is needed.
                 </t>
                 <t>
                     When used for bidirectional communication, such as in HTTP,
                     the encoding and decoding header tables maintained by an
-                    endpoint are completely independent. Header fields are
-                    encoded without any reference to the local decoding header
-                    table; and header fields are decoded without reference to
-                    the local encoding header table.
+                    endpoint are completely independent. I.e., the request
+                    and response header tables are separate.
                 </t>
             </section>
 
@@ -278,13 +250,13 @@
                     <t>
                         The header table consists of a list of header fields
                         maintained in first-in, first-out order.  The first and
-                        newest entry in a header table is always at index 1, and
-                        the oldest entry of a header table is at the index
-                        corresponding to the number of entries in the header
-                        table.
+                        newest entry in a header table is at the lowest index,
+                        and the oldest entry of a header table is at the highest
+                        index.
                     </t>
                     <t>
-                        The header table is initially empty.
+                        The header table is initially empty.  Entries are added
+                        as each header block is decompressed.
                     </t>
                     <t>
                         The header table can contain duplicate entries.
@@ -299,9 +271,9 @@
                         <xref target="maximum.table.size"/>).
                     </t>
                     <t>
-                        The header table is updated during the processing of a
-                        list of header field representations (see <xref
-                            target="header.representation.processing"/>).
+                        The decoder updates the header table during the
+                        processing of a list of header field representations
+                        (see <xref target="header.representation.processing"/>).
                     </t>
                 </section>
 
@@ -362,7 +334,7 @@
                     field value is represented literally.
                 </t>
                 <t>
-                    Three different literal representations are provided:
+                    Three different literal representations are defined:
                     <list style="symbols">
                         <t>
                             A literal representation that does not add the
@@ -399,22 +371,19 @@
             <section title="Header Block Processing"
                 anchor="header.block.processing">
                 <t>
-                    A decoder processes an encoded header block sequentially to
+                    A decoder processes a header block sequentially to
                     reconstruct the original header list.
                 </t>
                 <t>
                     Once a header field is decoded and added to the
                     reconstructed header list, it cannot be removed from it. A
                     header field added to the header list can be safely passed
-                    to the upper processing layer.
+                    to the application.
                 </t>
                 <t>
-                    By passing decoded header fields to the upper processing
-                    layer, a decoder can be implemented with minimal transitory
-                    memory commitment in addition to the header table. The
-                    management of memory for handling very large lists of header
-                    fields can therefore be deferred to the upper processing
-                    layers.
+                    By passing the resulting header fields to the application,
+                    a decoder can be implemented with minimal transitory memory
+                    commitment in addition to the header table. 
                 </t>
             </section>
 
@@ -440,7 +409,7 @@
                         <t>
                             The header field corresponding to the referenced
                             entry in either the static table or header table is
-                            added to the decoded header list.
+                            appended to the decoded header list.
                         </t>
                     </list>
                 </t>
@@ -450,7 +419,7 @@
                     action:
                     <list style="symbols">
                         <t>
-                            The header field is added to the decoded header
+                            The header field is appended to the decoded header
                             list.
                         </t>
                     </list>
@@ -461,12 +430,14 @@
                     following actions:
                     <list style="symbols">
                         <t>
-                            The header field is added to the decoded header
+                            The header field is appended to the decoded header
                             list.
                         </t>
                         <t>
                             The header field is inserted at the beginning of the
-                            header table.
+                            header table. This insertion could result in the
+                            eviction of previous entries in the header table
+                            (see <xref target="entry.addition"/>).
                         </t>
                     </list>
                 </t>
@@ -540,12 +511,12 @@
                     name and value without any Huffman encoding applied.
                 </t>
                 <t>
-                    The additional 32 octets account for the overhead associated
-                    with an entry. For example, an entry structure using two
-                    64-bit pointers to reference the name and the value of the
-                    entry, and two 64-bit integers for counting the number of
-                    references to the name and value would have 32 octets of
-                    overhead.
+                    NOTE: The additional 32 octets account for the overhead
+                    associated with an entry. For example, an entry structure
+                    using two 64-bit pointers to reference the name and the
+                    value of the entry, and two 64-bit integers for counting
+                    the number of references to the name and value would have
+                    32 octets of overhead.
                 </t>
             </section>
 
@@ -580,7 +551,7 @@
                     an error to attempt to add an entry that is larger than the
                     maximum size; an attempt to add an entry larger than the
                     entire table causes the table to be emptied of all existing
-                    entries.
+                    entries, and results in an empty table.
                 </t>
             </section>
         </section>
@@ -613,14 +584,19 @@
                     2<x:sup>N</x:sup>-1), it is encoded within the N-bit prefix.
                     Otherwise all the bits of the prefix are set to 1 and the
                     value is encoded using an unsigned variable length integer
-                    representation (see <eref
-                    target="http://en.wikipedia.org/wiki/Variable-length_quantity"/>).
-                    N is always between 1 and 8 bits. An integer starting at an
-                    octet-boundary will have an 8-bit prefix.
+                    representation. This representation uses the most
+                    significant bit of each octet as a continuation flag, and
+                    encodes the value on the remaining bits. The octets
+                    representing the value are ordered least significant first.
+                </t>
+                <t>
+                    The prefix size, N, is always between 1 and 8 bits. An
+                    integer starting at an octet-boundary will have an 8-bit
+                    prefix.
                 </t>
                 <figure>
                     <preamble>
-                        The algorithm to represent an integer I is as follows:
+                        Pseudo-code to represent an integer I is as follows:
                     </preamble>
                     <artwork type = "inline"><![CDATA[
 if I < 2^N - 1, encode I on N bits
@@ -635,8 +611,7 @@ else
                 </figure>
                 <figure>
                     <preamble>
-                        For informational purpose, the algorithm to decode an
-                        integer I is as follows:
+                        Pseudo-code to decode an integer I is as follows:
                     </preamble>
                     <artwork type="inline"><![CDATA[
 decode I from the next N bits
@@ -790,18 +765,19 @@ else
                     either from the static table or the header table (see <xref
                         target="indexing.tables"/>).
                 </t>
+
                 <t>
-                    A literal representation causes a header field to be
-                    added to the decoded header list, as described in <xref
-                        target="header.representation.processing"/>.
+                  This specification defines three forms of literal header
+                  field representations; with indexing, without indexing,
+                  and never indexed.
                 </t>
 
                 <section title="Literal Header Field with Incremental Indexing"
                     anchor="literal.header.with.incremental.indexing">
                     <t>
                         A literal header field with incremental indexing
-                        representation results in adding a header field to the
-                        decoded header list and inserting it as a new entry
+                        representation results in appending a header field to
+                        the decoded header list and inserting it as a new entry
                         into the header table.
                     </t>
                     <figure title="Literal Header Field with Incremental Indexing -
@@ -866,8 +842,8 @@ else
                     anchor="literal.header.without.indexing">
                     <t>
                         A literal header field without indexing representation
-                        results in adding a header field to the decoded header
-                        list without altering the header table.
+                        results in appending a header field to the decoded
+                        header list without altering the header table.
                     </t>
                     <figure title="Literal Header Field without Indexing - Indexed Name">
                         <artwork type="inline"><![CDATA[
@@ -929,10 +905,10 @@ else
                     anchor="literal.header.never.indexed">
                     <t>
                         A literal header field never indexed representation
-                        results in adding a header field to the decoded header
-                        list without altering the header table.  Intermediaries
-                        MUST use the same representation for encoding this
-                        header field.
+                        results in appending a header field to the decoded
+                        header list without altering the header table.
+                        Intermediaries MUST use the same representation for
+                        encoding this header field.
                     </t>
                     <figure title="Literal Header Field never Indexed - Indexed Name">
                         <artwork type="inline"><![CDATA[
@@ -1053,19 +1029,18 @@ else
                 </t>
                 <t>
                     The compression context used to encode header fields can be
-                    probed by an attacker that has the following capabilities:
-                    to define header fields to be encoded and transmitted; and
-                    to observe the length of those fields once they are encoded.
-                    This allows an attacker to adaptively modify requests in
-                    order to confirm guesses about the header table state. If a
-                    guess is compressed into a shorter length, the attacker can
-                    observe the encoded length and infer that the guess was
-                    correct.
+                    probed by an attacker who can both define header fields to
+                    be encoded and transmitted and observe the length of those
+                    fields once they are encoded. When an attacker can do both,
+                    they can adaptively modify requests in order to confirm
+                    guesses about the header table state. If a guess is
+                    compressed into a shorter length, the attacker can observe
+                    the encoded length and infer that the guess was correct.
                 </t>
                 <t>
-                    This is possible because while TLS provides confidentiality
-                    protection for content, it only provides a limited amount of
-                    protection for the length of that content.
+                    This is possible even over TLS, because while TLS provides
+                    confidentiality protection for content, it only provides a
+                    limited amount of protection for the length of that content.
                     <list style="hanging">
                         <t hangText="Note:">
                             Padding schemes only provide limited protection
@@ -1154,7 +1129,7 @@ else
                         based on the entity that is constructing header fields.
                         Header field values that are added to the table are
                         attributed to an entity, and only the entity that
-                        created an particular value can extract that value.
+                        created a particular value can extract that value.
                     </t>
                     <t>
                         To improve compression performance of this option,
@@ -1213,12 +1188,12 @@ else
 
             <section title="Static Huffman Encoding">
                 <t>
-                    There is currently no known threat taking advantage of the
-                    use of a fixed Huffman encoding. A study has shown that
-                    using a fixed Huffman encoding table created an information
-                    leakage, however this same study concluded that an attacker
-                    could not take advantage of this information leakage to
-                    recover any meaningful amount of information (see <xref
+                    There is no currently known attack against a fixed Huffman
+                    encoding. A study has shown that using a fixed Huffman
+                    encoding table created an information leakage, however this
+                    same study concluded that an attacker could not take
+                    advantage of this information leakage to recover any
+                    meaningful amount of information (see <xref
                     target="PETAL"/>).
                 </t>
             </section>
@@ -1278,7 +1253,7 @@ else
 
         <section title="Acknowledgements">
             <t>
-                This document includes substantial input from the following
+                This specification includes substantial input from the following
                 individuals:
                 <list style="symbols">
                     <t>
@@ -1391,24 +1366,6 @@ else
                     <date month="September" year="2012"/>
                 </front>
             </reference>
-            <reference anchor="SPDY-DESC-1" target="https://www.ietf.org/proceedings/83/slides/slides-83-httpbis-3">
-                <front>
-                    <title>
-                        IETF83: SPDY and What to Consider for HTTP/2.0
-                    </title>
-                    <author initials="M." surname="Belshe" fullname="Mike Belshe">
-                    </author>
-                    <date month="March" year="2012"/>
-                </front>
-            </reference>
-            <reference anchor="SPDY-DESC-2" target="https://bitsup.blogspot.com/2011/09/spdy-what-i-like-about-you.html">
-                <front>
-                    <title>SPDY: What I Like About You</title>
-                    <author initials="P." surname="McManus" fullname="Patrick McManus">
-                    </author>
-                    <date month="September" year="2011"/>
-                </front>
-            </reference>
 
             <reference anchor="HUFFMAN" target="https://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">
                 <front>
@@ -1444,6 +1401,14 @@ else
 
 
         <section title="Change Log (to be removed by RFC Editor before publication)">
+            <section title="Since draft-ietf-httpbis-header-compression-09"
+                anchor="changes.since.draft-ietf-httpbis-header-compression-09">
+                <t><list style="symbols">
+                    <t>
+                    </t>
+                </list></t>
+            </section>
+
             <section title="Since draft-ietf-httpbis-header-compression-08"
                 anchor="changes.since.draft-ietf-httpbis-header-compression-08">
                 <t><list style="symbols">
@@ -2960,7 +2925,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
             <figure>
                 <preamble>Hex dump of encoded data:</preamble>
                 <artwork>
-<![CDATA[88c1 611d 4d6f 6e2c 2032 3120 4f63 7420 | ..a.Mon, 21 Oct 
+<![CDATA[88c1 611d 4d6f 6e2c 2032 3120 4f63 7420 | ..a.Mon, 21 Oct
 3230 3133 2032 303a 3133 3a32 3220 474d | 2013 20:13:22 GM
 54c0 5a04 677a 6970 7738 666f 6f3d 4153 | T.Z.gzipw8foo=AS
 444a 4b48 514b 425a 584f 5157 454f 5049 | DJKHQKBZXOQWEOPI
