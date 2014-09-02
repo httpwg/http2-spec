@@ -3516,32 +3516,39 @@ HTTP2-Settings    = token68
 
         <section anchor="reuse" title="Connection Reuse">
           <t>
-            Clients MAY use a single server connection to send requests for URIs with multiple
-            different authority components as long as the server is <xref
-            target="authority">authoritative</xref>.  For <spanx style="verb">http</spanx>
+            Connections that are made to origin servers without a proxy or tunnels created using the
+            <xref target="CONNECT">CONNECT method</xref> MAY be reused for requests with multiple
+            different URI authority components.  A connection can be reused as long as the server is
+            <xref target="authority">authoritative</xref>.  For <spanx style="verb">http</spanx>
             resources, this depends on the host having resolved to the same IP address.
           </t>
           <t>
             For <spanx style="verb">https</spanx> resources, connection reuse additionally depends
-            on having a certificate that is valid for the host in the URI.  That is the use of
-            server certificate with multiple <spanx style="verb">subjectAltName</spanx> attributes,
-            or names with wildcards.  For example, a certificate with a <spanx
-            style="verb">subjectAltName</spanx> of <spanx style="verb">*.example.com</spanx> might
-            permit the use of the same connection for <spanx style="verb">a.example.com</spanx> and
-            <spanx style="verb">b.example.com</spanx>.
+            on having a certificate that is valid for the host in the URI.  A server might offer a
+            certificate with multiple <spanx style="verb">subjectAltName</spanx> attributes, or
+            names with wildcards, one of which is valid for the authority in the URI.  For example,
+            a certificate with a <spanx style="verb">subjectAltName</spanx> of <spanx
+            style="verb">*.example.com</spanx> might permit the use of the same connection for
+            requests to URIs starting with <spanx style="verb">https://a.example.com/</spanx> and
+            <spanx style="verb">https://b.example.com/</spanx>.
           </t>
           <t>
             In some deployments, reusing a connection for multiple origins can result in requests
             being directed to the wrong origin server.  For example, TLS termination might be
             performed by a middlebox that uses the TLS <xref target="TLS-EXT">Server Name Indication
-            (SNI)</xref> extension to select the an origin server.  This means that it is possible
+            (SNI)</xref> extension to select an origin server.  This means that it is possible
             for clients to send confidential information to servers that might not be the intended
-            target for the request, even though the server has valid authentication credentials.
+            target for the request, even though the server is otherwise authoritative.
           </t>
           <t>
             A server that does not wish clients to reuse connections can indicate that it is not
             authoritative for a request by sending a 421 (Not Authoritative) status code in response
             to the request (see <xref target="NotAuthoritative"/>).
+          </t>
+          <t>
+            A client that is configured to use a proxy directs requests to that proxy through a
+            single connection.  That is, all requests sent via a proxy reuse the connection to the
+            proxy.
           </t>
         </section>
 
