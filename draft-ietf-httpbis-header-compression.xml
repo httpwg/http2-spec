@@ -578,16 +578,49 @@
                     The number of bits of the prefix (called N) is a parameter
                     of the integer representation.
                 </t>
+                <figure title="Integer Value Encoded within the Prefix (shown
+                    for N = 5)">
+                    <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| ? | ? | ? |     Value (N)     |
++---+---+---+-------------------+
+]]></artwork>
+                </figure>
                 <t>
-                    The N-bit prefix allows filling the current octet.  If the
-                    value is small enough (strictly less than
-                    2<x:sup>N</x:sup>-1), it is encoded within the N-bit prefix.
-                    Otherwise all the bits of the prefix are set to 1 and the
-                    value is encoded using an unsigned variable length integer
-                    representation. This representation uses the most
-                    significant bit of each octet as a continuation flag, and
-                    encodes the value on the remaining bits. The octets
-                    representing the value are ordered least significant first.
+                    If the integer value is small enough, i.e. strictly less than
+                    2<x:sup>N</x:sup>-1, it is encoded within the N-bit prefix.
+                </t>
+                <figure title="Integer Value Encoded after the Prefix (shown for
+                    N = 5)">
+                    <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| ? | ? | ? | 1   1   1   1   1 |
++---+---+---+-------------------+
+| 1 |   Value-(2^N-1) LSB (7)   |
++---+---------------------------+
+               ...
++---+---------------------------+
+| 0 |   Value-(2^N-1) MSB (7)   |
++---+---------------------------+
+]]></artwork>
+                </figure>
+                <t>
+                    Otherwise, all the bits of the prefix are set to 1 and the
+                    value, decreased by 2<x:sup>N</x:sup>-1, is encoded using a
+                    list of one or more octets. The most significant bit of each
+                    octet is used as a continuation flag: its value is set to 1
+                    except for the last octet in the list. The remaining bits of
+                    the octets are used to encode the decreased value. 
+                </t>
+                <t>
+                    Decoding the integer value from the list of octets starts by
+                    reversing the order of the octets in the list. Then, for
+                    each octet, its most significant bit is removed. The
+                    remaining bits of the octets are concatenated and the
+                    resulting value is increased by 2<x:sup>N</x:sup>-1 to
+                    obtain the integer value.
                 </t>
                 <t>
                     The prefix size, N, is always between 1 and 8 bits. An
