@@ -425,9 +425,9 @@ Upgrade: h2c
           <t>
             A request that upgrades from HTTP/1.1 to HTTP/2 MUST include exactly one <spanx
             style="verb">HTTP2-Settings</spanx> header field.  The <spanx
-            style="verb">HTTP2-Settings</spanx> header field is a hop-by-hop header field that
-            includes parameters that govern the HTTP/2 connection, provided in anticipation of the
-            server accepting the request to upgrade.
+            style="verb">HTTP2-Settings</spanx> header field is a connection-specific header field
+            that includes parameters that govern the HTTP/2 connection, provided in anticipation of
+            the server accepting the request to upgrade.
           </t>
           <figure>
             <artwork type="abnf" x:indent-with="  "><![CDATA[
@@ -448,9 +448,11 @@ HTTP2-Settings    = token68
             defined in <xref target="RFC7235" x:fmt="of" x:rel="#challenge.and.response"/>.
           </t>
           <t>
-            The <spanx style="verb">Connection</spanx> header field MUST include a value of <spanx
-            style="verb">HTTP2-Settings</spanx> in addition to <spanx style="verb">Upgrade</spanx>
-            when upgrading to HTTP/2.
+            Since the upgrade is only intended to apply to the immediate connection, a client
+            sending <spanx style="verb">HTTP2-Settings</spanx> MUST also send <spanx
+            style="verb">HTTP2-Settings</spanx> as a connection option in the <spanx
+            style="verb">Connection</spanx> header field to prevent it from being forwarded
+            downstream.
           </t>
           <t>
             A server decodes and interprets these values as it would any other
@@ -2857,13 +2859,14 @@ HTTP2-Settings    = token68
             </t>
           </section>
 
-          <section title="Hop-by-Hop Header Fields">
+          <section title="Connection-Specific Header Fields">
             <t>
-              HTTP/2 does not use the Connection header field to indicate "hop-by-hop" header
-              fields; in this protocol, connection-specific metadata is conveyed by other means.  An
-              endpoint MUST NOT generate a HTTP/2 message containing connection-specific header
-              fields; any message containing connection-specific header fields MUST be treated as
-              <xref target="malformed">malformed</xref>.
+              HTTP/2 does not use the <spanx style="verb">Connection</spanx> header field to
+              indicate connection-specific header fields; in this protocol, connection-specific
+              metadata is conveyed by other means.  An endpoint MUST NOT generate a HTTP/2 message
+              containing connection-specific header fields; any message containing
+              connection-specific header fields MUST be treated as <xref
+              target="malformed">malformed</xref>.
             </t>
             <t>
               This means that an intermediary transforming an HTTP/1.x message to HTTP/2 will need
@@ -3273,10 +3276,10 @@ HTTP2-Settings    = token68
           be made available to the application separately.
         </t>
         <t>
-          Because server push is effectively hop-by-hop, an intermediary could receive pushes from
-          the server and choose not to forward them on to the client. In other words, how to make
-          use of the pushed information is up to that intermediary. Equally, the intermediary might
-          choose to make additional pushes to the client, without any action taken by the server.
+          An intermediary can receive pushes from the server and choose not to forward them on to
+          the client. In other words, how to make use of the pushed information is up to that
+          intermediary. Equally, the intermediary might choose to make additional pushes to the
+          client, without any action taken by the server.
         </t>
         <t>
           A client cannot push. Thus, servers MUST treat the receipt of a
@@ -3804,7 +3807,7 @@ HTTP2-Settings    = token68
             An endpoint can use the <x:ref>SETTINGS_MAX_HEADER_LIST_SIZE</x:ref> to advise peers of
             limits that might apply on the size of header blocks.  This setting is only advisory, so
             endpoints MAY choose to send header blocks that exceed this limit and risk having the
-            request or response being treated as malformed.  This setting is advertised hop-by-hop,
+            request or response being treated as malformed.  This setting specific to a connection,
             so any request or response could encounter a hop with a lower, unknown limit.  An
             intermediary can attempt to avoid this problem by passing on values presented by
             different peers, but they are not obligated to do so.
