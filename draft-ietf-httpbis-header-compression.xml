@@ -104,22 +104,23 @@
                     decompressed.
                 </t>
                 <t>
-                    Encoding is informed by a header table that maps
-                    name-value pairs to indexed values. The header table can be
-                    incrementally updated as new pairs are encoded or decoded.
+                    Encoding is informed by header tables that map
+                    name-value pairs to indexed values. These header tables can
+                    be incrementally updated as new pairs are encoded or
+                    decoded.
                 </t>
                 <t>
                     In the encoded form, a header field is represented either
-                    literally or as a reference to a name-value pair in the
-                    header table. Therefore, a list of header fields can be
+                    literally or as a reference to a name-value pair in one of
+                    the header tables. Therefore, a list of header fields can be
                     encoded using a mixture of references and literal values.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header fields
-                    to insert as new entries in the header table.  The decoder
-                    executes the modifications to the header table prescribed by
-                    the encoder, reconstructing the list of header fields in the
-                    process.  This enables decoders to remain simple and
+                    to insert as new entries in the header tables.  The decoder
+                    executes the modifications to the header tables prescribed
+                    by the encoder, reconstructing the list of header fields in
+                    the process.  This enables decoders to remain simple and
                     interoperate with a wide variety of encoders.
                 </t>
                 <t>
@@ -152,18 +153,19 @@
                             A name-value pair.  Both the name and value are
                             treated as opaque sequences of octets.
                         </t>
-                        <t hangText="Header Table:">
-                            The header table (see <xref target="header.table"/>)
-                            is used to associate stored header fields to index
-                            values. This table is dynamic and specific to an
-                            encoding or decoding context.
+                        <t hangText="Dynamic Table:">
+                            The dynamic table (see <xref
+                                target="dynamic.table"/>) is a header table used
+                            to associate stored header fields to index values.
+                            This table is dynamic and specific to an encoding or
+                            decoding context.
                         </t>
                         <t hangText="Static Table:">
                             The static table (see <xref target="static.table"/>)
-                            is used to associate static header fields to index
-                            values.  This table is ordered, read-only, always
-                            accessible, and may be shared amongst all encoding
-                            or decoding contexts.
+                            is a header table used to associate static header
+                            fields to index values.  This table is ordered,
+                            read-only, always accessible, and may be shared
+                            amongst all encoding or decoding contexts.
                         </t>
                         <t hangText="Header List:">
                             A header list is an ordered collection of header
@@ -210,14 +212,15 @@
                 anchor="encoding.context">
                 <t>
                     To decompress header blocks, a decoder only needs to
-                    maintain a header table (see <xref target="header.table"/>)
-                    as a decoding context. No other state is needed.
+                    maintain a dynamic table (see <xref
+                        target="dynamic.table"/>) as a decoding context. No
+                    other state is needed.
                 </t>
                 <t>
                     When used for bidirectional communication, such as in HTTP,
-                    the encoding and decoding header tables maintained by an
+                    the encoding and decoding dynamic tables maintained by an
                     endpoint are completely independent. I.e., the request
-                    and response header tables are separate.
+                    and response dynamic tables are separate.
                 </t>
             </section>
 
@@ -228,9 +231,9 @@
                     indexes. The static table (see <xref
                         target="static.table"/>) is predefined and contains
                     common header fields (most of them with an empty value). The
-                    header table (see <xref target="header.table"/>) is dynamic
-                    and can be used by the encoder to index header fields
-                    repeated in the encoded header lists.
+                    dynamic table (see <xref target="dynamic.table"/>) is
+                    dynamic and can be used by the encoder to index header
+                    fields repeated in the encoded header lists.
                 </t>
                 <t>
                     These two tables are combined into a single address space
@@ -246,32 +249,32 @@
                     </t>
                 </section>
 
-                <section title="Header Table" anchor="header.table">
+                <section title="Dynamic Table" anchor="dynamic.table">
                     <t>
-                        The header table consists of a list of header fields
+                        The dynamic table consists of a list of header fields
                         maintained in first-in, first-out order.  The first and
-                        newest entry in a header table is at the lowest index,
-                        and the oldest entry of a header table is at the highest
-                        index.
+                        newest entry in a dynamic table is at the lowest index,
+                        and the oldest entry of a dynamic table is at the
+                        highest index.
                     </t>
                     <t>
-                        The header table is initially empty.  Entries are added
+                        The dynamic table is initially empty.  Entries are added
                         as each header block is decompressed.
                     </t>
                     <t>
-                        The header table can contain duplicate entries.
+                        The dynamic table can contain duplicate entries.
                         Therefore, duplicate entries MUST NOT be treated as an
                         error by a decoder.
                     </t>
                     <t>
-                        The encoder decides how to update the header table and
+                        The encoder decides how to update the dynamic table and
                         as such can control how much memory is used by the
-                        header table. To limit the memory requirements of the
-                        decoder, the header table size is strictly bounded (see
+                        dynamic table. To limit the memory requirements of the
+                        decoder, the dynamic table size is strictly bounded (see
                         <xref target="maximum.table.size"/>).
                     </t>
                     <t>
-                        The decoder updates the header table during the
+                        The decoder updates the dynamic table during the
                         processing of a list of header field representations
                         (see <xref target="header.representation.processing"/>).
                     </t>
@@ -280,20 +283,20 @@
                 <section title="Index Address Space"
                     anchor="index.address.space">
                     <t>
-                        The static table and the header table are combined into
+                        The static table and the dynamic table are combined into
                         a single index address space.
                     </t>
                     <t>
                         Indices between 1 and the length of the static table
-                        (inclusive) refer to elements in the static table (see <xref
-                            target="static.table"/>).
+                        (inclusive) refer to elements in the static table (see
+                        <xref target="static.table"/>).
                     </t>
                     <t>
                         Indices strictly greater than the length of the static
-                        table refer to elements in the header table (see <xref
-                            target="header.table"/>).  The length
-                        of the static table is subtracted to find the index into the
-                        header table.
+                        table refer to elements in the dynamic table (see <xref
+                            target="dynamic.table"/>).  The length
+                        of the static table is subtracted to find the index into
+                        the dynamic table.
                     </t>
                     <t>
                         Indices strictly greater than the sum of the lengths of
@@ -302,13 +305,13 @@
 
                     <figure title="Index Address Space">
                         <preamble>
-                            For a static table size of s and a header table size of
-                            k, the following diagram shows the entire valid index
-                            address space.
+                            For a static table size of s and a dynamic table
+                            size of k, the following diagram shows the entire
+                            valid index address space.
                         </preamble>
                     <artwork type="drawing"><![CDATA[
         <----------  Index Address Space ---------->
-        <-- Static  Table -->  <-- Header  Table -->
+        <-- Static  Table -->  <-- Dynamic Table -->
         +---+-----------+---+  +---+-----------+---+
         | 1 |    ...    | s |  |s+1|    ...    |s+k|
         +---+-----------+---+  +---+-----------+---+
@@ -330,7 +333,7 @@
                     A literal representation defines a header field by
                     specifying its name and value. The header field name can be
                     represented literally or as a reference to an entry in
-                    either the static table or the header table. The header
+                    either the static table or the dynamic table. The header
                     field value is represented literally.
                 </t>
                 <t>
@@ -338,12 +341,12 @@
                     <list style="symbols">
                         <t>
                             A literal representation that does not add the
-                            header field to the header table (see <xref
+                            header field to the dynamic table (see <xref
                             target="literal.header.without.indexing"/>).
                         </t>
                         <t>
                             A literal representation that does not add the
-                            header field to the header table, with the
+                            header field to the dynamic table, with the
                             additional stipulation that this header field always
                             use a literal representation, in particular when
                             re-encoded by an intermediary (see <xref
@@ -351,7 +354,7 @@
                         </t>
                         <t>
                             A literal representation that adds the header field
-                            as a new entry at the beginning of the header table
+                            as a new entry at the beginning of the dynamic table
                             (see <xref
                             target="literal.header.with.incremental.indexing"/>).
                         </t>
@@ -360,7 +363,7 @@
                 <t>
                     An indexed representation defines a header field as a
                     reference to an entry in either the static table or the
-                    header table (see <xref
+                    dynamic table (see <xref
                     target="indexed.header.representation"/>).
                 </t>
             </section>
@@ -383,7 +386,7 @@
                 <t>
                     By passing the resulting header fields to the application,
                     a decoder can be implemented with minimal transitory memory
-                    commitment in addition to the header table. 
+                    commitment in addition to the dynamic table. 
                 </t>
             </section>
 
@@ -408,14 +411,14 @@
                     <list style="symbols">
                         <t>
                             The header field corresponding to the referenced
-                            entry in either the static table or header table is
+                            entry in either the static table or dynamic table is
                             appended to the decoded header list.
                         </t>
                     </list>
                 </t>
                 <t>
                     A <spanx>literal representation</spanx> that is <spanx>not
-                    added</spanx> to the header table entails the following
+                    added</spanx> to the dynamic table entails the following
                     action:
                     <list style="symbols">
                         <t>
@@ -426,7 +429,7 @@
                 </t>
                 <t>
                     A <spanx>literal representation</spanx> that is
-                    <spanx>added</spanx> to the header table entails the
+                    <spanx>added</spanx> to the dynamic table entails the
                     following actions:
                     <list style="symbols">
                         <t>
@@ -435,8 +438,8 @@
                         </t>
                         <t>
                             The header field is inserted at the beginning of the
-                            header table. This insertion could result in the
-                            eviction of previous entries in the header table
+                            dynamic table. This insertion could result in the
+                            eviction of previous entries in the dynamic table
                             (see <xref target="entry.addition"/>).
                         </t>
                     </list>
@@ -444,22 +447,22 @@
             </section>
         </section>
 
-        <section title="Header Table Management"
-                 anchor="header.table.management">
+        <section title="Dynamic Table Management"
+                 anchor="dynamic.table.management">
             <section title="Maximum Table Size"
                      anchor="maximum.table.size">
                 <t>
                     To limit the memory requirements on the decoder side, the
-                    header table is constrained in size.
+                    dynamic table is constrained in size.
                 </t>
                 <t>
-                    The size of the header table is bounded by a maximum size
-                    defined by the encoder.  The size of the header table MUST
+                    The size of the dynamic table is bounded by a maximum size
+                    defined by the encoder.  The size of the dynamic table MUST
                     always be lower than or equal to this maximum size.
                 </t>
                 <t>
-                    By default, the maximum size of the header table is equal to
-                    the value of the HTTP/2 setting parameter
+                    By default, the maximum size of the dynamic table is equal
+                    to the value of the HTTP/2 setting parameter
                     SETTINGS_HEADER_TABLE_SIZE defined by the decoder (see <xref
                         target="HTTP2"
                         x:fmt="of" x:rel="#SettingValues"/>).  The encoder can
@@ -471,7 +474,7 @@
                 <t>
                     After applying an updated value of the
                     SETTINGS_HEADER_TABLE_SIZE parameter that changes the
-                    maximum size of the header table used by the encoder, the
+                    maximum size of the dynamic table used by the encoder, the
                     encoder MUST signal this change via an encoding context
                     update (see <xref target="encoding.context.update"/>). This
                     encoding context update MUST occur at the beginning of the
@@ -493,10 +496,10 @@
                 <t>
                     This mechanism can be used with a SETTINGS_HEADER_TABLE_SIZE
                     parameter value of 0 to completely clear entries from the
-                    header table.
+                    dynamic table.
                 </t>
                 <t>
-                    The size of the header table is the sum of the size of its
+                    The size of the dynamic table is the sum of the size of its
                     entries.
                 </t>
                 <t>
@@ -520,12 +523,12 @@
                 </t>
             </section>
 
-            <section title="Entry Eviction when Header Table Size Changes"
+            <section title="Entry Eviction when Dynamic Table Size Changes"
                      anchor="entry.eviction">
                 <t>
-                    Whenever the maximum size for the header table is reduced,
-                    entries are evicted from the end of the header table until
-                    the size of the header table is less than or equal to the
+                    Whenever the maximum size for the dynamic table is reduced,
+                    entries are evicted from the end of the dynamic table until
+                    the size of the dynamic table is less than or equal to the
                     maximum size.
                 </t>
             </section>
@@ -533,15 +536,15 @@
             <section title="Entry Eviction when Adding New Entries"
                      anchor="entry.addition">
                 <t>
-                    Whenever a new entry is to be added to the header table,
-                    entries are evicted from the end of the header table until
-                    the size of the header table is less than or equal to
+                    Whenever a new entry is to be added to the dynamic table,
+                    entries are evicted from the end of the dynamic table until
+                    the size of the dynamic table is less than or equal to
                     (maximum size - new entry size), or until the table is
                     empty.
                 </t>
                 <t>
                     If the representation of the added entry references the name
-                    of an entry in the header table, the referenced name is
+                    of an entry in the dynamic table, the referenced name is
                     cached prior to performing eviction to avoid having the name
                     inadvertently evicted.
                 </t>
@@ -588,8 +591,9 @@
 ]]></artwork>
                 </figure>
                 <t>
-                    If the integer value is small enough, i.e. strictly less than
-                    2<x:sup>N</x:sup>-1, it is encoded within the N-bit prefix.
+                    If the integer value is small enough, i.e. strictly less
+                    than 2<x:sup>N</x:sup>-1, it is encoded within the N-bit
+                    prefix.
                 </t>
                 <figure title="Integer Value Encoded after the Prefix (shown for
                     N = 5)">
@@ -758,7 +762,7 @@ else
                 anchor="indexed.header.representation">
                 <t>
                     An indexed header field representation identifies an entry
-                    in either the static table or the header table (see <xref
+                    in either the static table or the dynamic table (see <xref
                         target="indexing.tables"/>).
                 </t>
                 <t>
@@ -795,7 +799,7 @@ else
                     A literal header field representation contains a literal
                     header field value.  Header field names are either provided
                     as a literal or by reference to an existing table entry,
-                    either from the static table or the header table (see <xref
+                    either from the static table or the dynamic table (see <xref
                         target="indexing.tables"/>).
                 </t>
 
@@ -811,10 +815,10 @@ else
                         A literal header field with incremental indexing
                         representation results in appending a header field to
                         the decoded header list and inserting it as a new entry
-                        into the header table.
+                        into the dynamic table.
                     </t>
-                    <figure title="Literal Header Field with Incremental Indexing -
-                        Indexed Name">
+                    <figure title="Literal Header Field with Incremental
+                        Indexing - Indexed Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -826,8 +830,8 @@ else
 +-------------------------------+
 ]]></artwork>
                     </figure>
-                    <figure title="Literal Header Field with Incremental Indexing -
-                        New Name">
+                    <figure title="Literal Header Field with Incremental
+                        Indexing - New Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -849,7 +853,7 @@ else
                     </t>
                     <t>
                         If the header field name matches the header field name
-                        of an entry stored in the static table or the header
+                        of an entry stored in the static table or the dynamic
                         table, the header field name can be represented using
                         the index of that entry. In this case, the index of the
                         entry is represented as an integer with a 6-bit prefix
@@ -876,9 +880,10 @@ else
                     <t>
                         A literal header field without indexing representation
                         results in appending a header field to the decoded
-                        header list without altering the header table.
+                        header list without altering the dynamic table.
                     </t>
-                    <figure title="Literal Header Field without Indexing - Indexed Name">
+                    <figure title="Literal Header Field without Indexing -
+                        Indexed Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -890,7 +895,8 @@ else
 +-------------------------------+
 ]]></artwork>
                     </figure>
-                    <figure title="Literal Header Field without Indexing - New Name">
+                    <figure title="Literal Header Field without Indexing - New
+                        Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -912,7 +918,7 @@ else
                     </t>
                     <t>
                         If the header field name matches the header field name
-                        of an entry stored in the static table or the header
+                        of an entry stored in the static table or the dynamic
                         table, the header field name can be represented using
                         the index of that entry. In this case, the index of the
                         entry is represented as an integer with a 4-bit prefix
@@ -939,11 +945,12 @@ else
                     <t>
                         A literal header field never indexed representation
                         results in appending a header field to the decoded
-                        header list without altering the header table.
+                        header list without altering the dynamic table.
                         Intermediaries MUST use the same representation for
                         encoding this header field.
                     </t>
-                    <figure title="Literal Header Field never Indexed - Indexed Name">
+                    <figure title="Literal Header Field never Indexed - Indexed
+                        Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -955,7 +962,8 @@ else
 +-------------------------------+
 ]]></artwork>
                     </figure>
-                    <figure title="Literal Header Field never Indexed - New Name">
+                    <figure title="Literal Header Field never Indexed - New
+                        Name">
                         <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -998,13 +1006,13 @@ else
                 </section>
             </section>
 
-            <section title="Header Table Size Update"
+            <section title="Dynamic Table Size Update"
                 anchor="encoding.context.update">
                 <t>
-                    A header table size update signals a change to the size of
-                    the header table.
+                    A dynamic table size update signals a change to the size of
+                    the dynamic table.
                 </t>
-                <figure title="Maximum Header Table Size Change">
+                <figure title="Maximum Dynamic Table Size Change">
                     <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
@@ -1013,7 +1021,7 @@ else
 ]]></artwork>
                 </figure>
                 <t>
-                    A header table size update starts with the '001' 3-bit
+                    A dynamic table size update starts with the '001' 3-bit
                     pattern, followed by the new maximum size, represented as an
                     integer with a 5-bit prefix (see <xref
                         target="integer.representation"/>).
@@ -1027,7 +1035,7 @@ else
                         x:rel="#SettingsSync"/>).
                 </t>
                 <t>
-                    Reducing the maximum size of the header table can cause
+                    Reducing the maximum size of the dynamic table can cause
                     entries to be evicted (see <xref target="entry.eviction"/>).
                 </t>
             </section>
@@ -1051,7 +1059,7 @@ else
                 </list>
             </t>
 
-            <section title="Probing Header Table State"
+            <section title="Probing Dynamic Table State"
                 anchor="compression.based.attacks">
 
                 <t>
@@ -1066,7 +1074,7 @@ else
                     be encoded and transmitted and observe the length of those
                     fields once they are encoded. When an attacker can do both,
                     they can adaptively modify requests in order to confirm
-                    guesses about the header table state. If a guess is
+                    guesses about the dynamic table state. If a guess is
                     compressed into a shorter length, the attacker can observe
                     the encoded length and infer that the guess was correct.
                 </t>
@@ -1117,9 +1125,9 @@ else
                         mutually distrustful entities control requests or
                         responses that are placed onto a single HTTP/2
                         connection.  If the shared HPACK compressor permits one
-                        entity to add entries to the header table, and the other
-                        to access those entries, then the state of the table can
-                        be learned.
+                        entity to add entries to the dynamic table, and the
+                        other to access those entries, then the state of the
+                        table can be learned.
                     </t>
                     <t>
                         Having requests or responses from mutually distrustful
@@ -1155,10 +1163,10 @@ else
                         Rather than impose constraints on users of HTTP, an
                         implementation of HPACK can instead constrain how
                         compression is applied in order to limit the potential
-                        for header table probing.
+                        for dynamic table probing.
                     </t>
                     <t>
-                        An ideal solution segregates access to the header table
+                        An ideal solution segregates access to the dynamic table
                         based on the entity that is constructing header fields.
                         Header field values that are added to the table are
                         attributed to an entity, and only the entity that
@@ -1179,15 +1187,15 @@ else
                         preventing further guesses.
                         <list style="hanging">
                             <t hangText="Note:">
-                                Simply removing values from the header table can
-                                be ineffectual if the attacker has a reliable
-                                way of causing values to be reinstalled.  For
-                                example, a request to load an image in a web
-                                browser typically includes the Cookie header
-                                field (a potentially highly valued target for
-                                this sort of attack), and web sites can easily
-                                force an image to be loaded, thereby refreshing
-                                the entry in the header table.
+                                Simply removing values from the dynamic table
+                                can be ineffectual if the attacker has a
+                                reliable way of causing values to be
+                                reinstalled.  For example, a request to load an
+                                image in a web browser typically includes the
+                                Cookie header field (a potentially highly valued
+                                target for this sort of attack), and web sites
+                                can easily force an image to be loaded, thereby
+                                refreshing the entry in the dynamic table.
                             </t>
                         </list>
                     </t>
@@ -1243,7 +1251,7 @@ else
                     parameter SETTINGS_HEADER_TABLE_SIZE (see <xref
                         target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>).
                     This limit takes into account both the size of the data
-                    stored in the header table, plus a small allowance for
+                    stored in the dynamic table, plus a small allowance for
                     overhead.
                 </t>
                 <t>
@@ -1251,7 +1259,7 @@ else
                     setting an appropriate value for the
                     SETTINGS_HEADER_TABLE_SIZE parameter.  An encoder can limit
                     the amount of state memory it uses by signalling lower
-                    header table size than the decoder allows (see <xref
+                    dynamic table size than the decoder allows (see <xref
                         target="encoding.context.update"/>).
                 </t>
                 <t>
@@ -1960,7 +1968,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
     <section title="Literal Header Field with Indexing">
         <t>
             The header field representation uses a literal name and a literal
-            value. The header field is added to the header table.
+            value. The header field is added to the dynamic table.
         </t>
         <t>
             <figure>
@@ -1992,7 +2000,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  55) custom-key: custom-header
       Table size:  55]]></artwork>
@@ -2010,7 +2018,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
     <section title="Literal Header Field without Indexing">
         <t>
             The header field representation uses an indexed name and a literal
-            value. The header field is not added to the header table.
+            value. The header field is not added to the dynamic table.
         </t>
         <t>
             <figure>
@@ -2039,7 +2047,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
             </figure>
         </t>
         <t>
-          Header table (after decoding): empty.
+          Dynamic table (after decoding): empty.
         </t>
         <t>
             <figure>
@@ -2053,7 +2061,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
     <section title="Literal Header Field never Indexed">
         <t>
             The header field representation uses a literal name and a literal
-            value. The header field is not added to the header table, and must
+            value. The header field is not added to the dynamic table, and must
             use the same representation if re-encoded by an intermediary.
         </t>
         <t>
@@ -2084,7 +2092,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
             </figure>
         </t>
         <t>
-          Header table (after decoding): empty.
+          Dynamic table (after decoding): empty.
         </t>
         <t>
             <figure>
@@ -2124,7 +2132,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
             </figure>
         </t>
         <t>
-          Header table (after decoding): empty.
+          Dynamic table (after decoding): empty.
         </t>
         <t>
             <figure>
@@ -2185,7 +2193,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  57) :authority: www.example.com
       Table size:  57]]></artwork>
@@ -2249,7 +2257,7 @@ be                                      | == Indexed - Add ==
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  53) cache-control: no-cache
 [  2] (s =  57) :authority: www.example.com
@@ -2317,7 +2325,7 @@ bf                                      | == Indexed - Add ==
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  54) custom-key: custom-value
 [  2] (s =  53) cache-control: no-cache
@@ -2391,7 +2399,7 @@ f1e3 c2e5 f23a 6ba0 ab90 f4ff           | .....:k.....
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  57) :authority: www.example.com
       Table size:  57]]></artwork>
@@ -2458,7 +2466,7 @@ a8eb 1064 9cbf                          | ...d..
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  53) cache-control: no-cache
 [  2] (s =  57) :authority: www.example.com
@@ -2532,7 +2540,7 @@ bf                                      | == Indexed - Add ==
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  54) custom-key: custom-value
 [  2] (s =  53) cache-control: no-cache
@@ -2620,7 +2628,7 @@ location: https://www.example.com]]></artwork>
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  63) location: https://www.example.com
 [  2] (s =  65) date: Mon, 21 Oct 2013 20:13:21 GMT
@@ -2643,7 +2651,7 @@ location: https://www.example.com]]></artwork>
 
     <section title="Second Response">
         <t>
-            The (":status", "302") header field is evicted from the header table
+            The (":status", "302") header field is evicted from the dynamic table
             to free space to allow adding the (":status", "307") header field.
         </t>
         <t>
@@ -2689,7 +2697,7 @@ bf                                      | == Indexed - Add ==
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  42) :status: 307
 [  2] (s =  63) location: https://www.example.com
@@ -2712,7 +2720,7 @@ location: https://www.example.com]]></artwork>
 
     <section title="Third Response">
         <t>
-            Several header fields are evicted from the header table during the
+            Several header fields are evicted from the dynamic table during the
             processing of this header list.
         </t>
         <t>
@@ -2790,7 +2798,7 @@ c0                                      | == Indexed - Add ==
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  98) set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age\
                  =3600; version=1
@@ -2894,7 +2902,7 @@ d3                                      | .
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  63) location: https://www.example.com
 [  2] (s =  65) date: Mon, 21 Oct 2013 20:13:21 GMT
@@ -2917,7 +2925,7 @@ location: https://www.example.com]]></artwork>
 
     <section title="Second Response">
         <t>
-            The (":status", "302") header field is evicted from the header table
+            The (":status", "302") header field is evicted from the dynamic table
             to free space to allow adding the (":status", "307") header field.
         </t>
         <t>
@@ -2966,7 +2974,7 @@ bf                                      | == Indexed - Add ==
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  42) :status: 307
 [  2] (s =  63) location: https://www.example.com
@@ -2989,7 +2997,7 @@ location: https://www.example.com]]></artwork>
 
     <section title="Third Response">
         <t>
-            Several header fields are evicted from the header table during the
+            Several header fields are evicted from the dynamic table during the
             processing of this header list.
         </t>
         <t>
@@ -3076,7 +3084,7 @@ d5af 2708 7f36 72c1 ab27 0fb5 291f 9587 | ..'..6r..'..)...
         </t>
         <t>
             <figure>
-                <preamble>Header Table (after decoding):</preamble>
+                <preamble>Dynamic Table (after decoding):</preamble>
                 <artwork>
 <![CDATA[[  1] (s =  98) set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age\
                  =3600; version=1
@@ -3204,7 +3212,7 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
                         Only one Huffman table for requests and responses.
                     </t>
                     <t>
-                        Added maximum size for header table, independent of
+                        Added maximum size for dynamic table, independent of
                         SETTINGS_HEADER_TABLE_SIZE.
                     </t>
                     <t>
