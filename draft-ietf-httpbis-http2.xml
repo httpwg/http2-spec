@@ -3723,22 +3723,27 @@ HTTP2-Settings    = token68
 
       <section title="Intermediary Encapsulation Attacks">
         <t>
-          HTTP/2 header field names and values are encoded as sequences of octets with a length
-          prefix.  This enables HTTP/2 to carry any string of octets as the name or value of a
-          header field.  An intermediary that translates HTTP/2 requests or responses into HTTP/1.1
-          directly could permit the creation of corrupted HTTP/1.1 messages.  An attacker might
-          exploit this behavior to cause the intermediary to create HTTP/1.1 messages with illegal
-          header fields, extra header fields, or even new messages that are entirely falsified.
+          The HTTP/2 header field encoding allows the expression of names that are not valid field
+          names in the Internet Message Syntax used by HTTP/1.1.  Requests or responses containing
+          invalid header field names MUST be treated as <xref target="malformed">malformed</xref>.
+          An intermediary therefore cannot translate an HTTP/2 request or response containing an
+          invalid field name into an HTTP/1.1 message.
         </t>
         <t>
-          Header field names or values that contain characters not permitted by HTTP/1.1, including
-          carriage return (ASCII 0xd) or line feed (ASCII 0xa) MUST NOT be translated verbatim by an
-          intermediary, as stipulated in <xref target="RFC7230" x:rel="#field.parsing" x:fmt=","/>.
+          Similarly, HTTP/2 allows header field values that are not valid.  While most of the values
+          that can be encoded will not alter header field parsing, carriage return (CR, ASCII 0xd),
+          line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII 0x0) MUST NOT be translated
+          verbatim by an intermediary. An attacker might exploit direct translation of these octets
+          to cause an intermediary to create HTTP/1.1 messages with illegal header fields, extra
+          header fields, or wholly falsified messages.  Any request or response that contains a CR,
+          LF or NUL character in a header field value MUST be treated as <xref
+          target="malformed">malformed</xref>.
         </t>
         <t>
-          Translation from HTTP/1.x to HTTP/2 does not produce the same opportunity to an attacker.
-          Intermediaries that perform translation to HTTP/2 MUST remove any instances of the <spanx
-          style="verb">obs-fold</spanx> production from header field values.
+          Characters in header field values that are not valid according to the <spanx
+          style="verb">field-content</spanx> rule (see <xref target="RFC7230" x:fmt=","
+          x:rel="#header.fields"/>), SHOULD be percent-encoded before translated into HTTP/1.1
+          header field values.
         </t>
       </section>
 
