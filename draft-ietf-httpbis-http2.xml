@@ -3388,10 +3388,12 @@ HTTP2-Settings    = token68
           </t>
 
           <t>
-            Clients receiving a pushed response MUST validate that the server is authoritative for
-            it; see <xref target="authority"/>. For example, a server that offers a certificate for
-            only the <spanx style="verb">example.com</spanx> DNS-ID or Common Name is not permitted
-            to push a response for <spanx style="verb">https://www.example.org/doc</spanx>.
+            Clients receiving a pushed response MUST validate that either the server is
+            authoritative (see <xref target="authority"/>), or the proxy that provided the pushed
+            response is configured for the corresponding request. For example, a server that offers
+            a certificate for only the <spanx style="verb">example.com</spanx> DNS-ID or Common Name
+            is not permitted to push a response for <spanx
+            style="verb">https://www.example.org/doc</spanx>.
           </t>
           <t>
             The response for a <x:ref>PUSH_PROMISE</x:ref> stream begins with a
@@ -3516,46 +3518,55 @@ HTTP2-Settings    = token68
 
         <section anchor="reuse" title="Connection Reuse">
           <t>
-            Clients MAY use a single server connection to send requests for URIs with multiple
-            different authority components as long as the server is <xref
-            target="authority">authoritative</xref>.  For <spanx style="verb">http</spanx>
-            resources, this depends on the host having resolved to the same IP address.
+            Connections that are made to an origin servers, either directly or through a tunnel
+            created using the <xref target="CONNECT">CONNECT method</xref> MAY be reused for
+            requests with multiple different URI authority components.  A connection can be reused
+            as long as the origin server is <xref target="authority">authoritative</xref>.  For
+            <spanx style="verb">http</spanx> resources, this depends on the host having resolved to
+            the same IP address.
           </t>
           <t>
             For <spanx style="verb">https</spanx> resources, connection reuse additionally depends
-            on having a certificate that is valid for the host in the URI.  That is the use of
-            server certificate with multiple <spanx style="verb">subjectAltName</spanx> attributes,
-            or names with wildcards.  For example, a certificate with a <spanx
-            style="verb">subjectAltName</spanx> of <spanx style="verb">*.example.com</spanx> might
-            permit the use of the same connection for <spanx style="verb">a.example.com</spanx> and
-            <spanx style="verb">b.example.com</spanx>.
+            on having a certificate that is valid for the host in the URI.  An origin server might
+            offer a certificate with multiple <spanx style="verb">subjectAltName</spanx> attributes,
+            or names with wildcards, one of which is valid for the authority in the URI.  For
+            example, a certificate with a <spanx style="verb">subjectAltName</spanx> of <spanx
+            style="verb">*.example.com</spanx> might permit the use of the same connection for
+            requests to URIs starting with <spanx style="verb">https://a.example.com/</spanx> and
+            <spanx style="verb">https://b.example.com/</spanx>.
           </t>
           <t>
             In some deployments, reusing a connection for multiple origins can result in requests
             being directed to the wrong origin server.  For example, TLS termination might be
             performed by a middlebox that uses the TLS <xref target="TLS-EXT">Server Name Indication
-            (SNI)</xref> extension to select the an origin server.  This means that it is possible
+            (SNI)</xref> extension to select an origin server.  This means that it is possible
             for clients to send confidential information to servers that might not be the intended
-            target for the request, even though the server has valid authentication credentials.
+            target for the request, even though the server is otherwise authoritative.
           </t>
           <t>
             A server that does not wish clients to reuse connections can indicate that it is not
-            authoritative for a request by sending a 421 (Not Authoritative) status code in response
-            to the request (see <xref target="NotAuthoritative"/>).
+            authoritative for a request by sending a 421 (Misdirected Request) status code in response
+            to the request (see <xref target="MisdirectedRequest"/>).
+          </t>
+          <t>
+            A client that is configured to use a proxy over HTTP/2 directs requests to that proxy
+            through a single connection.  That is, all requests sent via a proxy reuse the
+            connection to the proxy.
           </t>
         </section>
 
-        <section anchor="NotAuthoritative" title="The 421 (Not Authoritative) Status Code">
+        <section anchor="MisdirectedRequest" title="The 421 (Misdirected Request) Status Code">
           <t>
-            The 421 (Not Authoritative) status code indicates that the current origin server is not
-            authoritative for the requested resource, in the sense of <xref target="RFC7230"
-            x:rel="#establishing.authority" x:fmt=","/> (see also <xref target="authority"/>).
+            The 421 (Misdirected Request) status code indicates that the request was directed at a
+            server that is not able to produce a response.  This can be sent by a server that is not
+            configured to produce responses for the combination of scheme and authority that are
+            included in the request URI.
           </t>
           <t>
-            Clients receiving a 421 (Not Authoritative) response from a server MAY retry the request
-            - whether the request method is idempotent or not - over a different connection.  This
-            is possible if a connection is reused (<xref target="reuse"/>) or if an
-            alternative service is selected (<xref target="ALT-SVC"/>).
+            Clients receiving a 421 (Misdirected Request) response from a server MAY retry the
+            request - whether the request method is idempotent or not - over a different connection.
+            This is possible if a connection is reused (<xref target="reuse"/>) or if an alternative
+            service is selected (<xref target="ALT-SVC"/>).
           </t>
           <t>
             This status code MUST NOT be generated by proxies.
@@ -3650,21 +3661,11 @@ HTTP2-Settings    = token68
     <section anchor="security" title="Security Considerations">
       <section title="Server Authority" anchor="authority">
         <t>
-          A client is only able to accept HTTP/2 responses from servers that are authoritative for
-          those resources.  This is particularly important for <xref target="PushResources">server
-          push</xref>, where the client validates the <x:ref>PUSH_PROMISE</x:ref> before accepting
-          the response.
-        </t>
-        <t>
           HTTP/2 relies on the HTTP/1.1 definition of authority for determining whether a server is
           authoritative in providing a given response, see <xref target="RFC7230" x:fmt=","
           x:rel="#establishing.authority"/>.  This relies on local name resolution for the "http"
           URI scheme, and the authenticated server identity for the "https" scheme (see <xref
           target="RFC2818" x:fmt="," x:sec="3"/>).
-        </t>
-        <t>
-          A client MUST discard responses provided by a server that is not authoritative for those
-          resources.
         </t>
       </section>
 
@@ -3906,7 +3907,7 @@ HTTP2-Settings    = token68
       </t>
       <t>
         This document registers the <spanx style="verb">HTTP2-Settings</spanx> header field for
-        use in HTTP; and the 421 (Not Authoritative) status code.
+        use in HTTP; and the 421 (Misdirected Request) status code.
       </t>
       <t>
         This document registers the <spanx style="verb">PRI</spanx> method for use in HTTP, to avoid
@@ -4163,10 +4164,10 @@ HTTP2-Settings    = token68
         </t>
       </section>
 
-      <section title="The 421 Not Authoritative HTTP Status Code"
-               anchor="iana-NotAuthoritative">
+      <section title="The 421 (Misdirected Request) HTTP Status Code"
+               anchor="iana-MisdirectedRequest">
         <t>
-          This document registers the 421 (Not Authoritative) HTTP Status code in the Hypertext
+          This document registers the 421 (Misdirected Request) HTTP Status code in the Hypertext
           Transfer Protocol (HTTP) Status Code Registry (<xref target="RFC7231" x:fmt=","
           x:rel="#status.code.registry"/>).
         </t>
@@ -4176,10 +4177,10 @@ HTTP2-Settings    = token68
               421
             </t>
             <t hangText="Short Description:">
-              Not Authoritative
+              Misdirected Request
             </t>
             <t hangText="Specification:">
-              <xref target="NotAuthoritative"/> of this document
+              <xref target="MisdirectedRequest"/> of this document
             </t>
           </list>
         </t>
@@ -4669,6 +4670,12 @@ HTTP2-Settings    = token68
       <t>
         This section is to be removed by RFC Editor before publication.
       </t>
+
+      <section title="Since draft-ietf-httpbis-http2-14" anchor="changes.since.draft-ietf-httpbis-http2-14">
+        <t>
+          Renamed Not Authoritative status code to Misdirected Request.
+        </t>
+      </section>
 
       <section title="Since draft-ietf-httpbis-http2-13" anchor="changes.since.draft-ietf-httpbis-http2-13">
         <t>
