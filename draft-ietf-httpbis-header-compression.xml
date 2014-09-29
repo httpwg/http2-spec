@@ -387,7 +387,7 @@
                 <t>
                     By passing the resulting header fields to the application,
                     a decoder can be implemented with minimal transitory memory
-                    commitment in addition to the dynamic table. 
+                    commitment in addition to the dynamic table.
                 </t>
             </section>
 
@@ -450,55 +450,13 @@
 
         <section title="Dynamic Table Management"
                  anchor="dynamic.table.management">
-            <section title="Maximum Table Size"
-                     anchor="maximum.table.size">
-                <t>
-                    To limit the memory requirements on the decoder side, the
-                    dynamic table is constrained in size.
-                </t>
-                <t>
-                    The size of the dynamic table is bounded by a maximum size
-                    defined by the encoder.  The size of the dynamic table MUST
-                    always be lower than or equal to this maximum size.
-                </t>
-                <t>
-                    By default, the maximum size of the dynamic table is equal
-                    to the value of the HTTP/2 setting parameter
-                    SETTINGS_HEADER_TABLE_SIZE defined by the decoder (see <xref
-                        target="HTTP2"
-                        x:fmt="of" x:rel="#SettingValues"/>).  The encoder can
-                    change this maximum size (see <xref
-                        target="encoding.context.update"/>), but it MUST stay
-                    lower than or equal to the value of
-                    SETTINGS_HEADER_TABLE_SIZE.
-                </t>
-                <t>
-                    After applying an updated value of the
-                    SETTINGS_HEADER_TABLE_SIZE parameter that changes the
-                    maximum size of the dynamic table used by the encoder, the
-                    encoder MUST signal this change via an encoding context
-                    update (see <xref target="encoding.context.update"/>). This
-                    encoding context update MUST occur at the beginning of the
-                    first header block following the SETTINGS frame sent to
-                    acknowledge the application of the updated settings (see
-                    <xref target="HTTP2" x:fmt="of" x:rel="#SettingsSync"/>).
-                </t>
-                <t>
-                    Several updates to the value of the
-                    SETTINGS_HEADER_TABLE_SIZE parameter can occur between the
-                    sending of two header blocks. In the case that the value of
-                    this parameter is changed more than once, if one of its
-                    value is smaller than the new maximum size, the smallest
-                    value for the parameter MUST be sent before the new maximum
-                    size, using two encoding context updates. This ensures that
-                    the decoder is able to perform eviction based on the decoder
-                    table size (see <xref target="entry.eviction"/>).
-                </t>
-                <t>
-                    This mechanism can be used with a SETTINGS_HEADER_TABLE_SIZE
-                    parameter value of 0 to completely clear entries from the
-                    dynamic table.
-                </t>
+            <t>
+                To limit the memory requirements on the decoder side, the
+                dynamic table is constrained in size.
+            </t>
+
+            <section title="Calculating Table Size"
+                     anchor="calculating.table.size">
                 <t>
                     The size of the dynamic table is the sum of the size of its
                     entries.
@@ -521,6 +479,50 @@
                     value of the entry, and two 64-bit integers for counting
                     the number of references to the name and value would have
                     32 octets of overhead.
+                </t>
+            </section>
+
+            <section title="Maximum Table Size"
+                     anchor="maximum.table.size">
+                <t>
+                    Protocols that use HPACK determine the maximum size of table
+                    that the encoder is permitted to use.  In HTTP/2, this value
+                    is determined by the SETTINGS_HEADER_TABLE_SIZE setting (see
+                    <xref target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>).
+                </t>
+                <t>
+                    An encoder can choose to use less capacity than this maximum
+                    size (see <xref target="encoding.context.update"/>), but the
+                    size MUST stay lower than or equal to the maximum set by the
+                    protocol.
+                </t>
+                <t>
+                    The maximum size of the dynamic table can be changed by the
+                    protocol at any time other than during the encoding of a
+                    header block.  After changing the maximum size of the
+                    dynamic table used by the encoder, the encoder MUST signal
+                    this change via an encoding context update (see <xref
+                    target="encoding.context.update"/>).  This encoding context
+                    update MUST occur at the beginning of the first header block
+                    following the change to the header table size.  In HTTP/2,
+                    this follows a settings acknowledgment (see <xref
+                    target="HTTP2" x:fmt="of" x:rel="#SettingsSync"/>).
+                </t>
+                <t>
+                    Multiple updates to the maximum table size can occur between
+                    the sending of two header blocks. In the case that the value
+                    of this parameter is changed more than once, if any changed
+                    value is smaller than the new maximum size, the smallest
+                    value for the parameter MUST be sent in an encoding context
+                    update.  The altered maximimum size is sent, resulting in at
+                    most two encoding context updates.  This ensures that the
+                    decoder is able to perform eviction based on the decoder
+                    table size (see <xref target="entry.eviction"/>).
+                </t>
+                <t>
+                    This mechanism can be used to completely clear entries from
+                    the dynamic table by setting a maximum size of 0, which can
+                    subsequently be restored.
                 </t>
             </section>
 
@@ -619,7 +621,7 @@
                     list of one or more octets. The most significant bit of each
                     octet is used as a continuation flag: its value is set to 1
                     except for the last octet in the list. The remaining bits of
-                    the octets are used to encode the decreased value. 
+                    the octets are used to encode the decreased value.
                 </t>
                 <t>
                     Decoding the integer value from the list of octets starts by
