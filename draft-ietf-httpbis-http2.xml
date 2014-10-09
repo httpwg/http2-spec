@@ -3675,7 +3675,7 @@ HTTP2-Settings    = token68
           </t>
         </section>
 
-        <section title="TLS 1.2 Cipher Suites">
+        <section title="TLS 1.2 Cipher Suites" anchor="TLS12Ciphers">
           <t>
             The set of TLS 1.2 cipher suites that are permitted in HTTP/2 is restricted.
 	  </t>
@@ -3695,20 +3695,27 @@ HTTP2-Settings    = token68
             The effect of these restrictions is that TLS 1.2 implementations could have
             non-intersecting sets of available cipher suites, since these restrictions prevent 
 	    the use of the TLS 1.2 mandatory ciphers.  To avoid this problem, implementations of
-            HTTP/2 that use TLS 1.2 SHOULD support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref
+            HTTP/2 that use TLS 1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref
             target="TLS-ECDHE"/> with P256 <xref target="FIPS186"/>.
           </t>
         </section>
 
-        <section title="Cipher Negotiation">
+        <section title="HTTP/1 Fallback">
           <t>
-	    A Client that advertises support for the HTTP/2 protocol, MUST NOT advertise support
-	    for a cipher suite that it will subsequently reject with a 
-	    <xref target="ConnectionErrorHandler">connection error</xref> of type
-            <x:ref>INADEQUATE_SECURITY</x:ref>.
-	    For the purposes of backwards compatibility with HTTP/1 Servers, a Client MAY retry
-	    a failed connection with ciphers prohibited by the above restrictions, but it MUST NOT
-	    offer HTTP/2 support with the retry.
+	    Clients MAY advertise support of cipher suites that are prohibited by
+	    the above restrictions in order to allow for connection to servers
+	    that do not support HTTP/2.  This enables a fallback to protocols 
+	    without these constraints without the additional latency imposed by
+	    using a separate connection for fallback.
+          </t>
+          <t>
+            If a Client that offers prohibited ciphers for HTTP/1 fallback rejects 
+            a HTTP/2 connection with a 
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>INADEQUATE_SECURITY</x:ref>, then it MUST retry the connection 
+            without offering HTTP/2.  This enables a fallback to HTTP/1 in the case 
+            of <xref target="TLS12Ciphers">TLS 1.2 Cipher Suites</xref> non 
+	    compliance.
           </t>
         </section>
       </section>
