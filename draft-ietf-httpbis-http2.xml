@@ -1859,11 +1859,9 @@ HTTP2-Settings    = token68
 
       <section anchor="RST_STREAM" title="RST_STREAM">
         <t>
-          The RST_STREAM frame (type=0x3) allows for abnormal termination of a stream.  When sent by
-          the initiator of a stream, it indicates that they wish to cancel the stream or that an
-          error condition has occurred.  When sent by the receiver of a stream, it indicates that
-          either the receiver is rejecting the stream, requesting that the stream be cancelled, or
-          that an error condition has occurred.
+          The RST_STREAM frame (type=0x3) allows for immediate termination of a stream.  RST_STREAM
+          is sent to request cancellation of a stream, or to indicate that an error condition has
+          occurred.
         </t>
         <figure anchor="RST_STREAMFramePayload"
           title="RST_STREAM Frame Payload">
@@ -2853,8 +2851,18 @@ HTTP2-Settings    = token68
           (local)" for the client and "half closed (remote)" for the server.  A response starts with
           a <x:ref>HEADERS</x:ref> frame and ends with a frame bearing END_STREAM, which places the
           stream in the "closed" state.
-          <!-- Yes, the response might be completed before the request does, but that's not a detail
-               we need to expand upon.  It's complicated enough explaining this as it is.  -->
+        </t>
+
+        <t>
+          An HTTP response is complete after the server sends - or the client receives - a frame
+          with the END_STREAM flag set (including any <x:ref>CONTINUATION</x:ref> frames needed to
+          complete a header block).  A server can send a complete response prior to the client
+          sending an entire request if the response does not depend on any portion of the request
+          that has not been sent and received.  When this is true, a server MAY request that the
+          client abort transmission of a request without error by sending a
+          <x:ref>RST_STREAM</x:ref> with an error code of <x:ref>NO_ERROR</x:ref> after sending a
+          complete response (i.e., a frame with the END_STREAM flag).  Clients MUST NOT discard
+          responses as a result of receiving such a <x:ref>RST_STREAM</x:ref>.
         </t>
 
         <section anchor="informational-responses" title="Upgrading From HTTP/2">
