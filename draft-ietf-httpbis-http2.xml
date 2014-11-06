@@ -851,8 +851,8 @@ HTTP2-Settings    = token68
                 </list>
               </t>
               <t>
-                Receiving any frames other than <x:ref>HEADERS</x:ref> or
-                <x:ref>PUSH_PROMISE</x:ref> on a stream in this state MUST be treated as a <xref
+                Receiving any frames other than <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>
+                or <x:ref>PRIORITY</x:ref> on a stream in this state MUST be treated as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
@@ -880,8 +880,8 @@ HTTP2-Settings    = token68
                 </list>
               </t>
               <t>
-                An endpoint MUST NOT send any type of frame other than <x:ref>HEADERS</x:ref> or
-                <x:ref>RST_STREAM</x:ref> in this state.
+                An endpoint MUST NOT send any type of frame other than <x:ref>HEADERS</x:ref>,
+                <x:ref>RST_STREAM</x:ref>, or <x:ref>PRIORITY</x:ref> in this state.
               </t>
               <t>
                 A <x:ref>PRIORITY</x:ref> or <x:ref>WINDOW_UPDATE</x:ref> frame MAY be received in
@@ -917,10 +917,10 @@ HTTP2-Settings    = token68
                 in this state.
               </t>
               <t>
-                Receiving any type of frame other than <x:ref>HEADERS</x:ref> or
-                <x:ref>RST_STREAM</x:ref> on a stream in this state MUST be treated as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>PROTOCOL_ERROR</x:ref>.
+                Receiving any type of frame other than <x:ref>HEADERS</x:ref>,
+                <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> on a stream in this state MUST
+                be treated as a <xref target="ConnectionErrorHandler">connection error</xref> of
+                type <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
 
@@ -1052,7 +1052,8 @@ HTTP2-Settings    = token68
           In the absence of more specific guidance elsewhere in this document, implementations
           SHOULD treat the receipt of a frame that is not expressly permitted in the description of
           a state as a <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>PROTOCOL_ERROR</x:ref>.  Frame of unknown types are ignored.
+          <x:ref>PROTOCOL_ERROR</x:ref>.  Note that <x:ref>PRIORITY</x:ref> can be sent and received
+          in any stream state.  Frame of unknown types are ignored.
         </t>
         <t>
           An example of the state transitions for an HTTP request/response exchange can be found in
@@ -1225,9 +1226,9 @@ HTTP2-Settings    = token68
       <section anchor="StreamPriority" title="Stream priority">
         <t>
           A client can assign a priority for a new stream by including prioritization information in
-          the <xref target="HEADERS">HEADERS frame</xref> that opens the stream.  For an existing
-          stream, the <xref target="PRIORITY">PRIORITY frame</xref> can be used to change the
-          priority.
+          the <xref target="HEADERS">HEADERS frame</xref> that opens the stream.  At any other time,
+          the <xref target="PRIORITY">PRIORITY frame</xref> can be used to change the priority of a
+          stream.
         </t>
         <t>
           The purpose of prioritization is to allow an endpoint to express how it would prefer its
@@ -1405,14 +1406,25 @@ HTTP2-Settings    = token68
             that streams are assigned incorrect or default priority values.
           </t>
           <t>
-            This could create a large state burden for an endpoint, so this state MAY be limited.
-            An endpoint MAY apply a fixed upper limit on the number of closed streams for which
-            prioritization state is tracked to limit state exposure.  The amount of additional state
-            an endpoint maintains could be dependent on load; under high load, prioritization state
-            can be discarded to limit resource commitments.  In extreme cases, an endpoint could
-            even discard prioritization state for active or reserved streams. If a fixed limit is
-            applied, endpoints SHOULD maintain state for at least as many streams as allowed by
-            their setting for <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.
+            Similarly, streams that are in the "idle" state can be assigned priority or become a
+            dependency for other streams.  This allows for the creation of a grouping node in the
+            dependency tree, which enables more flexible expressions of priority.  Idle streams that
+            are made a dependency are assigned a <xref target="pri-default">default priority</xref>.
+          </t>
+          <t>
+            The retention of priority information for streams that are not counted toward the limit
+            set by <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> could create a large state burden
+            for an endpoint.  Therefore the amount of prioritization state that is retained MAY be
+            limited.
+          </t>
+          <t>
+            The amount of additional state an endpoint maintains for prioritization could be
+            dependent on load; under high load, prioritization state can be discarded to limit
+            resource commitments.  In extreme cases, an endpoint could even discard prioritization
+            state for active or reserved streams. If a limit is applied, endpoints SHOULD maintain
+            state for at least as many streams as allowed by their setting for
+            <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.  Implementations SHOULD also attempt to
+            retain state for streams that are in active use in the priority tree.
           </t>
           <t>
             An endpoint receiving a <x:ref>PRIORITY</x:ref> frame that changes the priority of a
@@ -1792,8 +1804,8 @@ HTTP2-Settings    = token68
       <section anchor="PRIORITY" title="PRIORITY">
         <t>
           The PRIORITY frame (type=0x2) specifies the <xref target="StreamPriority">sender-advised
-          priority of a stream</xref>.  It can be sent at any time for an existing stream, including
-          closed streams.  This enables reprioritization of existing streams.
+          priority of a stream</xref>.  It can be sent at any time for any stream, including idle or
+          closed streams.
         </t>
         <figure anchor="PRIORITYFramePayload"
           title="PRIORITY Frame Payload">
@@ -1836,20 +1848,17 @@ HTTP2-Settings    = token68
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
         <t>
-          The PRIORITY frame can be sent on a stream in any of the "reserved (remote)", "open",
-          "half closed (local)", "half closed (remote)", or "closed" states, though it cannot be
-          sent between consecutive frames that comprise a single <xref target="HeaderBlock">header
-          block</xref>.  Note that this frame could arrive after processing or frame sending has
-          completed, which would cause it to have no effect on the current stream.  For a stream
-          that is in the "half closed (remote)" or "closed" - state, this frame can only affect
-          processing of the current stream and not frame transmission.
+          The PRIORITY frame can be sent on a stream in any state, though it cannot be sent between
+          consecutive frames that comprise a single <xref target="HeaderBlock">header block</xref>.
+          Note that this frame could arrive after processing or frame sending has completed, which
+          would cause it to have no effect on the current stream.  For a stream that is in the "half
+          closed (remote)" or "closed" - state, this frame can only affect processing of the current
+          stream and not frame transmission.
         </t>
         <t>
-          The PRIORITY frame is the only frame that can be sent for a stream in the "closed" state.
-          This allows for the reprioritization of a group of dependent streams by altering the
-          priority of a parent stream, which might be closed.  However, a PRIORITY frame sent on a
-          closed stream risks being ignored due to the peer having discarded priority state
-          information for that stream.
+          The PRIORITY frame is the only frame that can be sent for a stream in the "idle" or
+          "closed" states.  This allows for the reprioritization of a group of dependent streams by
+          altering the priority of an unused or closed parent stream.
         </t>
         <t>
           A PRIORITY frame with a length other than 5 octets MUST be treated as a <xref
@@ -4734,6 +4743,12 @@ HTTP2-Settings    = token68
       <t>
         This section is to be removed by RFC Editor before publication.
       </t>
+
+      <section title="Since draft-ietf-httpbis-http2-14" anchor="changes.since.draft-ietf-httpbis-http2-15">
+        <t>
+          Enabled the sending of <x:ref>PRIORITY</x:ref> at any time.
+        </t>
+      </section>
 
       <section title="Since draft-ietf-httpbis-http2-14" anchor="changes.since.draft-ietf-httpbis-http2-14">
         <t>
