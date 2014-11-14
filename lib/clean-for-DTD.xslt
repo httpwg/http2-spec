@@ -131,7 +131,7 @@
 
 <xsl:template match="x:anchor-alias" mode="cleanup"/>
 
-<xsl:template match="x:bcp14" mode="cleanup">
+<xsl:template match="x:bcp14|bcp14" mode="cleanup">
   <xsl:apply-templates/>
 </xsl:template>
 
@@ -155,6 +155,26 @@
       <seriesInfo name="" value="{$text}"/>
     </xsl:otherwise>
   </xsl:choose>
+</xsl:template>
+
+<xsl:template match="refcontent" mode="cleanup">
+  <xsl:variable name="text">
+    <xsl:apply-templates mode="cleanup"/>
+  </xsl:variable>
+  <xsl:comment>Converted from rfc2629.xslt refcontent extension</xsl:comment>
+  <xsl:choose>
+    <xsl:when test="contains($text,' ')">
+      <seriesInfo name="{substring-before($text,' ')}" value="{substring-after($text,' ')}"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <seriesInfo name="" value="{$text}"/>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template match="postalLine" mode="cleanup">
+  <xsl:comment>converted from v3 &lt;postalLine&gt;</xsl:comment>
+  <street><xsl:value-of select="."/></street>
 </xsl:template>
 
 <xsl:template match="x:ref" mode="cleanup">
@@ -246,8 +266,13 @@
   <xsl:apply-templates mode="cleanup"/>
 </xsl:template>
 
-<xsl:template match="x:sup" mode="cleanup">
+<xsl:template match="x:sup|sup" mode="cleanup">
   <xsl:text>^</xsl:text>
+  <xsl:apply-templates mode="cleanup" />
+</xsl:template>
+
+<xsl:template match="sub" mode="cleanup">
+  <xsl:text>_</xsl:text>
   <xsl:apply-templates mode="cleanup" />
 </xsl:template>
 
@@ -266,22 +291,24 @@
   </t>
 </xsl:template>
 
-<!-- extended reference formatting -->
-
-<xsl:template match="xref[(@x:fmt or @x:sec or @x:rel) and not(node())]" mode="cleanup">
+<xsl:template match="xref[(@x:fmt or @x:sec or @x:rel or @section or @sectionFormat or @relative) and not(node())]" mode="cleanup">
   <xsl:call-template name="insert-iref-for-xref"/>
   <xsl:variable name="node" select="$src//*[@anchor=current()/@target]" />
 
+  <xsl:variable name="ssec">
+    <xsl:call-template name="get-section-xref-section"/>
+  </xsl:variable>
+
   <xsl:variable name="sec">
     <xsl:choose>
-      <xsl:when test="starts-with(@x:rel,'#') and not(@x:sec) and $node/x:source/@href">
+      <xsl:when test="starts-with(@x:rel,'#') and $ssec='' and $node/x:source/@href">
         <xsl:variable name="extdoc" select="document($node/x:source/@href)"/>
         <xsl:for-each select="$extdoc//*[@anchor=substring-after(current()/@x:rel,'#')]">
           <xsl:call-template name="get-section-number"/>
         </xsl:for-each>
       </xsl:when>
       <xsl:otherwise>
-        <xsl:value-of select="@x:sec"/>
+        <xsl:value-of select="$ssec"/>
       </xsl:otherwise>
     </xsl:choose>
   </xsl:variable>
@@ -294,16 +321,19 @@
     </xsl:choose>
   </xsl:variable>
 
-  <xsl:variable name="fmt">
-    <xsl:choose>
-      <xsl:when test="@x:fmt!=''"><xsl:value-of select="@x:fmt"/></xsl:when>
-      <xsl:when test="ancestor::artwork">,</xsl:when>
-      <xsl:otherwise>of</xsl:otherwise>
-    </xsl:choose>
+  <xsl:variable name="sfmt">
+    <xsl:call-template name="get-section-xref-format">
+      <xsl:with-param name="default">
+        <xsl:choose>
+          <xsl:when test="ancestor::artwork">comma</xsl:when>
+          <xsl:otherwise>of</xsl:otherwise>
+        </xsl:choose>
+      </xsl:with-param>
+    </xsl:call-template>
   </xsl:variable>
-
+  
   <xsl:choose>
-    <xsl:when test="$fmt=','">
+    <xsl:when test="$sfmt='comma'">
       <xref>
         <xsl:apply-templates select="@target|@format|@pageno|text()|*" mode="cleanup"/>
       </xref>
@@ -312,15 +342,15 @@
       <xsl:text> </xsl:text>
       <xsl:value-of select="$sec"/>
     </xsl:when>
-    <xsl:when test="$fmt='sec'">
+    <xsl:when test="$sfmt='sec'">
       <xsl:value-of select="$secterm"/>
       <xsl:text> </xsl:text>
       <xsl:value-of select="$sec"/>
     </xsl:when>
-    <xsl:when test="$fmt='number'">
+    <xsl:when test="$sfmt='number'">
       <xsl:value-of select="$sec"/>
     </xsl:when>
-    <xsl:when test="$fmt='()'">
+    <xsl:when test="$sfmt='parens'">
       <xref>
         <xsl:apply-templates select="@target|@format|@pageno|text()|*" mode="cleanup"/>
       </xref>
@@ -330,7 +360,7 @@
       <xsl:value-of select="$sec"/>
       <xsl:text>)</xsl:text>
     </xsl:when>
-    <xsl:when test="$fmt='of'">
+    <xsl:when test="$sfmt='of'">
       <xsl:value-of select="$secterm"/>
       <xsl:text> </xsl:text>
       <xsl:value-of select="$sec"/>
@@ -338,15 +368,6 @@
       <xref>
         <xsl:apply-templates select="@target|@format|@pageno|text()|*" mode="cleanup"/>
       </xref>
-    </xsl:when>
-    <xsl:when test="$fmt='anchor'">
-      <xsl:variable name="val">
-        <xsl:call-template name="referencename">
-          <xsl:with-param name="node" select="$node" />
-        </xsl:call-template>
-      </xsl:variable>
-      <!-- remove brackets -->
-      <xsl:value-of select="substring($val,2,string-length($val)-2)"/>
     </xsl:when>
     <xsl:otherwise>
       <xsl:copy>
@@ -379,6 +400,11 @@
   <xsl:apply-templates select="node()" mode="cleanup"/>
 </xsl:template>
 
+<xsl:template match="xref[node() and @format='none' and @target=//artwork//@anchor]" mode="cleanup">
+  <!-- remove the link -->
+  <xsl:apply-templates select="node()" mode="cleanup"/>
+</xsl:template>
+
 <xsl:template match="xref[not(node()) and (@target=//preamble/@anchor or @target=//spanx/@anchor)]" mode="cleanup">
   <!-- fatal -->
   <xsl:message terminate="yes">Broken xref <xsl:value-of select="@target"/> due to target being filtered out.</xsl:message>
@@ -387,7 +413,7 @@
 <xsl:template match="xref" mode="cleanup" priority="0">
   <xsl:call-template name="insert-iref-for-xref"/>
   <xref>
-    <xsl:copy-of select="@target|@format"/>
+    <xsl:apply-templates select="@target|@format" mode="cleanup"/>
     <xsl:apply-templates mode="cleanup"/>
   </xref>
 </xsl:template>
@@ -765,5 +791,110 @@
 <xsl:template match="c/@anchor" mode="cleanup"/>
 <xsl:template match="preamble/@anchor" mode="cleanup"/>
 <xsl:template match="spanx/@anchor" mode="cleanup"/>
+
+<!-- v3 features -->
+<xsl:template match="strong | b" mode="cleanup">
+  <xsl:choose>
+    <xsl:when test="*">
+      <xsl:call-template name="warning">
+        <xsl:with-param name="inline" select="'no'"/>
+        <xsl:with-param name="msg">strong|b not translated when they include child elements</xsl:with-param>
+      </xsl:call-template>
+      <xsl:apply-templates mode="cleanup"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <spanx style="strong">
+        <xsl:apply-templates mode="cleanup"/>
+      </spanx>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template match="em | i" mode="cleanup">
+  <xsl:choose>
+    <xsl:when test="*">
+      <xsl:call-template name="warning">
+        <xsl:with-param name="inline" select="'no'"/>
+        <xsl:with-param name="msg">em|i not translated when they include child elements</xsl:with-param>
+      </xsl:call-template>
+      <xsl:apply-templates mode="cleanup"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <spanx style="emph">
+        <xsl:apply-templates mode="cleanup"/>
+      </spanx>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template match="tt" mode="cleanup">
+  <xsl:choose>
+    <xsl:when test="*">
+      <xsl:call-template name="warning">
+        <xsl:with-param name="inline" select="'no'"/>
+        <xsl:with-param name="msg">tt not translated when they include child elements</xsl:with-param>
+      </xsl:call-template>
+      <xsl:apply-templates mode="cleanup"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <spanx style="verb">
+        <xsl:apply-templates mode="cleanup"/>
+      </spanx>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<!-- Section titles -->
+<xsl:template match="section" mode="cleanup">
+  <section>
+    <xsl:copy-of select="@anchor|@toc"/>
+    <xsl:attribute name="title">
+      <xsl:choose>
+        <xsl:when test="name">
+          <xsl:variable name="hold">
+            <xsl:apply-templates select="name/node()"/>
+          </xsl:variable>
+          <xsl:value-of select="normalize-space($hold)"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="@title"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:attribute>
+    <xsl:apply-templates mode="cleanup"/>
+  </section>
+</xsl:template>
+<xsl:template match="section/name" mode="cleanup"/>
+
+<!-- Display names for references -->
+<xsl:template match="displayreference" mode="cleanup"/>
+<xsl:template match="reference/@anchor[.=/rfc/back/displayreference/@from]" mode="cleanup">
+  <xsl:attribute name="anchor">
+    <xsl:call-template name="generate-ref-name"/>
+  </xsl:attribute>
+</xsl:template>
+<xsl:template match="xref/@target[.=/rfc/back/displayreference/@from]" mode="cleanup">
+  <xsl:attribute name="target">
+    <xsl:call-template name="generate-ref-name"/>
+  </xsl:attribute>
+</xsl:template>
+
+<xsl:template name="generate-ref-name">
+  <xsl:variable name="tnewname">
+    <xsl:value-of select="/rfc/back/displayreference[@from=current()]/@to"/>
+  </xsl:variable>
+  <xsl:choose>
+    <xsl:when test="translate(substring($tnewname,1,1),$digits,'')=''">
+      <xsl:value-of select="concat('_',$tnewname)"/>
+      <xsl:call-template name="warning">
+        <xsl:with-param name="inline" select="'no'"/>
+        <xsl:with-param name="msg">rewriting reference name '<xsl:value-of select="$tnewname"/>' to '<xsl:value-of select="concat('_',$tnewname)"/>' due to illegal start character</xsl:with-param>
+      </xsl:call-template>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:value-of select="$tnewname"/>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
 
 </xsl:transform>
