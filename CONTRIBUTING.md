@@ -35,6 +35,24 @@ providing a link to the issue in the message body.
   Note that **github issues are not for substantial discussions**; the only
   appropriate place to discuss design issues is on the mailing list itself.
 
+## Working With the Drafts
+
+The source for our current draft is
+[draft-ietf-httpbis-http2.xml](draft-ietf-httpbis-http2.xml), using the
+[RFC2629 format](https://greenbytes.de/tech/webdav/draft-reschke-xml2rfc-latest.html).
+
+If you're an editor, or forking a copy of the draft, a few things to know:
+
+* Pushing to the master branch will automatically generate the HTML on the
+  gh-pages branch.
+* You'll need xml2rfc, Java and Saxon-HE available. You can override the
+  default locations in the environment.  On a Mac with
+  [Homebrew](http://brew.sh/), "saxon-b" is the right package.
+* Some of the make targets require GNU Make 4.0
+* Making the txt and html for the latest drafts is done with "make".
+* Output for a specific draft can be made using "make http2" or
+  "make hpack".
+
 # NOTE WELL
 
 Any submission to the [IETF](http://www.ietf.org/) intended by the Contributor
