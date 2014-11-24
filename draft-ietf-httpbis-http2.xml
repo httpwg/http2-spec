@@ -3699,30 +3699,47 @@ HTTP2-Settings    = token68
           </t>
         </section>
 
-        <section title="TLS Cipher Suites">
+        <section title="TLS 1.2 Cipher Suites" anchor="TLS12Ciphers">
           <t>
-            The set of TLS cipher suites that are permitted in HTTP/2 is restricted.  HTTP/2 MUST
-            only be used with cipher suites that have ephemeral key exchange, such as the <xref
-            target="TLS12">ephemeral Diffie-Hellman (DHE)</xref> or the <xref
-            target="RFC4492">elliptic curve variant (ECDHE)</xref>.  Ephemeral key exchange MUST
-            have a minimum size of 2048 bits for DHE or security level of 128 bits for ECDHE.
-            Clients MUST accept DHE sizes of up to 4096 bits.  HTTP MUST NOT be used with cipher
-            suites that use stream or block ciphers.  Authenticated Encryption with Additional Data
-            (AEAD) modes, such as the <xref target="RFC5288">Galois Counter Model (GCM) mode for
-            AES</xref> are acceptable.
+            The set of TLS 1.2 cipher suites that are permitted in HTTP/2 is restricted.
+	  </t>
+	  <t>HTTP/2 MUST only be used with ciphers that exchange keys with either:
+            <xref target="TLS12">ephemeral Diffie-Hellman (DHE)</xref> with a minimum key 
+	    exchange size of 2048;  
+	    or the <xref target="RFC4492">elliptic curve variant (ECDHE)</xref> with a 
+	    security level of at least 128 bits. 
+            Clients MUST accept DHE key exchange sizes of up to 4096 bits.  
+	  </t>
+	  <t>
+            HTTP/2 MUST NOT be used with 
+            <xref target="RFC5246" >Null or Standard Stream Ciphers (Section 6.2.3.1)</xref> 
+            nor <xref target="RFC5246">CBC Block Ciphers (Section 6.2.3.3)</xref>.
           </t>
           <t>
             The effect of these restrictions is that TLS 1.2 implementations could have
-            non-intersecting sets of available cipher suites, since these prevent the use of the
-            cipher suite that TLS 1.2 makes mandatory.  To avoid this problem, implementations of
+            non-intersecting sets of available cipher suites, since these restrictions prevent 
+	    the use of the TLS 1.2 mandatory ciphers.  To avoid this problem, implementations of
             HTTP/2 that use TLS 1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref
             target="TLS-ECDHE"/> with P256 <xref target="FIPS186"/>.
           </t>
+        </section>
+
+        <section title="HTTP/1 Fallback">
           <t>
-            Clients MAY advertise support of cipher suites that are prohibited by the above
-            restrictions in order to allow for connection to servers that do not support HTTP/2.
-            This enables a fallback to protocols without these constraints without the additional
-            latency imposed by using a separate connection for fallback.
+	    Clients MAY advertise support of cipher suites that are prohibited by
+	    the above restrictions in order to allow for connection to servers
+	    that do not support HTTP/2.  This enables a fallback to protocols 
+	    without these constraints without the additional latency imposed by
+	    using a separate connection for fallback.
+          </t>
+          <t>
+            If a Client that offers prohibited ciphers for HTTP/1 fallback rejects 
+            a HTTP/2 connection with a 
+            <xref target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>INADEQUATE_SECURITY</x:ref>, then it MUST retry the connection 
+            without offering HTTP/2.  This enables a fallback to HTTP/1 in the case 
+            of <xref target="TLS12Ciphers">TLS 1.2 Cipher Suites</xref> non 
+	    compliance.
           </t>
         </section>
       </section>
@@ -3730,6 +3747,7 @@ HTTP2-Settings    = token68
 
     <section anchor="security" title="Security Considerations">
       <section title="Server Authority" anchor="authority">
+      
         <t>
           HTTP/2 relies on the HTTP/1.1 definition of authority for determining whether a server is
           authoritative in providing a given response, see <xref target="RFC7230" x:fmt=","
@@ -4627,17 +4645,16 @@ HTTP2-Settings    = token68
         <seriesInfo name="RFC" value="4492" />
       </reference>
 
-      <reference anchor="RFC5288">
+      <reference anchor="RFC5246">
         <front>
           <title>
-            AES Galois Counter Mode (GCM) Cipher Suites for TLS
+            The Transport Layer Security (TLS) Protocol Version 1.2
           </title>
-          <author initials="J." surname="Salowey" fullname="J. Salowey"/>
-          <author initials="A." surname="Choudhury" fullname="A. Choudhury"/>
-          <author initials="D." surname="McGrew" fullname="D. McGrew"/>
+          <author initials="T." surname="Dierks" fullname="T. Dierks"/>
+          <author initials="E." surname="Rescorla" fullname="E. Rescorla"/>
           <date year="2008" month="August" />
         </front>
-        <seriesInfo name="RFC" value="5288" />
+        <seriesInfo name="RFC" value="5246" />
       </reference>
 
       <reference anchor="HTML5"
