@@ -773,31 +773,37 @@ HTTP2-Settings    = token68
         <figure anchor="StreamStatesFigure" title="Stream States">
           <artwork type="drawing">
             <![CDATA[
-                           +--------+
-                     PP    |        |    PP
-                  ,--------|  idle  |--------.
-                 /         |        |         \
-                v          +--------+          v
-         +----------+          |           +----------+
-         |          |          | H         |          |
-     ,---| reserved |          |           | reserved |---.
-     |   | (local)  |          v           | (remote) |   |
-     |   +----------+      +--------+      +----------+   |
-     |      |          ES  |        |  ES          |      |
-     |      | H    ,-------|  open  |-------.      | H    |
-     |      |     /        |        |        \     |      |
-     |      v    v         +--------+         v    v      |
-     |   +----------+          |           +----------+   |
-     |   |   half   |          |           |   half   |   |
-     |   |  closed  |          | R         |  closed  |   |
-     |   | (remote) |          |           | (local)  |   |
-     |   +----------+          |           +----------+   |
-     |        |                v                 |        |
-     |        |  ES / R    +--------+  ES / R    |        |
-     |        `----------->|        |<-----------'        |
-     |  R                  | closed |                  R  |
-     `-------------------->|        |<--------------------'
-                           +--------+
+                             +--------+
+                     send PP |        | recv PP
+                    ,--------|  idle  |--------.
+                   /         |        |         \
+                  v          +--------+          v
+           +----------+          |           +----------+
+           |          |          | either    |          |
+     ,-----| reserved |          | H         | reserved |-----.
+     |     | (local)  |          |           | (remote) |     |
+     |     +----------+          v           +----------+     |
+     |         |             +--------+             |         |
+     |         |     recv ES |        | send ES     |         |
+     |  send H |     ,-------|  open  |-------.     | recv H  |
+     |         |    /        |        |        \    |         |
+     |         v   v         +--------+         v   v         |
+     |     +----------+          |           +----------+     |
+     |     |   half   |          | either    |   half   |     |
+     |     |  closed  |          | R         |  closed  |     |
+     |     | (remote) |          |           | (local)  |     |
+     |     +----------+          |           +----------+     |
+     |          |                |                 |          |
+     |          | send ES or     v      recv ES or |          |
+     |          | either R   +--------+   either R |          |
+     |          `----------->|        |<-----------'          |
+     | either R              | closed |             either R  |
+     `---------------------->|        |<----------------------'
+                             +--------+
+
+       send:   endpoint sends this frame
+       recv:   endpoint receives this frame
+       either: either endpoint can send or receive this frame
 
        H:  HEADERS frame (with implied CONTINUATIONs)
        PP: PUSH_PROMISE frame (with implied CONTINUATIONs)
