@@ -94,10 +94,10 @@
     <section anchor="intro" title="Introduction">
 
       <t>
-        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the
-        HTTP/1.1 message format (<xref target="RFC7230" x:fmt="," x:rel="#http.message"/>) has
-        several characteristics that have a negative overall effect on application performance
-        today.
+        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, how
+        HTTP/1.1 uses the underlying transport (<xref target="RFC7230" x:fmt=","
+        x:rel="#connection.management"/>) has several characteristics that have a negative overall
+        effect on application performance today.
       </t>
       <t>
         In particular, HTTP/1.0 allowed only one request to be outstanding at a time on a given
@@ -166,9 +166,10 @@
         the synthetic request on a separate stream.
       </t>
       <t>
-        Frames that contain HTTP header fields are <xref target="HeaderBlock">compressed</xref>.
-        HTTP requests can be highly redundant, so compression can reduce the size of requests and
-        responses significantly.
+        Because HTTP header fields used in a connection can contain large amounts of redundant
+        data, frames that contain them are <xref target="HeaderBlock">compressed</xref>. This has
+        especially advantageous impact upon request sizes in the common case, allowing many
+        requests to be compressed into one TCP packet.
       </t>
 
       <section title="Document Organization">
@@ -343,10 +344,10 @@
       <section anchor="discover-http" title="Starting HTTP/2 for &quot;http&quot; URIs">
         <t>
           A client that makes a request for an "http" URI without prior knowledge about support for
-          HTTP/2 uses the HTTP Upgrade mechanism (<xref target="RFC7230" x:fmt="of"
-          x:rel="#header.upgrade"/>).  The client makes an HTTP/1.1 request that includes an Upgrade
-          header field identifying HTTP/2 with the "h2c" token.  The HTTP/1.1 request MUST include
-          exactly one <xref target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
+          HTTP/2 on the next hop uses the HTTP Upgrade mechanism (<xref target="RFC7230" x:fmt="of"
+          x:rel="#header.upgrade"/>). The client does so by making an HTTP/1.1 request that
+          includes an Upgrade header field with the "h2c" token. Such a HTTP/1.1 request MUST
+          include exactly one <xref target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
         </t>
         <figure>
           <preamble>For example:</preamble>
@@ -407,10 +408,10 @@ Upgrade: h2c
 </artwork>
         </figure>
         <t>
-          The first HTTP/2 frame sent by the server is a <x:ref>SETTINGS</x:ref> frame (<xref
+          The first HTTP/2 frame sent by the server MUST be a <x:ref>SETTINGS</x:ref> frame (<xref
           target="SETTINGS"/>) as the server connection preface (<xref
-          target="ConnectionHeader"/>). Upon receiving the 101 response, the client sends a <xref
-          target="ConnectionHeader">connection preface</xref>, which includes a
+          target="ConnectionHeader"/>). Upon receiving the 101 response, the client MUST send a
+          <xref target="ConnectionHeader">connection preface</xref>, which includes a
           <x:ref>SETTINGS</x:ref> frame.
         </t>
         <t>
@@ -474,7 +475,7 @@ HTTP2-Settings    = token68
           client or selected by a server.
         </t>
         <t>
-          Once TLS negotiation is complete, both the client and the server send a <xref
+          Once TLS negotiation is complete, both the client and the server MUST send a <xref
           target="ConnectionHeader">connection preface</xref>.
         </t>
       </section>
@@ -485,11 +486,14 @@ HTTP2-Settings    = token68
           <xref target="ALT-SVC"/> describes a mechanism for advertising this capability.
         </t>
         <t>
-          A client MAY immediately send HTTP/2 frames to a server that is known to support HTTP/2,
-          after the <xref target="ConnectionHeader">connection preface</xref>; a server can
-          identify such a connection by the presence of the connection preface. This only affects
-          the establishment of HTTP/2 connections over cleartext TCP; implementations that support
+          A client MUST send the <xref target="ConnectionHeader">connection preface</xref>, and
+          then MAY immediately send HTTP/2 frames to such a server; servers can identify these
+          connections by the presence of the connection preface. This only affects the
+          establishment of HTTP/2 connections over cleartext TCP; implementations that support
           HTTP/2 over TLS MUST use <xref target="TLS-ALPN">protocol negotiation in TLS</xref>.
+        </t>
+        <t>
+          Likewise, the sever MUST send a <xref target="ConnectionHeader">connection preface</xref>.
         </t>
         <t>
           Without additional information, prior support for HTTP/2 is not a strong signal that a
@@ -501,10 +505,9 @@ HTTP2-Settings    = token68
 
       <section anchor="ConnectionHeader" title="HTTP/2 Connection Preface">
         <t>
-          Upon establishment of a TCP connection and determination that HTTP/2 will be used by both
-          peers, each endpoint MUST send a connection preface as a final confirmation and to
-          establish the initial SETTINGS parameters for the HTTP/2 connection.  The client and
-          server each send a different connection preface.
+          In HTTP/2, each endpoint is required to send a connection preface as a final confirmation
+          of the protocol in use, and to establish the initial SETTINGS parameters for the HTTP/2
+          connection. The client and server each send a different connection preface.
         </t>
         <t>
           The client connection preface starts with a sequence of 24 octets, which in hex notation
@@ -516,13 +519,13 @@ HTTP2-Settings    = token68
 ]]></artwork>
         </figure>
         <t>
-          (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>).  This sequence
-          is followed by a <x:ref>SETTINGS</x:ref> frame (<xref target="SETTINGS"/>).  The
-          <x:ref>SETTINGS</x:ref> frame MAY be empty.  The client sends the client connection
-          preface immediately upon receipt of a 101 Switching Protocols response (indicating a
-          successful upgrade), or as the first application data octets of a TLS connection. If
-          starting an HTTP/2 connection with prior knowledge of server support for the protocol, the
-          client connection preface is sent upon connection establishment.
+          (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>). This sequence
+          MUST be followed by a <x:ref>SETTINGS</x:ref> frame (<xref target="SETTINGS"/>), which
+          MAY be empty. The client sends the client connection preface immediately upon receipt of
+          a 101 Switching Protocols response (indicating a successful upgrade), or as the first
+          application data octets of a TLS connection. If starting an HTTP/2 connection with prior
+          knowledge of server support for the protocol, the client connection preface is sent upon
+          connection establishment.
         </t>
         <t>
           <list>
@@ -2894,6 +2897,13 @@ HTTP2-Settings    = token68
             registered HTTP headers, see the Message Header Field Registry maintained at <eref
             target="https://www.iana.org/assignments/message-headers"/>.
           </t>
+          <t>
+            Just as in HTTP/1.x, header field names are strings of ASCII characters that are
+            compared in a case-insensitive fashion. However, header field names MUST be converted
+            to lowercase prior to their encoding in HTTP/2. A request or response containing
+            uppercase header field names MUST be treated as <xref
+            target="malformed">malformed</xref>.
+          </t>
 
           <section anchor="PseudoHeaderFields" title="Pseudo-Header Fields">
             <t>
@@ -2915,13 +2925,6 @@ HTTP2-Settings    = token68
               target="malformed">malformed</xref>.
             </t>
             <t>
-              Just as in HTTP/1.x, header field names are strings of ASCII characters that are
-              compared in a case-insensitive fashion. However, header field names MUST be converted
-              to lowercase prior to their encoding in HTTP/2. A request or response containing
-              uppercase header field names MUST be treated as <xref
-              target="malformed">malformed</xref>.
-            </t>
-            <t>
               All pseudo-header fields MUST appear in the header block before regular header fields.
               Any request or response that contains a pseudo-header field that appears in a header
               block after a regular header field MUST be treated as <xref
@@ -2939,15 +2942,15 @@ HTTP2-Settings    = token68
               target="malformed">malformed</xref>.
             </t>
             <t>
+              The only exception to this is the TE header field, which MAY be present in an HTTP/2
+              request; when it is, it MUST NOT contain any value other than "trailers".
+            </t>
+            <t>
               This means that an intermediary transforming an HTTP/1.x message to HTTP/2 will need
               to remove any header fields nominated by the Connection header field, along with the
               Connection header field itself. Such intermediaries SHOULD also remove other
               connection-specific header fields, such as Keep-Alive, Proxy-Connection,
               Transfer-Encoding and Upgrade, even if they are not nominated by Connection.
-            </t>
-            <t>
-              One exception to this is the TE header field, which MAY be present in an HTTP/2
-              request, but when it is, it MUST NOT contain any value other than "trailers".
             </t>
             <t>
               <list style="hanging">
@@ -3054,11 +3057,7 @@ HTTP2-Settings    = token68
 
          <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
             <t>
-              The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
-              redundant data.
-            </t>
-            <t>
-              The Cookie header field uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
+              The <xref target="COOKIE">Cookie header field</xref> uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
               This header field doesn't follow the list construction rules in HTTP (see <xref
               target="RFC7230" x:fmt="," x:rel="#field.order"/>), which prevents cookie-pairs from
               being separated into different name-value pairs.  This can significantly reduce
