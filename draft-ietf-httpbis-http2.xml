@@ -773,31 +773,37 @@ HTTP2-Settings    = token68
         <figure anchor="StreamStatesFigure" title="Stream States">
           <artwork type="drawing">
             <![CDATA[
-                           +--------+
-                     PP    |        |    PP
-                  ,--------|  idle  |--------.
-                 /         |        |         \
-                v          +--------+          v
-         +----------+          |           +----------+
-         |          |          | H         |          |
-     ,---| reserved |          |           | reserved |---.
-     |   | (local)  |          v           | (remote) |   |
-     |   +----------+      +--------+      +----------+   |
-     |      |          ES  |        |  ES          |      |
-     |      | H    ,-------|  open  |-------.      | H    |
-     |      |     /        |        |        \     |      |
-     |      v    v         +--------+         v    v      |
-     |   +----------+          |           +----------+   |
-     |   |   half   |          |           |   half   |   |
-     |   |  closed  |          | R         |  closed  |   |
-     |   | (remote) |          |           | (local)  |   |
-     |   +----------+          |           +----------+   |
-     |        |                v                 |        |
-     |        |  ES / R    +--------+  ES / R    |        |
-     |        `----------->|        |<-----------'        |
-     |  R                  | closed |                  R  |
-     `-------------------->|        |<--------------------'
-                           +--------+
+                             +--------+
+                     send PP |        | recv PP
+                    ,--------|  idle  |--------.
+                   /         |        |         \
+                  v          +--------+          v
+           +----------+          |           +----------+
+           |          |          | send H/   |          |
+     ,-----| reserved |          | recv H    | reserved |-----.
+     |     | (local)  |          |           | (remote) |     |
+     |     +----------+          v           +----------+     |
+     |         |             +--------+             |         |
+     |         |     recv ES |        | send ES     |         |
+     |  send H |     ,-------|  open  |-------.     | recv H  |
+     |         |    /        |        |        \    |         |
+     |         v   v         +--------+         v   v         |
+     |     +----------+          |           +----------+     |
+     |     |   half   |          |           |   half   |     |
+     |     |  closed  |          | send R/   |  closed  |     |
+     |     | (remote) |          | recv R    | (local)  |     |
+     |     +----------+          |           +----------+     |
+     |          |                |                 |          |
+     |          | send ES/       |        recv ES/ |          |
+     |          | send R/        v         send R/ |          |
+     |          | recv R     +--------+    recv R  |          |
+     | send R/  `----------->|        |<-----------'  send R/ |
+     | recv R                | closed |               recv R  |
+     `---------------------->|        |<----------------------'
+                             +--------+
+
+       send:   endpoint sends this frame
+       recv:   endpoint receives this frame
 
        H:  HEADERS frame (with implied CONTINUATIONs)
        PP: PUSH_PROMISE frame (with implied CONTINUATIONs)
@@ -842,14 +848,14 @@ HTTP2-Settings    = token68
                     cause a stream to immediately become "half closed".
                   </t>
                   <t>
-                    Sending a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream for
-                    later use.  The stream state for the reserved stream transitions to "reserved
-                    (local)".
+                    Sending a <x:ref>PUSH_PROMISE</x:ref> frame reserves an idle stream for
+                    later use.  The stream state for the reserved stream transitions to
+                    "reserved (local)".
                   </t>
                   <t>
-                    Receiving a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream as
-                    reserved by the remote peer.  The state of the stream becomes "reserved
-                    (remote)".
+                    Receiving a <x:ref>PUSH_PROMISE</x:ref> frame reserves an idle stream for
+                    later use.  The stream state for the reserved stream transitions to
+                    "reserved (remote)".
                   </t>
                 </list>
               </t>
@@ -4322,7 +4328,7 @@ HTTP2-Settings    = token68
             (Substantial editorial contributions).
           </t>
           <t>
-            Kari Hurtta, Tatsuhiro Tsujikawa, Greg Wilkins, Poul-Henning Kamp.
+            Kari Hurtta, Tatsuhiro Tsujikawa, Greg Wilkins, Poul-Henning Kamp, Jonathan Thackray.
           </t>
           <t>
             Alexey Melnikov was an editor of this document during 2013.
