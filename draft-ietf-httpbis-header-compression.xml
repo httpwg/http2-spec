@@ -72,7 +72,7 @@
         <section title="Introduction">
             <t>
                 In HTTP/1.1 (see <xref target="RFC7230"/>), header fields are
-                not compressed. As Web pages have grown to include dozens to
+                not compressed. As Web pages have grown to require dozens to
                 hundreds of requests, the redundant header fields in these
                 requests unnecessarily consume bandwidth, measurably increasing
                 latency.
@@ -92,6 +92,14 @@
                 fields which eliminates redundant header fields, limits
                 vulnerability to known security attacks, and which has a bounded
                 memory requirement for use in constrained environments.
+            </t>
+
+            <t>
+                The HPACK format is intentionally simple and inflexible.  Both
+                characteristics reduce the risk of interoperability or security
+                issues based by implementation error.  No extensibility
+                mechanisms are defined; changes to the format are only possible
+                by defining a complete replacement.
             </t>
 
             <section title="Overview">
@@ -155,15 +163,15 @@
                         </t>
                         <t hangText="Dynamic Table:">
                             The dynamic table (see <xref
-                                target="dynamic.table"/>) is a header table used
-                            to associate stored header fields to index values.
+                                target="dynamic.table"/>) is a table that
+                            associates stored header fields with index values.
                             This table is dynamic and specific to an encoding or
                             decoding context.
                         </t>
                         <t hangText="Static Table:">
                             The static table (see <xref target="static.table"/>)
-                            is a header table used to associate static header
-                            fields to index values.  This table is ordered,
+                            is a table that statically associates header fields
+                            with index values.  This table is ordered,
                             read-only, always accessible, and may be shared
                             amongst all encoding or decoding contexts.
                         </t>
@@ -214,7 +222,7 @@
                     To decompress header blocks, a decoder only needs to
                     maintain a dynamic table (see <xref
                         target="dynamic.table"/>) as a decoding context. No
-                    other state is needed.
+                    other dynamic state is needed.
                 </t>
                 <t>
                     When used for bidirectional communication, such as in HTTP,
@@ -380,7 +388,7 @@
                 </t>
                 <t>
                     Once a header field is decoded and added to the
-                    reconstructed header list, it cannot be removed from it. A
+                    reconstructed header list, the field cannot be removed. A
                     header field added to the header list can be safely passed
                     to the application.
                 </t>
@@ -511,13 +519,13 @@
                 </t>
                 <t>
                     Multiple updates to the maximum table size can occur between
-                    the sending of two header blocks. In the case that the value
-                    of this parameter is changed more than once, if any changed
-                    value is smaller than the new maximum size, the smallest
-                    value for the parameter MUST be sent in an encoding context
-                    update.  The altered maximum size is always sent, resulting
-                    in at most two encoding context updates.  This ensures that
-                    the decoder is able to perform eviction based on the decoder
+                    the sending of two header blocks.  In the case that this
+                    size is changed more than once in this interval, the
+                    smallest maximum table size that occurs in that interval
+                    MUST be sent in an encoding context update.  The final
+                    maximum size is always sent, resulting in at most two
+                    encoding context updates.  This ensures that the decoder is
+                    able to perform eviction based on reductions in decoder
                     table size (see <xref target="entry.eviction"/>).
                 </t>
                 <t>
@@ -540,11 +548,10 @@
             <section title="Entry Eviction when Adding New Entries"
                      anchor="entry.addition">
                 <t>
-                    Whenever a new entry is to be added to the dynamic table,
-                    entries are evicted from the end of the dynamic table until
-                    the size of the dynamic table is less than or equal to
-                    (maximum size - new entry size), or until the table is
-                    empty.
+                    Before a new entry is added to the dynamic table, entries
+                    are evicted from the end of the dynamic table until the size
+                    of the dynamic table is less than or equal to (maximum size
+                    - new entry size), or until the table is empty.
                 </t>
                 <t>
                     If the representation of the added entry references the name
@@ -585,35 +592,19 @@
                     The number of bits of the prefix (called N) is a parameter
                     of the integer representation.
                 </t>
-                <figure
-                    anchor="Integer.Value.Encoded.within.the.Prefix.shown.for.N.5"
-                    title="Integer Value Encoded within the Prefix (shown for N = 5)">
-                    <artwork type="inline"><![CDATA[
-  0   1   2   3   4   5   6   7
-+---+---+---+---+---+---+---+---+
-| ? | ? | ? |     Value (N)     |
-+---+---+---+-------------------+
-]]></artwork>
-                </figure>
                 <t>
                     If the integer value is small enough, i.e. strictly less
                     than 2<x:sup>N</x:sup>-1, it is encoded within the N-bit
                     prefix.
                 </t>
                 <figure
-                    anchor="Integer.Value.Encoded.after.the.Prefix.shown.for.N.5"
-                    title="Integer Value Encoded after the Prefix (shown for N = 5)">
+                    anchor="Integer.Value.Encoded.within.the.Prefix.shown.for.N.5"
+                    title="Integer Value Encoded within the Prefix (shown for N = 5)">
                     <artwork type="inline"><![CDATA[
   0   1   2   3   4   5   6   7
 +---+---+---+---+---+---+---+---+
-| ? | ? | ? | 1   1   1   1   1 |
+| ? | ? | ? |       Value       |
 +---+---+---+-------------------+
-| 1 |   Value-(2^N-1) LSB (7)   |
-+---+---------------------------+
-               ...
-+---+---------------------------+
-| 0 |   Value-(2^N-1) MSB (7)   |
-+---+---------------------------+
 ]]></artwork>
                 </figure>
                 <t>
@@ -624,6 +615,22 @@
                     except for the last octet in the list. The remaining bits of
                     the octets are used to encode the decreased value.
                 </t>
+                <figure
+                    anchor="Integer.Value.Encoded.after.the.Prefix.shown.for.N.5"
+                    title="Integer Value Encoded after the Prefix (shown for N = 5)">
+                    <artwork type="inline"><![CDATA[
+  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| ? | ? | ? | 1   1   1   1   1 |
++---+---+---+-------------------+
+| 1 |    Value-(2^N-1) LSB      |
++---+---------------------------+
+               ...
++---+---------------------------+
+| 0 |    Value-(2^N-1) MSB      |
++---+---------------------------+
+]]></artwork>
+                </figure>
                 <t>
                     Decoding the integer value from the list of octets starts by
                     reversing the order of the octets in the list. Then, for
