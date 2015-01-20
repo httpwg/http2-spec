@@ -3726,35 +3726,34 @@ HTTP2-Settings    = token68
         <section title="TLS 1.2 Cipher Suites">
           <t>
             A deployment of HTTP/2 over TLS 1.2 SHOULD NOT use any of the cipher suites that are
-            listed in <xref target="BadCipherSuites"/>.
+            listed in the  <xref target="BadCipherSuites">cipher suite black list</xref>.
           </t>
           <t>
             Endpoints MAY choose to generate a <xref target="ConnectionErrorHandler">connection
-            error</xref> of type <x:ref>INADEQUATE_SECURITY</x:ref> if one of the prohibited cipher
-            suites are negotiated.  A deployment that chooses to use a prohibited cipher suite
-            risks triggering a connection error unless the set of potential peers is known to
+            error</xref> of type <x:ref>INADEQUATE_SECURITY</x:ref> if one of the cipher suites from
+            the black list are negotiated.  A deployment that chooses to use a black-listed cipher
+            suite risks triggering a connection error unless the set of potential peers is known to
             accept that cipher suite.
           </t>
           <t>
             Implementations MUST NOT generate this error in reaction to the negotiation of a cipher
-            suite that is not in the prohibited list.  Consequently, when clients offer a cipher
-            suite that is not prohibited, they have to be prepared to use that cipher suite with
+            suite that is not on the black list.  Consequently, when clients offer a cipher suite
+            that is not on the black list, they have to be prepared to use that cipher suite with
             HTTP/2.
           </t>
           <t>
-            The effect of prohibiting these cipher suites is that TLS 1.2 deployments could have
-            non-intersecting sets of available cipher suites, since the prohibited set includes the
-            cipher suite that TLS 1.2 makes mandatory.  To avoid this problem, deployments of HTTP/2
-            that use TLS 1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref
-            target="TLS-ECDHE"/> with the P256 elliptic curve <xref target="FIPS186"/>.
+            The black list includes the cipher suite that TLS 1.2 makes mandatory, which means that
+            TLS 1.2 deployments could have non-intersecting sets of permitted cipher suites.  To
+            avoid this problem causing TLS handshake failures, deployments of HTTP/2 that use TLS
+            1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref target="TLS-ECDHE"/> with
+            the P256 elliptic curve <xref target="FIPS186"/>.
           </t>
           <t>
-            Note that clients might advertise support of cipher suites that are prohibited by the
-            above restrictions in order to allow for connection to servers that do not support
-            HTTP/2 and support only prohibited cipher suites.  This allows servers to select
-            HTTP/1.1 with a cipher suite that is prohibited for HTTP/2.  However, this can result in
-            HTTP/2 being negotiated with a prohibited cipher suite if the application protocol and
-            cipher suite are independently selected.
+            Note that clients might advertise support of cipher suites that are on the black list in
+            order to allow for connection to servers that do not support HTTP/2.  This allows
+            servers to select HTTP/1.1 with a cipher suite that is on the HTTP/2 black list.
+            However, this can result in HTTP/2 being negotiated with a black-listed cipher suite if
+            the application protocol and cipher suite are independently selected.
           </t>
         </section>
       </section>
@@ -4768,9 +4767,11 @@ HTTP2-Settings    = token68
       </reference>
     </references>
 
-    <section title="Prohibited TLS 1.2 Cipher Suites" anchor="BadCipherSuites">
+    <section title="TLS 1.2 Cipher Suite Black List" anchor="BadCipherSuites">
       <t>
-        The following cipher suites are prohibited for use in HTTP/2 over TLS 1.2:
+        An HTTP/2 implementation MAY treat the negotiation of any of the following cipher suites
+        with TLS 1.2 as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+        <x:ref>INADEQUATE_SECURITY</x:ref>:
         TLS_NULL_WITH_NULL_NULL,
         TLS_RSA_WITH_NULL_MD5,
         TLS_RSA_WITH_NULL_SHA,
