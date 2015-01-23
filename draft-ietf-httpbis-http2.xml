@@ -773,34 +773,34 @@ HTTP2-Settings    = token68
         <figure anchor="StreamStatesFigure" title="Stream States">
           <artwork type="drawing">
             <![CDATA[
-                             +--------+
-                     send PP |        | recv PP
+                     send PP +--------+ recv PP
                     ,--------|  idle  |--------.
-                   /         |        |         \
-                  v          +--------+          v
+                   v         +--------+         v
            +----------+          |           +----------+
-           |          |          | send H/   |          |
-     ,-----| reserved |          | recv H    | reserved |-----.
-     |     | (local)  |          |           | (remote) |     |
-     |     +----------+          v           +----------+     |
-     |         |             +--------+             |         |
-     |         |     recv ES |        | send ES     |         |
+     ,-----| reserved |          | semd H/   | reserved |-----.
+     |     | (local)  |          | recv H    | (remote) |     |
+     |     +----------+          |           +----------+     |
+     |         |                 v                  |         |
+     |         |     recv ES +--------+ send ES     |         |
      |  send H |     ,-------|  open  |-------.     | recv H  |
-     |         |    /        |        |        \    |         |
-     |         v   v         +--------+         v   v         |
-     |     +----------+          |           +----------+     |
-     |     |   half   |          |           |   half   |     |
-     |     |  closed  |          | send R/   |  closed  |     |
-     |     | (remote) |          | recv R    | (local)  |     |
-     |     +----------+          |           +----------+     |
-     |          |                |                 |          |
-     |          | send ES/       |        recv ES/ |          |
-     |          | send R/        v         send R/ |          |
-     |          | recv R     +--------+    recv R  |          |
-     | send R/  `----------->|        |<-----------'  send R/ |
-     | recv R                | closed |               recv R  |
-     `---------------------->|        |<----------------------'
-                             +--------+
+     |         |    /        +--------+        \    |         |
+     |         v   v          /  |              v   v         |
+     |     +----------+      /   |           +----------+     |
+     |     |   half   |     /    |           |   half   |     |
+     |     |  closed  |    /     | send R    |  closed  |     |
+     |     | (remote) |   /      |           | (local)  |     |
+     |     +----------+  .       |           +----------+     |
+     |          |        |       v                 |          |
+     | send R   |        |   +--------+            |   send R |
+     +----------|--------|-->| reset  |<-----------|----------+
+     |          |         \  +--------+            |          |
+     |          |   recv R \     | recv R/         |          |
+     |          |           \    | recv ES         |          |
+     |          | recv R/    \   |         recv R/ |          |
+     |          | send ES     v  v         recv ES |          |
+     | recv R   |            +--------+            |   recv R |
+     `--------->`----------->| closed |<-----------'<---------'
+                             +--------+                        
 
        send:   endpoint sends this frame
        recv:   endpoint receives this frame
@@ -825,7 +825,7 @@ HTTP2-Settings    = token68
           Both endpoints have a subjective view of the state of a stream that could be different
           when frames are in transit.  Endpoints do not coordinate the creation of streams; they are
           created unilaterally by either endpoint.  The negative consequences of a mismatch in
-          states are limited to the "closed" state after sending <x:ref>RST_STREAM</x:ref>, where
+          states are limited to the "reset" state after sending <x:ref>RST_STREAM</x:ref>, where
           frames might be received for some time after closing.
         </t>
         <t>
@@ -884,7 +884,7 @@ HTTP2-Settings    = token68
                   </t>
                   <t>
                     Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream
-                    to become "closed".  This releases the stream reservation.
+                    to become "reset". 
                   </t>
                 </list>
               </t>
@@ -915,7 +915,7 @@ HTTP2-Settings    = token68
                   </t>
                   <t>
                     Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame to cause the stream
-                    to become "closed".  This releases the stream reservation.
+                    to become "reset".
                   </t>
                 </list>
               </t>
@@ -949,7 +949,7 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 Either endpoint can send a <x:ref>RST_STREAM</x:ref> frame from this state, causing
-                it to transition immediately to "closed".
+                it to transition immediately to "reset".
               </t>
             </x:lt>
 
@@ -961,9 +961,9 @@ HTTP2-Settings    = token68
                 <x:ref>RST_STREAM</x:ref> frames can be sent in this state.
               </t>
               <t>
-                A stream transitions from this state to "closed" when a frame that contains an
-                END_STREAM flag is received, or when either peer sends a <x:ref>RST_STREAM</x:ref>
-                frame.
+                A stream transitions from this state to "closed" when it receives  
+		an END_STREAM flag or a <x:ref>RST_STREAM</x:ref> frame. A stream transitions from this 
+		state to "reset" when it sends a <x:ref>RST_STREAM</x:ref> frame.
               </t>
               <t>
                 A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> frames in this state, which might
@@ -995,11 +995,47 @@ HTTP2-Settings    = token68
                 target="FlowControl">stream level flow control limits</xref>.
               </t>
               <t>
-                A stream can transition from this state to "closed" by sending a frame that contains
-                an END_STREAM flag, or when either peer sends a <x:ref>RST_STREAM</x:ref> frame.
+                A stream transitions from this state to "closed" when it receives  
+		an END_STREAM flag or a <x:ref>RST_STREAM</x:ref> frame. A stream transitions from this 
+		state to "reset" when it sends a <x:ref>RST_STREAM</x:ref> frame.
               </t>
             </x:lt>
-
+            <x:lt hangText="reset:">
+              <t>
+                <vspace blankLines="0"/>
+                The "reset" state is entered whenever a RST_STREAM frame is sent.
+              </t>
+              <t>
+                An endpoint MUST NOT send frames other than <x:ref>PRIORITY</x:ref> on a reset
+                stream.  
+              </t>
+              <t>
+                The peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or
+                enqueued for sending - frames on the stream that cannot be withdrawn.  An endpoint
+                MUST ignore frames that it receives on closed streams after it has sent a
+                <x:ref>RST_STREAM</x:ref> frame other than the handling described below.  
+              </t>
+              <t>
+                <x:ref>PRIORITY</x:ref> frames can be sent on reset streams to prioritize streams
+                that are dependent on the reset stream.  Endpoints SHOULD process
+                <x:ref>PRIORITY</x:ref> frames, though they can be ignored if the stream has been
+                removed from the dependency tree (see <xref target="priority-gc"/>).
+              </t>
+              <t>
+                Flow controlled frames (i.e., <x:ref>DATA</x:ref>) received in this state
+                are counted toward the connection flow control window, even though their content
+		is ignored as the sender will consider the frames to count
+                against the flow control window.
+              </t>
+              <t>
+                An endpoint might receive a <x:ref>PUSH_PROMISE</x:ref> in this state.  Therefore, a
+                <x:ref>RST_STREAM</x:ref> is needed to close any unwanted promised stream.
+              </t>
+              <t>
+                A stream can transition from this state to "closed" by receiving either an
+                END_STREAM flag or a <x:ref>RST_STREAM</x:ref> frame.
+              </t>
+            </x:lt>
             <x:lt hangText="closed:">
               <t>
                 <vspace blankLines="0"/>
@@ -1008,51 +1044,15 @@ HTTP2-Settings    = token68
               <t>
                 An endpoint MUST NOT send frames other than <x:ref>PRIORITY</x:ref> on a closed
                 stream.  An endpoint that receives any frame other than <x:ref>PRIORITY</x:ref>
-                after receiving a <x:ref>RST_STREAM</x:ref> MUST treat that as a <xref
-                target="StreamErrorHandler">stream error</xref> of type
-                <x:ref>STREAM_CLOSED</x:ref>.  Similarly, an endpoint that receives any frames after
-                receiving a frame with the END_STREAM flag set MUST treat that as a <xref
-                target="ConnectionErrorHandler">connection error</xref> of type
-                <x:ref>STREAM_CLOSED</x:ref>, unless the frame is permitted as described below.
-              </t>
-              <t>
-                <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>RST_STREAM</x:ref> frames can be received in
-                this state for a short period after a <x:ref>DATA</x:ref> or <x:ref>HEADERS</x:ref>
-                frame containing an END_STREAM flag is sent.  Until the remote peer receives and
-                processes <x:ref>RST_STREAM</x:ref> or the frame bearing the END_STREAM flag, it
-                might send frames of these types.  Endpoints MUST ignore
-                <x:ref>WINDOW_UPDATE</x:ref> or <x:ref>RST_STREAM</x:ref> frames received in this
-                state, though endpoints MAY choose to treat frames that arrive a significant time
-                after sending END_STREAM as a <xref target="ConnectionErrorHandler">connection
-                error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+                or <x:ref>RST_STREAM</x:ref> in this state MUST treat that as a 
+		<xref target="StreamErrorHandler">stream error</xref> of type
+                <x:ref>STREAM_CLOSED</x:ref>.  
               </t>
               <t>
                 <x:ref>PRIORITY</x:ref> frames can be sent on closed streams to prioritize streams
                 that are dependent on the closed stream.  Endpoints SHOULD process
                 <x:ref>PRIORITY</x:ref> frames, though they can be ignored if the stream has been
                 removed from the dependency tree (see <xref target="priority-gc"/>).
-              </t>
-              <t>
-                If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame,
-                the peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or
-                enqueued for sending - frames on the stream that cannot be withdrawn.  An endpoint
-                MUST ignore frames that it receives on closed streams after it has sent a
-                <x:ref>RST_STREAM</x:ref> frame.  An endpoint MAY choose to limit the period over
-                which it ignores frames and treat frames that arrive after this time as being in
-                error.
-              </t>
-              <t>
-                Flow controlled frames (i.e., <x:ref>DATA</x:ref>) received after sending
-                <x:ref>RST_STREAM</x:ref> are counted toward the connection flow control window.
-                Even though these frames might be ignored, because they are sent before the sender
-                receives the <x:ref>RST_STREAM</x:ref>, the sender will consider the frames to count
-                against the flow control window.
-              </t>
-              <t>
-                An endpoint might receive a <x:ref>PUSH_PROMISE</x:ref> frame after it sends
-                <x:ref>RST_STREAM</x:ref>.  <x:ref>PUSH_PROMISE</x:ref> causes a stream to become
-                "reserved" even if the associated stream has been reset.  Therefore, a
-                <x:ref>RST_STREAM</x:ref> is needed to close an unwanted promised stream.
               </t>
             </x:lt>
           </list>
@@ -1522,8 +1522,10 @@ HTTP2-Settings    = token68
             is permitted to deal with misbehaving implementations.
           </t>
           <t>
-            An endpoint MUST NOT send a <x:ref>RST_STREAM</x:ref> in response to a
-            <x:ref>RST_STREAM</x:ref> frame, to avoid looping.
+            An endpoint MUST send a <x:ref>RST_STREAM</x:ref> with <x:ref>NO_ERROR</x:ref> in response to a
+            <x:ref>RST_STREAM</x:ref> frame if it is received in any state other than "reset" or "closed".
+            To avoid looping, an endpoint MUST NOT send a <x:ref>RST_STREAM</x:ref> in response to a
+            <x:ref>RST_STREAM</x:ref> frame the stream is in "reset" or "closed" state.
           </t>
         </section>
 
@@ -1904,12 +1906,13 @@ HTTP2-Settings    = token68
         </t>
 
         <t>
-          The RST_STREAM frame fully terminates the referenced stream and causes it to enter the
-          closed state. After receiving a RST_STREAM on a stream, the receiver MUST NOT send
-          additional frames for that stream, with the exception of <x:ref>PRIORITY</x:ref>. However,
-          after sending the RST_STREAM, the sending endpoint MUST be prepared to receive and process
-          additional frames sent on the stream that might have been sent by the peer prior to the
-          arrival of the RST_STREAM.
+          Receiving a RST_STREAM frame fully terminates the stream and causes it to enter the 
+	  "closed" state.  After receiving a RST_STREAM on a stream, the receiver MUST NOT send
+          additional frames for that stream, with the exception of <x:ref>PRIORITY</x:ref>. 
+	  Sending a RST_STREAM causes the stream to enter the "reset" state and wait for a RST_STREAM
+	  in response. After sending the RST_STREAM, the sending endpoint MUST be prepared to receive 
+	  and process additional frames sent on the stream that might have been sent by the peer 
+	  prior to the arrival of the RST_STREAM.
         </t>
 
         <t>
@@ -1924,6 +1927,13 @@ HTTP2-Settings    = token68
           frame identifying an idle stream is received, the recipient MUST treat this as a <xref
           target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.
+        </t>
+        <t>
+          An endpoint MUST send a <x:ref>RST_STREAM</x:ref> with <x:ref>NO_ERROR</x:ref> in 
+	  response to a <x:ref>RST_STREAM</x:ref> frame if it is received in any state 
+	  other than "reset" or "closed".  To avoid looping, an endpoint MUST NOT send 
+	  a <x:ref>RST_STREAM</x:ref> in response to a <x:ref>RST_STREAM</x:ref> frame the 
+	  stream is in "reset" or "closed" state.
         </t>
         <t>
           A RST_STREAM frame with a length other than 4 octets MUST be treated as a <xref
