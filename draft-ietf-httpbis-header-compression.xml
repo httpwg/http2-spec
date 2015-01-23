@@ -106,7 +106,7 @@
                 <t>
                     The format defined in this specification treats a list of
                     header fields as an ordered collection of name-value pairs
-                    that can include duplicates. Names and values are
+                    that can include duplicate pairs. Names and values are
                     considered to be opaque sequences of octets, and the order
                     of header fields is preserved after being compressed and
                     decompressed.
@@ -122,6 +122,10 @@
                     literally or as a reference to a name-value pair in one of
                     the header tables. Therefore, a list of header fields can be
                     encoded using a mixture of references and literal values.
+                </t>
+                <t>
+                    Literal values are either encoded directly or using a static
+                    Huffman code.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header fields
@@ -270,7 +274,8 @@
                         as each header block is decompressed.
                     </t>
                     <t>
-                        The dynamic table can contain duplicate entries.
+                        The dynamic table can contain duplicate entries (i.e.
+                        entries with the same name and same value).
                         Therefore, duplicate entries MUST NOT be treated as an
                         error by a decoder.
                     </t>
@@ -368,6 +373,12 @@
                             target="literal.header.with.incremental.indexing"/>).
                         </t>
                     </list>
+                </t>
+                <t>
+                    The literal representation of a header field name or of a
+                    header field value can either encode the string directly or
+                    using a static Huffman code (see <xref
+                        target="string.literal.representation"/>).
                 </t>
                 <t>
                     An indexed representation defines a header field as a
@@ -473,20 +484,19 @@
                     The size of an entry is the sum of its name's length in
                     octets (as defined in <xref
                     target="string.literal.representation" />), its value's
-                    length in octets (see <xref
-                    target="string.literal.representation" />), plus 32.
+                    length in octets, plus 32.
                 </t>
                 <t>
                     The size of an entry is calculated using the length of the
                     name and value without any Huffman encoding applied.
                 </t>
                 <t>
-                    NOTE: The additional 32 octets account for the overhead
-                    associated with an entry. For example, an entry structure
-                    using two 64-bit pointers to reference the name and the
-                    value of the entry, and two 64-bit integers for counting
-                    the number of references to the name and value would have
-                    32 octets of overhead.
+                    NOTE: The additional 32 octets account for an estimated
+                    overhead associated with an entry. For example, an entry
+                    structure using two 64-bit pointers to reference the name
+                    and the value of the entry, and two 64-bit integers for
+                    counting the number of references to the name and value
+                    would have 32 octets of overhead.
                 </t>
             </section>
 
@@ -580,10 +590,10 @@
             <section title="Integer Representation"
                      anchor="integer.representation">
                 <t>
-                    Integers are used to represent name indexes, pair indexes or
-                    string lengths. To allow for optimized processing, an
-                    integer representation always finishes at the end of an
-                    octet.
+                    Integers are used to represent name indexes, header field
+                    indexes or string lengths. To allow for optimized
+                    processing, an integer representation always finishes at the
+                    end of an octet.
                 </t>
                 <t>
                     An integer is represented in two parts: a prefix that fills
@@ -684,11 +694,11 @@ else
                     This integer representation allows for values of indefinite
                     size.  It is also possible for an encoder to send a large
                     number of zero values, which can waste octets and could be
-                    used to overflow integer values.  Excessively large integer
-                    encodings - in value or octet length - MUST be treated as a
-                    decoding error.  Different limits can be set for each of the
-                    different uses of integers, based on implementation
-                    constraints.
+                    used to overflow integer values.  Integer encodings that
+                    exceed an implementation limits - in value or octet length -
+                    MUST be treated as a decoding error.  Different limits can
+                    be set for each of the different uses of integers, based on
+                    implementation constraints.
                 </t>
             </section>
 
@@ -1050,11 +1060,12 @@ else
                 </t>
                 <t>
                     The new maximum size MUST be lower than or equal to the last
-                    value of the SETTINGS_HEADER_TABLE_SIZE parameter (see <xref
-                        target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>)
-                    received from the decoder and acknowledged by the encoder
-                    (see <xref target="HTTP2" x:fmt="of"
-                        x:rel="#SettingsSync"/>).
+                    value of the maximum size of the dynamic table. In HTTP/2,
+                    this is the last value of the SETTINGS_HEADER_TABLE_SIZE
+                    parameter (see <xref target="HTTP2" x:fmt="of"
+                        x:rel="#SettingValues"/>) received from the decoder and
+                    acknowledged by the encoder (see <xref target="HTTP2"
+                        x:fmt="of" x:rel="#SettingsSync"/>).
                 </t>
                 <t>
                     Reducing the maximum size of the dynamic table can cause
@@ -1101,9 +1112,11 @@ else
                     the encoded length and infer that the guess was correct.
                 </t>
                 <t>
-                    This is possible even over TLS, because while TLS provides
-                    confidentiality protection for content, it only provides a
-                    limited amount of protection for the length of that content.
+                    This is possible even over the Transport Layer Security
+                    Protocol (TLS, see <xref target="TLS12"/>), because while
+                    TLS provides confidentiality protection for content, it only
+                    provides a limited amount of protection for the length of
+                    that content.
                     <list style="hanging">
                         <t hangText="Note:">
                             Padding schemes only provide limited protection
@@ -1268,9 +1281,11 @@ else
                     amounts of memory allocated by an endpoint.
                 </t>
                 <t>
-                    The amount of memory used by the compressor state is limited
-                    by the decoder using the value of the HTTP/2 setting
-                    parameter SETTINGS_HEADER_TABLE_SIZE (see <xref
+                    The amount of memory used by the compressor is limited by
+                    the protocol using HPACK through the setting of the maximum
+                    size of the dynamic table.
+                    In HTTP/2, this value is controlled by the decoder through
+                    the setting parameter SETTINGS_HEADER_TABLE_SIZE (see <xref
                         target="HTTP2" x:fmt="of" x:rel="#SettingValues"/>).
                     This limit takes into account both the size of the data
                     stored in the dynamic table, plus a small allowance for
@@ -1278,7 +1293,8 @@ else
                 </t>
                 <t>
                     A decoder can limit the amount of state memory used by
-                    setting an appropriate value for the
+                    setting the maximum size of the dynamic table. In HTTP/2,
+                    this is realized by setting an appropriate value for the
                     SETTINGS_HEADER_TABLE_SIZE parameter.  An encoder can limit
                     the amount of state memory it uses by signalling lower
                     dynamic table size than the decoder allows (see <xref
@@ -1403,6 +1419,17 @@ else
                 </front>
                 <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
             </reference>
+
+            <reference anchor="TLS12">
+                <front>
+                    <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
+                    <author initials="T." surname="Dierks" fullname="Tim Dierks"/>
+                    <author initials="E." surname="Rescorla" fullname="Eric Rescorla"/>
+                    <date year="2008" month="August" />
+                </front>
+                <seriesInfo name="RFC" value="5246" />
+            </reference>
+
             <reference anchor="ORIGIN">
                 <front>
                     <title>The Web Origin Concept</title>
@@ -1411,6 +1438,7 @@ else
                 </front>
                 <seriesInfo name="RFC" value="6454"/>
             </reference>
+
             <reference anchor="DEFLATE">
                 <front>
                     <title>DEFLATE Compressed Data Format Specification version 1.3</title>
@@ -1421,7 +1449,8 @@ else
                 </front>
                 <seriesInfo name="RFC" value="1951"/>
             </reference>
-            <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit#slide=id.g1eb6c1b5_3_6">
+
+            <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit">
                 <front>
                     <title>The CRIME Attack</title>
                     <author initials="J." surname="Rizzo" fullname="Juliano Rizzo"></author>
@@ -1430,7 +1459,7 @@ else
                 </front>
             </reference>
 
-            <reference anchor="HUFFMAN" target="https://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">
+            <reference anchor="HUFFMAN" target="http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">
                 <front>
                     <title>A Method for the Construction of Minimum Redundancy
                     Codes</title>
@@ -1464,7 +1493,7 @@ else
 
         <section title="Static Table Definition" anchor="static.table.definition">
             <t>
-                The static table (see <xref target="static.table"/>) consists of
+                The static table (see <xref target="static.table"/>) consists in
                 a predefined and unchangeable list of header fields.
             </t>
             <t>
@@ -1597,7 +1626,7 @@ else
                 As an example, the code for the symbol 47 (corresponding to the
                 ASCII character "/") consists in the 6 bits "0", "1", "1", "0",
                 "0", "0". This corresponds to the value 0x18 (in hexadecimal)
-                encoded on 6 bits.
+                encoded in 6 bits.
             </t>
             <figure>
                 <artwork><![CDATA[
@@ -1935,7 +1964,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
                                         </list>
                                     </t>
                                     <t>
-                                        I, now 10, is encoded on 8 bits as:
+                                        I, now 10, is encoded in 8 bits as:
                                         00001010.
                                     </t>
                                 </list>
