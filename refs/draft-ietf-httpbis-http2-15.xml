@@ -15,7 +15,7 @@
 
 <rfc ipr="trust200902"
      category="std"
-     docName="draft-ietf-httpbis-http2-latest"
+     docName="draft-ietf-httpbis-http2-15"
      x:maturity-level="proposed"
      xmlns:x="http://purl.org/net/xml2rfc/ext">
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
@@ -50,7 +50,7 @@
       </address>
     </author>
 
-    <date year="2015" />
+    <date year="2014" month="October" day="27"/>
     <area>Applications</area>
     <workgroup>HTTPbis</workgroup>
     <keyword>HTTP</keyword>
@@ -94,10 +94,10 @@
     <section anchor="intro" title="Introduction">
 
       <t>
-        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, how
-        HTTP/1.1 uses the underlying transport (<xref target="RFC7230" x:fmt=","
-        x:rel="#connection.management"/>) has several characteristics that have a negative overall
-        effect on application performance today.
+        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the
+        HTTP/1.1 message format (<xref target="RFC7230" x:fmt="," x:rel="#http.message"/>) has
+        several characteristics that have a negative overall effect on application performance
+        today.
       </t>
       <t>
         In particular, HTTP/1.0 allowed only one request to be outstanding at a time on a given
@@ -166,10 +166,9 @@
         the synthetic request on a separate stream.
       </t>
       <t>
-        Because HTTP header fields used in a connection can contain large amounts of redundant
-        data, frames that contain them are <xref target="HeaderBlock">compressed</xref>. This has
-        especially advantageous impact upon request sizes in the common case, allowing many
-        requests to be compressed into one TCP packet.
+        Frames that contain HTTP header fields are <xref target="HeaderBlock">compressed</xref>.
+        HTTP requests can be highly redundant, so compression can reduce the size of requests and
+        responses significantly.
       </t>
 
       <section title="Document Organization">
@@ -344,10 +343,10 @@
       <section anchor="discover-http" title="Starting HTTP/2 for &quot;http&quot; URIs">
         <t>
           A client that makes a request for an "http" URI without prior knowledge about support for
-          HTTP/2 on the next hop uses the HTTP Upgrade mechanism (<xref target="RFC7230" x:fmt="of"
-          x:rel="#header.upgrade"/>). The client does so by making an HTTP/1.1 request that
-          includes an Upgrade header field with the "h2c" token. Such an HTTP/1.1 request MUST
-          include exactly one <xref target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
+          HTTP/2 uses the HTTP Upgrade mechanism (<xref target="RFC7230" x:fmt="of"
+          x:rel="#header.upgrade"/>).  The client makes an HTTP/1.1 request that includes an Upgrade
+          header field identifying HTTP/2 with the "h2c" token.  The HTTP/1.1 request MUST include
+          exactly one <xref target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
         </t>
         <figure>
           <preamble>For example:</preamble>
@@ -384,7 +383,7 @@ Content-Type: text/html
 </artwork>
         </figure>
         <t>
-          A server MUST ignore an "h2" token in an Upgrade header field.  Presence of a token with
+          A server MUST ignore a "h2" token in an Upgrade header field.  Presence of a token with
           "h2" implies HTTP/2 over TLS, which is instead negotiated as described in <xref
           target="discover-https"/>.
         </t>
@@ -408,10 +407,10 @@ Upgrade: h2c
 </artwork>
         </figure>
         <t>
-          The first HTTP/2 frame sent by the server MUST be a <x:ref>SETTINGS</x:ref> frame (<xref
+          The first HTTP/2 frame sent by the server is a <x:ref>SETTINGS</x:ref> frame (<xref
           target="SETTINGS"/>) as the server connection preface (<xref
-          target="ConnectionHeader"/>). Upon receiving the 101 response, the client MUST send a
-          <xref target="ConnectionHeader">connection preface</xref>, which includes a
+          target="ConnectionHeader"/>). Upon receiving the 101 response, the client sends a <xref
+          target="ConnectionHeader">connection preface</xref>, which includes a
           <x:ref>SETTINGS</x:ref> frame.
         </t>
         <t>
@@ -457,8 +456,8 @@ HTTP2-Settings    = token68
           </t>
           <t>
             A server decodes and interprets these values as it would any other
-            <x:ref>SETTINGS</x:ref> frame.  Explicit <xref target="SettingsSync">acknowledgement of
-            these settings</xref> is not necessary, since a 101 response serves as implicit
+            <x:ref>SETTINGS</x:ref> frame.  <xref target="SettingsSync">Acknowledgement of the
+            SETTINGS parameters</xref> is not necessary, since a 101 response serves as implicit
             acknowledgment.  Providing these values in the Upgrade request gives a client an
             opportunity to provide parameters prior to receiving any frames from the server.
           </t>
@@ -475,7 +474,7 @@ HTTP2-Settings    = token68
           client or selected by a server.
         </t>
         <t>
-          Once TLS negotiation is complete, both the client and the server MUST send a <xref
+          Once TLS negotiation is complete, both the client and the server send a <xref
           target="ConnectionHeader">connection preface</xref>.
         </t>
       </section>
@@ -486,14 +485,11 @@ HTTP2-Settings    = token68
           <xref target="ALT-SVC"/> describes a mechanism for advertising this capability.
         </t>
         <t>
-          A client MUST send the <xref target="ConnectionHeader">connection preface</xref>, and
-          then MAY immediately send HTTP/2 frames to such a server; servers can identify these
-          connections by the presence of the connection preface. This only affects the
-          establishment of HTTP/2 connections over cleartext TCP; implementations that support
+          A client MAY immediately send HTTP/2 frames to a server that is known to support HTTP/2,
+          after the <xref target="ConnectionHeader">connection preface</xref>; a server can
+          identify such a connection by the presence of the connection preface. This only affects
+          the establishment of HTTP/2 connections over cleartext TCP; implementations that support
           HTTP/2 over TLS MUST use <xref target="TLS-ALPN">protocol negotiation in TLS</xref>.
-        </t>
-        <t>
-          Likewise, the server MUST send a <xref target="ConnectionHeader">connection preface</xref>.
         </t>
         <t>
           Without additional information, prior support for HTTP/2 is not a strong signal that a
@@ -505,9 +501,10 @@ HTTP2-Settings    = token68
 
       <section anchor="ConnectionHeader" title="HTTP/2 Connection Preface">
         <t>
-          In HTTP/2, each endpoint is required to send a connection preface as a final confirmation
-          of the protocol in use, and to establish the initial settings for the HTTP/2 connection.
-          The client and server each send a different connection preface.
+          Upon establishment of a TCP connection and determination that HTTP/2 will be used by both
+          peers, each endpoint MUST send a connection preface as a final confirmation and to
+          establish the initial SETTINGS parameters for the HTTP/2 connection.  The client and
+          server each send a different connection preface.
         </t>
         <t>
           The client connection preface starts with a sequence of 24 octets, which in hex notation
@@ -519,13 +516,13 @@ HTTP2-Settings    = token68
 ]]></artwork>
         </figure>
         <t>
-          (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>). This sequence
-          MUST be followed by a <x:ref>SETTINGS</x:ref> frame (<xref target="SETTINGS"/>), which
-          MAY be empty. The client sends the client connection preface immediately upon receipt of
-          a 101 Switching Protocols response (indicating a successful upgrade), or as the first
-          application data octets of a TLS connection. If starting an HTTP/2 connection with prior
-          knowledge of server support for the protocol, the client connection preface is sent upon
-          connection establishment.
+          (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>).  This sequence
+          is followed by a <x:ref>SETTINGS</x:ref> frame (<xref target="SETTINGS"/>).  The
+          <x:ref>SETTINGS</x:ref> frame MAY be empty.  The client sends the client connection
+          preface immediately upon receipt of a 101 Switching Protocols response (indicating a
+          successful upgrade), or as the first application data octets of a TLS connection. If
+          starting an HTTP/2 connection with prior knowledge of server support for the protocol, the
+          client connection preface is sent upon connection establishment.
         </t>
         <t>
           <list>
@@ -671,7 +668,7 @@ HTTP2-Settings    = token68
         <t>
           Endpoints are not obligated to use all available space in a frame. Responsiveness can be
           improved by using frames that are smaller than the permitted maximum size. Sending large
-          frames can result in delays in sending time-sensitive frames (such as
+          frames can result in delays in sending time-sensitive frames (such
           <x:ref>RST_STREAM</x:ref>, <x:ref>WINDOW_UPDATE</x:ref>, or <x:ref>PRIORITY</x:ref>)
           which if blocked by the transmission of a large frame, could affect performance.
         </t>
@@ -773,37 +770,31 @@ HTTP2-Settings    = token68
         <figure anchor="StreamStatesFigure" title="Stream States">
           <artwork type="drawing">
             <![CDATA[
-                             +--------+
-                     send PP |        | recv PP
-                    ,--------|  idle  |--------.
-                   /         |        |         \
-                  v          +--------+          v
-           +----------+          |           +----------+
-           |          |          | send H/   |          |
-     ,-----| reserved |          | recv H    | reserved |-----.
-     |     | (local)  |          |           | (remote) |     |
-     |     +----------+          v           +----------+     |
-     |         |             +--------+             |         |
-     |         |     recv ES |        | send ES     |         |
-     |  send H |     ,-------|  open  |-------.     | recv H  |
-     |         |    /        |        |        \    |         |
-     |         v   v         +--------+         v   v         |
-     |     +----------+          |           +----------+     |
-     |     |   half   |          |           |   half   |     |
-     |     |  closed  |          | send R/   |  closed  |     |
-     |     | (remote) |          | recv R    | (local)  |     |
-     |     +----------+          |           +----------+     |
-     |          |                |                 |          |
-     |          | send ES/       |        recv ES/ |          |
-     |          | send R/        v         send R/ |          |
-     |          | recv R     +--------+    recv R  |          |
-     | send R/  `----------->|        |<-----------'  send R/ |
-     | recv R                | closed |               recv R  |
-     `---------------------->|        |<----------------------'
-                             +--------+
-
-       send:   endpoint sends this frame
-       recv:   endpoint receives this frame
+                           +--------+
+                     PP    |        |    PP
+                  ,--------|  idle  |--------.
+                 /         |        |         \
+                v          +--------+          v
+         +----------+          |           +----------+
+         |          |          | H         |          |
+     ,---| reserved |          |           | reserved |---.
+     |   | (local)  |          v           | (remote) |   |
+     |   +----------+      +--------+      +----------+   |
+     |      |          ES  |        |  ES          |      |
+     |      | H    ,-------|  open  |-------.      | H    |
+     |      |     /        |        |        \     |      |
+     |      v    v         +--------+         v    v      |
+     |   +----------+          |           +----------+   |
+     |   |   half   |          |           |   half   |   |
+     |   |  closed  |          | R         |  closed  |   |
+     |   | (remote) |          |           | (local)  |   |
+     |   +----------+          |           +----------+   |
+     |        |                v                 |        |
+     |        |  ES / R    +--------+  ES / R    |        |
+     |        `----------->|        |<-----------'        |
+     |  R                  | closed |                  R  |
+     `-------------------->|        |<--------------------'
+                           +--------+
 
        H:  HEADERS frame (with implied CONTINUATIONs)
        PP: PUSH_PROMISE frame (with implied CONTINUATIONs)
@@ -848,20 +839,20 @@ HTTP2-Settings    = token68
                     cause a stream to immediately become "half closed".
                   </t>
                   <t>
-                    Sending a <x:ref>PUSH_PROMISE</x:ref> frame reserves an idle stream for
-                    later use.  The stream state for the reserved stream transitions to
-                    "reserved (local)".
+                    Sending a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream for
+                    later use.  The stream state for the reserved stream transitions to "reserved
+                    (local)".
                   </t>
                   <t>
-                    Receiving a <x:ref>PUSH_PROMISE</x:ref> frame reserves an idle stream for
-                    later use.  The stream state for the reserved stream transitions to
-                    "reserved (remote)".
+                    Receiving a <x:ref>PUSH_PROMISE</x:ref> frame marks the associated stream as
+                    reserved by the remote peer.  The state of the stream becomes "reserved
+                    (remote)".
                   </t>
                 </list>
               </t>
               <t>
-                Receiving any frames other than <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref>
-                or <x:ref>PRIORITY</x:ref> on a stream in this state MUST be treated as a <xref
+                Receiving any frames other than <x:ref>HEADERS</x:ref> or
+                <x:ref>PUSH_PROMISE</x:ref> on a stream in this state MUST be treated as a <xref
                 target="ConnectionErrorHandler">connection error</xref> of type
                 <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
@@ -889,8 +880,8 @@ HTTP2-Settings    = token68
                 </list>
               </t>
               <t>
-                An endpoint MUST NOT send any type of frame other than <x:ref>HEADERS</x:ref>,
-                <x:ref>RST_STREAM</x:ref>, or <x:ref>PRIORITY</x:ref> in this state.
+                An endpoint MUST NOT send any type of frame other than <x:ref>HEADERS</x:ref> or
+                <x:ref>RST_STREAM</x:ref> in this state.
               </t>
               <t>
                 A <x:ref>PRIORITY</x:ref> or <x:ref>WINDOW_UPDATE</x:ref> frame MAY be received in
@@ -926,10 +917,10 @@ HTTP2-Settings    = token68
                 in this state.
               </t>
               <t>
-                Receiving any type of frame other than <x:ref>HEADERS</x:ref>,
-                <x:ref>RST_STREAM</x:ref> or <x:ref>PRIORITY</x:ref> on a stream in this state MUST
-                be treated as a <xref target="ConnectionErrorHandler">connection error</xref> of
-                type <x:ref>PROTOCOL_ERROR</x:ref>.
+                Receiving any type of frame other than <x:ref>HEADERS</x:ref> or
+                <x:ref>RST_STREAM</x:ref> on a stream in this state MUST be treated as a <xref
+                target="ConnectionErrorHandler">connection error</xref> of type
+                <x:ref>PROTOCOL_ERROR</x:ref>.
               </t>
             </x:lt>
 
@@ -1061,8 +1052,7 @@ HTTP2-Settings    = token68
           In the absence of more specific guidance elsewhere in this document, implementations
           SHOULD treat the receipt of a frame that is not expressly permitted in the description of
           a state as a <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>PROTOCOL_ERROR</x:ref>.  Note that <x:ref>PRIORITY</x:ref> can be sent and received
-          in any stream state.  Frame of unknown types are ignored.
+          <x:ref>PROTOCOL_ERROR</x:ref>.  Frame of unknown types are ignored.
         </t>
         <t>
           An example of the state transitions for an HTTP request/response exchange can be found in
@@ -1129,11 +1119,11 @@ HTTP2-Settings    = token68
           <t>
             Endpoints MUST NOT exceed the limit set by their peer.  An endpoint that receives a
             <x:ref>HEADERS</x:ref> frame that causes their advertised concurrent stream limit to be
-            exceeded MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of
-            type <x:ref>PROTOCOL_ERROR</x:ref> or <x:ref>REFUSED_STREAM</x:ref>.  An endpoint that
-            wishes to reduce the value of <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> to a value
-            that is below the current number of open streams can either close streams that exceed
-            the new value or allow streams to complete.
+            exceeded MUST treat this as a <xref target="StreamErrorHandler">stream error</xref>.  An
+            endpoint that wishes to reduce the value of
+            <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> to a value that is below the current
+            number of open streams can either close streams that exceed the new value or allow
+            streams to complete.
           </t>
         </section>
       </section>
@@ -1235,9 +1225,9 @@ HTTP2-Settings    = token68
       <section anchor="StreamPriority" title="Stream priority">
         <t>
           A client can assign a priority for a new stream by including prioritization information in
-          the <xref target="HEADERS">HEADERS frame</xref> that opens the stream.  At any other time,
-          the <xref target="PRIORITY">PRIORITY frame</xref> can be used to change the priority of a
-          stream.
+          the <xref target="HEADERS">HEADERS frame</xref> that opens the stream.  For an existing
+          stream, the <xref target="PRIORITY">PRIORITY frame</xref> can be used to change the
+          priority.
         </t>
         <t>
           The purpose of prioritization is to allow an endpoint to express how it would prefer its
@@ -1415,26 +1405,14 @@ HTTP2-Settings    = token68
             that streams are assigned incorrect or default priority values.
           </t>
           <t>
-            Similarly, streams that are in the "idle" state can be assigned priority or become a
-            parent of other streams.  This allows for the creation of a grouping node in the
-            dependency tree, which enables more flexible expressions of priority.  Idle streams that
-            are made a parent of another stream are assigned a <xref target="pri-default">default
-            priority</xref>.
-          </t>
-          <t>
-            The retention of priority information for streams that are not counted toward the limit
-            set by <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> could create a large state burden
-            for an endpoint.  Therefore the amount of prioritization state that is retained MAY be
-            limited.
-          </t>
-          <t>
-            The amount of additional state an endpoint maintains for prioritization could be
-            dependent on load; under high load, prioritization state can be discarded to limit
-            resource commitments.  In extreme cases, an endpoint could even discard prioritization
-            state for active or reserved streams. If a limit is applied, endpoints SHOULD maintain
-            state for at least as many streams as allowed by their setting for
-            <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.  Implementations SHOULD also attempt to
-            retain state for streams that are in active use in the priority tree.
+            This could create a large state burden for an endpoint, so this state MAY be limited.
+            An endpoint MAY apply a fixed upper limit on the number of closed streams for which
+            prioritization state is tracked to limit state exposure.  The amount of additional state
+            an endpoint maintains could be dependent on load; under high load, prioritization state
+            can be discarded to limit resource commitments.  In extreme cases, an endpoint could
+            even discard prioritization state for active or reserved streams. If a fixed limit is
+            applied, endpoints SHOULD maintain state for at least as many streams as allowed by
+            their setting for <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref>.
           </t>
           <t>
             An endpoint receiving a <x:ref>PRIORITY</x:ref> frame that changes the priority of a
@@ -1453,7 +1431,7 @@ HTTP2-Settings    = token68
         </section>
       </section>
 
-      <section anchor="ErrorHandler" title="Error Handling">
+      <section title="Error Handling">
         <t>
           HTTP/2 framing permits two classes of error:
           <list style="symbols">
@@ -1522,7 +1500,7 @@ HTTP2-Settings    = token68
             is permitted to deal with misbehaving implementations.
           </t>
           <t>
-            An endpoint MUST NOT send a <x:ref>RST_STREAM</x:ref> in response to a
+            An endpoint MUST NOT send a <x:ref>RST_STREAM</x:ref> in response to an
             <x:ref>RST_STREAM</x:ref> frame, to avoid looping.
           </t>
         </section>
@@ -1805,7 +1783,7 @@ HTTP2-Settings    = token68
         <t>
           Prioritization information in a HEADERS frame is logically equivalent to a separate
           <x:ref>PRIORITY</x:ref> frame, but inclusion in HEADERS avoids the potential for churn in
-          stream prioritization when new streams are created.  Prioritization fields in HEADERS frames
+          stream prioritization when new streams are created.  Priorization fields in HEADERS frames
           subsequent to the first on a stream <xref target="reprioritize">reprioritize the
           stream</xref>.
         </t>
@@ -1814,8 +1792,8 @@ HTTP2-Settings    = token68
       <section anchor="PRIORITY" title="PRIORITY">
         <t>
           The PRIORITY frame (type=0x2) specifies the <xref target="StreamPriority">sender-advised
-          priority of a stream</xref>.  It can be sent at any time for any stream, including idle or
-          closed streams.
+          priority of a stream</xref>.  It can be sent at any time for an existing stream, including
+          closed streams.  This enables reprioritization of existing streams.
         </t>
         <figure anchor="PRIORITYFramePayload"
           title="PRIORITY Frame Payload">
@@ -1858,17 +1836,20 @@ HTTP2-Settings    = token68
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
         <t>
-          The PRIORITY frame can be sent on a stream in any state, though it cannot be sent between
-          consecutive frames that comprise a single <xref target="HeaderBlock">header block</xref>.
-          Note that this frame could arrive after processing or frame sending has completed, which
-          would cause it to have no effect on the current stream.  For a stream that is in the "half
-          closed (remote)" or "closed" - state, this frame can only affect processing of the current
-          stream and not frame transmission.
+          The PRIORITY frame can be sent on a stream in any of the "reserved (remote)", "open",
+          "half closed (local)", "half closed (remote)", or "closed" states, though it cannot be
+          sent between consecutive frames that comprise a single <xref target="HeaderBlock">header
+          block</xref>.  Note that this frame could arrive after processing or frame sending has
+          completed, which would cause it to have no effect on the current stream.  For a stream
+          that is in the "half closed (remote)" or "closed" - state, this frame can only affect
+          processing of the current stream and not frame transmission.
         </t>
         <t>
-           The PRIORITY frame can be sent for a stream in the "idle" or "closed" states.  This
-           allows for the reprioritization of a group of dependent streams by altering the priority
-           of an unused or closed parent stream.
+          The PRIORITY frame is the only frame that can be sent for a stream in the "closed" state.
+          This allows for the reprioritization of a group of dependent streams by altering the
+          priority of a parent stream, which might be closed.  However, a PRIORITY frame sent on a
+          closed stream risks being ignored due to the peer having discarded priority state
+          information for that stream.
         </t>
         <t>
           A PRIORITY frame with a length other than 5 octets MUST be treated as a <xref
@@ -2058,7 +2039,7 @@ HTTP2-Settings    = token68
                   by endpoints.  A zero value does prevent the creation of new streams, however this
                   can also happen for any limit that is exhausted with active streams.  Servers
                   SHOULD only set a zero value for short durations; if a server does not wish to
-                  accept requests, closing the connection is more appropriate.
+                  accept requests, closing the connection could be preferable.
                 </t>
               </x:lt>
               <x:lt hangText="SETTINGS_INITIAL_WINDOW_SIZE (0x4):"
@@ -2336,7 +2317,7 @@ HTTP2-Settings    = token68
         <t>
           The purpose of this frame is to allow an endpoint to gracefully stop accepting new
           streams, while still finishing processing of previously established streams.  This enables
-          administrative actions, like server maintenance.
+          administrative actions, like server maintainance.
         </t>
         <t>
           There is an inherent race condition between an endpoint starting new streams and the
@@ -2418,7 +2399,7 @@ HTTP2-Settings    = token68
         <t>
           An endpoint MAY send multiple GOAWAY frames if circumstances change.  For instance, an
           endpoint that sends GOAWAY with <x:ref>NO_ERROR</x:ref> during graceful shutdown could
-          subsequently encounter a condition that requires immediate termination of the connection.
+          subsequently encounter an condition that requires immediate termination of the connection.
           The last stream identifier from the last GOAWAY frame received indicates which streams
           could have been acted upon.  Endpoints MUST NOT increase the value they send in the last
           stream identifier, since the peers might already have retried unprocessed requests on
@@ -2903,13 +2884,6 @@ HTTP2-Settings    = token68
             registered HTTP headers, see the Message Header Field Registry maintained at <eref
             target="https://www.iana.org/assignments/message-headers"/>.
           </t>
-          <t>
-            Just as in HTTP/1.x, header field names are strings of ASCII characters that are
-            compared in a case-insensitive fashion. However, header field names MUST be converted
-            to lowercase prior to their encoding in HTTP/2. A request or response containing
-            uppercase header field names MUST be treated as <xref
-            target="malformed">malformed</xref>.
-          </t>
 
           <section anchor="PseudoHeaderFields" title="Pseudo-Header Fields">
             <t>
@@ -2931,6 +2905,13 @@ HTTP2-Settings    = token68
               target="malformed">malformed</xref>.
             </t>
             <t>
+              Just as in HTTP/1.x, header field names are strings of ASCII characters that are
+              compared in a case-insensitive fashion. However, header field names MUST be converted
+              to lowercase prior to their encoding in HTTP/2. A request or response containing
+              uppercase header field names MUST be treated as <xref
+              target="malformed">malformed</xref>.
+            </t>
+            <t>
               All pseudo-header fields MUST appear in the header block before regular header fields.
               Any request or response that contains a pseudo-header field that appears in a header
               block after a regular header field MUST be treated as <xref
@@ -2948,15 +2929,15 @@ HTTP2-Settings    = token68
               target="malformed">malformed</xref>.
             </t>
             <t>
-              The only exception to this is the TE header field, which MAY be present in an HTTP/2
-              request; when it is, it MUST NOT contain any value other than "trailers".
-            </t>
-            <t>
               This means that an intermediary transforming an HTTP/1.x message to HTTP/2 will need
               to remove any header fields nominated by the Connection header field, along with the
               Connection header field itself. Such intermediaries SHOULD also remove other
               connection-specific header fields, such as Keep-Alive, Proxy-Connection,
               Transfer-Encoding and Upgrade, even if they are not nominated by Connection.
+            </t>
+            <t>
+              One exception to this is the TE header field, which MAY be present in an HTTP/2
+              request, but when it is, it MUST NOT contain any value other than "trailers".
             </t>
             <t>
               <list style="hanging">
@@ -3063,7 +3044,11 @@ HTTP2-Settings    = token68
 
          <section anchor="CompressCookie" title="Compressing the Cookie Header Field">
             <t>
-              The <xref target="COOKIE">Cookie header field</xref> uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
+              The <xref target="COOKIE">Cookie header field</xref> can carry a significant amount of
+              redundant data.
+            </t>
+            <t>
+              The Cookie header field uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
               This header field doesn't follow the list construction rules in HTTP (see <xref
               target="RFC7230" x:fmt="," x:rel="#field.order"/>), which prevents cookie-pairs from
               being separated into different name-value pairs.  This can significantly reduce
@@ -3244,7 +3229,7 @@ HTTP2-Settings    = token68
               and trailing header fields:
             </preamble>
             <artwork type="inline"><![CDATA[
-  HTTP/1.1 100 Continue            HEADERS
+  HTTP/1.1 100 Continue              HEADERS
   Extension-Field: bar       ==>     - END_STREAM
                                      + END_HEADERS
                                        :status = 100
@@ -3513,10 +3498,6 @@ HTTP2-Settings    = token68
           </list>
         </t>
         <t>
-          A CONNECT request that does not conform to these restrictions is <xref
-          target="malformed">malformed</xref>.
-        </t>
-        <t>
           A proxy that supports CONNECT establishes a <xref target="TCP">TCP connection</xref> to
           the server identified in the <spanx style="verb">:authority</spanx> header field. Once
           this connection is successfully established, the proxy sends a <x:ref>HEADERS</x:ref>
@@ -3659,48 +3640,42 @@ HTTP2-Settings    = token68
 
       <section title="Use of TLS Features" anchor="TLSUsage">
         <t>
-          Implementations of HTTP/2 MUST use <xref target="TLS12">TLS</xref> version 1.2 or higher
-          for HTTP/2 over TLS.  The general TLS usage guidance in <xref target="TLSBCP"/> SHOULD be
-          followed, with some additional restrictions that are specific to HTTP/2.
-        </t>
-        <t>
-          The TLS implementation MUST support the <xref target="TLS-EXT">Server Name Indication
-          (SNI)</xref> extension to TLS. HTTP/2 clients MUST indicate the target domain name when
-          negotiating TLS.
-        </t>
-        <t>
-          Deployments of HTTP/2 that negotiate TLS 1.3 or higher need only support and use the SNI
-          extension; deployments of TLS 1.2 are subject to the requirements in the following
-          sections.  Implementations are encouraged to provide defaults that comply, but it is
-          recognized that deployments are ultimately responsible for compliance.
+          Implementations of HTTP/2 MUST support <xref target="TLS12">TLS 1.2</xref> for HTTP/2 over
+          TLS.  The general TLS usage guidance in <xref target="TLSBCP"/> SHOULD be followed, with
+          some additional restrictions that are specific to HTTP/2.
         </t>
 
-        <section title="TLS 1.2 Features">
-          <t>
-            This section describes restrictions on the TLS 1.2 feature set that can be used with
-            HTTP/2.  Due to deployment limitations, it might not be possible to fail TLS negotiation
-            when these restrictions are not met.  An endpoint MAY immediately terminate an HTTP/2
-            connection that does not meet these TLS requirements with a <xref
-            target="ConnectionErrorHandler">connection error</xref> of type
-            <x:ref>INADEQUATE_SECURITY</x:ref>.
-          </t>
+        <t>
+          An implementation of HTTP/2 over TLS MUST use TLS 1.2 or higher with the restrictions on
+          feature set and cipher suite described in this section.  Due to implementation
+          limitations, it might not be possible to fail TLS negotiation.  An endpoint MUST
+          immediately terminate an HTTP/2 connection that does not meet the TLS requirements
+          described in this section with a <xref target="ConnectionErrorHandler">connection
+          error</xref> of type <x:ref>INADEQUATE_SECURITY</x:ref>.
+        </t>
 
+        <section anchor="TLSFeatures" title="TLS Features">
           <t>
-            A deployment of HTTP/2 over TLS 1.2 MUST disable compression.  TLS compression can lead
-            to the exposure of information that would not otherwise be revealed <xref
-            target="RFC3749"/>.  Generic compression is unnecessary since HTTP/2 provides
-            compression features that are more aware of context and therefore likely to be more
-            appropriate for use for performance, security or other reasons.
+            The TLS implementation MUST support the <xref target="TLS-EXT">Server Name Indication
+            (SNI)</xref> extension to TLS. HTTP/2 clients MUST indicate the target domain name when
+            negotiating TLS.
           </t>
           <t>
-            A deployment of HTTP/2 over TLS 1.2 MUST disable renegotiation.  An endpoint MUST treat
-            a TLS renegotiation as a <xref target="ConnectionErrorHandler">connection error</xref>
-            of type <x:ref>PROTOCOL_ERROR</x:ref>.  Note that disabling renegotiation can result in
+            The TLS implementation MUST disable compression.  TLS compression can lead to the
+            exposure of information that would not otherwise be revealed <xref target="RFC3749"/>.
+            Generic compression is unnecessary since HTTP/2 provides compression features that are
+            more aware of context and therefore likely to be more appropriate for use for
+            performance, security or other reasons.
+          </t>
+          <t>
+            The TLS implementation MUST disable renegotiation.  An endpoint MUST treat a TLS
+            renegotiation as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+            <x:ref>PROTOCOL_ERROR</x:ref>.  Note that disabling renegotiation can result in
             long-lived connections becoming unusable due to limits on the number of messages the
             underlying cipher suite can encipher.
           </t>
           <t>
-            An endpoint MAY use renegotiation to provide confidentiality protection for client
+            A client MAY use renegotiation to provide confidentiality protection for client
             credentials offered in the handshake, but any renegotiation MUST occur prior to sending
             the connection preface.  A server SHOULD request a client certificate if it sees a
             renegotiation request immediately after establishing a connection.
@@ -3708,53 +3683,36 @@ HTTP2-Settings    = token68
           <t>
             This effectively prevents the use of renegotiation in response to a request for a
             specific protected resource.  A future specification might provide a way to support this
-            use case. Alternatively, a server might use an <xref target="ErrorHandler">
-            error</xref> of type <x:ref>HTTP_1_1_REQUIRED</x:ref> to request the client
+            use case. Alternatively, a server might use a <xref target="ConnectionErrorHandler">
+            connection error</xref> of type <x:ref>HTTP_1_1_REQUIRED</x:ref> to request the client
             use a protocol which supports renegotiation.
-          </t>
-          <t>
-            Implementations MUST support ephemeral key exchange sizes of at least 2048 bits for
-            cipher suites that use ephemeral finite field Diffie-Hellman (DHE) <xref
-            target="TLS12"/> and 224 bits for cipher suites that use ephemeral elliptic curve
-            Diffie-Hellman (ECDHE) <xref target="RFC4492"/>.  Clients MUST accept DHE sizes of up
-            to 4096 bits.  Endpoints MAY treat negotiation of key sizes smaller than the lower
-            limits as a <xref target="ConnectionErrorHandler">connection error</xref> of type
-            <x:ref>INADEQUATE_SECURITY</x:ref>.
           </t>
         </section>
 
-        <section title="TLS 1.2 Cipher Suites">
+        <section title="TLS Cipher Suites">
           <t>
-            A deployment of HTTP/2 over TLS 1.2 SHOULD NOT use any of the cipher suites that are
-            listed in <xref target="BadCipherSuites"/>.
+            The set of TLS cipher suites that are permitted in HTTP/2 is restricted.  HTTP/2 MUST
+            only be used with cipher suites that have ephemeral key exchange, such as the <xref
+            target="TLS12">ephemeral Diffie-Hellman (DHE)</xref> or the <xref
+            target="RFC4492">elliptic curve variant (ECDHE)</xref>.  Ephemeral key exchange MUST
+            have a minimum size of 2048 bits for DHE or security level of 128 bits for ECDHE.
+            Clients MUST accept DHE sizes of up to 4096 bits.  HTTP MUST NOT be used with cipher
+            suites that use stream or block ciphers.  Authenticated Encryption with Additional Data
+            (AEAD) modes, such as the <xref target="RFC5288">Galois Counter Model (GCM) mode for
+            AES</xref> are acceptable.
           </t>
           <t>
-            Endpoints MAY choose to generate a <xref target="ConnectionErrorHandler">connection
-            error</xref> of type <x:ref>INADEQUATE_SECURITY</x:ref> if one of the prohibited cipher
-            suites are negotiated.  A deployment that chooses to use a prohibited cipher suite
-            risks triggering a connection error unless the set of potential peers is known to
-            accept that cipher suite.
+            The effect of these restrictions is that TLS 1.2 implementations could have
+            non-intersecting sets of available cipher suites, since these prevent the use of the
+            cipher suite that TLS 1.2 makes mandatory.  To avoid this problem, implementations of
+            HTTP/2 that use TLS 1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref
+            target="TLS-ECDHE"/> with P256 <xref target="FIPS186"/>.
           </t>
           <t>
-            Implementations MUST NOT generate this error in reaction to the negotiation of a cipher
-            suite that is not in the prohibited list.  Consequently, when clients offer a cipher
-            suite that is not prohibited, they have to be prepared to use that cipher suite with
-            HTTP/2.
-          </t>
-          <t>
-            The effect of prohibiting these cipher suites is that TLS 1.2 deployments could have
-            non-intersecting sets of available cipher suites, since the prohibited set includes the
-            cipher suite that TLS 1.2 makes mandatory.  To avoid this problem, deployments of HTTP/2
-            that use TLS 1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref
-            target="TLS-ECDHE"/> with the P256 elliptic curve <xref target="FIPS186"/>.
-          </t>
-          <t>
-            Note that clients might advertise support of cipher suites that are prohibited by the
-            above restrictions in order to allow for connection to servers that do not support
-            HTTP/2 and support only prohibited cipher suites.  This allows servers to select
-            HTTP/1.1 with a cipher suite that is prohibited for HTTP/2.  However, this can result in
-            HTTP/2 being negotiated with a prohibited cipher suite if the application protocol and
-            cipher suite are independently selected.
+            Clients MAY advertise support of cipher suites that are prohibited by the above
+            restrictions in order to allow for connection to servers that do not support HTTP/2.
+            This enables a fallback to protocols without these constraints without the additional
+            latency imposed by using a separate connection for fallback.
           </t>
         </section>
       </section>
@@ -3811,7 +3769,7 @@ HTTP2-Settings    = token68
           Similarly, HTTP/2 allows header field values that are not valid.  While most of the values
           that can be encoded will not alter header field parsing, carriage return (CR, ASCII 0xd),
           line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII 0x0) might be exploited by
-          an attacker if they are translated verbatim.  Any request or response that contains a
+          an attacker if they are translater verbatim.  Any request or response that contains a
           character not permitted in a header field value MUST be treated as <xref
           target="malformed">malformed</xref>.  Valid characters are defined by the <spanx
           style="verb">field-content</spanx> ABNF rule in <xref target="RFC7230" x:fmt="of"
@@ -3901,16 +3859,16 @@ HTTP2-Settings    = token68
             A large <xref target="HeaderBlock">header block</xref> can cause an implementation to
             commit a large amount of state.  Header fields that are critical for routing can appear
             toward the end of a header block, which prevents streaming of header fields to their
-            ultimate destination. For this and other reasons, such as ensuring cache correctness,
+            ultimate destination. For this an other reasons, such as ensuring cache correctness,
             means that an endpoint might need to buffer the entire header block.  Since there is no
-            hard limit to the size of a header block, some endpoints could be forced to commit a large
+            hard limit to the size of a header block, some endpoints could be forced commit a large
             amount of available memory for header fields.
           </t>
           <t>
             An endpoint can use the <x:ref>SETTINGS_MAX_HEADER_LIST_SIZE</x:ref> to advise peers of
             limits that might apply on the size of header blocks.  This setting is only advisory, so
             endpoints MAY choose to send header blocks that exceed this limit and risk having the
-            request or response being treated as malformed.  This setting is specific to a connection,
+            request or response being treated as malformed.  This setting specific to a connection,
             so any request or response could encounter a hop with a lower, unknown limit.  An
             intermediary can attempt to avoid this problem by passing on values presented by
             different peers, but they are not obligated to do so.
@@ -3941,7 +3899,7 @@ HTTP2-Settings    = token68
           both confidential and attacker-controlled data unless separate compression dictionaries
           are used for each source of data.  Compression MUST NOT be used if the source of data
           cannot be reliably determined.  Generic stream compression, such as that provided by TLS
-          MUST NOT be used with HTTP/2 (<xref target="TLSUsage"/>).
+          MUST NOT be used with HTTP/2 (<xref target="TLSFeatures"/>).
         </t>
         <t>
           Further considerations regarding the compression of header fields are described in <xref
@@ -3994,16 +3952,6 @@ HTTP2-Settings    = token68
           As far as this creates observable differences in behavior, they could be used as a basis
           for fingerprinting a specific client, as defined in <xref target="HTML5" x:fmt="of"
           x:sec="1.8" x:rel="introduction.html#fingerprint"/>.
-        </t>
-        <t>
-          HTTP/2's preference for using a single TCP connection allows correlation of a user's
-          activity on a site.  If connections are reused for different origins, this allows tracking
-          across those origins.
-        </t>
-        <t>
-          Because the PING and SETTINGS frames solicit immediate responses, they can be used by an
-          endpoint to measure latency to their peer.  This might have privacy implications in
-          certain scenarios.
         </t>
       </section>
     </section>
@@ -4219,7 +4167,7 @@ HTTP2-Settings    = token68
           <c>INADEQUATE_SECURITY</c><c>0xc</c>
           <c>Negotiated TLS parameters not acceptable</c>
           <c><xref target="ErrorCodes"/></c>
-          <c>HTTP_1_1_REQUIRED</c><c>0xd</c>
+          <c>HTTP_1_1_REQUIRED</c><c>0xc</c>
           <c>Use HTTP/1.1 for the request</c>
           <c><xref target="ErrorCodes"/></c>
         </texttable>
@@ -4328,7 +4276,7 @@ HTTP2-Settings    = token68
             (Substantial editorial contributions).
           </t>
           <t>
-            Kari Hurtta, Tatsuhiro Tsujikawa, Greg Wilkins, Poul-Henning Kamp, Jonathan Thackray.
+            Kari Hurtta, Tatsuhiro Tsujikawa, Greg Wilkins, Poul-Henning Kamp.
           </t>
           <t>
             Alexey Melnikov was an editor of this document during 2013.
@@ -4336,11 +4284,6 @@ HTTP2-Settings    = token68
           <t>
             A substantial proportion of Martin's contribution was supported by Microsoft during his
             employment there.
-          </t>
-          <t>
-            The Japanese HTTP/2 community provided an invaluable contribution,
-            including a number of implementations, plus numerous technical and
-            editorial contributions.
           </t>
         </list>
       </t>
@@ -4354,10 +4297,10 @@ HTTP2-Settings    = token68
           <title>HPACK - Header Compression for HTTP/2</title>
           <author initials="H." surname="Ruellan" fullname="Herve Ruellan"/>
           <author initials="R." surname="Peon" fullname="Roberto Peon"/>
-          <date month="November" year="2014" />
+          <date month="July" year="2014" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-header-compression-10" />
-        <x:source href="refs/draft-ietf-httpbis-header-compression-10.xml"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-header-compression-09" />
+        <x:source href="draft-ietf-httpbis-header-compression-09.xml"/>
       </reference>
 
       <reference anchor="TCP">
@@ -4490,7 +4433,7 @@ HTTP2-Settings    = token68
         <seriesInfo name="RFC" value="5289" />
       </reference>
 
-      <reference anchor="FIPS186" target="http://dx.doi.org/10.6028/NIST.FIPS.186-4">
+      <reference anchor="FIPS186">
         <front>
           <title>
             Digital Signature Standard (DSS)
@@ -4516,7 +4459,7 @@ HTTP2-Settings    = token68
           <date month="June" year="2014" />
         </front>
         <seriesInfo name="RFC" value="7230" />
-        <x:source href="refs/rfc7230.xml"
+        <x:source href="rfc7230.xml"
                   basename="https://svn.tools.ietf.org/svn/wg/httpbis/specs/rfc7230"/>
       </reference>
       <reference anchor="RFC7231">
@@ -4534,7 +4477,7 @@ HTTP2-Settings    = token68
           <date month="June" year="2014" />
         </front>
         <seriesInfo name="RFC" value="7231" />
-        <x:source href="refs/rfc7231.xml"
+        <x:source href="rfc7231.xml"
                   basename="https://svn.tools.ietf.org/svn/wg/httpbis/specs/rfc7231"/>
       </reference>
       <reference anchor="RFC7232">
@@ -4589,7 +4532,7 @@ HTTP2-Settings    = token68
           <date month="June" year="2014" />
         </front>
         <seriesInfo name="RFC" value="7234"/>
-        <x:source href="refs/rfc7234.xml"
+        <x:source href="rfc7234.xml"
                   basename="https://svn.tools.ietf.org/svn/wg/httpbis/specs/rfc7234"/>
       </reference>
       <reference anchor="RFC7235">
@@ -4606,7 +4549,7 @@ HTTP2-Settings    = token68
           <date month="June" year="2014" />
         </front>
         <seriesInfo name="RFC" value="7235"/>
-        <x:source href="refs/rfc7235.xml"
+        <x:source href="rfc7235.xml"
                   basename="https://svn.tools.ietf.org/svn/wg/httpbis/specs/rfc7235"/>
       </reference>
 
@@ -4669,23 +4612,35 @@ HTTP2-Settings    = token68
         <seriesInfo name="RFC" value="4492" />
       </reference>
 
-      <reference anchor="HTML5"
-                 target="http://www.w3.org/TR/2014/REC-html5-20141028/">
+      <reference anchor="RFC5288">
+        <front>
+          <title>
+            AES Galois Counter Mode (GCM) Cipher Suites for TLS
+          </title>
+          <author initials="J." surname="Salowey" fullname="J. Salowey"/>
+          <author initials="A." surname="Choudhury" fullname="A. Choudhury"/>
+          <author initials="D." surname="McGrew" fullname="D. McGrew"/>
+          <date year="2008" month="August" />
+        </front>
+        <seriesInfo name="RFC" value="5288" />
+      </reference>
+
+      <reference anchor='HTML5'
+           target='http://www.w3.org/TR/2014/CR-html5-20140731/'>
         <front>
           <title>HTML5</title>
-          <author fullname="Ian Hickson" surname="Hickson" initials="I."/>
-          <author fullname="Robin Berjon" surname="Berjon" initials="R."/>
-          <author fullname="Steve Faulkner" surname="Faulkner" initials="S."/>
-          <author fullname="Travis Leithead" surname="Leithead" initials="T."/>
-          <author fullname="Erika Doyle Navara" surname="Doyle Navara" initials="E."/>
-          <author fullname="Edward O&apos;Connor" surname="O&apos;Connor" initials="E."/>
-          <author fullname="Silvia Pfeiffer" surname="Pfeiffer" initials="S."/>
-          <date year="2014" month="October" day="28"/>
+          <author fullname='Robin Berjon' surname='Berjon' initials='R.'/>
+          <author fullname='Steve Faulkner' surname='Faulkner' initials='S.'/>
+          <author fullname='Travis Leithead' surname='Leithead' initials='T.'/>
+          <author fullname='Erika Doyle Navara' surname='Doyle Navara' initials='E.'/>
+          <author fullname='Edward O&apos;Connor' surname='O&apos;Connor' initials='E.'/>
+          <author fullname='Silvia Pfeiffer' surname='Pfeiffer' initials='S.'/>
+          <date year='2014' month='July' day='31'/>
         </front>
-        <seriesInfo name="W3C Recommendation" value="REC-html5-20141028"/>
+        <seriesInfo name='W3C Candidate Recommendation' value='CR-html5-20140731'/>
         <annotation>
           Latest version available at
-          <eref target="http://www.w3.org/TR/html5/"/>.
+          <eref target='http://www.w3.org/TR/html5/'/>.
         </annotation>
       </reference>
 
@@ -4740,12 +4695,18 @@ HTTP2-Settings    = token68
       <reference anchor="TLSBCP">
         <front>
           <title>Recommendations for Secure Use of TLS and DTLS</title>
-          <author initials="Y." surname="Sheffer" fullname="Yaron Sheffer"/>
-          <author initials="R." surname="Holz" fullname="Ralph Holz"/>
-          <author initials="P." surname="Saint-Andre" fullname="Peter Saint-Andre"/>
-          <date month="December" day="7" year="2014" />
+          <author initials="Y" surname="Sheffer" fullname="Yaron Sheffer">
+            <organization />
+          </author>
+          <author initials="R" surname="Holz" fullname="Ralph Holz">
+            <organization />
+          </author>
+          <author initials="P" surname="Saint-Andre" fullname="Peter Saint-Andre">
+            <organization />
+          </author>
+          <date month="June" day="23" year="2014" />
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-uta-tls-bcp-08" />
+        <seriesInfo name="Internet-Draft" value="draft-ietf-uta-tls-bcp-01" />
       </reference>
 
       <reference anchor="ALT-SVC">
@@ -4762,323 +4723,21 @@ HTTP2-Settings    = token68
           <author initials="J." surname="Reschke" fullname="Julian Reschke">
             <organization>greenbytes</organization>
           </author>
-          <date year="2014" month="November"/>
+          <date year="2014" month="October"/>
         </front>
-        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-alt-svc-05"/>
+        <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-alt-svc-04"/>
+        <x:source href="draft-ietf-httpbis-alt-svc-04.xml"/>
       </reference>
     </references>
-
-    <section title="Prohibited TLS 1.2 Cipher Suites" anchor="BadCipherSuites">
-      <t>
-        The following cipher suites are prohibited for use in HTTP/2 over TLS 1.2:
-        TLS_NULL_WITH_NULL_NULL,
-        TLS_RSA_WITH_NULL_MD5,
-        TLS_RSA_WITH_NULL_SHA,
-        TLS_RSA_EXPORT_WITH_RC4_40_MD5,
-        TLS_RSA_WITH_RC4_128_MD5,
-        TLS_RSA_WITH_RC4_128_SHA,
-        TLS_RSA_EXPORT_WITH_RC2_CBC_40_MD5,
-        TLS_RSA_WITH_IDEA_CBC_SHA,
-        TLS_RSA_EXPORT_WITH_DES40_CBC_SHA,
-        TLS_RSA_WITH_DES_CBC_SHA,
-        TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_DH_DSS_EXPORT_WITH_DES40_CBC_SHA,
-        TLS_DH_DSS_WITH_DES_CBC_SHA,
-        TLS_DH_DSS_WITH_3DES_EDE_CBC_SHA,
-        TLS_DH_RSA_EXPORT_WITH_DES40_CBC_SHA,
-        TLS_DH_RSA_WITH_DES_CBC_SHA,
-        TLS_DH_RSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_DHE_DSS_EXPORT_WITH_DES40_CBC_SHA,
-        TLS_DHE_DSS_WITH_DES_CBC_SHA,
-        TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA,
-        TLS_DHE_RSA_EXPORT_WITH_DES40_CBC_SHA,
-        TLS_DHE_RSA_WITH_DES_CBC_SHA,
-        TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_DH_anon_EXPORT_WITH_RC4_40_MD5,
-        TLS_DH_anon_WITH_RC4_128_MD5,
-        TLS_DH_anon_EXPORT_WITH_DES40_CBC_SHA,
-        TLS_DH_anon_WITH_DES_CBC_SHA,
-        TLS_DH_anon_WITH_3DES_EDE_CBC_SHA,
-        TLS_KRB5_WITH_DES_CBC_SHA,
-        TLS_KRB5_WITH_3DES_EDE_CBC_SHA,
-        TLS_KRB5_WITH_RC4_128_SHA,
-        TLS_KRB5_WITH_IDEA_CBC_SHA,
-        TLS_KRB5_WITH_DES_CBC_MD5,
-        TLS_KRB5_WITH_3DES_EDE_CBC_MD5,
-        TLS_KRB5_WITH_RC4_128_MD5,
-        TLS_KRB5_WITH_IDEA_CBC_MD5,
-        TLS_KRB5_EXPORT_WITH_DES_CBC_40_SHA,
-        TLS_KRB5_EXPORT_WITH_RC2_CBC_40_SHA,
-        TLS_KRB5_EXPORT_WITH_RC4_40_SHA,
-        TLS_KRB5_EXPORT_WITH_DES_CBC_40_MD5,
-        TLS_KRB5_EXPORT_WITH_RC2_CBC_40_MD5,
-        TLS_KRB5_EXPORT_WITH_RC4_40_MD5,
-        TLS_PSK_WITH_NULL_SHA,
-        TLS_DHE_PSK_WITH_NULL_SHA,
-        TLS_RSA_PSK_WITH_NULL_SHA,
-        TLS_RSA_WITH_AES_128_CBC_SHA,
-        TLS_DH_DSS_WITH_AES_128_CBC_SHA,
-        TLS_DH_RSA_WITH_AES_128_CBC_SHA,
-        TLS_DHE_DSS_WITH_AES_128_CBC_SHA,
-        TLS_DHE_RSA_WITH_AES_128_CBC_SHA,
-        TLS_DH_anon_WITH_AES_128_CBC_SHA,
-        TLS_RSA_WITH_AES_256_CBC_SHA,
-        TLS_DH_DSS_WITH_AES_256_CBC_SHA,
-        TLS_DH_RSA_WITH_AES_256_CBC_SHA,
-        TLS_DHE_DSS_WITH_AES_256_CBC_SHA,
-        TLS_DHE_RSA_WITH_AES_256_CBC_SHA,
-        TLS_DH_anon_WITH_AES_256_CBC_SHA,
-        TLS_RSA_WITH_NULL_SHA256,
-        TLS_RSA_WITH_AES_128_CBC_SHA256,
-        TLS_RSA_WITH_AES_256_CBC_SHA256,
-        TLS_DH_DSS_WITH_AES_128_CBC_SHA256,
-        TLS_DH_RSA_WITH_AES_128_CBC_SHA256,
-        TLS_DHE_DSS_WITH_AES_128_CBC_SHA256,
-        TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,
-        TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA,
-        TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA,
-        TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA,
-        TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA,
-        TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA,
-        TLS_DHE_RSA_WITH_AES_128_CBC_SHA256,
-        TLS_DH_DSS_WITH_AES_256_CBC_SHA256,
-        TLS_DH_RSA_WITH_AES_256_CBC_SHA256,
-        TLS_DHE_DSS_WITH_AES_256_CBC_SHA256,
-        TLS_DHE_RSA_WITH_AES_256_CBC_SHA256,
-        TLS_DH_anon_WITH_AES_128_CBC_SHA256,
-        TLS_DH_anon_WITH_AES_256_CBC_SHA256,
-        TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,
-        TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA,
-        TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA,
-        TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA,
-        TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA,
-        TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA,
-        TLS_PSK_WITH_RC4_128_SHA,
-        TLS_PSK_WITH_3DES_EDE_CBC_SHA,
-        TLS_PSK_WITH_AES_128_CBC_SHA,
-        TLS_PSK_WITH_AES_256_CBC_SHA,
-        TLS_DHE_PSK_WITH_RC4_128_SHA,
-        TLS_DHE_PSK_WITH_3DES_EDE_CBC_SHA,
-        TLS_DHE_PSK_WITH_AES_128_CBC_SHA,
-        TLS_DHE_PSK_WITH_AES_256_CBC_SHA,
-        TLS_RSA_PSK_WITH_RC4_128_SHA,
-        TLS_RSA_PSK_WITH_3DES_EDE_CBC_SHA,
-        TLS_RSA_PSK_WITH_AES_128_CBC_SHA,
-        TLS_RSA_PSK_WITH_AES_256_CBC_SHA,
-        TLS_RSA_WITH_SEED_CBC_SHA,
-        TLS_DH_DSS_WITH_SEED_CBC_SHA,
-        TLS_DH_RSA_WITH_SEED_CBC_SHA,
-        TLS_DHE_DSS_WITH_SEED_CBC_SHA,
-        TLS_DHE_RSA_WITH_SEED_CBC_SHA,
-        TLS_DH_anon_WITH_SEED_CBC_SHA,
-        TLS_RSA_WITH_AES_128_GCM_SHA256,
-        TLS_RSA_WITH_AES_256_GCM_SHA384,
-        TLS_DH_RSA_WITH_AES_128_GCM_SHA256,
-        TLS_DH_RSA_WITH_AES_256_GCM_SHA384,
-        TLS_DH_DSS_WITH_AES_128_GCM_SHA256,
-        TLS_DH_DSS_WITH_AES_256_GCM_SHA384,
-        TLS_DH_anon_WITH_AES_128_GCM_SHA256,
-        TLS_DH_anon_WITH_AES_256_GCM_SHA384,
-        TLS_PSK_WITH_AES_128_GCM_SHA256,
-        TLS_PSK_WITH_AES_256_GCM_SHA384,
-        TLS_RSA_PSK_WITH_AES_128_GCM_SHA256,
-        TLS_RSA_PSK_WITH_AES_256_GCM_SHA384,
-        TLS_PSK_WITH_AES_128_CBC_SHA256,
-        TLS_PSK_WITH_AES_256_CBC_SHA384,
-        TLS_PSK_WITH_NULL_SHA256,
-        TLS_PSK_WITH_NULL_SHA384,
-        TLS_DHE_PSK_WITH_AES_128_CBC_SHA256,
-        TLS_DHE_PSK_WITH_AES_256_CBC_SHA384,
-        TLS_DHE_PSK_WITH_NULL_SHA256,
-        TLS_DHE_PSK_WITH_NULL_SHA384,
-        TLS_RSA_PSK_WITH_AES_128_CBC_SHA256,
-        TLS_RSA_PSK_WITH_AES_256_CBC_SHA384,
-        TLS_RSA_PSK_WITH_NULL_SHA256,
-        TLS_RSA_PSK_WITH_NULL_SHA384,
-        TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_DH_DSS_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_DH_RSA_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_DHE_DSS_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_DH_anon_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256,
-        TLS_DH_DSS_WITH_CAMELLIA_256_CBC_SHA256,
-        TLS_DH_RSA_WITH_CAMELLIA_256_CBC_SHA256,
-        TLS_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA256,
-        TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA256,
-        TLS_DH_anon_WITH_CAMELLIA_256_CBC_SHA256,
-        TLS_EMPTY_RENEGOTIATION_INFO_SCSV,
-        TLS_ECDH_ECDSA_WITH_NULL_SHA,
-        TLS_ECDH_ECDSA_WITH_RC4_128_SHA,
-        TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA,
-        TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA,
-        TLS_ECDHE_ECDSA_WITH_NULL_SHA,
-        TLS_ECDHE_ECDSA_WITH_RC4_128_SHA,
-        TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-        TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
-        TLS_ECDH_RSA_WITH_NULL_SHA,
-        TLS_ECDH_RSA_WITH_RC4_128_SHA,
-        TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_ECDH_RSA_WITH_AES_128_CBC_SHA,
-        TLS_ECDH_RSA_WITH_AES_256_CBC_SHA,
-        TLS_ECDHE_RSA_WITH_NULL_SHA,
-        TLS_ECDHE_RSA_WITH_RC4_128_SHA,
-        TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-        TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-        TLS_ECDH_anon_WITH_NULL_SHA,
-        TLS_ECDH_anon_WITH_RC4_128_SHA,
-        TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA,
-        TLS_ECDH_anon_WITH_AES_128_CBC_SHA,
-        TLS_ECDH_anon_WITH_AES_256_CBC_SHA,
-        TLS_SRP_SHA_WITH_3DES_EDE_CBC_SHA,
-        TLS_SRP_SHA_RSA_WITH_3DES_EDE_CBC_SHA,
-        TLS_SRP_SHA_DSS_WITH_3DES_EDE_CBC_SHA,
-        TLS_SRP_SHA_WITH_AES_128_CBC_SHA,
-        TLS_SRP_SHA_RSA_WITH_AES_128_CBC_SHA,
-        TLS_SRP_SHA_DSS_WITH_AES_128_CBC_SHA,
-        TLS_SRP_SHA_WITH_AES_256_CBC_SHA,
-        TLS_SRP_SHA_RSA_WITH_AES_256_CBC_SHA,
-        TLS_SRP_SHA_DSS_WITH_AES_256_CBC_SHA,
-        TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-        TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,
-        TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA256,
-        TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA384,
-        TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
-        TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384,
-        TLS_ECDH_RSA_WITH_AES_128_CBC_SHA256,
-        TLS_ECDH_RSA_WITH_AES_256_CBC_SHA384,
-        TLS_ECDH_ECDSA_WITH_AES_128_GCM_SHA256,
-        TLS_ECDH_ECDSA_WITH_AES_256_GCM_SHA384,
-        TLS_ECDH_RSA_WITH_AES_128_GCM_SHA256,
-        TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384,
-        TLS_ECDHE_PSK_WITH_RC4_128_SHA,
-        TLS_ECDHE_PSK_WITH_3DES_EDE_CBC_SHA,
-        TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA,
-        TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA,
-        TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
-        TLS_ECDHE_PSK_WITH_AES_256_CBC_SHA384,
-        TLS_ECDHE_PSK_WITH_NULL_SHA,
-        TLS_ECDHE_PSK_WITH_NULL_SHA256,
-        TLS_ECDHE_PSK_WITH_NULL_SHA384,
-        TLS_RSA_WITH_ARIA_128_CBC_SHA256,
-        TLS_RSA_WITH_ARIA_256_CBC_SHA384,
-        TLS_DH_DSS_WITH_ARIA_128_CBC_SHA256,
-        TLS_DH_DSS_WITH_ARIA_256_CBC_SHA384,
-        TLS_DH_RSA_WITH_ARIA_128_CBC_SHA256,
-        TLS_DH_RSA_WITH_ARIA_256_CBC_SHA384,
-        TLS_DHE_DSS_WITH_ARIA_128_CBC_SHA256,
-        TLS_DHE_DSS_WITH_ARIA_256_CBC_SHA384,
-        TLS_DHE_RSA_WITH_ARIA_128_CBC_SHA256,
-        TLS_DHE_RSA_WITH_ARIA_256_CBC_SHA384,
-        TLS_DH_anon_WITH_ARIA_128_CBC_SHA256,
-        TLS_DH_anon_WITH_ARIA_256_CBC_SHA384,
-        TLS_ECDHE_ECDSA_WITH_ARIA_128_CBC_SHA256,
-        TLS_ECDHE_ECDSA_WITH_ARIA_256_CBC_SHA384,
-        TLS_ECDH_ECDSA_WITH_ARIA_128_CBC_SHA256,
-        TLS_ECDH_ECDSA_WITH_ARIA_256_CBC_SHA384,
-        TLS_ECDHE_RSA_WITH_ARIA_128_CBC_SHA256,
-        TLS_ECDHE_RSA_WITH_ARIA_256_CBC_SHA384,
-        TLS_ECDH_RSA_WITH_ARIA_128_CBC_SHA256,
-        TLS_ECDH_RSA_WITH_ARIA_256_CBC_SHA384,
-        TLS_RSA_WITH_ARIA_128_GCM_SHA256,
-        TLS_RSA_WITH_ARIA_256_GCM_SHA384,
-        TLS_DH_RSA_WITH_ARIA_128_GCM_SHA256,
-        TLS_DH_RSA_WITH_ARIA_256_GCM_SHA384,
-        TLS_DH_DSS_WITH_ARIA_128_GCM_SHA256,
-        TLS_DH_DSS_WITH_ARIA_256_GCM_SHA384,
-        TLS_DH_anon_WITH_ARIA_128_GCM_SHA256,
-        TLS_DH_anon_WITH_ARIA_256_GCM_SHA384,
-        TLS_ECDH_ECDSA_WITH_ARIA_128_GCM_SHA256,
-        TLS_ECDH_ECDSA_WITH_ARIA_256_GCM_SHA384,
-        TLS_ECDH_RSA_WITH_ARIA_128_GCM_SHA256,
-        TLS_ECDH_RSA_WITH_ARIA_256_GCM_SHA384,
-        TLS_PSK_WITH_ARIA_128_CBC_SHA256,
-        TLS_PSK_WITH_ARIA_256_CBC_SHA384,
-        TLS_DHE_PSK_WITH_ARIA_128_CBC_SHA256,
-        TLS_DHE_PSK_WITH_ARIA_256_CBC_SHA384,
-        TLS_RSA_PSK_WITH_ARIA_128_CBC_SHA256,
-        TLS_RSA_PSK_WITH_ARIA_256_CBC_SHA384,
-        TLS_PSK_WITH_ARIA_128_GCM_SHA256,
-        TLS_PSK_WITH_ARIA_256_GCM_SHA384,
-        TLS_RSA_PSK_WITH_ARIA_128_GCM_SHA256,
-        TLS_RSA_PSK_WITH_ARIA_256_GCM_SHA384,
-        TLS_ECDHE_PSK_WITH_ARIA_128_CBC_SHA256,
-        TLS_ECDHE_PSK_WITH_ARIA_256_CBC_SHA384,
-        TLS_ECDHE_ECDSA_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_ECDHE_ECDSA_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_ECDH_ECDSA_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_ECDH_ECDSA_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_ECDH_RSA_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_ECDH_RSA_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_RSA_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_RSA_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_DH_RSA_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_DH_RSA_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_DH_DSS_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_DH_DSS_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_DH_anon_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_DH_anon_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_ECDH_ECDSA_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_ECDH_ECDSA_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_ECDH_RSA_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_ECDH_RSA_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_PSK_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_PSK_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_RSA_PSK_WITH_CAMELLIA_128_GCM_SHA256,
-        TLS_RSA_PSK_WITH_CAMELLIA_256_GCM_SHA384,
-        TLS_PSK_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_PSK_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_DHE_PSK_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_DHE_PSK_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_RSA_PSK_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_RSA_PSK_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_ECDHE_PSK_WITH_CAMELLIA_128_CBC_SHA256,
-        TLS_ECDHE_PSK_WITH_CAMELLIA_256_CBC_SHA384,
-        TLS_RSA_WITH_AES_128_CCM,
-        TLS_RSA_WITH_AES_256_CCM,
-        TLS_RSA_WITH_AES_128_CCM_8,
-        TLS_RSA_WITH_AES_256_CCM_8,
-        TLS_PSK_WITH_AES_128_CCM,
-        TLS_PSK_WITH_AES_256_CCM,
-        TLS_PSK_WITH_AES_128_CCM_8,
-        TLS_PSK_WITH_AES_256_CCM_8.
-        <list style="hanging">
-          <t hangText="Note:">
-            This list was assembled from the set of registered TLS cipher suites at the time of
-            writing.  This list includes those cipher suites that do not offer an ephemeral key
-            exchange and those that are based on the TLS null, stream or block cipher type (as
-            defined in Section 6.2.3 of <xref target="TLS12"/>).  Additional cipher suites with
-            these properties could be defined; these would not be explicitly prohibited.
-          </t>
-        </list>
-      </t>
-    </section>
 
     <section title="Change Log" anchor="change.log">
       <t>
         This section is to be removed by RFC Editor before publication.
       </t>
 
-      <section title="Since draft-ietf-httpbis-http2-15" anchor="changes.since.draft-ietf-httpbis-http2-15">
-        <t>
-          Enabled the sending of <x:ref>PRIORITY</x:ref> for any stream state.
-        </t>
-        <t>
-          Added a cipher suite blacklist and made several changes to the TLS usage section.
-        </t>
-      </section>
-
       <section title="Since draft-ietf-httpbis-http2-14" anchor="changes.since.draft-ietf-httpbis-http2-14">
         <t>
           Renamed Not Authoritative status code to Misdirected Request.
-        </t>
-        <t>
-          Added <x:ref>HTTP_1_1_REQUIRED</x:ref> error code.
         </t>
       </section>
 
