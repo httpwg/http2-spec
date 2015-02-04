@@ -219,7 +219,8 @@
           The following terms are used:
           <list style="hanging">
             <t hangText="client:">
-              The endpoint initiating the HTTP/2 connection.
+              The endpoint that initiates an HTTP/2 connection.  Clients send HTTP requests and
+              receive HTTP responses.
             </t>
             <t hangText="connection:">
               A transport-layer connection between two endpoints.
@@ -245,10 +246,11 @@
               An endpoint that is transmitting frames.
             </t>
             <t hangText="server:">
-              The endpoint which did not initiate the HTTP/2 connection.
+              The endpoint that accepts an HTTP/2 connection.  Servers receive HTTP requests and
+              serve HTTP responses.
             </t>
             <t hangText="stream:">
-              A bi-directional flow of frames across a virtual channel within the HTTP/2 connection.
+              A bi-directional flow of frames within the HTTP/2 connection.
             </t>
             <t hangText="stream error:">
               An error on the individual HTTP/2 stream.
@@ -256,8 +258,13 @@
           </list>
         </t>
         <t>
-          Finally, the terms "gateway", "intermediary", "proxy", "tunnel", "message body", and
-          "payload body" are defined in <xref target="RFC7230" x:fmt="of" x:rel="#intermediaries"/>.
+          Finally, the terms "gateway", "intermediary", "proxy", and "tunnel" are defined in <xref
+          target="RFC7230" x:fmt="of" x:rel="#intermediaries"/>.  Intermediaries act as both client
+          and server at different times.
+        </t>
+        <t>
+          The term "payload body" is defined in <xref target="RFC7230" x:fmt="of"
+          x:rel="#message.body"/>.
         </t>
       </section>
     </section>
@@ -578,13 +585,11 @@ HTTP2-Settings    = token68
         </t>
         <figure anchor="FrameLayout" title="Frame Layout">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +-----------------------------------------------+
  |                 Length (24)                   |
  +---------------+---------------+---------------+
  |   Type (8)    |   Flags (8)   |
- +-+-+-----------+---------------+-------------------------------+
+ +-+-------------+---------------+-------------------------------+
  |R|                 Stream Identifier (31)                      |
  +=+=============================================================+
  |                   Frame Payload (0...)                      ...
@@ -785,27 +790,27 @@ HTTP2-Settings    = token68
                    /         |        |         \
                   v          +--------+          v
            +----------+          |           +----------+
-           |          |          | send H/   |          |
-     ,-----| reserved |          | recv H    | reserved |-----.
-     |     | (local)  |          |           | (remote) |     |
-     |     +----------+          v           +----------+     |
-     |         |             +--------+             |         |
-     |         |     recv ES |        | send ES     |         |
-     |  send H |     ,-------|  open  |-------.     | recv H  |
-     |         |    /        |        |        \    |         |
-     |         v   v         +--------+         v   v         |
-     |     +----------+          |           +----------+     |
-     |     |   half   |          |           |   half   |     |
-     |     |  closed  |          | send R/   |  closed  |     |
-     |     | (remote) |          | recv R    | (local)  |     |
-     |     +----------+          |           +----------+     |
-     |          |                |                 |          |
-     |          | send ES/       |        recv ES/ |          |
-     |          | send R/        v         send R/ |          |
-     |          | recv R     +--------+    recv R  |          |
-     | send R/  `----------->|        |<-----------'  send R/ |
-     | recv R                | closed |               recv R  |
-     `---------------------->|        |<----------------------'
+           |          |          | send H /  |          |
+    ,------| reserved |          | recv H    | reserved |------.
+    |      | (local)  |          |           | (remote) |      |
+    |      +----------+          v           +----------+      |
+    |          |             +--------+             |          |
+    |          |     recv ES |        | send ES     |          |
+    |   send H |     ,-------|  open  |-------.     | recv H   |
+    |          |    /        |        |        \    |          |
+    |          v   v         +--------+         v   v          |
+    |      +----------+          |           +----------+      |
+    |      |   half   |          |           |   half   |      |
+    |      |  closed  |          | send R /  |  closed  |      |
+    |      | (remote) |          | recv R    | (local)  |      |
+    |      +----------+          |           +----------+      |
+    |           |                |                 |           |
+    |           | send ES /      |       recv ES / |           |
+    |           | send R /       v        send R / |           |
+    |           | recv R     +--------+   recv R   |           |
+    | send R /  `----------->|        |<-----------'  send R / |
+    | recv R                 | closed |               recv R   |
+    `----------------------->|        |<----------------------'
                              +--------+
 
        send:   endpoint sends this frame
@@ -1626,9 +1631,7 @@ HTTP2-Settings    = token68
         <figure anchor="DATAFramePayload"
           title="DATA Frame Payload">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +---------------+
  |Pad Length? (8)|
  +---------------+-----------------------------------------------+
  |                            Data (*)                         ...
@@ -1708,9 +1711,7 @@ HTTP2-Settings    = token68
         <figure anchor="HEADERSFramePayload"
           title="HEADERS Frame Payload">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +---------------+
  |Pad Length? (8)|
  +-+-------------+-----------------------------------------------+
  |E|                 Stream Dependency? (31)                     |
@@ -1836,9 +1837,7 @@ HTTP2-Settings    = token68
         <figure anchor="PRIORITYFramePayload"
           title="PRIORITY Frame Payload">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +-+-------------------------------------------------------------+
  |E|                  Stream Dependency (31)                     |
  +-+-------------+-----------------------------------------------+
  |   Weight (8)  |
@@ -1901,9 +1900,7 @@ HTTP2-Settings    = token68
         <figure anchor="RST_STREAMFramePayload"
           title="RST_STREAM Frame Payload">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +---------------------------------------------------------------+
  |                        Error Code (32)                        |
  +---------------------------------------------------------------+
 ]]></artwork>
@@ -2017,9 +2014,7 @@ HTTP2-Settings    = token68
           <figure anchor="SettingFormatFigure"
             title="Setting Format">
             <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +-------------------------------+
  |       Identifier (16)         |
  +-------------------------------+-------------------------------+
  |                        Value (32)                             |
@@ -2163,9 +2158,7 @@ HTTP2-Settings    = token68
         <figure anchor="PUSH_PROMISEPayloadFormat"
           title="PUSH_PROMISE Payload Format">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +---------------+
  |Pad Length? (8)|
  +-+-------------+-----------------------------------------------+
  |R|                  Promised Stream ID (31)                    |
@@ -2298,9 +2291,7 @@ HTTP2-Settings    = token68
         <figure anchor="PINGPayloadFormat"
           title="PING Payload Format">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +---------------------------------------------------------------+
  |                                                               |
  |                      Opaque Data (64)                         |
  |                                                               |
@@ -2384,9 +2375,7 @@ HTTP2-Settings    = token68
         <figure anchor="GOAWAYPayloadFormat"
           title="GOAWAY Payload Format">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +-+-------------------------------------------------------------+
  |R|                  Last-Stream-ID (31)                        |
  +-+-------------------------------------------------------------+
  |                      Error Code (32)                          |
@@ -2504,9 +2493,7 @@ HTTP2-Settings    = token68
         <figure anchor="WINDOW_UPDATEPayloadFormat"
           title="WINDOW_UPDATE Payload Format">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +-+-------------------------------------------------------------+
  |R|              Window Size Increment (31)                     |
  +-+-------------------------------------------------------------+
 ]]></artwork>
@@ -2675,9 +2662,7 @@ HTTP2-Settings    = token68
         <figure anchor="CONTINUATIONFramePayload"
           title="CONTINUATION Frame Payload">
           <artwork type="inline"><![CDATA[
-  0                   1                   2                   3
-  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ +---------------------------------------------------------------+
  |                   Header Block Fragment (*)                 ...
  +---------------------------------------------------------------+
 ]]></artwork>
@@ -3365,6 +3350,12 @@ HTTP2-Settings    = token68
           be made available to the application separately.
         </t>
         <t>
+          The server MUST include a value in the <spanx style="verb">:authority</spanx> header field
+          for which the server is authoritative (see <xref target="authority"/>).  A client MUST
+          treat a <x:ref>PUSH_PROMISE</x:ref> for which the server is not authoritative as a <xref
+          target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
+        </t>
+        <t>
           An intermediary can receive pushes from the server and choose not to forward them on to
           the client. In other words, how to make use of the pushed information is up to that
           intermediary. Equally, the intermediary might choose to make additional pushes to the
@@ -3614,19 +3605,24 @@ HTTP2-Settings    = token68
             Connections that are made to an origin server, either directly or through a tunnel
             created using the <xref target="CONNECT">CONNECT method</xref> MAY be reused for
             requests with multiple different URI authority components.  A connection can be reused
-            as long as the origin server is <xref target="authority">authoritative</xref>.  For
-            <spanx style="verb">http</spanx> resources, this depends on the host having resolved to
-            the same IP address.
+            as long as the origin server is <xref target="authority">authoritative</xref>.  For TCP
+            connections without TLS, this depends on the host having resolved to the same IP
+            address.
           </t>
           <t>
             For <spanx style="verb">https</spanx> resources, connection reuse additionally depends
-            on having a certificate that is valid for the host in the URI.  An origin server might
-            offer a certificate with multiple <spanx style="verb">subjectAltName</spanx> attributes,
-            or names with wildcards, one of which is valid for the authority in the URI.  For
-            example, a certificate with a <spanx style="verb">subjectAltName</spanx> of <spanx
-            style="verb">*.example.com</spanx> might permit the use of the same connection for
-            requests to URIs starting with <spanx style="verb">https://a.example.com/</spanx> and
-            <spanx style="verb">https://b.example.com/</spanx>.
+            on having a certificate that is valid for the host in the URI.  The certificate
+            presented by the server MUST satisfy any checks that the client would perform when
+            forming a new TLS connection for the host in the URI.
+          </t>
+          <t>
+            An origin server might offer a certificate with multiple <spanx
+            style="verb">subjectAltName</spanx> attributes, or names with wildcards, one of which is
+            valid for the authority in the URI.  For example, a certificate with a <spanx
+            style="verb">subjectAltName</spanx> of <spanx style="verb">*.example.com</spanx> might
+            permit the use of the same connection for requests to URIs starting with <spanx
+            style="verb">https://a.example.com/</spanx> and <spanx
+            style="verb">https://b.example.com/</spanx>.
           </t>
           <t>
             In some deployments, reusing a connection for multiple origins can result in requests
@@ -3853,7 +3849,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Pushed responses for which an origin server is not authoritative (see
-          <xref target="authority"/>) are never cached or used.
+          <xref target="authority"/>) MUST NOT be used or cached.
         </t>
       </section>
 
