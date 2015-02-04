@@ -97,7 +97,7 @@
             <t>
                 The HPACK format is intentionally simple and inflexible.  Both
                 characteristics reduce the risk of interoperability or security
-                issues based by implementation error.  No extensibility
+                issues due to implementation error.  No extensibility
                 mechanisms are defined; changes to the format are only possible
                 by defining a complete replacement.
             </t>
@@ -171,6 +171,7 @@
                         <t hangText="Static Table:">
                             The static table (see <xref target="static.table"/>)
                             is a table that statically associates header fields
+                            that occur frequently
                             with index values.  This table is ordered,
                             read-only, always accessible, and may be shared
                             amongst all encoding or decoding contexts.
@@ -359,7 +360,12 @@
                             additional stipulation that this header field always
                             use a literal representation, in particular when
                             re-encoded by an intermediary (see <xref
-                            target="literal.header.never.indexed"/>).
+                                target="literal.header.never.indexed"/>). This
+                            representation is intended for protecting header
+                            field values that are not to be put at risk by
+                            compressing them (see <xref
+                                target="compression.based.attacks"/> for more
+                            details).
                         </t>
                         <t>
                             A literal representation that adds the header field
@@ -387,10 +393,16 @@
                     reconstruct the original header list.
                 </t>
                 <t>
+                    A header block is the concatenation of header field
+                    representations. The different possible header field
+                    representations are described in <xref
+                        target="detailed.format"/>.
+                </t>
+                <t>
                     Once a header field is decoded and added to the
-                    reconstructed header list, the field cannot be removed. A
-                    header field added to the header list can be safely passed
-                    to the application.
+                    reconstructed header list, the header field cannot be
+                    removed. A header field added to the header list can be
+                    safely passed to the application.
                 </t>
                 <t>
                     By passing the resulting header fields to the application,
@@ -554,18 +566,20 @@
                     - new entry size), or until the table is empty.
                 </t>
                 <t>
-                    If the representation of the added entry references the name
-                    of an entry in the dynamic table, the referenced name is
-                    cached prior to performing eviction to avoid having the name
-                    inadvertently evicted.
-                </t>
-                <t>
                     If the size of the new entry is less than or equal to the
                     maximum size, that entry is added to the table.  It is not
                     an error to attempt to add an entry that is larger than the
                     maximum size; an attempt to add an entry larger than the
                     entire table causes the table to be emptied of all existing
                     entries, and results in an empty table.
+                </t>
+                <t>
+                    A new entry can reference the name of an entry in the
+                    dynamic table that will be evicted when adding this new
+                    entry into the dynamic table. Implementations are cautioned
+                    to avoid deleting the referenced name if the referenced
+                    entry is evicted from the dynamic table prior to inserting
+                    the new entry.
                 </t>
             </section>
         </section>
@@ -581,7 +595,8 @@
                      anchor="integer.representation">
                 <t>
                     Integers are used to represent name indexes, pair indexes or
-                    string lengths. To allow for optimized processing, an
+                    string lengths. An integer representation can start anywhere
+                    within an octet. To allow for optimized processing, an
                     integer representation always finishes at the end of an
                     octet.
                 </t>
@@ -1312,6 +1327,12 @@ else
                 </t>
             </section>
 
+        </section>
+
+        <section title="IANA Considerations">
+            <t>
+                This document has no IANA actions.
+            </t>
         </section>
 
         <section title="Acknowledgements">
