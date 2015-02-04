@@ -100,11 +100,11 @@
         effect on application performance today.
       </t>
       <t>
-        In particular, HTTP/1.0 allowed only one request to be outstanding at a time on a given
-        TCP connection. HTTP/1.1 added request pipelining, but this only partially addressed
-        request concurrency and still suffers from head-of-line blocking. Therefore, HTTP/1.1
-        clients that need to make many requests typically use multiple connections to a server in
-        order to achieve concurrency and thereby reduce latency.
+        In particular, HTTP/1.0 allowed only one request to be outstanding at a time on a given TCP
+        connection. HTTP/1.1 added request pipelining, but this only partially addressed request
+        concurrency and still suffers from head-of-line blocking. Therefore, HTTP/1.0 and HTTP/1.1
+        clients that need to make many requests use multiple connections to a server in order to
+        achieve concurrency and thereby reduce latency.
       </t>
       <t>
         Furthermore, HTTP header fields are often repetitive and verbose, causing unnecessary
@@ -1137,10 +1137,15 @@ HTTP2-Settings    = token68
             Endpoints MUST NOT exceed the limit set by their peer.  An endpoint that receives a
             <x:ref>HEADERS</x:ref> frame that causes their advertised concurrent stream limit to be
             exceeded MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of
-            type <x:ref>PROTOCOL_ERROR</x:ref> or <x:ref>REFUSED_STREAM</x:ref>.  An endpoint that
-            wishes to reduce the value of <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> to a value
-            that is below the current number of open streams can either close streams that exceed
-            the new value or allow streams to complete.
+            type <x:ref>PROTOCOL_ERROR</x:ref> or <x:ref>REFUSED_STREAM</x:ref>.  The choice of
+            error code determines whether the endpoint wishes to enable automatic retry, see <xref
+            target="Reliability"/>) for details.
+          </t>
+          <t>
+            An endpoint that wishes to reduce the value of
+            <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> to a value that is below the current
+            number of open streams can either close streams that exceed the new value or allow
+            streams to complete.
           </t>
         </section>
       </section>
@@ -1164,8 +1169,8 @@ HTTP2-Settings    = token68
             characteristics:
             <list style="numbers">
               <t>
-                Flow control is specific to a connection; i.e., it is "hop-by-hop", not
-                "end-to-end".
+                Flow control is specific to a connection.  Both types of flow control are between
+                the endpoints of a single hop, and not over the entire end-to-end path.
               </t>
               <t>
                 Flow control is based on window update frames.  Receivers advertise how many octets
@@ -2642,17 +2647,12 @@ HTTP2-Settings    = token68
           </t>
           <t>
             After sending a SETTINGS frame that reduces the initial flow control window size, a
-            receiver has two options for handling streams that exceed flow control limits:
-            <list style="numbers">
-              <t>
-                The receiver can immediately send <x:ref>RST_STREAM</x:ref> with
-                <x:ref>FLOW_CONTROL_ERROR</x:ref> error code for the affected streams.
-              </t>
-              <t>
-                The receiver can accept the streams and tolerate the resulting head of line
-                blocking, sending WINDOW_UPDATE frames as it consumes data.
-              </t>
-            </list>
+            receiver MAY continue to process streams that exceed flow control limits.  Allowing
+            streams to continue does not allow the receiver to immediately reduce the space it
+            reserves for flow control windows.  Progress on these streams can also stall, since
+            <x:ref>WINDOW_UPDATE</x:ref> frames are needed to allow the sender to resume sending.
+            The receiver MAY instead send a <x:ref>RST_STREAM</x:ref> with
+            <x:ref>FLOW_CONTROL_ERROR</x:ref> error code for the affected streams.
           </t>
         </section>
       </section>
