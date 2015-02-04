@@ -62,7 +62,7 @@
         This specification describes an optimized expression of the semantics of the Hypertext
         Transfer Protocol (HTTP). HTTP/2 enables a more efficient use of network resources and a
         reduced perception of latency by introducing header field compression and allowing multiple
-        concurrent messages on the same connection. It also introduces unsolicited push of
+        concurrent exchanges on the same connection. It also introduces unsolicited push of
         representations from servers to clients.
       </t>
       <t>
@@ -169,7 +169,7 @@
         Because HTTP header fields used in a connection can contain large amounts of redundant
         data, frames that contain them are <xref target="HeaderBlock">compressed</xref>. This has
         especially advantageous impact upon request sizes in the common case, allowing many
-        requests to be compressed into one TCP packet.
+        requests to be compressed into one packet.
       </t>
 
       <section title="Document Organization">
@@ -256,8 +256,8 @@
           </list>
         </t>
         <t>
-          Finally, the terms "gateway", "intermediary", "proxy", and "tunnel" are defined
-          in <xref target="RFC7230" x:fmt="of" x:rel="#intermediaries"/>.
+          Finally, the terms "gateway", "intermediary", "proxy", "tunnel", "message body", and
+          "payload body" are defined in <xref target="RFC7230" x:fmt="of" x:rel="#intermediaries"/>.
         </t>
       </section>
     </section>
@@ -361,9 +361,9 @@ HTTP2-Settings: <base64url encoding of HTTP/2 SETTINGS payload>
 ]]></artwork>
         </figure>
         <t>
-          Requests that contain an entity body MUST be sent in their entirety before the client can
-          send HTTP/2 frames.  This means that a large request entity can block the use of the
-          connection until it is completely sent.
+          Requests that contain an payload body MUST be sent in their entirety before the client can
+          send HTTP/2 frames.  This means that a large request can block the use of the connection
+          until it is completely sent.
         </t>
         <t>
           If concurrency of an initial request with subsequent requests is important, an OPTIONS
@@ -617,20 +617,20 @@ HTTP2-Settings    = token68
               <t>
                 Flags are assigned semantics specific to the indicated frame type.  Flags that have
                 no defined semantics for a particular frame type MUST be ignored, and MUST be left
-                unset (0) when sending.
+                unset (0x0) when sending.
               </t>
             </x:lt>
             <x:lt hangText="R:">
               <t>
                 A reserved 1-bit field.  The semantics of this bit are undefined and the bit MUST
-                remain unset (0) when sending and MUST be ignored when receiving.
+                remain unset (0x0) when sending and MUST be ignored when receiving.
               </t>
             </x:lt>
             <x:lt hangText="Stream Identifier:">
               <t>
-                A 31-bit stream identifier (see <xref target="StreamIdentifiers"/>).  The value 0 is
-                reserved for frames that are associated with the connection as a whole as opposed to
-                an individual stream.
+                A stream identifier (see <xref target="StreamIdentifiers"/>) expressed as an
+                unsigned 31-bit integer.  The value 0x0 is reserved for frames that are associated
+                with the connection as a whole as opposed to an individual stream.
               </t>
             </x:lt>
           </list>
@@ -961,8 +961,8 @@ HTTP2-Settings    = token68
               <t>
                 <vspace blankLines="0"/>
                 A stream that is in the "half closed (local)" state cannot be used for sending
-                frames.  Only <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref> and
-                <x:ref>RST_STREAM</x:ref> frames can be sent in this state.
+                frames, with the exception of <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>
+                and <x:ref>RST_STREAM</x:ref> frames.
               </t>
               <t>
                 A stream transitions from this state to "closed" when a frame that contains an
@@ -970,8 +970,11 @@ HTTP2-Settings    = token68
                 frame.
               </t>
               <t>
-                A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> frames in this state, which might
-                arrive for a short period after a frame bearing the END_STREAM flag is sent.
+                An endpoint can receive any type of frame in this state.  Providing flow control
+                credit using <x:ref>WINDOW_UPDATE</x:ref> frames is necessary to continue receiving
+                flow controlled frames.  A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> frames
+                in this state, which might arrive for a short period after a frame bearing the
+                END_STREAM flag is sent.
               </t>
               <t>
                 <x:ref>PRIORITY</x:ref> frames received in this state are used to reprioritize
@@ -984,7 +987,7 @@ HTTP2-Settings    = token68
                 <vspace blankLines="0"/>
                 A stream that is "half closed (remote)" is no longer being used by the peer to send
                 frames.  In this state, an endpoint is no longer obligated to maintain a receiver
-                flow control window if it performs flow control.
+                flow control window.
               </t>
               <t>
                 If an endpoint receives additional frames for a stream that is in this state, other
@@ -1066,7 +1069,7 @@ HTTP2-Settings    = token68
           SHOULD treat the receipt of a frame that is not expressly permitted in the description of
           a state as a <xref target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>.  Note that <x:ref>PRIORITY</x:ref> can be sent and received
-          in any stream state.  Frame of unknown types are ignored.
+          in any stream state.  Frames of unknown types are ignored.
         </t>
         <t>
           An example of the state transitions for an HTTP request/response exchange can be found in
@@ -1605,8 +1608,8 @@ HTTP2-Settings    = token68
           response payloads.
         </t>
         <t>
-          DATA frames MAY also contain arbitrary padding.  Padding can be added to DATA frames to
-          obscure the size of messages.
+          DATA frames MAY also contain padding.  Padding can be added to DATA frames to obscure the
+          size of messages.  Padding is a security feature; see <xref target="padding"/>.
         </t>
         <figure anchor="DATAFramePayload"
           title="DATA Frame Payload">
@@ -1682,9 +1685,6 @@ HTTP2-Settings    = token68
             </t>
           </list>
         </t>
-        <t>
-          Padding is a security feature; see <xref target="padding"/>.
-        </t>
       </section>
 
       <section anchor="HEADERS" title="HEADERS">
@@ -1727,16 +1727,15 @@ HTTP2-Settings    = token68
               target="StreamPriority"/>.  This field is only present if the PRIORITY flag is set.
             </t>
             <t hangText="Weight:">
-              An 8-bit weight for the stream, see <xref target="StreamPriority"/>.  Add one to the
-              value to obtain a weight between 1 and 256.  This field is only present if the
-              PRIORITY flag is set.
+              An unsigned 8-bit integer representing a priority weight for the stream, see <xref
+              target="StreamPriority"/>.  Add one to the value to obtain a weight between 1 and 256.
+              This field is only present if the PRIORITY flag is set.
             </t>
             <t hangText="Header Block Fragment:">
               A <xref target="HeaderBlock">header block fragment</xref>.
             </t>
             <t hangText="Padding:">
-              Padding octets that contain no application semantic value.  Padding octets MUST be set
-              to zero when sending and ignored when receiving.
+              Padding octets.
             </t>
           </list>
         </t>
@@ -1747,9 +1746,7 @@ HTTP2-Settings    = token68
             <x:lt hangText="END_STREAM (0x1):">
               <t>
                 Bit 0 being set indicates that the <xref target="HeaderBlock">header block</xref> is
-                the last that the endpoint will send for the identified stream.  Setting this flag
-                causes the stream to enter one of <xref target="StreamStates">"half closed"
-                states</xref>.
+                the last that the endpoint will send for the identified stream.
               </t>
               <t>
                 A HEADERS frame carries the END_STREAM flag that signals the end of a stream.
@@ -1812,8 +1809,8 @@ HTTP2-Settings    = token68
         <t>
           Prioritization information in a HEADERS frame is logically equivalent to a separate
           <x:ref>PRIORITY</x:ref> frame, but inclusion in HEADERS avoids the potential for churn in
-          stream prioritization when new streams are created.  Prioritization fields in HEADERS frames
-          subsequent to the first on a stream <xref target="reprioritize">reprioritize the
+          stream prioritization when new streams are created.  Prioritization fields in HEADERS
+          frames subsequent to the first on a stream <xref target="reprioritize">reprioritize the
           stream</xref>.
         </t>
       </section>
@@ -1848,7 +1845,7 @@ HTTP2-Settings    = token68
               target="StreamPriority"/>.
             </t>
             <t hangText="Weight:">
-              An 8-bit weight for the identified stream dependency, see <xref
+              An unsigned 8-bit integer representing a priority weight for the stream, see <xref
               target="StreamPriority"/>.  Add one to the value to obtain a weight between 1 and 256.
             </t>
           </list>
@@ -2029,8 +2026,8 @@ HTTP2-Settings    = token68
                   Allows the sender to inform the remote endpoint of the maximum size of the header
                   compression table used to decode header blocks, in octets. The encoder can select
                   any size equal to or less than this value by using signaling specific to the
-                  header compression format inside a header block. The initial value is 4,096
-                  octets.
+                  header compression format inside a header block, see <xref
+                  target="COMPRESSION"/>. The initial value is 4,096 octets.
                 </t>
               </x:lt>
               <x:lt hangText="SETTINGS_ENABLE_PUSH (0x2):"
@@ -2833,7 +2830,7 @@ HTTP2-Settings    = token68
               x:rel="#header.fields"/>), and
             </t>
             <t>
-              zero or more <x:ref>DATA</x:ref> frames containing the message payload (see <xref
+              zero or more <x:ref>DATA</x:ref> frames containing the payload body (see <xref
               target="RFC7230" x:fmt="," x:rel="#message.body"/>), and
             </t>
             <t>
@@ -3109,7 +3106,7 @@ HTTP2-Settings    = token68
               header field names.
             </t>
             <t>
-              A request or response that includes an entity body can include a <spanx
+              A request or response that includes an payload body can include a <spanx
               style="verb">content-length</spanx> header field.  A request or response is also
               malformed if the value of a <spanx style="verb">content-length</spanx> header field
               does not equal the sum of the <x:ref>DATA</x:ref> frame payload lengths that form the
@@ -3140,7 +3137,7 @@ HTTP2-Settings    = token68
             HTTP/2 requests and responses.
           </t>
           <t>
-            An HTTP GET request includes request header fields and no body and is therefore
+            An HTTP GET request includes request header fields and no payload body and is therefore
             transmitted as a single <x:ref>HEADERS</x:ref> frame, followed by zero or more
             <x:ref>CONTINUATION</x:ref> frames containing the serialized block of request header
             fields.  The <x:ref>HEADERS</x:ref> frame in the following has both the END_HEADERS and
@@ -3607,7 +3604,7 @@ HTTP2-Settings    = token68
 
         <section anchor="reuse" title="Connection Reuse">
           <t>
-            Connections that are made to an origin servers, either directly or through a tunnel
+            Connections that are made to an origin server, either directly or through a tunnel
             created using the <xref target="CONNECT">CONNECT method</xref> MAY be reused for
             requests with multiple different URI authority components.  A connection can be reused
             as long as the origin server is <xref target="authority">authoritative</xref>.  For
@@ -3911,19 +3908,19 @@ HTTP2-Settings    = token68
             A large <xref target="HeaderBlock">header block</xref> can cause an implementation to
             commit a large amount of state.  Header fields that are critical for routing can appear
             toward the end of a header block, which prevents streaming of header fields to their
-            ultimate destination. For this and other reasons, such as ensuring cache correctness,
-            means that an endpoint might need to buffer the entire header block.  Since there is no
-            hard limit to the size of a header block, some endpoints could be forced to commit a large
-            amount of available memory for header fields.
+            ultimate destination.  This ordering and other reasons, such as ensuring cache
+            correctness, means that an endpoint might need to buffer the entire header block.  Since
+            there is no hard limit to the size of a header block, some endpoints could be forced to
+            commit a large amount of available memory for header fields.
           </t>
           <t>
             An endpoint can use the <x:ref>SETTINGS_MAX_HEADER_LIST_SIZE</x:ref> to advise peers of
             limits that might apply on the size of header blocks.  This setting is only advisory, so
             endpoints MAY choose to send header blocks that exceed this limit and risk having the
-            request or response being treated as malformed.  This setting is specific to a connection,
-            so any request or response could encounter a hop with a lower, unknown limit.  An
-            intermediary can attempt to avoid this problem by passing on values presented by
-            different peers, but they are not obligated to do so.
+            request or response being treated as malformed.  This setting is specific to a
+            connection, so any request or response could encounter a hop with a lower, unknown
+            limit.  An intermediary can attempt to avoid this problem by passing on values presented
+            by different peers, but they are not obligated to do so.
           </t>
           <t>
             A server that receives a larger header block than it is willing to handle can send an
