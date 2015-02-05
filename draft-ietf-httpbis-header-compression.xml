@@ -1217,14 +1217,16 @@ else
                     </t>
                     <t>
                         An encoder without good knowledge of the provenance of
-                        header fields might instead introduce a penalty for bad
-                        guesses, such that attempts to guess a header field
-                        value results in all values being removed from
-                        consideration in all future requests, effectively
-                        preventing further guesses.
+                        header fields might instead introduce a penalty for
+                        a header field with many different values, such that a
+                        large number of attempts to guess a header field
+                        value results in the header field no more being compared
+                        to the dynamic table entries in future messages,
+                        effectively preventing further guesses.
                         <list style="hanging">
                             <t hangText="Note:">
-                                Simply removing values from the dynamic table
+                                Simply removing entries corresponding to the
+                                header field from the dynamic table
                                 can be ineffectual if the attacker has a
                                 reliable way of causing values to be
                                 reinstalled.  For example, a request to load an
@@ -1238,28 +1240,59 @@ else
                     </t>
                     <t>
                         This response might be made inversely proportional to
-                        the length of the header field.  Marking as inaccessible
-                        might occur for shorter values more quickly or with
-                        higher probability than for longer values.
-                    </t>
-                    <t>
-                        Implementations might also choose to protect certain
-                        header fields that are known to be highly valued, such
-                        as the Authorization or Cookie header fields, by
-                        disabling or further limiting compression.
+                        the length of the header field value.  Marking as
+                        inaccessible might occur for shorter values more quickly
+                        or with higher probability than for longer values.
                     </t>
                 </section>
 
                 <section title="Never Indexed Literals">
+                    <t>
+                        Implementations can also choose to protect sensitive
+                        header fields by not compressing them and instead
+                        encoding their value as literals.
+                    </t>
                     <t>
                         Refusing to generate an indexed representation for a
                         header field is only effective if compression is avoided
                         on all hops.  The never indexed literal (see <xref
                             target="literal.header.never.indexed"/>) can be used
                         to signal to intermediaries that a particular value was
-                        intentionally sent as a literal.  An intermediary MUST
-                        NOT re-encode a value that uses the never indexed
-                        literal with a representation that would index it.
+                        intentionally sent as a literal.
+                    </t>
+                    <t>
+                        An intermediary MUST NOT re-encode a value that uses the
+                        never indexed literal representation with another
+                        representation that would index it. If HPACK is used
+                        for re-encoding, the never indexed literal
+                        representation MUST be used.
+                    </t>
+                    <t>
+                        The choice to use a never indexed literal representation
+                        for a header field depends on several factors. Since
+                        HPACK doesn't protect against guessing an entire header
+                        field value, short or low-entropy values are more
+                        readily recovered by an adversary. Therefore, an encoder
+                        might choose not to index values with low entropy.
+                    </t>
+                    <t>
+                        An encoder might also choose not to index values for
+                        header fields that are considered to be highly valuable
+                        or sensitive to recovery, such as the Cookie or
+                        Authorization header fields.
+                    </t>
+                    <t>
+                        On the contrary, an encoder might prefer indexing values
+                        for header fields that have little or no value if they
+                        were exposed. For instance, a User-Agent header field
+                        does not commonly vary between requests and is sent to
+                        any server. In that case, confirmation that a particular
+                        User-Agent value has been used provides little value.
+                    </t>
+                    <t>
+                        Note that these criteria for deciding to use a never
+                        indexed literal representation will evolve over time as
+                        new attacks are discovered.
                     </t>
                 </section>
             </section>
