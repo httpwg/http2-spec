@@ -279,7 +279,7 @@
                         as each header block is decompressed.
                     </t>
                     <t>
-                        The dynamic table can contain duplicate entries (i.e.
+                        The dynamic table can contain duplicate entries (i.e.,
                         entries with the same name and same value).
                         Therefore, duplicate entries MUST NOT be treated as an
                         error by a decoder.
@@ -345,8 +345,14 @@
             <section title="Header Field Representation"
                      anchor="header.representation">
                 <t>
-                    An encoded header field can be represented either as a
-                    literal or as an index.
+                    An encoded header field can be represented either as an
+                    index or as a literal.
+                </t>
+                <t>
+                    An indexed representation defines a header field as a
+                    reference to an entry in either the static table or the
+                    dynamic table (see <xref
+                    target="indexed.header.representation"/>).
                 </t>
                 <t>
                     A literal representation defines a header field by
@@ -358,6 +364,12 @@
                 <t>
                     Three different literal representations are defined:
                     <list style="symbols">
+                        <t>
+                            A literal representation that adds the header field
+                            as a new entry at the beginning of the dynamic table
+                            (see <xref
+                            target="literal.header.with.incremental.indexing"/>).
+                        </t>
                         <t>
                             A literal representation that does not add the
                             header field to the dynamic table (see <xref
@@ -373,14 +385,8 @@
                             representation is intended for protecting header
                             field values that are not to be put at risk by
                             compressing them (see <xref
-                                target="compression.based.attacks"/> for more
+                                target="never.indexed.literals"/> for more
                             details).
-                        </t>
-                        <t>
-                            A literal representation that adds the header field
-                            as a new entry at the beginning of the dynamic table
-                            (see <xref
-                            target="literal.header.with.incremental.indexing"/>).
                         </t>
                     </list>
                 </t>
@@ -392,15 +398,9 @@
                 </t>
                 <t>
                     The literal representation of a header field name or of a
-                    header field value can encode the string either directly or
-                    using a static Huffman code (see <xref
+                    header field value can encode the sequence of octets either
+                    directly or using a static Huffman code (see <xref
                         target="string.literal.representation"/>).
-                </t>
-                <t>
-                    An indexed representation defines a header field as a
-                    reference to an entry in either the static table or the
-                    dynamic table (see <xref
-                    target="indexed.header.representation"/>).
                 </t>
             </section>
         </section>
@@ -509,7 +509,7 @@
                     length in octets, plus 32.
                 </t>
                 <t>
-                    The size of an entry is calculated using the length of the
+                    The size of an entry is calculated using the length of its
                     name and value without any Huffman encoding applied.
                 </t>
                 <t>
@@ -543,8 +543,8 @@
                     by the protocol.
                 </t>
                 <t>
-                    The maximum size of the dynamic table can be changed by the
-                    protocol at any time other than during the encoding of a
+                    The maximum size of the dynamic table can be changed
+                    at any time other than during the encoding of a
                     header block.  After changing the maximum size of the
                     dynamic table used by the encoder, the encoder MUST signal
                     this change via an encoding context update (see <xref
@@ -595,7 +595,7 @@
                     maximum size, that entry is added to the table.  It is not
                     an error to attempt to add an entry that is larger than the
                     maximum size; an attempt to add an entry larger than the
-                    entire table causes the table to be emptied of all existing
+                    maximum size causes the table to be emptied of all existing
                     entries, and results in an empty table.
                 </t>
                 <t>
@@ -633,7 +633,7 @@
                     of the integer representation.
                 </t>
                 <t>
-                    If the integer value is small enough, i.e. strictly less
+                    If the integer value is small enough, i.e., strictly less
                     than 2<x:sup>N</x:sup>-1, it is encoded within the N-bit
                     prefix.
                 </t>
@@ -1270,13 +1270,15 @@ else
                     </t>
                     <t>
                         This response might be made inversely proportional to
-                        the length of the header field value.  Marking as
-                        inaccessible might occur for shorter values more quickly
+                        the length of the header field value.  Marking a header
+                        field as not using the dynamic table any more
+                        might occur for shorter values more quickly
                         or with higher probability than for longer values.
                     </t>
                 </section>
 
-                <section title="Never Indexed Literals">
+                <section title="Never Indexed Literals"
+                    anchor="never.indexed.literals">
                     <t>
                         Implementations can also choose to protect sensitive
                         header fields by not compressing them and instead
@@ -1329,8 +1331,8 @@ else
 
             <section title="Static Huffman Encoding">
                 <t>
-                    There is no currently known attack against a fixed Huffman
-                    encoding. A study has shown that using a fixed Huffman
+                    There is no currently known attack against a static Huffman
+                    encoding. A study has shown that using a static Huffman
                     encoding table created an information leakage, however this
                     same study concluded that an attacker could not take
                     advantage of this information leakage to recover any
@@ -3256,8 +3258,8 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
                         </list>
                     </t>
                     <t>
-                        Removed most usages of 'name-value pair' instead instead
-                        of header field.
+                        Removed most usages of 'name-value pair' instead of
+                        header field.
                     </t>
                     <t>
                         Changed 'header table' to 'header field table'.
