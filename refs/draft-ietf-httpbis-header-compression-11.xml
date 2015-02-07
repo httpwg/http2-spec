@@ -86,6 +86,7 @@
                 fields which eliminates redundant header fields, limits
                 vulnerability to known security attacks, and which has a bounded
                 memory requirement for use in constrained environments.
+                Potential security concerns for HPACK are described in <xref target="Security"/>.
             </t>
 
             <t>
@@ -100,30 +101,36 @@
                 <t>
                     The format defined in this specification treats a list of
                     header fields as an ordered collection of name-value pairs
-                    that can include duplicates. Names and values are
+                    that can include duplicate pairs. Names and values are
                     considered to be opaque sequences of octets, and the order
                     of header fields is preserved after being compressed and
                     decompressed.
                 </t>
                 <t>
-                    Encoding is informed by header tables that map
-                    name-value pairs to indexed values. These header tables can
-                    be incrementally updated as new pairs are encoded or
-                    decoded.
+                    Encoding is informed by header field tables that map
+                    header fields to indexed values. These header field tables
+                    can be incrementally updated as new header fields are
+                    encoded or decoded.
                 </t>
                 <t>
                     In the encoded form, a header field is represented either
-                    literally or as a reference to a name-value pair in one of
-                    the header tables. Therefore, a list of header fields can be
-                    encoded using a mixture of references and literal values.
+                    literally or as a reference to a header field in one of
+                    the header field tables. Therefore, a list of header fields
+                    can be encoded using a mixture of references and literal
+                    values.
+                </t>
+                <t>
+                    Literal values are either encoded directly or using a static
+                    Huffman code.
                 </t>
                 <t>
                     The encoder is responsible for deciding which header fields
-                    to insert as new entries in the header tables.  The decoder
-                    executes the modifications to the header tables prescribed
-                    by the encoder, reconstructing the list of header fields in
-                    the process.  This enables decoders to remain simple and
-                    interoperate with a wide variety of encoders.
+                    to insert as new entries in the header field tables.  The
+                    decoder executes the modifications to the header field
+                    tables prescribed by the encoder, reconstructing the list of
+                    header fields in the process.  This enables decoders to
+                    remain simple and interoperate with a wide variety of
+                    encoders.
                 </t>
                 <t>
                     Examples illustrating the use of these different mechanisms
@@ -172,7 +179,7 @@
                             A header list is an ordered collection of header
                             fields that are encoded jointly, and can contain
                             duplicate header fields. A complete list of
-                            key-value pairs contained in an HTTP/2 header block
+                            header fields contained in an HTTP/2 header block
                             is a header list.
                         </t>
                         <t hangText="Header Field Representation:">
@@ -255,7 +262,8 @@
                         as each header block is decompressed.
                     </t>
                     <t>
-                        The dynamic table can contain duplicate entries.
+                        The dynamic table can contain duplicate entries (i.e.,
+                        entries with the same name and same value).
                         Therefore, duplicate entries MUST NOT be treated as an
                         error by a decoder.
                     </t>
@@ -316,8 +324,13 @@
 
             <section anchor="header.representation" title="Header Field Representation">
                 <t>
-                    An encoded header field can be represented either as a
-                    literal or as an index.
+                    An encoded header field can be represented either as an
+                    index or as a literal.
+                </t>
+                <t>
+                    An indexed representation defines a header field as a
+                    reference to an entry in either the static table or the
+                    dynamic table (see <xref target="indexed.header.representation"/>).
                 </t>
                 <t>
                     A literal representation defines a header field by
@@ -330,6 +343,11 @@
                     Three different literal representations are defined:
                     <list style="symbols">
                         <t>
+                            A literal representation that adds the header field
+                            as a new entry at the beginning of the dynamic table
+                            (see <xref target="literal.header.with.incremental.indexing"/>).
+                        </t>
+                        <t>
                             A literal representation that does not add the
                             header field to the dynamic table (see <xref target="literal.header.without.indexing"/>).
                         </t>
@@ -341,20 +359,20 @@
                             re-encoded by an intermediary (see <xref target="literal.header.never.indexed"/>). This
                             representation is intended for protecting header
                             field values that are not to be put at risk by
-                            compressing them (see <xref target="compression.based.attacks"/> for more
+                            compressing them (see <xref target="never.indexed.literals"/> for more
                             details).
-                        </t>
-                        <t>
-                            A literal representation that adds the header field
-                            as a new entry at the beginning of the dynamic table
-                            (see <xref target="literal.header.with.incremental.indexing"/>).
                         </t>
                     </list>
                 </t>
                 <t>
-                    An indexed representation defines a header field as a
-                    reference to an entry in either the static table or the
-                    dynamic table (see <xref target="indexed.header.representation"/>).
+                    The selection of one of these literal representations can be
+                    guided by security considerations, in order to protect
+                    sensitive header field values (see <xref target="compression.based.attacks"/>).
+                </t>
+                <t>
+                    The literal representation of a header field name or of a
+                    header field value can encode the sequence of octets either
+                    directly or using a static Huffman code (see <xref target="string.literal.representation"/>).
                 </t>
             </section>
         </section>
@@ -453,19 +471,24 @@
                 <t>
                     The size of an entry is the sum of its name's length in
                     octets (as defined in <xref target="string.literal.representation"/>), its value's
-                    length in octets (see <xref target="string.literal.representation"/>), plus 32.
+                    length in octets, plus 32.
                 </t>
                 <t>
-                    The size of an entry is calculated using the length of the
+                    The size of an entry is calculated using the length of its
                     name and value without any Huffman encoding applied.
                 </t>
                 <t>
-                    NOTE: The additional 32 octets account for the overhead
-                    associated with an entry. For example, an entry structure
-                    using two 64-bit pointers to reference the name and the
-                    value of the entry, and two 64-bit integers for counting
-                    the number of references to the name and value would have
-                    32 octets of overhead.
+                    <list style="hanging">
+                        <t hangText="Note:">
+                            The additional 32 octets account for an estimated
+                            overhead associated with an entry. For example, an
+                            entry structure using two 64-bit pointers to
+                            reference the name and the value of the entry, and
+                            two 64-bit integers for counting the number of
+                            references to the name and value would have 32
+                            octets of overhead.
+                        </t>
+                    </list>
                 </t>
             </section>
 
@@ -483,24 +506,21 @@
                     by the protocol.
                 </t>
                 <t>
-                    The maximum size of the dynamic table can be changed by the
-                    protocol at any time other than during the encoding of a
-                    header block.  After changing the maximum size of the
-                    dynamic table used by the encoder, the encoder MUST signal
-                    this change via an encoding context update (see <xref target="encoding.context.update"/>).  This encoding context
+                    A change in the maximum size of the dynamic table is
+                    signalled via an encoding context update (see <xref target="encoding.context.update"/>).  This encoding context
                     update MUST occur at the beginning of the first header block
-                    following the change to the header table size.  In HTTP/2,
+                    following the change to the dynamic table size.  In HTTP/2,
                     this follows a settings acknowledgement (see Appendix  of <xref target="HTTP2"/>).
                 </t>
                 <t>
                     Multiple updates to the maximum table size can occur between
-                    the sending of two header blocks.  In the case that this
+                    the transmission of two header blocks.  In the case that this
                     size is changed more than once in this interval, the
                     smallest maximum table size that occurs in that interval
-                    MUST be sent in an encoding context update.  The final
-                    maximum size is always sent, resulting in at most two
+                    MUST be signalled in an encoding context update.  The final
+                    maximum size is always signalled, resulting in at most two
                     encoding context updates.  This ensures that the decoder is
-                    able to perform eviction based on reductions in decoder
+                    able to perform eviction based on reductions in dynamic
                     table size (see <xref target="entry.eviction"/>).
                 </t>
                 <t>
@@ -531,7 +551,7 @@
                     maximum size, that entry is added to the table.  It is not
                     an error to attempt to add an entry that is larger than the
                     maximum size; an attempt to add an entry larger than the
-                    entire table causes the table to be emptied of all existing
+                    maximum size causes the table to be emptied of all existing
                     entries, and results in an empty table.
                 </t>
                 <t>
@@ -553,11 +573,11 @@
 
             <section anchor="integer.representation" title="Integer Representation">
                 <t>
-                    Integers are used to represent name indexes, pair indexes or
-                    string lengths. An integer representation can start anywhere
-                    within an octet. To allow for optimized processing, an
-                    integer representation always finishes at the end of an
-                    octet.
+                    Integers are used to represent name indexes, header field
+                    indexes or string lengths. An integer representation can
+                    start anywhere within an octet. To allow for optimized
+                    processing, an integer representation always finishes at the
+                    end of an octet.
                 </t>
                 <t>
                     An integer is represented in two parts: a prefix that fills
@@ -567,7 +587,7 @@
                     of the integer representation.
                 </t>
                 <t>
-                    If the integer value is small enough, i.e. strictly less
+                    If the integer value is small enough, i.e., strictly less
                     than 2^N-1, it is encoded within the N-bit
                     prefix.
                 </t>
@@ -654,18 +674,18 @@ else
                     This integer representation allows for values of indefinite
                     size.  It is also possible for an encoder to send a large
                     number of zero values, which can waste octets and could be
-                    used to overflow integer values.  Excessively large integer
-                    encodings - in value or octet length - MUST be treated as a
-                    decoding error.  Different limits can be set for each of the
-                    different uses of integers, based on implementation
-                    constraints.
+                    used to overflow integer values.  Integer encodings that
+                    exceed an implementation limits - in value or octet length -
+                    MUST be treated as a decoding error.  Different limits can
+                    be set for each of the different uses of integers, based on
+                    implementation constraints.
                 </t>
             </section>
 
             <section anchor="string.literal.representation" title="String Literal Representation">
                 <t>
                     Header field names and header field values can be
-                    represented as literal string. A literal string is encoded
+                    represented as literal strings. A literal string is encoded
                     as a sequence of octets, either by directly encoding the
                     literal string's octets, or by using a Huffman code
                     (see <xref target="HUFFMAN"/>).
@@ -759,8 +779,8 @@ else
                 </figure>
                 <t>
                     An indexed header field starts with the '1' 1-bit pattern,
-                    followed by the index of the matching pair, represented as
-                    an integer with a 7-bit prefix (see <xref target="integer.representation"/>).
+                    followed by the index of the matching header field,
+                    represented as an integer with a 7-bit prefix (see <xref target="integer.representation"/>).
                 </t>
                 <t>
                     The index value of 0 is not used. It MUST be treated as a
@@ -986,7 +1006,10 @@ else
                 </t>
                 <t>
                     The new maximum size MUST be lower than or equal to the last
-                    value of the SETTINGS_HEADER_TABLE_SIZE parameter (see Appendix  of <xref target="HTTP2"/>)
+                    value of the maximum size of the dynamic table. A value that
+                    exceeds this limit MUST be treated as a decoding error. In
+                    HTTP/2, this limit is the last value of the
+                    SETTINGS_HEADER_TABLE_SIZE parameter (see Appendix  of <xref target="HTTP2"/>)
                     received from the decoder and acknowledged by the encoder
                     (see Appendix  of <xref target="HTTP2"/>).
                 </t>
@@ -1034,9 +1057,11 @@ else
                     the encoded length and infer that the guess was correct.
                 </t>
                 <t>
-                    This is possible even over TLS, because while TLS provides
-                    confidentiality protection for content, it only provides a
-                    limited amount of protection for the length of that content.
+                    This is possible even over the Transport Layer Security
+                    Protocol (TLS, see <xref target="TLS12"/>), because while
+                    TLS provides confidentiality protection for content, it only
+                    provides a limited amount of protection for the length of
+                    that content.
                     <list style="hanging">
                         <t hangText="Note:">
                             Padding schemes only provide limited protection
@@ -1133,14 +1158,16 @@ else
                     </t>
                     <t>
                         An encoder without good knowledge of the provenance of
-                        header fields might instead introduce a penalty for bad
-                        guesses, such that attempts to guess a header field
-                        value results in all values being removed from
-                        consideration in all future requests, effectively
-                        preventing further guesses.
+                        header fields might instead introduce a penalty for
+                        a header field with many different values, such that a
+                        large number of attempts to guess a header field
+                        value results in the header field no more being compared
+                        to the dynamic table entries in future messages,
+                        effectively preventing further guesses.
                         <list style="hanging">
                             <t hangText="Note:">
-                                Simply removing values from the dynamic table
+                                Simply removing entries corresponding to the
+                                header field from the dynamic table
                                 can be ineffectual if the attacker has a
                                 reliable way of causing values to be
                                 reinstalled.  For example, a request to load an
@@ -1154,35 +1181,67 @@ else
                     </t>
                     <t>
                         This response might be made inversely proportional to
-                        the length of the header field.  Marking as inaccessible
-                        might occur for shorter values more quickly or with
-                        higher probability than for longer values.
-                    </t>
-                    <t>
-                        Implementations might also choose to protect certain
-                        header fields that are known to be highly valued, such
-                        as the Authorization or Cookie header fields, by
-                        disabling or further limiting compression.
+                        the length of the header field value.  Marking a header
+                        field as not using the dynamic table any more
+                        might occur for shorter values more quickly
+                        or with higher probability than for longer values.
                     </t>
                 </section>
 
-                <section title="Never Indexed Literals">
+                <section anchor="never.indexed.literals" title="Never Indexed Literals">
+                    <t>
+                        Implementations can also choose to protect sensitive
+                        header fields by not compressing them and instead
+                        encoding their value as literals.
+                    </t>
                     <t>
                         Refusing to generate an indexed representation for a
                         header field is only effective if compression is avoided
                         on all hops.  The never indexed literal (see <xref target="literal.header.never.indexed"/>) can be used
                         to signal to intermediaries that a particular value was
-                        intentionally sent as a literal.  An intermediary MUST
-                        NOT re-encode a value that uses the never indexed
-                        literal with a representation that would index it.
+                        intentionally sent as a literal.
+                    </t>
+                    <t>
+                        An intermediary MUST NOT re-encode a value that uses the
+                        never indexed literal representation with another
+                        representation that would index it. If HPACK is used
+                        for re-encoding, the never indexed literal
+                        representation MUST be used.
+                    </t>
+                    <t>
+                        The choice to use a never indexed literal representation
+                        for a header field depends on several factors. Since
+                        HPACK doesn't protect against guessing an entire header
+                        field value, short or low-entropy values are more
+                        readily recovered by an adversary. Therefore, an encoder
+                        might choose not to index values with low entropy.
+                    </t>
+                    <t>
+                        An encoder might also choose not to index values for
+                        header fields that are considered to be highly valuable
+                        or sensitive to recovery, such as the Cookie or
+                        Authorization header fields.
+                    </t>
+                    <t>
+                        On the contrary, an encoder might prefer indexing values
+                        for header fields that have little or no value if they
+                        were exposed. For instance, a User-Agent header field
+                        does not commonly vary between requests and is sent to
+                        any server. In that case, confirmation that a particular
+                        User-Agent value has been used provides little value.
+                    </t>
+                    <t>
+                        Note that these criteria for deciding to use a never
+                        indexed literal representation will evolve over time as
+                        new attacks are discovered.
                     </t>
                 </section>
             </section>
 
             <section title="Static Huffman Encoding">
                 <t>
-                    There is no currently known attack against a fixed Huffman
-                    encoding. A study has shown that using a fixed Huffman
+                    There is no currently known attack against a static Huffman
+                    encoding. A study has shown that using a static Huffman
                     encoding table created an information leakage, however this
                     same study concluded that an attacker could not take
                     advantage of this information leakage to recover any
@@ -1197,19 +1256,23 @@ else
                     amounts of memory allocated by an endpoint.
                 </t>
                 <t>
-                    The amount of memory used by the compressor state is limited
-                    by the decoder using the value of the HTTP/2 setting
-                    parameter SETTINGS_HEADER_TABLE_SIZE (see Appendix  of <xref target="HTTP2"/>).
+                    The amount of memory used by the compressor is limited by
+                    the protocol using HPACK through the definition of the
+                    maximum size of the dynamic table.
+                    In HTTP/2, this value is controlled by the decoder through
+                    the setting parameter SETTINGS_HEADER_TABLE_SIZE (see Appendix  of <xref target="HTTP2"/>).
                     This limit takes into account both the size of the data
                     stored in the dynamic table, plus a small allowance for
                     overhead.
                 </t>
                 <t>
                     A decoder can limit the amount of state memory used by
-                    setting an appropriate value for the
-                    SETTINGS_HEADER_TABLE_SIZE parameter.  An encoder can limit
-                    the amount of state memory it uses by signalling lower
-                    dynamic table size than the decoder allows (see <xref target="encoding.context.update"/>).
+                    setting an appropriate value for the maximum size of the
+                    dynamic table. In HTTP/2, this is realized by setting an
+                    appropriate value for the SETTINGS_HEADER_TABLE_SIZE
+                    parameter.  An encoder can limit the amount of state memory
+                    it uses by signalling lower dynamic table size than the
+                    decoder allows (see <xref target="encoding.context.update"/>).
                 </t>
                 <t>
                     The amount of temporary memory consumed by an encoder or
@@ -1334,6 +1397,17 @@ else
                 </front>
                 <seriesInfo name="Internet-Draft" value="draft-mbelshe-httpbis-spdy-00"/>
             </reference>
+
+            <reference anchor="TLS12">
+                <front>
+                    <title>The Transport Layer Security (TLS) Protocol Version 1.2</title>
+                    <author initials="T." surname="Dierks" fullname="Tim Dierks"/>
+                    <author initials="E." surname="Rescorla" fullname="Eric Rescorla"/>
+                    <date year="2008" month="August"/>
+                </front>
+                <seriesInfo name="RFC" value="5246"/>
+            </reference>
+
             <reference anchor="ORIGIN">
                 <front>
                     <title>The Web Origin Concept</title>
@@ -1342,6 +1416,7 @@ else
                 </front>
                 <seriesInfo name="RFC" value="6454"/>
             </reference>
+
             <reference anchor="DEFLATE">
                 <front>
                     <title>DEFLATE Compressed Data Format Specification version 1.3</title>
@@ -1352,7 +1427,8 @@ else
                 </front>
                 <seriesInfo name="RFC" value="1951"/>
             </reference>
-            <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU/edit#slide=id.g1eb6c1b5_3_6">
+
+            <reference anchor="CRIME" target="https://docs.google.com/a/twist.com/presentation/d/11eBmGiHbYcHR9gL5nDyZChu_-lCa2GizeuOfaLU2HOU">
                 <front>
                     <title>The CRIME Attack</title>
                     <author initials="J." surname="Rizzo" fullname="Juliano Rizzo"/>
@@ -1361,7 +1437,7 @@ else
                 </front>
             </reference>
 
-            <reference anchor="HUFFMAN" target="https://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">
+            <reference anchor="HUFFMAN" target="http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">
                 <front>
                     <title>A Method for the Construction of Minimum Redundancy
                     Codes</title>
@@ -1394,7 +1470,7 @@ else
 
         <section anchor="static.table.definition" title="Static Table Definition">
             <t>
-                The static table (see <xref target="static.table"/>) consists of
+                The static table (see <xref target="static.table"/>) consists in
                 a predefined and unchangeable list of header fields.
             </t>
             <t>
@@ -1525,7 +1601,7 @@ else
                 As an example, the code for the symbol 47 (corresponding to the
                 ASCII character "/") consists in the 6 bits "0", "1", "1", "0",
                 "0", "0". This corresponds to the value 0x18 (in hexadecimal)
-                encoded on 6 bits.
+                encoded in 6 bits.
             </t>
             <figure>
                 <artwork><![CDATA[
@@ -1860,7 +1936,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
                                         </list>
                                     </t>
                                     <t>
-                                        I, now 10, is encoded on 8 bits as:
+                                        I, now 10, is encoded in 8 bits as:
                                         00001010.
                                     </t>
                                 </list>
@@ -3054,6 +3130,34 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
         </section>
 
         <section title="Change Log (to be removed by RFC Editor before publication)">
+            <section anchor="changes.since.draft-ietf-httpbis-header-compression-10" title="Since draft-ietf-httpbis-header-compression-10">
+                <t><list style="symbols">
+                    <t>
+                        Editorial corrections for taking into account IETF LC
+                        comments.
+                        <list style="symbols">
+                            <t>
+                                Added links to security sections.
+                            </t>
+                            <t>
+                                Made spec more independent of HTTP/2.
+                            </t>
+                            <t>
+                                Expanded security section about never indexed
+                                literal usage.
+                            </t>
+                        </list>
+                    </t>
+                    <t>
+                        Removed most usages of 'name-value pair' instead of
+                        header field.
+                    </t>
+                    <t>
+                        Changed 'header table' to 'header field table'.
+                    </t>
+                </list></t>
+            </section>
+
             <section anchor="changes.since.draft-ietf-httpbis-header-compression-09" title="Since draft-ietf-httpbis-header-compression-09">
                 <t><list style="symbols">
                     <t>
