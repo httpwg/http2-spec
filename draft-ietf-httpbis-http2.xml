@@ -94,13 +94,13 @@
     <section anchor="intro" title="Introduction">
 
       <t>
-        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, how
-        HTTP/1.1 uses the underlying transport (<xref target="RFC7230" x:fmt=","
+        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the manner
+        in which HTTP/1.1 uses the underlying transport (<xref target="RFC7230" x:fmt=","
         x:rel="#connection.management"/>) has several characteristics that have a negative overall
         effect on application performance today.
       </t>
       <t>
-        In particular, HTTP/1.0 allowed only one request to be outstanding at a time on a given TCP
+        In particular, HTTP/1.0 allowed only one request to be outstanding at a time on a given TCP 
         connection. HTTP/1.1 added request pipelining, but this only partially addressed request
         concurrency and still suffers from head-of-line blocking. Therefore, HTTP/1.0 and HTTP/1.1
         clients that need to make many requests use multiple connections to a server in order to
@@ -152,8 +152,8 @@
       </t>
       <t>
         Flow control and prioritization ensure that it is possible to efficiently use multiplexed
-        streams.  <xref target="FlowControl">Flow control</xref> helps to ensure that only data that
-        can be used by a receiver is transmitted.  <xref
+        streams.  <xref target="FlowControl">Flow control</xref> helps to ensure that the ability of
+        the receiver to use data is taken into account by the sender.  <xref
         target="StreamPriority">Prioritization</xref> ensures that limited resources can be directed
         to the most important streams first.
       </t>
@@ -162,8 +162,8 @@
         responses to a client</xref>.  Server push allows a server to speculatively send data to a
         client that the server anticipates the client will need, trading off some network usage
         against a potential latency gain.  The server does this by synthesizing a request, which it
-        sends as a <x:ref>PUSH_PROMISE</x:ref> frame.  The server is then able to send a response to
-        the synthetic request on a separate stream.
+        sends to the client as a <x:ref>PUSH_PROMISE</x:ref> frame.  The server is then able to send
+        a response to the synthetic request on a separate stream.
       </t>
       <t>
         Because HTTP header fields used in a connection can contain large amounts of redundant
@@ -228,6 +228,9 @@
             <t hangText="connection error:">
               An error that affects the entire HTTP/2 connection.
             </t>
+            <t hangText="downstream:">
+              The direction network traffic flows when it is going from the server to the client.
+            </t>
             <t hangText="endpoint:">
               Either the client or server of the connection.
             </t>
@@ -254,6 +257,9 @@
             </t>
             <t hangText="stream error:">
               An error on the individual HTTP/2 stream.
+            </t>
+            <t hangText="upstream:">
+              The direction network traffic flows when it is going from the client to the server.
             </t>
           </list>
         </t>
@@ -919,7 +925,8 @@ HTTP2-Settings    = token68
             <x:lt hangText="reserved (remote):">
               <t>
                 <vspace blankLines="0"/>
-                A stream in the "reserved (remote)" state has been reserved by a remote peer.
+                A stream in the "reserved (remote)" state is one that has been reserved by a remote
+                peer.
               </t>
               <t>
                 In this state, only the following transitions are possible:
@@ -1085,7 +1092,7 @@ HTTP2-Settings    = token68
         <t>
           An example of the state transitions for an HTTP request/response exchange can be found in
           <xref target="HttpSequence"/>.  An example of the state transitions for server push can be
-          found in <xref target="PushRequests"/> and <xref target="PushResponses"/>.
+          found in <xref target="PushPromisesAndRequests"/> and <xref target="PushResponses"/>.
         </t>
 
         <section anchor="StreamIdentifiers" title="Stream Identifiers">
@@ -1118,12 +1125,12 @@ HTTP2-Settings    = token68
             first frame for stream 7 is sent or received.
           </t>
           <t>
-            Stream identifiers cannot be reused.  Long-lived connections can result in an endpoint
-            exhausting the available range of stream identifiers.  A client that is unable to
-            establish a new stream identifier can establish a new connection for new streams.  A
-            server that is unable to establish a new stream identifier can send a
-            <x:ref>GOAWAY</x:ref> frame so that the client is forced to open a new connection for
-            new streams.
+            Stream identifiers cannot be reused within the scope of a connection.  Long-lived
+            connections can result in an endpoint exhausting the available range of stream
+            identifiers.  A client that is unable to establish a new stream identifier can establish
+            a new connection for new streams.  A server that is unable to establish a new stream
+            identifier can send a <x:ref>GOAWAY</x:ref> frame so that the client is forced to open a
+            new connection for new streams.
           </t>
         </section>
 
@@ -1295,8 +1302,8 @@ HTTP2-Settings    = token68
         <section title="Stream Dependencies" anchor="pri-depend">
           <t>
             Each stream can be given an explicit dependency on another stream.  Including a
-            dependency expresses a preference to allocate resources to the identified stream rather
-            than to the dependent stream.
+            dependency expresses a preference to allocate resources to that other stream rather than
+            to the dependent stream.
           </t>
           <t>
             A stream that is not dependent on any other stream is given a stream dependency of 0x0.
@@ -1895,7 +1902,8 @@ HTTP2-Settings    = token68
         <t>
           The RST_STREAM frame (type=0x3) allows for immediate termination of a stream.  RST_STREAM
           is sent to request cancellation of a stream, or to indicate that an error condition has
-          occurred.
+          occurred.  One common use of RST_STREAM is when the client wishes to decline to receive
+          the response referenced by a PUSH_PROMISE frame.
         </t>
         <figure anchor="RST_STREAMFramePayload"
           title="RST_STREAM Frame Payload">
@@ -2148,8 +2156,8 @@ HTTP2-Settings    = token68
 
       <section anchor="PUSH_PROMISE" title="PUSH_PROMISE">
         <t>
-          The PUSH_PROMISE frame (type=0x5) is used to notify the peer endpoint in advance of
-          streams the sender intends to initiate.  The PUSH_PROMISE frame includes the unsigned
+          The PUSH_PROMISE frame (type=0x5) is used to notify the client endpoint in advance of
+          streams the server intends to initiate.  The PUSH_PROMISE frame includes the unsigned
           31-bit identifier of the stream the endpoint plans to create along with a set of headers
           that provide additional context for the stream.  <xref target="PushResources"/> contains a
           thorough description of the use of PUSH_PROMISE frames.
@@ -2343,8 +2351,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           The purpose of this frame is to allow an endpoint to gracefully stop accepting new
-          streams, while still finishing processing of previously established streams.  This enables
-          administrative actions, like server maintenance.
+          streams, while still finishing processing of previously established streams.  This is
+          simply good practice for concurrent systems and enables administrative actions, such as
+          server maintenance.
         </t>
         <t>
           There is an inherent race condition between an endpoint starting new streams and the
@@ -2423,12 +2432,12 @@ HTTP2-Settings    = token68
         </t>
         <t>
           An endpoint MAY send multiple GOAWAY frames if circumstances change.  For instance, an
-          endpoint that sends GOAWAY with <x:ref>NO_ERROR</x:ref> during graceful shutdown could
-          subsequently encounter a condition that requires immediate termination of the connection.
-          The last stream identifier from the last GOAWAY frame received indicates which streams
-          could have been acted upon.  Endpoints MUST NOT increase the value they send in the last
-          stream identifier, since the peers might already have retried unprocessed requests on
-          another connection.
+          endpoint that sends GOAWAY with the <x:ref>NO_ERROR</x:ref> error code (defined in the
+          section "Error Codes") during graceful shutdown could subsequently encounter a condition
+          that requires immediate termination of the connection.  The last stream identifier from
+          the last GOAWAY frame received indicates which streams could have been acted upon.
+          Endpoints MUST NOT increase the value they send in the last stream identifier, since the
+          peers might already have retried unprocessed requests on another connection.
         </t>
         <t>
           A client that is unable to retry requests loses all requests that are in flight when the
@@ -2513,7 +2522,7 @@ HTTP2-Settings    = token68
           the value "0" indicates that the entire connection is the subject of the frame.
         </t>
         <t>
-          A receiver MUST treat the receipt of a WINDOW_UPDATE frame with an flow control window
+          A receiver MUST treat the receipt of a WINDOW_UPDATE frame with a flow control window
           increment of 0 as a <xref target="StreamErrorHandler">stream error</xref> of type
           <x:ref>PROTOCOL_ERROR</x:ref>; errors on the connection flow control window MUST be
           treated as a <xref target="ConnectionErrorHandler">connection error</xref>.
@@ -3092,10 +3101,10 @@ HTTP2-Settings    = token68
 
           <section anchor="malformed" title="Malformed Requests and Responses">
             <t>
-              A malformed request or response is one that is an otherwise valid sequence of HTTP/2
-              frames, but is otherwise invalid due to the presence of extraneous frames, prohibited
-              header fields, the absence of mandatory header fields, or the inclusion of uppercase
-              header field names.
+              A malformed request or response is considered invalid due to the presence of
+              extraneous frames, prohibited header fields, the absence of mandatory header fields,
+              or the inclusion of uppercase header field names in an otherwise valid request or
+              response.
             </t>
             <t>
               A request or response that includes an payload body can include a <spanx
@@ -3126,7 +3135,8 @@ HTTP2-Settings    = token68
         <section title="Examples">
           <t>
             This section shows HTTP/1.1 requests and responses, with illustrations of equivalent
-            HTTP/2 requests and responses.
+            HTTP/2 requests and responses.  In HTTP/2, these would all happen on a single
+            connection.  The stream numbers are for illustration purposes only.
           </t>
           <t>
             An HTTP GET request includes request header fields and no payload body and is therefore
@@ -3138,6 +3148,8 @@ HTTP2-Settings    = token68
 
           <figure>
             <artwork type="inline"><![CDATA[
+                                   Stream ID 5
+
   GET /resource HTTP/1.1           HEADERS
   Host: example.org          ==>     + END_STREAM
   Accept: image/jpeg                 + END_HEADERS
@@ -3158,6 +3170,8 @@ HTTP2-Settings    = token68
 
           <figure>
             <artwork type="inline"><![CDATA[
+                                   Stream ID 6
+
   HTTP/1.1 304 Not Modified        HEADERS
   ETag: "xyzzy"              ==>     + END_STREAM
   Expires: Thu, 23 Jan ...           + END_HEADERS
@@ -3178,6 +3192,8 @@ HTTP2-Settings    = token68
 
           <figure>
             <artwork type="inline"><![CDATA[
+                                   Stream ID 7
+
   POST /resource HTTP/1.1          HEADERS
   Host: example.org          ==>     - END_STREAM
   Content-Type: image/jpeg           - END_HEADERS
@@ -3205,12 +3221,15 @@ HTTP2-Settings    = token68
           <t>
             A response that includes header fields and payload data is transmitted as a
             <x:ref>HEADERS</x:ref> frame, followed by zero or more <x:ref>CONTINUATION</x:ref>
-            frames, followed by one or more <x:ref>DATA</x:ref> frames, with the last
-            <x:ref>DATA</x:ref> frame in the sequence having the END_STREAM flag set:
+            frames (the last one of which has the END_HEADERS flag set), followed by one or more
+            <x:ref>DATA</x:ref> frames, with the last <x:ref>DATA</x:ref> frame in the sequence
+            having the END_STREAM flag set:
           </t>
 
           <figure>
             <artwork type="inline"><![CDATA[
+                                   Stream ID 8
+
   HTTP/1.1 200 OK                  HEADERS
   Content-Type: image/jpeg   ==>     - END_STREAM
   Content-Length: 123                + END_HEADERS
@@ -3238,15 +3257,19 @@ HTTP2-Settings    = token68
           <figure>
             <preamble>
               The following example includes both a 100 (Continue) status code, which is sent in
-              response to a request containing a "100-continue" token in the Expect header field,
-              and trailing header fields:
+              response to a request (omitted for brevity) containing a "100-continue" token in the
+              Expect header field, and trailing header fields:
             </preamble>
             <artwork type="inline"><![CDATA[
+                                   Stream ID 12
+
   HTTP/1.1 100 Continue            HEADERS
   Extension-Field: bar       ==>     - END_STREAM
                                      + END_HEADERS
                                        :status = 100
                                        extension-field = bar
+
+                                   Stream ID 14
 
   HTTP/1.1 200 OK                  HEADERS
   Content-Type: image/jpeg   ==>     - END_STREAM
@@ -3259,6 +3282,8 @@ HTTP2-Settings    = token68
   Foo: bar                         DATA
                                      - END_STREAM
                                    {binary data}
+
+                                   Stream ID 16
 
                                    HEADERS
                                      + END_STREAM
@@ -3315,10 +3340,10 @@ HTTP2-Settings    = token68
 
       <section anchor="PushResources" title="Server Push">
         <t>
-          HTTP/2 allows a server to pre-emptively send (or "push") responses (along with
+          HTTP/2 allows a server to pre-emptively send (or "push") responses (preceded by
           corresponding "promised" requests) to a client in association with a previous
-          client-initiated request. This can be useful when the server knows the client will need
-          to have those responses available in order to fully process the response to the original
+          client-initiated request. This can be useful when the server knows the client will need to
+          have those responses available in order to fully process the response to the original
           request.
         </t>
 
@@ -3357,9 +3382,9 @@ HTTP2-Settings    = token68
         </t>
         <t>
           An intermediary can receive pushes from the server and choose not to forward them on to
-          the client. In other words, how to make use of the pushed information is up to that
-          intermediary. Equally, the intermediary might choose to make additional pushes to the
-          client, without any action taken by the server.
+          the client. In other words, intermediaries are empowered to decide what to do with the
+          pushed information. Equally, the intermediary might choose to make additional pushes to
+          the client, without any push having been initiated by the server.
         </t>
         <t>
           A client cannot push. Thus, servers MUST treat the receipt of a
@@ -3370,11 +3395,13 @@ HTTP2-Settings    = token68
           <x:ref>PROTOCOL_ERROR</x:ref>.
         </t>
 
-        <section anchor="PushRequests" title="Push Requests">
+        <section anchor="PushPromisesAndRequests" title="Push Promises and Requests">
           <t>
-            Server push is semantically equivalent to a server responding to a request; however, in
-            this case that request is also sent by the server, as a <x:ref>PUSH_PROMISE</x:ref>
-            frame.
+            Server push is semantically equivalent to a server responding to a request.  It can be
+            thought of as the server logically sending a request to itself on behalf of the client
+            because it knows the client is going to be asking for the resource anyway.  This logical
+            request is still sent to the client by the server as a <x:ref>PUSH_PROMISE</x:ref> frame
+            before the sending the actual response.
           </t>
           <t>
             The <x:ref>PUSH_PROMISE</x:ref> frame includes a header block that contains a complete
@@ -3447,8 +3474,9 @@ HTTP2-Settings    = token68
 
           <t>
             Once a client receives a <x:ref>PUSH_PROMISE</x:ref> frame and chooses to accept the
-            pushed response, the client SHOULD NOT issue any requests for the promised response
-            until after the promised stream has closed.
+            pushed response (by not sending RST_STREAM on the promised stream), the client
+            SHOULD NOT issue any requests for the promised response until after the promised
+            stream has closed.
           </t>
 
           <t>
@@ -3785,7 +3813,7 @@ HTTP2-Settings    = token68
         <t>
           In a cross-protocol attack, an attacker causes a client to initiate a transaction in one
           protocol toward a server that understands a different protocol.  An attacker might be able
-          to cause the transaction to appear as valid transaction in the second protocol.  In
+          to cause the transaction to appear as a valid transaction in the second protocol.  In
           combination with the capabilities of the web context, this can be used to interact with
           poorly protected servers in private networks.
         </t>
@@ -3863,12 +3891,9 @@ HTTP2-Settings    = token68
         <t>
           The number of <x:ref>PUSH_PROMISE</x:ref> frames is not constrained in the same fashion.
           A client that accepts server push SHOULD limit the number of streams it allows to be in
-          the "reserved (remote)" state.  Excessive number of server push streams can be treated as
+          the "reserved (remote)" state.  Excessive numbers of server push streams can be treated as
           a <xref target="StreamErrorHandler">stream error</xref> of type
           <x:ref>ENHANCE_YOUR_CALM</x:ref>.
-        </t>
-        <t>
-          Processing capacity cannot be guarded as effectively as state capacity.
         </t>
         <t>
           The <x:ref>SETTINGS</x:ref> frame can be abused to cause a peer to expend additional
