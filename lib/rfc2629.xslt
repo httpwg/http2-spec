@@ -99,7 +99,7 @@
 </xsl:param>
 
 <!-- include a table of contents if a processing instruction <?rfc?>
-     exists with contents toc="yes". Can be overriden by an XSLT parameter -->
+     exists with contents toc="yes". Can be overridden by an XSLT parameter -->
 
 <xsl:param name="xml2rfc-toc">
   <xsl:call-template name="parse-pis">
@@ -131,7 +131,7 @@
 </xsl:variable>
 
 <!-- suppress top block if a processing instruction <?rfc?>
-     exists with contents tocblock="no". Can be overriden by an XSLT parameter -->
+     exists with contents tocblock="no". Can be overridden by an XSLT parameter -->
 
 <xsl:param name="xml2rfc-topblock">
   <xsl:call-template name="parse-pis">
@@ -162,7 +162,7 @@
 </xsl:param>
 
 <!-- use symbolic reference names instead of numeric ones unless a processing instruction <?rfc?>
-     exists with contents symrefs="no". Can be overriden by an XSLT parameter -->
+     exists with contents symrefs="no". Can be overridden by an XSLT parameter -->
 
 <xsl:param name="xml2rfc-symrefs">
   <xsl:call-template name="parse-pis">
@@ -173,7 +173,7 @@
 </xsl:param>
 
 <!-- sort references if a processing instruction <?rfc?>
-     exists with contents sortrefs="yes". Can be overriden by an XSLT parameter -->
+     exists with contents sortrefs="yes". Can be overridden by an XSLT parameter -->
 
 <xsl:param name="xml2rfc-sortrefs">
   <xsl:call-template name="parse-pis">
@@ -184,7 +184,7 @@
 </xsl:param>
 
 <!-- insert editing marks if a processing instruction <?rfc?>
-     exists with contents editing="yes". Can be overriden by an XSLT parameter -->
+     exists with contents editing="yes". Can be overridden by an XSLT parameter -->
 
 <xsl:param name="xml2rfc-editing">
   <xsl:call-template name="parse-pis">
@@ -405,7 +405,7 @@
 
 <!-- URL templates for RFCs and Internet Drafts. -->
 
-<!-- Reference the authorative ASCII versions
+<!-- Reference the authoritative ASCII versions
 <xsl:param name="rfcUrlPrefix" select="'http://www.ietf.org/rfc/rfc'" />
 <xsl:param name="rfcUrlPostfix" select="'.txt'" />
 -->
@@ -4919,7 +4919,7 @@ dd, li, p {
         <xsl:choose>
           <xsl:when test="self::xref">
             <xsl:variable name="target" select="@target"/>
-            <xsl:comment>workaround for Saxon 9.1 bug; force evalutation of: <xsl:value-of select="$target"/></xsl:comment>
+            <xsl:comment>workaround for Saxon 9.1 bug; force evaluation of: <xsl:value-of select="$target"/></xsl:comment>
             <xsl:variable name="no"><xsl:number level="any" count="xref[@target=$target]"/></xsl:variable>
             <xsl:text>#</xsl:text>
             <xsl:value-of select="$anchor-prefix"/>
@@ -5695,7 +5695,7 @@ dd, li, p {
           </xsl:otherwise>
         </xsl:choose>
 
-        <!-- add warning for incpmpatible IPR attribute on RFCs -->
+        <!-- add warning for incompatible IPR attribute on RFCs -->
         <xsl:variable name="stds-rfc-compatible-ipr"
                       select="/rfc/@ipr='pre5378Trust200902' or /rfc/@ipr='trust200902' or /rfc/@ipr='trust200811' or /rfc/@ipr='full3978' or /rfc/@ipr='full3667' or /rfc/@ipr='full2026'"/>
 
