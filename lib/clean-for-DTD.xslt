@@ -217,7 +217,7 @@
   </xsl:choose>
 </xsl:template>
 
-<xsl:template match="x:blockquote" mode="cleanup">
+<xsl:template match="x:blockquote|blockquote" mode="cleanup">
   <t><list>
     <xsl:apply-templates mode="cleanup" />
   </list></t>
@@ -243,8 +243,9 @@
   </t>
 </xsl:template>
 
-<xsl:template match="x:note" mode="cleanup">
+<xsl:template match="x:note|aside" mode="cleanup">
   <t>
+    <xsl:apply-templates select="@anchor" mode="cleanup"/>
     <list>
       <xsl:apply-templates mode="cleanup"/>
     </list>
@@ -769,9 +770,6 @@
 <!-- referencing extensions -->
 <xsl:template match="iref/@x:for-anchor" mode="cleanup"/>
 
-<!-- section numbering -->
-<xsl:template match="section/@x:fixed-section-number" mode="cleanup"/>
-
 <!-- GRRDL info stripped -->
 <xsl:template match="@grddl:transformation" mode="cleanup"/>
 
@@ -844,6 +842,31 @@
   </xsl:choose>
 </xsl:template>
 
+<!-- References titles -->
+<xsl:template match="references" mode="cleanup">
+  <references>
+    <xsl:copy-of select="@anchor|@toc"/>
+    <xsl:variable name="title">
+      <xsl:choose>
+        <xsl:when test="name">
+          <xsl:variable name="hold">
+            <xsl:apply-templates select="name/node()"/>
+          </xsl:variable>
+          <xsl:value-of select="normalize-space($hold)"/>
+        </xsl:when>
+        <xsl:otherwise>
+          <xsl:value-of select="@title"/>
+        </xsl:otherwise>
+      </xsl:choose>
+    </xsl:variable>
+    <xsl:if test="$title!=''">
+      <xsl:attribute name="title"><xsl:value-of select="$title"/></xsl:attribute>
+    </xsl:if>
+    <xsl:apply-templates mode="cleanup"/>
+  </references>
+</xsl:template>
+<xsl:template match="references/name" mode="cleanup"/>
+
 <!-- Section titles -->
 <xsl:template match="section" mode="cleanup">
   <section>
@@ -860,20 +883,120 @@
           <xsl:value-of select="@title"/>
         </xsl:otherwise>
       </xsl:choose>
+      <xsl:if test="@removeInRFC='yes'"> (to be removed in RFC before publication)</xsl:if>
     </xsl:attribute>
     <xsl:apply-templates mode="cleanup"/>
   </section>
+  <xsl:if test="@numbered='no'">
+    <xsl:call-template name="warning">
+      <xsl:with-param name="inline" select="'no'"/>
+      <xsl:with-param name="msg">unnumbered sections not supported</xsl:with-param>
+    </xsl:call-template>
+  </xsl:if>
 </xsl:template>
 <xsl:template match="section/name" mode="cleanup"/>
 
+<!-- Definition Lists -->
+<xsl:template match="dl" mode="cleanup">
+  <xsl:choose>
+    <xsl:when test="parent::dd">
+      <xsl:call-template name="process-dl"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <t>
+        <xsl:call-template name="process-dl"/>
+      </t>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="process-dl">
+  <xsl:variable name="hang" select="@hanging"/>
+  <xsl:variable name="spac" select="@spacing"/>
+  <xsl:processing-instruction name="rfc">
+    <xsl:choose>
+      <xsl:when test="not($spac='compact')">subcompact='no'</xsl:when>
+      <xsl:otherwise>subcompact='yes'</xsl:otherwise>
+    </xsl:choose>
+  </xsl:processing-instruction>
+  <list style="hanging">
+    <xsl:for-each select="dt">
+      <xsl:variable name="txt">
+        <xsl:apply-templates select="." mode="cleanup"/>
+      </xsl:variable>
+      <t hangText="{normalize-space($txt)}">
+        <xsl:copy-of select="@anchor"/>
+        <xsl:if test="not($hang='true')">
+          <vspace blankLines="0"/>
+        </xsl:if>
+        <xsl:variable name="desc" select="following-sibling::dd[1]"/>
+        <!-- TODO: check for more block-level elements -->
+        <xsl:variable name="block-level-children" select="$desc/t | $desc/dl"/>
+        <xsl:choose>
+          <xsl:when test="$block-level-children">
+            <xsl:for-each select="$block-level-children">
+              <xsl:choose>
+                <xsl:when test="self::t">
+                  <xsl:apply-templates select="node()" mode="cleanup"/>
+                </xsl:when>
+                <xsl:otherwise>
+                  <xsl:apply-templates select="." mode="cleanup"/>
+                </xsl:otherwise>
+              </xsl:choose>
+              <xsl:if test="position()!=last()">
+                <xsl:choose>
+                  <xsl:when test="not($spac='compact')"><vspace blankLines="1"/></xsl:when>
+                  <xsl:otherwise><vspace blankLines="0"/></xsl:otherwise>
+                </xsl:choose>
+              </xsl:if>
+            </xsl:for-each>
+          </xsl:when>
+          <xsl:otherwise>
+            <xsl:apply-templates select="$desc/node()" mode="cleanup"/>
+          </xsl:otherwise>
+        </xsl:choose>
+      </t>
+    </xsl:for-each>
+  </list>
+</xsl:template>
+
+<!-- List items -->
+<xsl:template match="li" mode="cleanup">
+  <t>
+    <xsl:copy-of select="@anchor"/>
+    <xsl:apply-templates mode="cleanup"/>
+  </t>
+</xsl:template>
+<xsl:template match="li/t" mode="cleanup">
+  <xsl:apply-templates mode="cleanup"/>
+  <xsl:if test="position()!=last()">
+    <vspace blankLines="1"/>
+  </xsl:if>
+</xsl:template>
+
+<!-- Ordered Lists -->
+<xsl:template match="ol" mode="cleanup">
+  <t>
+    <xsl:if test="@start and @start!='1'">
+      <xsl:call-template name="warning">
+        <xsl:with-param name="inline" select="'no'"/>
+        <xsl:with-param name="msg">list start != 1 not supported</xsl:with-param>
+      </xsl:call-template>
+    </xsl:if>
+    <list style="numbers">
+      <xsl:apply-templates mode="cleanup"/>
+    </list>
+  </t>
+</xsl:template>
+
 <!-- Display names for references -->
 <xsl:template match="displayreference" mode="cleanup"/>
-<xsl:template match="reference/@anchor[.=/rfc/back/displayreference/@from]" mode="cleanup">
+<xsl:template match="reference/@anchor[.=/rfc/back/displayreference/@target]" mode="cleanup">
   <xsl:attribute name="anchor">
     <xsl:call-template name="generate-ref-name"/>
   </xsl:attribute>
 </xsl:template>
-<xsl:template match="xref/@target[.=/rfc/back/displayreference/@from]" mode="cleanup">
+<xsl:template match="xref/@target[.=/rfc/back/displayreference/@target]" mode="cleanup">
   <xsl:attribute name="target">
     <xsl:call-template name="generate-ref-name"/>
   </xsl:attribute>
@@ -881,7 +1004,7 @@
 
 <xsl:template name="generate-ref-name">
   <xsl:variable name="tnewname">
-    <xsl:value-of select="/rfc/back/displayreference[@from=current()]/@to"/>
+    <xsl:value-of select="/rfc/back/displayreference[@target=current()]/@to"/>
   </xsl:variable>
   <xsl:choose>
     <xsl:when test="translate(substring($tnewname,1,1),$digits,'')=''">
