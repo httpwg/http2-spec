@@ -1,7 +1,7 @@
 <!--
     Strip rfc2629.xslt extensions, generating XML input for MTR's xml2rfc
 
-    Copyright (c) 2006-2014, Julian Reschke (julian.reschke@greenbytes.de)
+    Copyright (c) 2006-2015, Julian Reschke (julian.reschke@greenbytes.de)
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
@@ -841,6 +841,21 @@
     </xsl:otherwise>
   </xsl:choose>
 </xsl:template>
+
+<!-- New reference attributes -->
+<xsl:template match="reference/@quote-title" mode="cleanup"/>
+<xsl:template match="reference" mode="cleanup">
+  <reference>
+    <xsl:copy-of select="@anchor|@target"/>
+    <xsl:if test="not(@target) and $xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='RFC']">
+      <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/rfc',seriesInfo[@name='RFC']/@value)"/>
+      <xsl:attribute name="target"><xsl:value-of select="$uri"/></xsl:attribute>
+    </xsl:if>
+    <xsl:apply-templates mode="cleanup"/>
+  </reference>
+</xsl:template>
+
+<xsl:template match="references/name" mode="cleanup"/>
 
 <!-- References titles -->
 <xsl:template match="references" mode="cleanup">

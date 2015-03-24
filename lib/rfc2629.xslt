@@ -236,6 +236,21 @@
   </xsl:choose>
 </xsl:variable>
 
+<!-- RFC-Editor site linking -->
+
+<xsl:param name="xml2rfc-ext-link-rfc-to-info-page">
+  <xsl:call-template name="parse-pis">
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="attr" select="'link-rfc-to-info-page'"/>
+    <xsl:with-param name="default">
+      <xsl:choose>
+        <xsl:when test="$pub-yearmonth >= 201503">yes</xsl:when>
+        <xsl:otherwise>no</xsl:otherwise>
+      </xsl:choose>
+    </xsl:with-param>
+  </xsl:call-template>
+</xsl:param>
+
 <!-- initials handling? -->
 
 <xsl:param name="xml2rfc-multiple-initials">
@@ -538,8 +553,8 @@
 
 <xsl:variable name="consensus">
   <xsl:choose>
-    <xsl:when test="/rfc/@consensus='yes' or not(/rfc/@consensus)">yes</xsl:when>
-    <xsl:when test="/rfc/@consensus='no'">no</xsl:when>
+    <xsl:when test="/rfc/@consensus='yes' or /rfc/@consensus='true' or not(/rfc/@consensus)">yes</xsl:when>
+    <xsl:when test="/rfc/@consensus='no' or /rfc/@consensus='false'">no</xsl:when>
     <xsl:otherwise>
       <xsl:value-of select="concat('(UNSUPPORTED VALUE FOR CONSENSUS: ',/rfc/@consensus,')')"/>
       <xsl:call-template name="error">
@@ -2060,7 +2075,8 @@
         </xsl:choose>
       </xsl:for-each>
 
-      <xsl:if test="not(front/title/@x:quotes='false')">&#8220;</xsl:if>
+      <xsl:variable name="quoted" select="not(front/title/@x:quotes='false') and not(@quote-title='false')"/>
+      <xsl:if test="$quoted">&#8220;</xsl:if>
       <xsl:choose>
         <xsl:when test="string-length($target) &gt; 0">
           <a href="{$target}"><xsl:value-of select="normalize-space(front/title)" /></a>
@@ -2069,7 +2085,7 @@
           <xsl:value-of select="normalize-space(front/title)" />
         </xsl:otherwise>
       </xsl:choose>
-      <xsl:if test="not(front/title/@x:quotes='false')">&#8221;</xsl:if>
+      <xsl:if test="$quoted">&#8221;</xsl:if>
 
       <xsl:variable name="rfcs" select="count(seriesInfo[@name='RFC'])"/>
 
@@ -2122,11 +2138,20 @@
         <xsl:value-of select="front/date/@year" />
       </xsl:if>
 
-      <xsl:if test="string-length(normalize-space(@target)) &gt; 0">
-        <xsl:text>, &lt;</xsl:text>
-        <a href="{normalize-space(@target)}"><xsl:value-of select="normalize-space(@target)"/></a>
-        <xsl:text>&gt;</xsl:text>
-      </xsl:if>
+      <xsl:choose>
+        <xsl:when test="string-length(normalize-space(@target)) &gt; 0">
+          <xsl:text>, &lt;</xsl:text>
+          <a href="{normalize-space(@target)}"><xsl:value-of select="normalize-space(@target)"/></a>
+          <xsl:text>&gt;</xsl:text>
+        </xsl:when>
+        <xsl:when test="$xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='RFC']">
+          <xsl:text>, &lt;</xsl:text>
+          <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/rfc',seriesInfo[@name='RFC']/@value)"/>
+          <a href="{$uri}"><xsl:value-of select="$uri"/></a>
+          <xsl:text>&gt;</xsl:text>
+        </xsl:when>
+        <xsl:otherwise/>
+      </xsl:choose>
 
       <xsl:text>.</xsl:text>
 
@@ -2577,7 +2602,7 @@
       <xsl:value-of select="@title"/>
     </xsl:otherwise>
   </xsl:choose>
-  <xsl:if test="@removeInRFC='yes'"><xsl:text> </xsl:text><i>(to be removed in RFC before publication)</i></xsl:if>
+  <xsl:if test="@removeInRFC='true'"><xsl:text> </xsl:text><i>(to be removed in RFC before publication)</i></xsl:if>
 </xsl:template>
 
 <!-- irefs that are section-level thus can use the section anchor -->
@@ -4013,7 +4038,7 @@
 <!-- optional scripts -->
 <xsl:template name="insertScripts">
 <xsl:if test="$xml2rfc-ext-refresh-from!=''">
-<script>
+<script type="application/javascript">
 var RfcRefresh = {};
 RfcRefresh.NS_XHTML = "http://www.w3.org/1999/xhtml";
 RfcRefresh.NS_MOZERR = "http://www.mozilla.org/newlayout/xml/parsererror.xml";
@@ -4236,7 +4261,7 @@ RfcRefresh.initRefresh = function() {
 </script>
 </xsl:if>
 <xsl:if test="/rfc/x:feedback">
-<script>
+<script type="application/javascript">
 var buttonsAdded = false;
 
 function initFeedback() {
@@ -4324,7 +4349,7 @@ function toggleButton(node) {
 }</script>
 </xsl:if>
 <xsl:if test="$xml2rfc-ext-insert-metadata='yes' and $rfcno!=''">
-<script>
+<script type="application/javascript">
 function getMeta(rfcno, container) {
 
   var xhr = new XMLHttpRequest();
@@ -7355,9 +7380,9 @@ dd, li, p {
     <xsl:when test="@x:fixed-section-number and @x:fixed-section-number!=''">
       <xsl:value-of select="@x:fixed-section-number"/>
     </xsl:when>
-    <xsl:when test="(@x:fixed-section-number and @x:fixed-section-number='') or @numbered='no'">
+    <xsl:when test="(@x:fixed-section-number and @x:fixed-section-number='') or @numbered='false'">
       <xsl:text>unnumbered-</xsl:text>
-      <xsl:number count="section[@x:fixed-section-number='' or @numbered='no']" level="any"/>
+      <xsl:number count="section[@x:fixed-section-number='' or @numbered='false']" level="any"/>
     </xsl:when>
     <xsl:when test="self::section and parent::ed:ins and local-name(../..)='replace'">
       <xsl:for-each select="../.."><xsl:call-template name="sectionnumberAndEdits" /></xsl:for-each>
@@ -7839,11 +7864,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.712 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.712 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.717 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.717 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2015/02/19 11:08:37 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/02/19 11:08:37 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2015/03/23 17:14:43 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/03/23 17:14:43 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
@@ -7880,9 +7905,9 @@ dd, li, p {
     <xsl:when test="@x:fixed-section-number and @x:fixed-section-number!=''">
       <xsl:value-of select="@x:fixed-section-number"/>
     </xsl:when>
-    <xsl:when test="(@x:fixed-section-number and @x:fixed-section-number='') or @numbered='no'">
+    <xsl:when test="(@x:fixed-section-number and @x:fixed-section-number='') or @numbered='false'">
       <xsl:text>unnumbered-</xsl:text>
-      <xsl:number count="section[@x:fixed-section-number='' or @numbered='no']" level="any"/>
+      <xsl:number count="section[@x:fixed-section-number='' or @numbered='false']" level="any"/>
     </xsl:when>
     <xsl:when test="$has-edits or ancestor::*/@x:fixed-section-number">
       <xsl:call-template name="sectionnumberAndEdits" />
