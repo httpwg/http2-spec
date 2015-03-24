@@ -2337,9 +2337,10 @@ HTTP2-Settings    = token68
         <t>
           The GOAWAY frame (type=0x7) informs the remote peer to stop creating streams on this
           connection.  GOAWAY can be sent by either the client or the server.  Once sent, the sender
-          will ignore frames sent on any new streams with identifiers higher than the included last
-          stream identifier.  Receivers of a GOAWAY frame MUST NOT open additional streams on the
-          connection, although a new connection can be established for new streams.
+          will ignore frames sent on streams initiated by the receiver if the stream has an
+          identifier higher than the included last stream identifier.  Receivers of a GOAWAY frame
+          MUST NOT open streams with a stream identifier higher than the last stream identifier on
+          the connection, although a new connection can be established for new streams.
         </t>
         <t>
           The purpose of this frame is to allow an endpoint to gracefully stop accepting new
@@ -2370,6 +2371,11 @@ HTTP2-Settings    = token68
         <t>
           An endpoint might choose to close a connection without sending GOAWAY for misbehaving
           peers.
+        </t>
+        <t>
+          A GOAWAY frame might not immediately precede closing of the connection; a receiver of a
+          GOAWAY that has no more use for the connection SHOULD still send a GOAWAY frame before
+          terminating the connection.
         </t>
 
         <figure anchor="GOAWAYPayloadFormat"
@@ -2443,14 +2449,14 @@ HTTP2-Settings    = token68
         </t>
 
         <t>
-          After sending a GOAWAY frame, the sender can discard frames for streams with identifiers
-          higher than the identified last stream.  However, any frames that alter connection state
-          cannot be completely ignored.  For instance, <x:ref>HEADERS</x:ref>,
-          <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames MUST be minimally
-          processed to ensure the state maintained for header compression is consistent (see <xref
-          target="HeaderBlock"/>); similarly DATA frames MUST be counted toward the connection flow
-          control window.  Failure to process these frames can cause flow control or header
-          compression state to become unsynchronized.
+          After sending a GOAWAY frame, the sender can discard frames for streams initiated by the
+          receiver with identifiers higher than the identified last stream.  However, any frames
+          that alter connection state cannot be completely ignored.  For instance,
+          <x:ref>HEADERS</x:ref>, <x:ref>PUSH_PROMISE</x:ref> and <x:ref>CONTINUATION</x:ref> frames
+          MUST be minimally processed to ensure the state maintained for header compression is
+          consistent (see <xref target="HeaderBlock"/>); similarly DATA frames MUST be counted
+          toward the connection flow control window.  Failure to process these frames can cause flow
+          control or header compression state to become unsynchronized.
         </t>
 
         <t>
