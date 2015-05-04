@@ -1,28 +1,30 @@
-xml2rfc ?= "xml2rfc"
+xml2rfc ?= xml2rfc
 saxpath ?= "lib/saxon9.jar"
 saxon ?= java -classpath $(saxpath) net.sf.saxon.Transform -novw -l
 kramdown2629 ?= kramdown-rfc2629
 
-names := http2 header-compression
-drafts := $(addprefix draft-ietf-httpbis-,$(names))
+draft_names := http2 header-compression
+drafts := $(addprefix draft-ietf-httpbis-,$(draft_names))
+rfcs := rfc7540 rfc7541
+names := $(drafts) $(rfcs)
 last_tag = $(shell git tag | grep "$(draft)-[0-9][0-9]" | sort | tail -1 | awk -F- '{print $$NF}')
 next_ver = $(if $(last_tag),$(shell printf "%.2d" $$(( 1$(last_tag) - 99)) ),00)
 next := $(foreach draft, $(drafts), $(draft)-$(next_ver))
 
-TARGETS := $(addsuffix .txt,$(drafts)) \
-	  $(addsuffix .html,$(drafts))
+TARGETS := $(addsuffix .txt,$(names)) \
+	  $(addsuffix .html,$(names))
 friendly_names := index compression
 FRIENDLY := $(addsuffix .txt,$(friendly_names)) \
 	    $(addsuffix .html,$(friendly_names))
 
 .PHONY: latest submit idnits clean issues $(names) hpack
-.INTERMEDIATE: $(addsuffix .redxml,$(drafts))
+.INTERMEDIATE: $(addsuffix .redxml,$(names))
 .PRECIOUS: $(TARGETS)
 
 latest: $(TARGETS)
 
 # build rules for specific targets
-makerule = $(join $(addsuffix :: ,$(names)),$(addsuffix .$(1),$(drafts)))
+makerule = $(join $(addsuffix :: ,$(names)),$(addsuffix .$(1),$(names)))
 $(foreach rule,$(call makerule,txt) $(call makerule,html),$(eval $(rule)))
 hpack: header-compression
 
@@ -32,10 +34,10 @@ idnits: $(addsuffix .txt,$(next))
 	idnits $<
 
 clean:
-	-rm -f $(addsuffix .redxml,$(drafts))
-	-rm -f $(addsuffix *.txt,$(drafts))
-	-rm -f $(addsuffix *-[0-9][0-9].xml,$(drafts))
-	-rm -f $(addsuffix *.html,$(drafts))
+	-rm -f $(addsuffix .redxml,$(names))
+	-rm -f $(addsuffix *.txt,$(names))
+	-rm -f $(addsuffix *-[0-9][0-9].xml,$(names))
+	-rm -f $(addsuffix *.html,$(names))
 
 index.%: draft-ietf-httpbis-http2.%
 	cp -f $< $@
@@ -56,6 +58,13 @@ $(foreach rule,$(submit_deps),$(eval $(call makerule_submit_xml,$(rule))))
 $(addsuffix .txt,$(next)): %.txt: %.xml
 	$(xml2rfc) $< $@
 
+# The canonical RFC form doesn't include the DTD
+define makerule_rfc_txt =
+$(1).txt:: $(1).xml
+	$$(xml2rfc) $$< $$@
+endef
+# $(foreach rule,$(rfcs),$(eval $(call makerule_rfc_txt,$(rule))))
+
 %.txt: %.redxml
 	$(xml2rfc) $< $@
 
@@ -66,7 +75,11 @@ extra_css := lib/style.css
 
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
-	$(saxon) $< $(reduction) > $@
+	if grep rfc2629.dtd $< >/dev/null 2>&1; then \
+	  cp $< $@; \
+	else \
+	  $(saxon) $< $(reduction) > $@; \
+	fi
 
 %.xhtml: %.xml ../../rfc2629xslt/rfc2629toXHTML.xslt
 	$(saxon) $< ../../rfc2629xslt/rfc2629toXHTML.xslt > $@
