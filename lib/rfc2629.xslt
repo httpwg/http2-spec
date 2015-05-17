@@ -1461,17 +1461,39 @@
   <xsl:variable name="spac" select="@spacing"/>
   <xsl:variable name="class">
     <xsl:if test="$spac='compact'">compact </xsl:if>
-    <xsl:if test="not($hang='true')">nohang </xsl:if>
+    <xsl:if test="$hang='false'">nohang </xsl:if>
   </xsl:variable>
-  <dl>
-    <xsl:if test="normalize-space($class)!=''">
-      <xsl:attribute name="class"><xsl:value-of select="normalize-space($class)"/></xsl:attribute>
-    </xsl:if>
-    <xsl:for-each select="dt">
-      <xsl:apply-templates select="."/>
-      <xsl:apply-templates select="following-sibling::dd[1]"/>
-    </xsl:for-each>
-  </dl>
+  <xsl:variable name="p">
+    <xsl:call-template name="get-paragraph-number" />
+  </xsl:variable>
+  <xsl:choose>
+    <xsl:when test="$p!='' and not(ancestor::list) and not(ancestor::ed:del) and not(ancestor::ed:ins)">
+      <div id="{$anchor-prefix}.section.{$p}">
+        <dl>
+          <xsl:call-template name="copy-anchor"/>
+          <xsl:if test="normalize-space($class)!=''">
+            <xsl:attribute name="class"><xsl:value-of select="normalize-space($class)"/></xsl:attribute>
+          </xsl:if>
+          <xsl:for-each select="dt">
+            <xsl:apply-templates select="."/>
+            <xsl:apply-templates select="following-sibling::dd[1]"/>
+          </xsl:for-each>
+        </dl>
+      </div>
+    </xsl:when>
+    <xsl:otherwise>
+      <dl>
+        <xsl:call-template name="copy-anchor"/>
+        <xsl:if test="normalize-space($class)!=''">
+          <xsl:attribute name="class"><xsl:value-of select="normalize-space($class)"/></xsl:attribute>
+        </xsl:if>
+        <xsl:for-each select="dt">
+          <xsl:apply-templates select="."/>
+          <xsl:apply-templates select="following-sibling::dd[1]"/>
+        </xsl:for-each>
+      </dl>
+    </xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <xsl:template match="dt">
@@ -1554,6 +1576,7 @@
     <xsl:if test="$compact='yes'">
       <xsl:attribute name="class">compact</xsl:attribute>
     </xsl:if>
+    <xsl:call-template name="copy-anchor"/>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
   </dl>
@@ -1562,6 +1585,7 @@
 <xsl:template match="list[@style='numbers' or (not(@style) and ancestor::list[@style='numbers'])]">
   <xsl:call-template name="check-no-text-content"/>
   <ol>
+    <xsl:call-template name="copy-anchor"/>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
   </ol>
@@ -1569,15 +1593,63 @@
 
 <xsl:template match="ol">
   <xsl:call-template name="check-no-text-content"/>
-  <ol>
-    <xsl:copy-of select="@start"/>
+  <xsl:variable name="p">
+    <xsl:call-template name="get-paragraph-number" />
+  </xsl:variable>
+  <xsl:choose>
+    <xsl:when test="$p!='' and not(ancestor::list) and not(ancestor::ul) and not(ancestor::dl) and not(ancestor::ol) and not(ancestor::ed:del) and not(ancestor::ed:ins)">
+      <div id="{$anchor-prefix}.section.{$p}">
+        <ol>
+          <xsl:call-template name="copy-anchor"/>
+          <xsl:copy-of select="@start"/>
+          <xsl:call-template name="insertInsDelClass"/>
+          <xsl:apply-templates />
+        </ol>
+      </div>
+    </xsl:when>
+    <xsl:otherwise>
+      <ol>
+        <xsl:call-template name="copy-anchor"/>
+        <xsl:copy-of select="@start"/>
+        <xsl:call-template name="insertInsDelClass"/>
+        <xsl:apply-templates />
+      </ol>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template match="ul">
+  <xsl:choose>
+    <xsl:when test="@anchor">
+      <div id="{@anchor}">
+        <xsl:call-template name="ul"/>
+      </div>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:call-template name="ul"/>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="ul">
+  <xsl:variable name="p">
+    <xsl:call-template name="get-paragraph-number" />
+  </xsl:variable>
+  <ul>
+    <xsl:if test="$p!='' and not(ancestor::list) and not(ancestor::ul) and not(ancestor::dl) and not(ancestor::ol) and not(ancestor::ed:del) and not(ancestor::ed:ins)">
+      <xsl:attribute name="id"><xsl:value-of select="concat($anchor-prefix,'.section.',$p)"/></xsl:attribute>
+    </xsl:if>
+    <xsl:if test="@empty='true'">
+      <xsl:attribute name="class">empty</xsl:attribute>
+    </xsl:if>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
-  </ol>
+  </ul>
 </xsl:template>
 
 <xsl:template match="li">
   <li>
+    <xsl:call-template name="copy-anchor"/>
     <xsl:apply-templates />
   </li>
 </xsl:template>
@@ -1593,6 +1665,7 @@
     </xsl:choose>
   </xsl:variable>
   <ol class="{$style}">
+    <xsl:call-template name="copy-anchor"/>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
   </ol>
@@ -1601,6 +1674,7 @@
 <xsl:template match="list[@style='symbols' or (not(@style) and ancestor::list[@style='symbols'])]">
   <xsl:call-template name="check-no-text-content"/>
   <ul>
+    <xsl:call-template name="copy-anchor"/>
     <xsl:call-template name="insertInsDelClass"/>
     <xsl:apply-templates />
   </ul>
@@ -2075,7 +2149,7 @@
         </xsl:choose>
       </xsl:for-each>
 
-      <xsl:variable name="quoted" select="not(front/title/@x:quotes='false') and not(@quote-title='false')"/>
+      <xsl:variable name="quoted" select="not(front/title/@x:quotes='false') and not(@quoteTitle='false')"/>
       <xsl:if test="$quoted">&#8220;</xsl:if>
       <xsl:choose>
         <xsl:when test="string-length($target) &gt; 0">
@@ -2095,6 +2169,12 @@
           <xsl:when test="not(@name) and not(@value) and ./text()"><xsl:value-of select="." /></xsl:when>
           <xsl:when test="@name='RFC' and $rfcs > 1">
             <a href="{concat($rfcUrlPrefix,@value,$rfcUrlPostfix)}">
+              <xsl:value-of select="@name" />
+              <xsl:if test="@value!=''">&#0160;<xsl:value-of select="@value" /></xsl:if>
+            </a>
+          </xsl:when>
+          <xsl:when test="@name='DOI'">
+            <a href="http://dx.doi.org/{@value}">
               <xsl:value-of select="@name" />
               <xsl:if test="@value!=''">&#0160;<xsl:value-of select="@value" /></xsl:if>
             </a>
@@ -2464,8 +2544,11 @@
     </xsl:when>
     <xsl:otherwise>
       <xsl:choose>
-        <xsl:when test="$p!='' and not(ancestor::list) and not(ancestor::ed:del) and not(ancestor::ed:ins)">
+        <xsl:when test="$p!='' and not(ancestor::list) and not(ancestor::ol) and not(ancestor::ul) and not(ancestor::ed:del) and not(ancestor::ed:ins)">
           <div id="{$anchor-prefix}.section.{$p}">
+            <xsl:if test="$keepwithnext">
+              <xsl:attribute name="class">avoidbreakafter</xsl:attribute>
+            </xsl:if>
             <xsl:apply-templates mode="t-content" select="node()[1]">
               <xsl:with-param name="inherited-self-link" select="$inherited-self-link"/>
             </xsl:apply-templates>
@@ -2504,7 +2587,7 @@
     <xsl:if test="normalize-space($textcontent)!=''">
       <p>
         <xsl:variable name="anchor">
-          <xsl:if test="$p!='' and not(ancestor::ed:del) and not(ancestor::ed:ins) and not(ancestor::x:lt) and not(preceding-sibling::node())">
+          <xsl:if test="$p!='' and not(ancestor::ed:del) and not(ancestor::ed:ins) and not(ancestor::li) and not(ancestor::x:lt) and not(preceding-sibling::node())">
             <xsl:value-of select="concat($anchor-prefix,'.section.',$p)"/>
           </xsl:if>
         </xsl:variable>
@@ -2547,7 +2630,8 @@
 </xsl:template>
 
 <xsl:template match="title">
-  <xsl:variable name="tlen" select="string-length(.)"/>
+  <xsl:variable name="t" select="normalize-space(.)"/>
+  <xsl:variable name="tlen" select="string-length($t)"/>
   <xsl:variable name="alen" select="string-length(@abbrev)"/>
 
   <xsl:if test="@abbrev and $alen > 40">
@@ -2565,6 +2649,7 @@
   <xsl:if test="$tlen &lt;= 40 and @abbrev!=''">
     <xsl:call-template name="warning">
       <xsl:with-param name="msg">title/@abbrev was specified despite the title being short enough (<xsl:value-of select="$tlen"/>)</xsl:with-param>
+      <xsl:with-param name="msg2">Title: '<xsl:value-of select="normalize-space($t)"/>', abbreviated title='<xsl:value-of select="@abbrev"/>'</xsl:with-param>
     </xsl:call-template>
   </xsl:if>
 
@@ -2712,25 +2797,11 @@
   </em>
 </xsl:template>
 
-<xsl:template match="i">
-  <i>
-    <xsl:call-template name="copy-anchor"/>
-    <xsl:apply-templates />
-  </i>
-</xsl:template>
-
 <xsl:template match="spanx[@style='verb' or @style='vbare']|tt">
   <tt>
     <xsl:call-template name="copy-anchor"/>
     <xsl:apply-templates />
   </tt>
-</xsl:template>
-
-<xsl:template match="b">
-  <b>
-    <xsl:call-template name="copy-anchor"/>
-    <xsl:apply-templates />
-  </b>
 </xsl:template>
 
 <xsl:template match="spanx[@style='strong']|strong">
@@ -2835,7 +2906,7 @@
         </xsl:call-template>
       </xsl:if>
       <xsl:choose>
-        <xsl:when test="@sectionFormat='parens' or @sectionFormat='of' or @sectionFormat='comma'">
+        <xsl:when test="@sectionFormat='parens' or @sectionFormat='of' or @sectionFormat='comma' or @sectionFormat='section' or @sectionFormat='number-only'">
           <xsl:value-of select="@sectionFormat"/>
         </xsl:when>
         <xsl:otherwise>
@@ -2851,8 +2922,8 @@
         <xsl:when test="@x:fmt='of'">of</xsl:when>
         <xsl:when test="@x:fmt=','">comma</xsl:when>
         <xsl:when test="@x:fmt='none'">none</xsl:when>
-        <xsl:when test="@x:fmt='sec'">sec</xsl:when>
-        <xsl:when test="@x:fmt='number'">number</xsl:when>
+        <xsl:when test="@x:fmt='sec'">section</xsl:when>
+        <xsl:when test="@x:fmt='number'">number-only</xsl:when>
         <xsl:otherwise>
           <xsl:call-template name="warning">
             <xsl:with-param name="msg">unknown format for @x:fmt</xsl:with-param>
@@ -3274,7 +3345,7 @@
           number  SS
         -->
 
-        <xsl:if test="$sfmt!='' and not($sfmt='of' or $sfmt='sec' or $sfmt='number' or $sfmt='parens' or $sfmt='comma')">
+        <xsl:if test="$sfmt!='' and not($sfmt='of' or $sfmt='section' or $sfmt='number-only' or $sfmt='parens' or $sfmt='comma')">
           <xsl:call-template name="error">
             <xsl:with-param name="msg" select="concat('unknown xref section format extension: ',$sfmt)"/>
           </xsl:call-template>
@@ -3283,14 +3354,14 @@
         <xsl:if test="$sec!=''">
 
           <xsl:choose>
-            <xsl:when test="$sfmt='of' or $sfmt='sec'">
+            <xsl:when test="$sfmt='of' or $sfmt='section'">
               <xsl:choose>
                 <xsl:when test="$href!=''">
                   <a href="{$href}">
                     <xsl:if test="$title!=''">
                       <xsl:attribute name="title"><xsl:value-of select="$title"/></xsl:attribute>
                     </xsl:if>
-                    <xsl:if test="$sfmt='sec' and $xml2rfc-ext-include-references-in-index='yes'">
+                    <xsl:if test="$sfmt='section' and $xml2rfc-ext-include-references-in-index='yes'">
                       <xsl:attribute name="id"><xsl:value-of select="$anchor"/></xsl:attribute>
                     </xsl:if>
                     <xsl:value-of select="$secterm"/>
@@ -3304,7 +3375,7 @@
                 <xsl:text> of </xsl:text>
               </xsl:if>
             </xsl:when>
-            <xsl:when test="$sfmt='number'">
+            <xsl:when test="$sfmt='number-only'">
               <xsl:choose>
                 <xsl:when test="$href!=''">
                   <a href="{$href}">
@@ -3324,7 +3395,7 @@
           </xsl:choose>
         </xsl:if>
 
-        <xsl:if test="$sec='' or ($sfmt!='sec' and $sfmt!='number')">
+        <xsl:if test="$sec='' or ($sfmt!='section' and $sfmt!='number-only')">
           <xsl:choose>
             <xsl:when test="$xref/@format='none'">
               <!-- Nothing to do -->
@@ -6524,8 +6595,8 @@ dd, li, p {
 
 <xsl:template name="get-paragraph-number">
   <!-- get section number of ancestor section element, then add t number -->
-  <xsl:if test="ancestor::section and not(ancestor::section[@myns:unnumbered='unnumbered']) and not(ancestor::x:blockquote) and not(ancestor::blockquote) and not(ancestor::x:note) and not(ancestor::aside)">
-    <xsl:for-each select="ancestor::section[1]"><xsl:call-template name="get-section-number" />.p.</xsl:for-each><xsl:number count="t|x:blockquote|blockquote|x:note|aside" />
+  <xsl:if test="ancestor::section and not(ancestor::section[@myns:unnumbered='unnumbered']) and not(ancestor::x:blockquote) and not(ancestor::blockquote) and not(ancestor::x:note) and not(ancestor::aside) and not(ancestor::ul) and not(ancestor::dl) and not(ancestor>ol)">
+    <xsl:for-each select="ancestor::section[1]"><xsl:call-template name="get-section-number" />.p.</xsl:for-each><xsl:number count="t|x:blockquote|blockquote|x:note|aside|ul|dl|ol" />
   </xsl:if>
 </xsl:template>
 
@@ -6647,12 +6718,23 @@ dd, li, p {
 </xsl:template>
 
 <xsl:template match="x:blockquote|blockquote">
+  <xsl:choose>
+    <xsl:when test="@anchor">
+      <div id="{@anchor}">
+        <xsl:call-template name="blockquote"/>
+      </div>
+    </xsl:when>
+    <xsl:otherwise>
+      <xsl:call-template name="blockquote"/>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
+<xsl:template name="blockquote">
   <xsl:variable name="p">
     <xsl:call-template name="get-paragraph-number" />
   </xsl:variable>
-
   <blockquote>
-    <xsl:call-template name="copy-anchor"/>
     <xsl:if test="string-length($p) &gt; 0 and not(ancestor::ed:del) and not(ancestor::ed:ins)">
       <xsl:attribute name="id"><xsl:value-of select="$anchor-prefix"/>.section.<xsl:value-of select="$p"/></xsl:attribute>
     </xsl:if>
@@ -7497,7 +7579,7 @@ dd, li, p {
   <xsl:param name="msg"/>
   <xsl:param name="msg2"/>
   <xsl:param name="inline"/>
-  <xsl:variable name="message"><xsl:value-of select="$level"/>: <xsl:value-of select="$msg"/><xsl:value-of select="$msg2"/><xsl:call-template name="lineno"/></xsl:variable>
+  <xsl:variable name="message"><xsl:value-of select="$level"/>: <xsl:value-of select="$msg"/><xsl:if test="$msg2!=''"> - <xsl:value-of select="$msg2"/></xsl:if><xsl:call-template name="lineno"/></xsl:variable>
   <xsl:choose>
     <xsl:when test="$inline!='no'">
       <xsl:choose>
@@ -7864,11 +7946,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.717 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.717 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.729 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.729 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2015/03/23 17:14:43 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/03/23 17:14:43 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2015/05/14 13:36:11 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/05/14 13:36:11 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
@@ -8653,6 +8735,15 @@ prev: <xsl:value-of select="$prev"/>
   <xsl:apply-templates select="@*|*" mode="validate"/>
 </xsl:template>
 <xsl:template match="artwork" mode="validate">
+  <xsl:call-template name="warninvalid"/>
+  <xsl:apply-templates select="@*|*" mode="validate"/>
+</xsl:template>
+
+<!-- li element -->
+<xsl:template match="ol/li | ul/li" mode="validate" priority="9">
+  <xsl:apply-templates select="@*|*" mode="validate"/>
+</xsl:template>
+<xsl:template match="li" mode="validate">
   <xsl:call-template name="warninvalid"/>
   <xsl:apply-templates select="@*|*" mode="validate"/>
 </xsl:template>

@@ -343,12 +343,12 @@
       <xsl:text> </xsl:text>
       <xsl:value-of select="$sec"/>
     </xsl:when>
-    <xsl:when test="$sfmt='sec'">
+    <xsl:when test="$sfmt='section'">
       <xsl:value-of select="$secterm"/>
       <xsl:text> </xsl:text>
       <xsl:value-of select="$sec"/>
     </xsl:when>
-    <xsl:when test="$sfmt='number'">
+    <xsl:when test="$sfmt='number-only'">
       <xsl:value-of select="$sec"/>
     </xsl:when>
     <xsl:when test="$sfmt='parens'">
@@ -791,12 +791,12 @@
 <xsl:template match="spanx/@anchor" mode="cleanup"/>
 
 <!-- v3 features -->
-<xsl:template match="strong | b" mode="cleanup">
+<xsl:template match="strong" mode="cleanup">
   <xsl:choose>
     <xsl:when test="*">
       <xsl:call-template name="warning">
         <xsl:with-param name="inline" select="'no'"/>
-        <xsl:with-param name="msg">strong|b not translated when they include child elements</xsl:with-param>
+        <xsl:with-param name="msg">strong not translated when including child elements</xsl:with-param>
       </xsl:call-template>
       <xsl:apply-templates mode="cleanup"/>
     </xsl:when>
@@ -808,12 +808,12 @@
   </xsl:choose>
 </xsl:template>
 
-<xsl:template match="em | i" mode="cleanup">
+<xsl:template match="em" mode="cleanup">
   <xsl:choose>
     <xsl:when test="*">
       <xsl:call-template name="warning">
         <xsl:with-param name="inline" select="'no'"/>
-        <xsl:with-param name="msg">em|i not translated when they include child elements</xsl:with-param>
+        <xsl:with-param name="msg">em not translated when including child elements</xsl:with-param>
       </xsl:call-template>
       <xsl:apply-templates mode="cleanup"/>
     </xsl:when>
@@ -843,10 +843,10 @@
 </xsl:template>
 
 <!-- New reference attributes -->
-<xsl:template match="reference/@quote-title" mode="cleanup"/>
+<xsl:template match="reference/@quoteTitle" mode="cleanup"/>
 <xsl:template match="reference" mode="cleanup">
   <reference>
-    <xsl:copy-of select="@anchor|@target"/>
+    <xsl:apply-templates select="@anchor|@target" mode="cleanup"/>
     <xsl:if test="not(@target) and $xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='RFC']">
       <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/rfc',seriesInfo[@name='RFC']/@value)"/>
       <xsl:attribute name="target"><xsl:value-of select="$uri"/></xsl:attribute>
@@ -854,8 +854,6 @@
     <xsl:apply-templates mode="cleanup"/>
   </reference>
 </xsl:template>
-
-<xsl:template match="references/name" mode="cleanup"/>
 
 <!-- References titles -->
 <xsl:template match="references" mode="cleanup">
@@ -939,14 +937,22 @@
       <xsl:variable name="txt">
         <xsl:apply-templates select="." mode="cleanup"/>
       </xsl:variable>
+      <!-- TODO: check for more block-level elements -->
+      <xsl:variable name="desc" select="following-sibling::dd[1]"/>
+      <xsl:variable name="block-level-children" select="$desc/t | $desc/dl | $desc/ol | $desc/ul"/>
       <t hangText="{normalize-space($txt)}">
         <xsl:copy-of select="@anchor"/>
-        <xsl:if test="not($hang='true')">
-          <vspace blankLines="0"/>
+        <xsl:if test="$hang='false'">
+          <xsl:choose>
+            <xsl:when test="$block-level-children">
+              <vspace blankLines="1"/>
+            </xsl:when>
+            <xsl:otherwise>
+              <vspace blankLines="0"/>
+            </xsl:otherwise>
+          </xsl:choose>
         </xsl:if>
-        <xsl:variable name="desc" select="following-sibling::dd[1]"/>
-        <!-- TODO: check for more block-level elements -->
-        <xsl:variable name="block-level-children" select="$desc/t | $desc/dl"/>
+        <xsl:apply-templates select="iref" mode="cleanup"/>
         <xsl:choose>
           <xsl:when test="$block-level-children">
             <xsl:for-each select="$block-level-children">
@@ -988,6 +994,22 @@
     <vspace blankLines="1"/>
   </xsl:if>
 </xsl:template>
+<xsl:template match="li/ul" mode="cleanup">
+  <list style="symbols">
+    <xsl:apply-templates mode="cleanup"/>
+  </list>
+  <xsl:if test="position()!=last()">
+    <vspace blankLines="1"/>
+  </xsl:if>
+</xsl:template>
+<xsl:template match="li/ol" mode="cleanup">
+  <list style="numbers">
+    <xsl:apply-templates mode="cleanup"/>
+  </list>
+  <xsl:if test="position()!=last()">
+    <vspace blankLines="1"/>
+  </xsl:if>
+</xsl:template>
 
 <!-- Ordered Lists -->
 <xsl:template match="ol" mode="cleanup">
@@ -1001,6 +1023,24 @@
     <list style="numbers">
       <xsl:apply-templates mode="cleanup"/>
     </list>
+  </t>
+</xsl:template>
+
+<!-- Unordered Lists -->
+<xsl:template match="ul" mode="cleanup">
+  <t>
+    <xsl:choose>
+      <xsl:when test="@empty='true'">
+        <list style="empty">
+          <xsl:apply-templates mode="cleanup"/>
+        </list>
+      </xsl:when>
+      <xsl:otherwise>
+        <list style="symbols">
+          <xsl:apply-templates mode="cleanup"/>
+        </list>
+      </xsl:otherwise>
+    </xsl:choose>
   </t>
 </xsl:template>
 
