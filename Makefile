@@ -39,10 +39,10 @@ clean:
 	-rm -f $(addsuffix *-[0-9][0-9].xml,$(names))
 	-rm -f $(addsuffix *.html,$(names))
 
-index.%: draft-ietf-httpbis-http2.%
+index.%: rfc7540.%
 	cp -f $< $@
 
-compression.%: draft-ietf-httpbis-header-compression.%
+compression.%: rfc7541.%
 	cp -f $< $@
 
 define makerule_submit_xml =
