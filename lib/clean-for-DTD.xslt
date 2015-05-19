@@ -851,7 +851,18 @@
       <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/rfc',seriesInfo[@name='RFC']/@value)"/>
       <xsl:attribute name="target"><xsl:value-of select="$uri"/></xsl:attribute>
     </xsl:if>
-    <xsl:apply-templates mode="cleanup"/>
+    <xsl:apply-templates select="front" mode="cleanup"/>
+    <xsl:apply-templates select="seriesInfo" mode="cleanup"/>
+
+    <!-- Insert DOI for RFCs -->
+    <xsl:variable name="doi">
+      <xsl:call-template name="compute-doi"/>
+    </xsl:variable>
+    <xsl:if test="$xml2rfc-ext-insert-doi='yes' and $doi!='' and not(seriesInfo[@name='DOI'])">
+      <seriesInfo name="DOI" value="{$doi}"/>
+    </xsl:if>
+
+    <xsl:apply-templates select="*[not(self::front) and not(self::seriesInfo)]" mode="cleanup"/>
   </reference>
 </xsl:template>
 

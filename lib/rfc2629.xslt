@@ -251,6 +251,21 @@
   </xsl:call-template>
 </xsl:param>
 
+<!-- DOI insertion -->
+
+<xsl:param name="xml2rfc-ext-insert-doi">
+  <xsl:call-template name="parse-pis">
+    <xsl:with-param name="nodes" select="/processing-instruction('rfc-ext')"/>
+    <xsl:with-param name="attr" select="'insert-doi'"/>
+    <xsl:with-param name="default">
+      <xsl:choose>
+        <xsl:when test="$pub-yearmonth >= 201505">yes</xsl:when>
+        <xsl:otherwise>no</xsl:otherwise>
+      </xsl:choose>
+    </xsl:with-param>
+  </xsl:call-template>
+</xsl:param>
+
 <!-- initials handling? -->
 
 <xsl:param name="xml2rfc-multiple-initials">
@@ -2002,6 +2017,16 @@
 
 </xsl:template>
 
+<xsl:template name="compute-doi">
+  <xsl:choose>
+    <xsl:when test="seriesInfo[@name='RFC']">
+      <xsl:variable name="rfc" select="seriesInfo[@name='RFC'][1]/@value"/>
+      <xsl:value-of select="concat('10.17487/RFC', format-number($rfc,'#0000'))"/>
+    </xsl:when>
+    <xsl:otherwise/>
+  </xsl:choose>
+</xsl:template>
+
 <!-- processed elsewhere -->
 <xsl:template match="displayreference"/>
 
@@ -2163,6 +2188,10 @@
 
       <xsl:variable name="rfcs" select="count(seriesInfo[@name='RFC'])"/>
 
+      <xsl:variable name="doi">
+        <xsl:call-template name="compute-doi"/>
+      </xsl:variable>
+
       <xsl:for-each select="seriesInfo">
         <xsl:text>, </xsl:text>
         <xsl:choose>
@@ -2178,6 +2207,11 @@
               <xsl:value-of select="@name" />
               <xsl:if test="@value!=''">&#0160;<xsl:value-of select="@value" /></xsl:if>
             </a>
+            <xsl:if test="$doi!='' and $doi!=@value">
+              <xsl:call-template name="warning">
+                <xsl:with-param name="msg">Unexpected DOI for RFC, found <xsl:value-of select="@value"/>, expected <xsl:value-of select="$doi"/></xsl:with-param>
+              </xsl:call-template>
+            </xsl:if>
           </xsl:when>
           <xsl:otherwise>
             <xsl:value-of select="@name" />
@@ -2194,6 +2228,12 @@
         </xsl:if>
 
       </xsl:for-each>
+
+      <!-- Insert DOI for RFCs -->
+      <xsl:if test="$xml2rfc-ext-insert-doi='yes' and $doi!='' and not(seriesInfo[@name='DOI'])">
+        <xsl:text>, </xsl:text>
+        <a href="http://dx.doi.org/{$doi}">DOI&#160;<xsl:value-of select="$doi"/></a>
+      </xsl:if>
 
       <!-- avoid hacks using seriesInfo when it's not really series information -->
       <xsl:for-each select="x:prose|refcontent">
@@ -7946,11 +7986,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.729 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.729 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.730 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.730 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2015/05/14 13:36:11 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/05/14 13:36:11 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2015/05/19 09:21:05 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/05/19 09:21:05 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
