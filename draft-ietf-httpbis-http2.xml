@@ -77,7 +77,7 @@
     <section anchor="intro" title="Introduction">
 
       <t>
-        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, how
+        The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the way
         HTTP/1.1 uses the underlying transport (<xref target="RFC7230" x:fmt=","
         x:rel="#connection.management"/>) has several characteristics that have a negative overall
         effect on application performance today.
@@ -105,7 +105,7 @@
       <t>
         The resulting protocol is more friendly to the network because fewer TCP connections can
         be used in comparison to HTTP/1.x. This means less competition with other flows and
-        longer-lived connections, which in turn leads to better utilization of available network
+        longer-lived connections, which in turn lead to better utilization of available network
         capacity.
       </t>
       <t>
@@ -164,8 +164,8 @@
               initiated.
             </t>
             <t>
-              The <xref target="FramingLayer">framing</xref> and <xref
-              target="StreamsLayer">streams</xref> layers describe the way HTTP/2 frames are
+              The <xref target="FramingLayer">frame</xref> and <xref
+              target="StreamsLayer">stream</xref> layers describe the way HTTP/2 frames are
               structured and formed into multiplexed streams.
             </t>
             <t>
@@ -181,7 +181,7 @@
         </t>
         <t>
           While some of the frame and stream layer concepts are isolated from HTTP, this
-          specification does not define a completely generic framing layer. The framing and streams
+          specification does not define a completely generic frame layer. The frame and stream
           layers are tailored to the needs of the HTTP protocol and server push.
         </t>
       </section>
@@ -230,7 +230,7 @@
             </t>
             <t hangText="server:">
               The endpoint that accepts an HTTP/2 connection.  Servers receive HTTP requests and
-              serve HTTP responses.
+              send HTTP responses.
             </t>
             <t hangText="stream:">
               A bidirectional flow of frames within the HTTP/2 connection.
@@ -328,7 +328,7 @@ HTTP2-Settings: <base64url encoding of HTTP/2 SETTINGS payload>
 ]]></artwork>
         </figure>
         <t>
-          Requests that contain an payload body MUST be sent in their entirety before the client can
+          Requests that contain a payload body MUST be sent in their entirety before the client can
           send HTTP/2 frames.  This means that a large request can block the use of the connection
           until it is completely sent.
         </t>
@@ -359,7 +359,7 @@ Content-Type: text/html
           A server that supports HTTP/2 accepts the upgrade with a 101 (Switching Protocols)
           response.  After the empty line that terminates the 101 response, the server can begin
           sending HTTP/2 frames.  These frames MUST include a response to the request that initiated
-          the Upgrade.
+          the upgrade.
         </t>
 
         <figure>
@@ -375,9 +375,9 @@ Upgrade: h2c
 </artwork>
         </figure>
         <t>
-          The first HTTP/2 frame sent by the server MUST be a <x:ref>SETTINGS</x:ref> frame (<xref
-          target="SETTINGS"/>) as the server connection preface (<xref
-          target="ConnectionHeader"/>). Upon receiving the 101 response, the client MUST send a
+          The first HTTP/2 frame sent by the server MUST be a server connection preface
+          (<xref target="ConnectionHeader"/>) consisting of a <x:ref>SETTINGS</x:ref>
+          frame (<xref target="SETTINGS"/>). Upon receiving the 101 response, the client MUST send a
           <xref target="ConnectionHeader">connection preface</xref>, which includes a
           <x:ref>SETTINGS</x:ref> frame.
         </t>
@@ -417,7 +417,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Since the upgrade is only intended to apply to the immediate connection, a client
-            sending <spanx style="verb">HTTP2-Settings</spanx> MUST also send <spanx
+            sending the <spanx style="verb">HTTP2-Settings</spanx> header field MUST also send <spanx
             style="verb">HTTP2-Settings</spanx> as a connection option in the <spanx
             style="verb">Connection</spanx> header field to prevent it from being forwarded (see
             <xref target="RFC7230" x:fmt="of" x:rel="#header.connection"/>).
@@ -426,7 +426,7 @@ HTTP2-Settings    = token68
             A server decodes and interprets these values as it would any other
             <x:ref>SETTINGS</x:ref> frame.  Explicit <xref target="SettingsSync">acknowledgement of
             these settings</xref> is not necessary, since a 101 response serves as implicit
-            acknowledgment.  Providing these values in the Upgrade request gives a client an
+            acknowledgement.  Providing these values in the upgrade request gives a client an
             opportunity to provide parameters prior to receiving any frames from the server.
           </t>
         </section>
@@ -480,7 +480,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           The client connection preface starts with a sequence of 24 octets, which in hex notation
-          are:
+          is:
         </t>
         <figure>
           <artwork type="inline" x:indent-with="  "><![CDATA[
@@ -488,10 +488,11 @@ HTTP2-Settings    = token68
 ]]></artwork>
         </figure>
         <t>
-          (the string <spanx style="verb">PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>). This sequence
+          That is, the connection preface starts with the string <spanx style="verb">PRI *
+          HTTP/2.0\r\n\r\nSM\r\n\r\n</spanx>). This sequence
           MUST be followed by a <x:ref>SETTINGS</x:ref> frame (<xref target="SETTINGS"/>), which
           MAY be empty. The client sends the client connection preface immediately upon receipt of
-          a 101 Switching Protocols response (indicating a successful upgrade) or as the first
+          a 101 (Switching Protocols) response (indicating a successful upgrade) or as the first
           application data octets of a TLS connection. If starting an HTTP/2 connection with prior
           knowledge of server support for the protocol, the client connection preface is sent upon
           connection establishment.
@@ -578,7 +579,7 @@ HTTP2-Settings    = token68
             </x:lt>
             <x:lt hangText="Flags:">
               <t>
-                An 8-bit field reserved for frame-type specific boolean flags.
+                An 8-bit field reserved for boolean flags specific to the frame type.
               </t>
               <t>
                 Flags are assigned semantics specific to the indicated frame type.  Flags that have
@@ -588,7 +589,7 @@ HTTP2-Settings    = token68
             </x:lt>
             <x:lt hangText="R:">
               <t>
-                A reserved 1-bit field.  The semantics of this bit are undefined and the bit MUST
+                A reserved 1-bit field.  The semantics of this bit are undefined, and the bit MUST
                 remain unset (0x0) when sending and MUST be ignored when receiving.
               </t>
             </x:lt>
@@ -625,9 +626,9 @@ HTTP2-Settings    = token68
           </t>
         </x:note>
         <t>
-          An endpoint MUST send a <x:ref>FRAME_SIZE_ERROR</x:ref> error if a frame exceeds the size
-          defined in <x:ref>SETTINGS_MAX_FRAME_SIZE</x:ref>, any limit defined for the frame type,
-          or it is too small to contain mandatory frame data. A frame size error in a frame that
+          An endpoint MUST send an error code of <x:ref>FRAME_SIZE_ERROR</x:ref> if a frame exceeds the size
+          defined in <x:ref>SETTINGS_MAX_FRAME_SIZE</x:ref>, exceeds any limit defined for the frame type,
+          or is too small to contain mandatory frame data. A frame size error in a frame that
           could alter the state of the entire connection MUST be treated as a <xref
           target="ConnectionErrorHandler">connection error</xref>; this includes any frame carrying
           a <xref target="HeaderBlock">header block</xref> (that is, <x:ref>HEADERS</x:ref>,
@@ -646,7 +647,7 @@ HTTP2-Settings    = token68
       <section anchor="HeaderBlock" title="Header Compression and Decompression">
         <t>
           Just as in HTTP/1, a header field in HTTP/2 is a name with one or more associated values.
-          They are used within HTTP request and response messages as well as server push operations
+          Header fields are used within HTTP request and response messages as well as in server push operations
           (see <xref target="PushResources" />).
         </t>
         <t>
@@ -663,7 +664,7 @@ HTTP2-Settings    = token68
           mapping (see <xref target="CompressCookie"/>).
         </t>
         <t>
-          A receiving endpoint reassembles the header block by concatenating its fragments, then
+          A receiving endpoint reassembles the header block by concatenating its fragments and then
           decompresses the block to reconstruct the header list.
         </t>
         <t>
@@ -681,7 +682,7 @@ HTTP2-Settings    = token68
           </list>
         </t>
         <t>
-          Header compression is stateful.  One compression context and one decompression context is
+          Header compression is stateful.  One compression context and one decompression context are
           used for the entire connection.  A decoding error in a header block MUST be treated as a
           <xref target="ConnectionErrorHandler">connection error</xref> of type
           <x:ref>COMPRESSION_ERROR</x:ref>.
@@ -917,7 +918,7 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 From this state, either endpoint can send a frame with an END_STREAM flag set, which
-                causes the stream to transition into one of the "half-closed" states: an endpoint
+                causes the stream to transition into one of the "half-closed" states. An endpoint
                 sending an END_STREAM flag causes the stream state to become "half-closed (local)";
                 an endpoint receiving an END_STREAM flag causes the stream state to become "half-closed
                 (remote)".
@@ -943,8 +944,8 @@ HTTP2-Settings    = token68
               <t>
                 An endpoint can receive any type of frame in this state.  Providing flow-control
                 credit using <x:ref>WINDOW_UPDATE</x:ref> frames is necessary to continue receiving
-                flow-controlled frames.  A receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> frames
-                in this state, which might arrive for a short period after a frame bearing the
+                flow-controlled frames.  In this state, a receiver can ignore <x:ref>WINDOW_UPDATE</x:ref> frames,
+                which might arrive for a short period after a frame bearing the
                 END_STREAM flag is sent.
               </t>
               <t>
@@ -961,9 +962,9 @@ HTTP2-Settings    = token68
                 flow-control window.
               </t>
               <t>
-                If an endpoint receives additional frames for a stream that is in this state, other
+                If an endpoint receives additional frames, other
                 than <x:ref>WINDOW_UPDATE</x:ref>, <x:ref>PRIORITY</x:ref>, or
-                <x:ref>RST_STREAM</x:ref>, it MUST respond with a <xref
+                <x:ref>RST_STREAM</x:ref>,  for a stream that is in this state, it MUST respond with a <xref
                 target="StreamErrorHandler">stream error</xref> of type
                 <x:ref>STREAM_CLOSED</x:ref>.
               </t>
@@ -1012,8 +1013,8 @@ HTTP2-Settings    = token68
               </t>
               <t>
                 If this state is reached as a result of sending a <x:ref>RST_STREAM</x:ref> frame,
-                the peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent - or
-                enqueued for sending - frames on the stream that cannot be withdrawn.  An endpoint
+                the peer that receives the <x:ref>RST_STREAM</x:ref> might have already sent -- or
+                enqueued for sending -- frames on the stream that cannot be withdrawn.  An endpoint
                 MUST ignore frames that it receives on closed streams after it has sent a
                 <x:ref>RST_STREAM</x:ref> frame.  An endpoint MAY choose to limit the period over
                 which it ignores frames and treat frames that arrive after this time as being in
@@ -1053,7 +1054,7 @@ HTTP2-Settings    = token68
             Streams are identified with an unsigned 31-bit integer.  Streams initiated by a client
             MUST use odd-numbered stream identifiers; those initiated by the server MUST use
             even-numbered stream identifiers.  A stream identifier of zero (0x0) is used for
-            connection control messages; the stream identifier zero cannot be used to establish a
+            connection control messages; the stream identifier of zero cannot be used to establish a
             new stream.
           </t>
           <t>
@@ -1098,7 +1099,7 @@ HTTP2-Settings    = token68
             client can initiate.
           </t>
           <t>
-            Streams that are in the "open" state, or either of the "half-closed" states count toward
+            Streams that are in the "open" state or in either of the "half-closed" states count toward
             the maximum number of streams that an endpoint is permitted to open.  Streams in any of
             these three states count toward the limit advertised in the
             <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> setting.  Streams in either of the
@@ -1106,7 +1107,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Endpoints MUST NOT exceed the limit set by their peer.  An endpoint that receives a
-            <x:ref>HEADERS</x:ref> frame that causes their advertised concurrent stream limit to be
+            <x:ref>HEADERS</x:ref> frame that causes its advertised concurrent stream limit to be
             exceeded MUST treat this as a <xref target="StreamErrorHandler">stream error</xref> of
             type <x:ref>PROTOCOL_ERROR</x:ref> or <x:ref>REFUSED_STREAM</x:ref>.  The choice of
             error code determines whether the endpoint wishes to enable automatic retry (see <xref
@@ -1144,7 +1145,7 @@ HTTP2-Settings    = token68
                 the endpoints of a single hop and not over the entire end-to-end path.
               </t>
               <t>
-                Flow control is based on window update frames.  Receivers advertise how many octets
+                Flow control is based on <x:ref>WINDOW_UPDATE</x:ref> frames.  Receivers advertise how many octets
                 they are prepared to receive on a stream and for the entire connection.  This is a
                 credit-based scheme.
               </t>
@@ -1152,7 +1153,7 @@ HTTP2-Settings    = token68
                 Flow control is directional with overall control provided by the receiver.  A
                 receiver MAY choose to set any window size that it desires for each stream and for
                 the entire connection.  A sender MUST respect flow-control limits imposed by a
-                receiver.  Clients, servers and intermediaries all independently advertise their
+                receiver.  Clients, servers, and intermediaries all independently advertise their
                 flow-control window as a receiver and abide by the flow-control limits set by
                 their peer when sending.
               </t>
@@ -1196,7 +1197,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Deployments that do not require this capability can advertise a flow-control window of
-            the maximum size (2<x:sup>31</x:sup>-1), and by maintaining this window by sending a
+            the maximum size (2<x:sup>31</x:sup>-1) and can maintain this window by sending a
             <x:ref>WINDOW_UPDATE</x:ref> frame when any data is received.  This effectively disables
             flow control for that receiver.  Conversely, a sender is always subject to the
             flow-control window advertised by the receiver.
@@ -1216,7 +1217,7 @@ HTTP2-Settings    = token68
         </section>
       </section>
 
-      <section anchor="StreamPriority" title="Stream priority">
+      <section anchor="StreamPriority" title="Stream Priority">
         <t>
           A client can assign a priority for a new stream by including prioritization information in
           the <xref target="HEADERS">HEADERS frame</xref> that opens the stream.  At any other time,
@@ -1225,7 +1226,7 @@ HTTP2-Settings    = token68
         </t>
         <t>
           The purpose of prioritization is to allow an endpoint to express how it would prefer its
-          peer allocate resources when managing concurrent streams.  Most importantly, priority can
+          peer to allocate resources when managing concurrent streams.  Most importantly, priority can
           be used to select streams for transmitting frames when there is limited capacity for
           sending.
         </t>
@@ -1245,7 +1246,7 @@ HTTP2-Settings    = token68
           Explicitly setting the priority for a stream is input to a prioritization process.  It
           does not guarantee any particular processing or transmission order for the stream relative
           to any other stream.  An endpoint cannot force a peer to process concurrent streams in a
-          particular order using priority.  Expressing priority is therefore only ever a suggestion.
+          particular order using priority.  Expressing priority is therefore only a suggestion.
         </t>
         <t>
           Prioritization information can be omitted from messages.  Defaults are used prior to any
@@ -1265,7 +1266,7 @@ HTTP2-Settings    = token68
           <t>
             A stream that depends on another stream is a dependent stream. The stream upon which a
             stream is dependent is a parent stream. A dependency on a stream that is not currently
-            in the tree - such as a stream in the "idle" state - results in that stream being given
+            in the tree -- such as a stream in the "idle" state -- results in that stream being given
             a <xref target="pri-default">default priority</xref>.
           </t>
           <t>
@@ -1301,9 +1302,9 @@ HTTP2-Settings    = token68
 ]]></artwork>
           </figure>
           <t>
-            Inside the dependency tree, a dependent stream SHOULD only be allocated resources if all
-            of the streams that it depends on (the chain of parent streams up to 0x0) are either
-            closed, or it is not possible to make progress on them.
+            Inside the dependency tree, a dependent stream SHOULD only be allocated resources if
+            either all of the streams that it depends on (the chain of parent streams up to 0x0)
+            are closed or it is not possible to make progress on them.
           </t>
           <t>
             A stream cannot depend on itself.  An endpoint MUST treat this as a <xref
@@ -1317,8 +1318,8 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Streams with the same parent SHOULD be allocated resources proportionally based on their
-            weight.  Thus, if stream B depends on stream A with weight 4, and C depends on stream A
-            with weight 12, and if no progress can be made on A, stream B ideally receives one third
+            weight.  Thus, if stream B depends on stream A with weight 4, stream C depends on stream A
+            with weight 12, and if no progress can be made on stream A, stream B ideally receives one-third
             of the resources allocated to stream C.
           </t>
         </section>
@@ -1330,7 +1331,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Dependent streams move with their parent stream if the parent is reprioritized.  Setting
-            a dependency with the exclusive flag for a reprioritized stream moves all the
+            a dependency with the exclusive flag for a reprioritized stream causes all the
             dependencies of the new parent stream to become dependent on the reprioritized stream.
           </t>
           <t>
@@ -1347,7 +1348,7 @@ HTTP2-Settings    = token68
               dependent on A if the reprioritization is exclusive.
             </preamble>
             <artwork type="inline"><![CDATA[
-    ?                ?                ?                 ?
+    x                x                x                 x
     |               / \               |                 |
     A              D   A              D                 D
    / \            /   / \            / \                |
@@ -1391,7 +1392,7 @@ HTTP2-Settings    = token68
             dependency has no associated priority information, then the dependent stream is instead
             assigned a <xref target="pri-default">default priority</xref>.  This potentially creates
             suboptimal prioritization, since the stream could be given a priority that is different
-            to what is intended.
+            from what is intended.
           </t>
           <t>
             To avoid these problems, an endpoint SHOULD retain stream prioritization state for a
@@ -1420,9 +1421,9 @@ HTTP2-Settings    = token68
             retain state for streams that are in active use in the priority tree.
           </t>
           <t>
-            An endpoint receiving a <x:ref>PRIORITY</x:ref> frame that changes the priority of a
-            closed stream SHOULD alter the dependencies of the streams that depend on it, if it has
-            retained enough state to do so.
+            If it has retained enough state to do so, an endpoint receiving a
+            <x:ref>PRIORITY</x:ref> frame that changes the priority of a
+            closed stream SHOULD alter the dependencies of the streams that depend on it.
           </t>
         </section>
 
@@ -1453,8 +1454,8 @@ HTTP2-Settings    = token68
 
         <section anchor="ConnectionErrorHandler" title="Connection Error Handling">
           <t>
-            A connection error is any error which prevents further processing of the framing layer,
-            or which corrupts any connection state.
+            A connection error is any error that prevents further processing of the frame
+            layer or corrupts any connection state.
           </t>
           <t>
             An endpoint that encounters a connection error SHOULD first send a <x:ref>GOAWAY</x:ref>
@@ -1466,8 +1467,9 @@ HTTP2-Settings    = token68
           </t>
           <t>
             It is possible that the <x:ref>GOAWAY</x:ref> will not be reliably received by the
-            receiving endpoint (see <xref target="RFC7230" x:fmt=","
-            x:rel="#persistent.tear-down"/>).  In the event of a connection error,
+            receiving endpoint (<xref target="RFC7230" x:fmt=","
+            x:rel="#persistent.tear-down"/> describes how an immediate conncetion close
+            can result in data loss).  In the event of a connection error,
             <x:ref>GOAWAY</x:ref> only provides a best-effort attempt to communicate with the peer
             about why the connection is being terminated.
           </t>
@@ -1504,8 +1506,8 @@ HTTP2-Settings    = token68
             is permitted to deal with misbehaving implementations.
           </t>
           <t>
-            An endpoint MUST NOT send a <x:ref>RST_STREAM</x:ref> in response to a
-            <x:ref>RST_STREAM</x:ref> frame, to avoid looping.
+            To avoid looping, an endpoint MUST NOT send a <x:ref>RST_STREAM</x:ref> in response to a
+            <x:ref>RST_STREAM</x:ref> frame.
           </t>
         </section>
 
@@ -1520,9 +1522,9 @@ HTTP2-Settings    = token68
 
       <section anchor="extensibility" title="Extending HTTP/2">
         <t>
-          HTTP/2 permits extension of the protocol.  Protocol extensions can be used to provide
-          additional services or alter any aspect of the protocol, within the limitations described
-          in this section.  Extensions are effective only within the scope of a single HTTP/2
+          HTTP/2 permits extension of the protocol.  Within the limitations described in this
+          section, protocol extensions can be used to provide additional services or alter
+          any aspect of the protocol. Extensions are effective only within the scope of a single HTTP/2
           connection.
         </t>
         <t>
@@ -1551,12 +1553,12 @@ HTTP2-Settings    = token68
           negotiated before being used.  For example, an extension that changes the layout of the
           <x:ref>HEADERS</x:ref> frame cannot be used until the peer has given a positive signal
           that this is acceptable.  In this case, it could also be necessary to coordinate when the
-          revised layout comes into effect.  Note that treating any frame other than
+          revised layout comes into effect.  Note that treating any frames other than
           <x:ref>DATA</x:ref> frames as flow controlled is such a change in semantics and can only
           be done through negotiation.
         </t>
         <t>
-          This document doesn't mandate a specific method for negotiating the use of an extension,
+          This document doesn't mandate a specific method for negotiating the use of an extension
           but notes that a <xref target="SettingValues">setting</xref> could be used for that
           purpose.  If both peers set a value that indicates willingness to use the extension, then
           the extension can be used.  If a setting is used for extension negotiation, the initial
