@@ -60,7 +60,8 @@
     <abstract>
       <t>
         This specification describes an optimized expression of the semantics of the Hypertext
-        Transfer Protocol (HTTP). HTTP/2 enables a more efficient use of network resources and a
+        Transfer Protocol (HTTP), referred to as HTTP version 2 (HTTP/2). HTTP/2 enables a more
+        efficient use of network resources and a
         reduced perception of latency by introducing header field compression and allowing multiple
         concurrent exchanges on the same connection. It also introduces unsolicited push of
         representations from servers to clients.
@@ -1319,7 +1320,7 @@ HTTP2-Settings    = token68
           <t>
             Streams with the same parent SHOULD be allocated resources proportionally based on their
             weight.  Thus, if stream B depends on stream A with weight 4, stream C depends on stream A
-            with weight 12, and if no progress can be made on stream A, stream B ideally receives one-third
+            with weight 12, and no progress can be made on stream A, stream B ideally receives one-third
             of the resources allocated to stream C.
           </t>
         </section>
@@ -1468,7 +1469,7 @@ HTTP2-Settings    = token68
           <t>
             It is possible that the <x:ref>GOAWAY</x:ref> will not be reliably received by the
             receiving endpoint (<xref target="RFC7230" x:fmt=","
-            x:rel="#persistent.tear-down"/> describes how an immediate conncetion close
+            x:rel="#persistent.tear-down"/> describes how an immediate connection close
             can result in data loss).  In the event of a connection error,
             <x:ref>GOAWAY</x:ref> only provides a best-effort attempt to communicate with the peer
             about why the connection is being terminated.
@@ -1570,7 +1571,7 @@ HTTP2-Settings    = token68
     <section anchor="FrameTypes" title="Frame Definitions">
       <t>
         This specification defines a number of frame types, each identified by a unique 8-bit type
-        code. Each frame type serves a distinct purpose either in the establishment and management
+        code. Each frame type serves a distinct purpose in the establishment and management either
         of the connection as a whole or of individual streams.
       </t>
       <t>
@@ -1607,7 +1608,8 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <t hangText="Pad Length:">
               An 8-bit field containing the length of the frame padding in units of octets.  This
-              field is conditional and is only present if the PADDED flag is set.
+              field is conditional (as signified by a "?" in the diagram) and is only present
+              if the PADDED flag is set.
             </t>
             <t hangText="Data:">
               Application data.  The amount of data is the remainder of the frame payload after
@@ -1626,13 +1628,13 @@ HTTP2-Settings    = token68
           The DATA frame defines the following flags:
           <list style="hanging">
             <t hangText="END_STREAM (0x1):">
-              Bit 0 being set indicates that this frame is the last that the endpoint will send for
+              When set, bit 0 indicates that this frame is the last that the endpoint will send for
               the identified stream.  Setting this flag causes the stream to enter one of <xref
               target="StreamStates">the "half-closed" states or the "closed" state</xref>.
             </t>
             <t hangText="PADDED (0x8):">
-              Bit 3 being set indicates that the Pad Length field and any padding that it describes
-              is present.
+              When set, bit 3 indicates that the Pad Length field and any padding that it describes
+              are present.
             </t>
           </list>
         </t>
@@ -1645,7 +1647,7 @@ HTTP2-Settings    = token68
         <t>
           DATA frames are subject to flow control and can only be sent when a stream is in the
           "open" or "half-closed (remote)" state. The entire DATA frame payload is included in flow
-          control, including Pad Length and Padding fields if present.  If a DATA frame is received
+          control, including the Pad Length and Padding fields if present.  If a DATA frame is received
           whose stream is not in "open" or "half-closed (local)" state, the recipient MUST respond
           with a <xref target="StreamErrorHandler">stream error</xref> of type
           <x:ref>STREAM_CLOSED</x:ref>.
@@ -1695,7 +1697,7 @@ HTTP2-Settings    = token68
               field is only present if the PADDED flag is set.
             </t>
             <t hangText="E:">
-              A single-bit flag indicates that the stream dependency is exclusive (see <xref
+              A single-bit flag indicating that the stream dependency is exclusive (see <xref
               target="StreamPriority"/>).  This field is only present if the PRIORITY flag is set.
             </t>
             <t hangText="Stream Dependency:">
@@ -1721,7 +1723,7 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <x:lt hangText="END_STREAM (0x1):">
               <t>
-                Bit 0 being set indicates that the <xref target="HeaderBlock">header block</xref> is
+                When set, bit 0 indicates that the <xref target="HeaderBlock">header block</xref> is
                 the last that the endpoint will send for the identified stream.
               </t>
               <t>
@@ -1733,7 +1735,7 @@ HTTP2-Settings    = token68
             </x:lt>
             <x:lt hangText="END_HEADERS (0x4):">
               <t>
-                Bit 2 being set indicates that this frame contains an entire <xref
+                When set, bit 2 indicates that this frame contains an entire <xref
                 target="HeaderBlock">header block</xref> and is not followed by any
                 <x:ref>CONTINUATION</x:ref> frames.
               </t>
@@ -1747,13 +1749,13 @@ HTTP2-Settings    = token68
             </x:lt>
             <x:lt hangText="PADDED (0x8):">
               <t>
-                Bit 3 being set indicates that the Pad Length field and any padding that it
-                describes is present.
+                When set, bit 3 indicates that the Pad Length field and any padding that it
+                describes are present.
               </t>
             </x:lt>
             <x:lt hangText="PRIORITY (0x20):">
               <t>
-                Bit 5 being set indicates that the Exclusive Flag (E), Stream Dependency, and Weight
+                When set, bit 5 indicates that the Exclusive Flag (E), Stream Dependency, and Weight
                 fields are present; see <xref target="StreamPriority"/>.
               </t>
             </x:lt>
@@ -1813,7 +1815,7 @@ HTTP2-Settings    = token68
           The payload of a PRIORITY frame contains the following fields:
           <list style="hanging">
             <t hangText="E:">
-              A single bit flag indicates that the stream dependency is exclusive (see <xref
+              A single-bit flag indicating that the stream dependency is exclusive (see <xref
               target="StreamPriority"/>).
             </t>
             <t hangText="Stream Dependency:">
@@ -1842,8 +1844,8 @@ HTTP2-Settings    = token68
           consecutive frames that comprise a single <xref target="HeaderBlock">header block</xref>.
           Note that this frame could arrive after processing or frame sending has completed, which
           would cause it to have no effect on the identified stream.  For a stream that is in the
-          "half-closed (remote)" or "closed" - state, this frame can only affect processing of the
-          identified stream and its dependent streams and not frame transmission on that stream.
+          "half-closed (remote)" or "closed" state, this frame can only affect processing of the
+          identified stream and its dependent streams; it does not affect frame transmission on that stream.
         </t>
         <t>
            The PRIORITY frame can be sent for a stream in the "idle" or "closed" state.  This
@@ -1943,7 +1945,7 @@ HTTP2-Settings    = token68
           frame defines the following flag:
           <list style="hanging">
             <t hangText="ACK (0x1):">
-              Bit 0 being set indicates that this frame acknowledges receipt and application of the
+              When set, bit 0 indicates that this frame acknowledges receipt and application of the
               peer's SETTINGS frame.  When this bit is set, the payload of the SETTINGS frame MUST
               be empty.  Receipt of a SETTINGS frame with the ACK flag set and a length field value
               other than 0 MUST be treated as a <xref target="ConnectionErrorHandler">connection
@@ -2005,7 +2007,7 @@ HTTP2-Settings    = token68
               <x:lt hangText="SETTINGS_ENABLE_PUSH (0x2):"
                     anchor="SETTINGS_ENABLE_PUSH">
                 <t>
-                  This setting can be use to disable <xref target="PushResources">server
+                  This setting can be used to disable <xref target="PushResources">server
                   push</xref>. An endpoint MUST NOT send a <x:ref>PUSH_PROMISE</x:ref> frame if it
                   receives this parameter set to a value of 0. An endpoint that has both set this
                   parameter to 0 and had it acknowledged MUST treat the receipt of a
@@ -2025,7 +2027,7 @@ HTTP2-Settings    = token68
                 <t>
                   Indicates the maximum number of concurrent streams that the sender will allow.
                   This limit is directional: it applies to the number of streams that the sender
-                  permits the receiver to create. Initially there is no limit to this value.  It is
+                  permits the receiver to create. Initially, there is no limit to this value.  It is
                   recommended that this value be no smaller than 100, so as to not unnecessarily
                   limit parallelism.
                 </t>
@@ -2165,7 +2167,7 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <x:lt hangText="END_HEADERS (0x4):">
               <t>
-                Bit 2 being set indicates that this frame contains an entire <xref
+                When set, bit 2 indicates that this frame contains an entire <xref
                 target="HeaderBlock">header block</xref> and is not followed by any
                 <x:ref>CONTINUATION</x:ref> frames.
               </t>
@@ -2179,8 +2181,8 @@ HTTP2-Settings    = token68
             </x:lt>
             <x:lt hangText="PADDED (0x8):">
               <t>
-                Bit 3 being set indicates that the Pad Length field and any padding that it
-                describes is present.
+                When set, bit 3 indicates that the Pad Length field and any padding that it
+                describes are present.
               </t>
             </x:lt>
           </list>
@@ -2214,9 +2216,9 @@ HTTP2-Settings    = token68
         </t>
 
        <t>
-          A PUSH_PROMISE frame modifies the connection state in two ways.  The inclusion of a <xref
+          A PUSH_PROMISE frame modifies the connection state in two ways.  First, the inclusion of a <xref
           target="HeaderBlock">header block</xref> potentially modifies the state maintained for
-          header compression.  PUSH_PROMISE also reserves a stream for later use, causing the
+          header compression.  Second, PUSH_PROMISE also reserves a stream for later use, causing the
           promised stream to enter the "reserved" state.  A sender MUST NOT send a PUSH_PROMISE on a
           stream unless that stream is either "open" or "half-closed (remote)"; the sender MUST
           ensure that the promised stream is a valid choice for a <xref
@@ -2235,10 +2237,10 @@ HTTP2-Settings    = token68
         </t>
         <t>
           A receiver MUST treat the receipt of a PUSH_PROMISE that promises an <xref
-          target="StreamIdentifiers">illegal stream identifier</xref> (that is, an identifier for a
-          stream that is not currently in the "idle" state) as a <xref
+          target="StreamIdentifiers">illegal stream identifier</xref> as a <xref
           target="ConnectionErrorHandler">connection error</xref> of type
-          <x:ref>PROTOCOL_ERROR</x:ref>.
+          <x:ref>PROTOCOL_ERROR</x:ref>. Note that an illegal stream identifier
+          is an identifier for a stream that is not currently in the "idle" state.
         </t>
 
         <t>
@@ -2265,7 +2267,7 @@ HTTP2-Settings    = token68
         </figure>
 
         <t>
-          In addition to the frame header, PING frames MUST contain 8 octets of data in the payload.
+          In addition to the frame header, PING frames MUST contain 8 octets of opaque data in the payload.
           A sender can include any value it chooses and use those octets in any fashion.
         </t>
         <t>
@@ -2278,7 +2280,7 @@ HTTP2-Settings    = token68
           The PING frame defines the following flags:
           <list style="hanging">
             <t hangText="ACK (0x1):">
-              Bit 0 being set indicates that this PING frame is a PING response.  An endpoint MUST
+              When set, bit 0 indicates that this PING frame is a PING response.  An endpoint MUST
               set this flag in PING responses.  An endpoint MUST NOT respond to PING frames
               containing this flag.
             </t>
@@ -2302,13 +2304,13 @@ HTTP2-Settings    = token68
         <t>
           The GOAWAY frame (type=0x7) is used to initiate shutdown of a connection or to signal
           serious error conditions.  GOAWAY allows an endpoint to gracefully stop accepting new
-          streams, while still finishing processing of previously established streams.  This enables
+          streams while still finishing processing of previously established streams.  This enables
           administrative actions, like server maintenance.
         </t>
         <t>
           There is an inherent race condition between an endpoint starting new streams and the
           remote sending a GOAWAY frame.  To deal with this case, the GOAWAY contains the stream
-          identifier of the last peer-initiated stream which was or might be processed on the
+          identifier of the last peer-initiated stream that was or might be processed on the
           sending endpoint in this connection.  For instance, if the server sends a GOAWAY frame,
           the identified stream is the highest-numbered stream initiated by the client.
         </t>
@@ -2333,7 +2335,7 @@ HTTP2-Settings    = token68
           a GOAWAY frame to indicate what streams it might have acted on.
         </t>
         <t>
-          An endpoint might choose to close a connection without sending GOAWAY for misbehaving
+          An endpoint might choose to close a connection without sending a GOAWAY for misbehaving
           peers.
         </t>
         <t>
@@ -2404,15 +2406,15 @@ HTTP2-Settings    = token68
           another connection.
         </t>
         <t>
-          A client that is unable to retry requests loses all requests that are in-flight when the
+          A client that is unable to retry requests loses all requests that are in flight when the
           server closes the connection.  This is especially true for intermediaries that might not
           be serving clients using HTTP/2.  A server that is attempting to gracefully shut down a
           connection SHOULD send an initial GOAWAY frame with the last stream identifier set to
           2<x:sup>31</x:sup>-1 and a <x:ref>NO_ERROR</x:ref> code.  This signals to the client that
           a shutdown is imminent and that initiating further requests is prohibited.  After allowing
-          time for any in-flight stream creation - at least one round-trip time - the server can
+          time for any in-flight stream creation (at least one round-trip time),  the server can
           send another GOAWAY frame with an updated last stream identifier.  This ensures that a
-          connection can be cleanly shut down without causing clients to lose requests.
+          connection can be cleanly shut down without losing requests.
         </t>
 
         <t>
@@ -2501,8 +2503,8 @@ HTTP2-Settings    = token68
           A receiver that receives a flow-controlled frame MUST always account for its contribution
           against the connection flow-control window, unless the receiver treats this as a <xref
           target="ConnectionErrorHandler">connection error</xref>.  This is necessary even if the
-          frame is in error.  Since the sender counts the frame toward the flow-control window, if
-          the receiver does not, the flow-control window at sender and receiver can become
+          frame is in error.  The sender counts the frame toward the flow-control window, but if
+          the receiver does not, the flow-control window at the sender and receiver can become
           different.
         </t>
         <t>
@@ -2546,9 +2548,9 @@ HTTP2-Settings    = token68
             A sender MUST NOT allow a flow-control window to exceed 2<x:sup>31</x:sup>-1 octets.
             If a sender receives a WINDOW_UPDATE that causes a flow-control window to exceed this
             maximum, it MUST terminate either the stream or the connection, as appropriate.  For
-            streams, the sender sends a <x:ref>RST_STREAM</x:ref> with the error code of
-            <x:ref>FLOW_CONTROL_ERROR</x:ref> code; for the connection, a <x:ref>GOAWAY</x:ref>
-            frame with a <x:ref>FLOW_CONTROL_ERROR</x:ref> code.
+            streams, the sender sends a <x:ref>RST_STREAM</x:ref> with an error code of
+            <x:ref>FLOW_CONTROL_ERROR</x:ref>; for the connection, a <x:ref>GOAWAY</x:ref>
+            frame with an error code of <x:ref>FLOW_CONTROL_ERROR</x:ref> is sent.
           </t>
           <t>
             Flow-controlled frames from the sender and WINDOW_UPDATE frames from the receiver are
@@ -2560,7 +2562,7 @@ HTTP2-Settings    = token68
         <section anchor="InitialWindowSize" title="Initial Flow-Control Window Size">
           <t>
             When an HTTP/2 connection is first established, new streams are created with an initial
-            flow-control window size of 65,535 octets. The connection flow-control window is 65,535
+            flow-control window size of 65,535 octets. The connection flow-control window is also 65,535
             octets. Both endpoints can adjust the initial window size for new streams by including
             a value for <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> in the <x:ref>SETTINGS</x:ref>
             frame that forms part of the connection preface. The connection flow-control window can
@@ -2584,13 +2586,13 @@ HTTP2-Settings    = token68
           <t>
             A change to <x:ref>SETTINGS_INITIAL_WINDOW_SIZE</x:ref> can cause the available space in
             a flow-control window to become negative.  A sender MUST track the negative flow-control
-            window, and MUST NOT send new flow-controlled frames until it receives WINDOW_UPDATE
+            window and MUST NOT send new flow-controlled frames until it receives WINDOW_UPDATE
             frames that cause the flow-control window to become positive.
           </t>
           <t>
-            For example, if the client sends 60KB immediately on connection establishment, and the
-            server sets the initial window size to be 16KB, the client will recalculate the
-            available flow-control window to be -44KB on receipt of the <x:ref>SETTINGS</x:ref>
+            For example, if the client sends 60 KB immediately on connection establishment and the
+            server sets the initial window size to be 16 KB, the client will recalculate the
+            available flow-control window to be -44 KB on receipt of the <x:ref>SETTINGS</x:ref>
             frame.  The client retains a negative flow-control window until WINDOW_UPDATE frames
             restore the window to being positive, after which the client can resume sending.
           </t>
@@ -2618,8 +2620,8 @@ HTTP2-Settings    = token68
             streams to continue does not allow the receiver to immediately reduce the space it
             reserves for flow-control windows.  Progress on these streams can also stall, since
             <x:ref>WINDOW_UPDATE</x:ref> frames are needed to allow the sender to resume sending.
-            The receiver MAY instead send a <x:ref>RST_STREAM</x:ref> with
-            <x:ref>FLOW_CONTROL_ERROR</x:ref> error code for the affected streams.
+            The receiver MAY instead send a <x:ref>RST_STREAM</x:ref> with an error code of
+            <x:ref>FLOW_CONTROL_ERROR</x:ref> for the affected streams.
           </t>
         </section>
       </section>
@@ -2651,7 +2653,7 @@ HTTP2-Settings    = token68
           <list style="hanging">
             <x:lt hangText="END_HEADERS (0x4):">
               <t>
-                Bit 2 being set indicates that this frame ends a <xref target="HeaderBlock">header
+                When set, bit 2 indicates that this frame ends a <xref target="HeaderBlock">header
                 block</xref>.
               </t>
               <t>
@@ -2700,7 +2702,7 @@ HTTP2-Settings    = token68
         The following error codes are defined:
         <list style="hanging">
           <t hangText="NO_ERROR (0x0):" anchor="NO_ERROR">
-            The associated condition is not as a result of an error.  For example, a
+            The associated condition is not a result of an error.  For example, a
             <x:ref>GOAWAY</x:ref> might include this code to indicate graceful shutdown of a
             connection.
           </t>
@@ -2715,7 +2717,7 @@ HTTP2-Settings    = token68
             The endpoint detected that its peer violated the flow-control protocol.
           </t>
           <t hangText="SETTINGS_TIMEOUT (0x4):" anchor="SETTINGS_TIMEOUT">
-            The endpoint sent a <x:ref>SETTINGS</x:ref> frame, but did not receive a response in a
+            The endpoint sent a <x:ref>SETTINGS</x:ref> frame but did not receive a response in a
             timely manner.  See <xref target="SettingsSync"/> ("Settings Synchronization").
           </t>
           <t hangText="STREAM_CLOSED (0x5):" anchor="STREAM_CLOSED">
@@ -2725,7 +2727,7 @@ HTTP2-Settings    = token68
             The endpoint received a frame with an invalid size.
           </t>
           <t hangText="REFUSED_STREAM (0x7):" anchor="REFUSED_STREAM">
-            The endpoint refuses the stream prior to performing any application processing (see
+            The endpoint refused the stream prior to performing any application processing (see
             <xref target="Reliability"/> for details).
           </t>
           <t hangText="CANCEL (0x8):" anchor="CANCEL">
@@ -2788,12 +2790,11 @@ HTTP2-Settings    = token68
               or more <x:ref>CONTINUATION</x:ref> frames) containing the message headers of
               informational (1xx) HTTP responses (see <xref target="RFC7230" x:fmt=","
               x:rel="#header.fields"/> and <xref target="RFC7231" x:fmt="," x:rel="#status.1xx"/>),
-              and
             </t>
             <t>
               one <x:ref>HEADERS</x:ref> frame (followed by zero or more <x:ref>CONTINUATION</x:ref>
               frames) containing the message headers (see <xref target="RFC7230" x:fmt=","
-              x:rel="#header.fields"/>), and
+              x:rel="#header.fields"/>),
             </t>
             <t>
               zero or more <x:ref>DATA</x:ref> frames containing the payload body (see <xref
@@ -2810,7 +2811,7 @@ HTTP2-Settings    = token68
           <x:ref>CONTINUATION</x:ref> frames that carry any remaining portions of the header block.
         </t>
         <t>
-          Other frames (from any stream) MUST NOT occur between either <x:ref>HEADERS</x:ref> frame
+          Other frames (from any stream) MUST NOT occur between the <x:ref>HEADERS</x:ref> frame
           and any <x:ref>CONTINUATION</x:ref> frames that might follow.
         </t>
 
@@ -2845,7 +2846,7 @@ HTTP2-Settings    = token68
         </t>
 
         <t>
-          An HTTP response is complete after the server sends - or the client receives - a frame
+          An HTTP response is complete after the server sends -- or the client receives -- a frame
           with the END_STREAM flag set (including any <x:ref>CONTINUATION</x:ref> frames needed to
           complete a header block).  A server can send a complete response prior to the client
           sending an entire request if the response does not depend on any portion of the request
@@ -2857,7 +2858,7 @@ HTTP2-Settings    = token68
           always discard responses at their discretion for other reasons.
         </t>
 
-        <section anchor="informational-responses" title="Upgrading From HTTP/2">
+        <section anchor="informational-responses" title="Upgrading from HTTP/2">
           <t>
             HTTP/2 removes support for the 101 (Switching Protocols) informational status code
             (<xref target="RFC7231" x:fmt="," x:rel="#status.101"/>).
@@ -2872,7 +2873,7 @@ HTTP2-Settings    = token68
         <section anchor="HttpHeaders" title="HTTP Header Fields">
           <t>
             HTTP header fields carry information as a series of key-value pairs. For a listing of
-            registered HTTP headers, see the Message Header Field Registry maintained at <eref
+            registered HTTP headers, see the "Message Header Field" registry maintained at <eref
             target="https://www.iana.org/assignments/message-headers"/>.
           </t>
           <t>
@@ -2886,7 +2887,7 @@ HTTP2-Settings    = token68
           <section anchor="PseudoHeaderFields" title="Pseudo-Header Fields">
             <t>
               While HTTP/1.x used the message start-line (see <xref target="RFC7230" x:fmt=","
-              x:rel="#start.line"/>) to convey the target URI and method of the request, and the
+              x:rel="#start.line"/>) to convey the target URI, the method of the request, and the
               status code for the response, HTTP/2 uses special pseudo-header fields beginning with
               ':' character (ASCII 0x3a) for this purpose.
             </t>
@@ -2928,7 +2929,7 @@ HTTP2-Settings    = token68
               to remove any header fields nominated by the Connection header field, along with the
               Connection header field itself. Such intermediaries SHOULD also remove other
               connection-specific header fields, such as Keep-Alive, Proxy-Connection,
-              Transfer-Encoding, and Upgrade, even if they are not nominated by Connection.
+              Transfer-Encoding, and Upgrade, even if they are not nominated by the Connection header field.
             </t>
             <x:note>
               <t>
@@ -2987,8 +2988,8 @@ HTTP2-Settings    = token68
                   <t>
                     The <spanx style="verb">:path</spanx> pseudo-header field includes the path and
                     query parts of the target URI (the <spanx style="verb">path-absolute</spanx>
-                    production from <xref target="RFC3986"/> and optionally a '?' character
-                    followed by the <spanx style="verb">query</spanx> production, see Sections
+                    production and optionally a '?' character followed by the
+                    <spanx style="verb">query</spanx> production (see Sections
                     <xref target="RFC3986" x:fmt="number" x:sec="3.3"/> and <xref target="RFC3986" x:fmt="number"
                     x:sec="3.4"/> of <xref target="RFC3986"/>). A request in asterisk form includes the value '*' for the
                     <spanx style="verb">:path</spanx> pseudo-header field.
@@ -3044,7 +3045,7 @@ HTTP2-Settings    = token68
               To allow for better compression efficiency, the Cookie header field MAY be split into
               separate header fields, each with one or more cookie-pairs.  If there are multiple
               Cookie header fields after decompression, these MUST be concatenated into a single
-              octet string using the two octet delimiter of 0x3B, 0x20 (the ASCII string "; ")
+              octet string using the two-octet delimiter of 0x3B, 0x20 (the ASCII string "; ")
               before being passed into a non-HTTP/2 context, such as an HTTP/1.1 connection, or a
               generic HTTP server application.
             </t>
@@ -3066,12 +3067,12 @@ HTTP2-Settings    = token68
           <section anchor="malformed" title="Malformed Requests and Responses">
             <t>
               A malformed request or response is one that is an otherwise valid sequence of HTTP/2
-              frames but is otherwise invalid due to the presence of extraneous frames, prohibited
+              frames but is invalid due to the presence of extraneous frames, prohibited
               header fields, the absence of mandatory header fields, or the inclusion of uppercase
               header field names.
             </t>
             <t>
-              A request or response that includes an payload body can include a <spanx
+              A request or response that includes a payload body can include a <spanx
               style="verb">content-length</spanx> header field.  A request or response is also
               malformed if the value of a <spanx style="verb">content-length</spanx> header field
               does not equal the sum of the <x:ref>DATA</x:ref> frame payload lengths that form the
@@ -3106,7 +3107,7 @@ HTTP2-Settings    = token68
             transmitted as a single <x:ref>HEADERS</x:ref> frame, followed by zero or more
             <x:ref>CONTINUATION</x:ref> frames containing the serialized block of request header
             fields.  The <x:ref>HEADERS</x:ref> frame in the following has both the END_HEADERS and
-            END_STREAM flags set; no <x:ref>CONTINUATION</x:ref> frames are sent:
+            END_STREAM flags set; no <x:ref>CONTINUATION</x:ref> frames are sent.
           </t>
 
           <figure>
@@ -3304,7 +3305,7 @@ HTTP2-Settings    = token68
           Promised requests MUST be cacheable (see <xref target="RFC7231" x:fmt=","
           x:rel="#cacheable.methods"/>), MUST be safe (see <xref target="RFC7231" x:fmt=","
           x:rel="#safe.methods"/>), and MUST NOT include a request body. Clients that receive a
-          promised request that is not cacheable, is not known to be safe, or that indicates the
+          promised request that is not cacheable, that is not known to be safe, or that indicates the
           presence of a request body MUST reset the promised stream with a <xref
           target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
           Note this could result in the promised stream being reset if the client does not recognize
@@ -3369,7 +3370,7 @@ HTTP2-Settings    = token68
             target="HttpRequest">request header fields</xref>.  The server MUST include a method in
             the <spanx style="verb">:method</spanx> pseudo-header field that is safe and cacheable.  If a
             client receives a <x:ref>PUSH_PROMISE</x:ref> that does not include a complete and valid
-            set of header fields, or the <spanx style="verb">:method</spanx> pseudo-header field identifies
+            set of header fields or the <spanx style="verb">:method</spanx> pseudo-header field identifies
             a method that is not safe, it MUST respond with a <xref
             target="StreamErrorHandler">stream error</xref> of type <x:ref>PROTOCOL_ERROR</x:ref>.
           </t>
@@ -3383,11 +3384,11 @@ HTTP2-Settings    = token68
           <t>
             For example, if the server receives a request for a document containing embedded links
             to multiple image files and the server chooses to push those additional images to the
-            client, sending push promises before the <x:ref>DATA</x:ref> frames that contain the
-            image links ensures that the client is able to see the promises before discovering
-            embedded links. Similarly, if the server pushes responses referenced by the header block
-            (for instance, in Link header fields), sending the push promises before sending the
-            header block ensures that clients do not request them.
+            client, sending <x:ref>PUSH_PROMISE</x:ref> frames before the <x:ref>DATA</x:ref> frames that contain the
+            image links ensures that the client is able to see that a resource will be pushed
+            before discovering embedded links. Similarly, if the server pushes responses referenced by the header block
+            (for instance, in Link header fields), sending a <x:ref>PUSH_PROMISE</x:ref> before sending the
+            header block ensures that clients do not request those resources.
           </t>
 
           <t>
@@ -3427,8 +3428,8 @@ HTTP2-Settings    = token68
           <t>
             If the client determines, for any reason, that it does not wish to receive the pushed
             response from the server or if the server takes too long to begin sending the promised
-            response, the client can send an <x:ref>RST_STREAM</x:ref> frame, using either the
-            <x:ref>CANCEL</x:ref> or <x:ref>REFUSED_STREAM</x:ref> codes, and referencing the pushed
+            response, the client can send a <x:ref>RST_STREAM</x:ref> frame, using either the
+            <x:ref>CANCEL</x:ref> or <x:ref>REFUSED_STREAM</x:ref> code and referencing the pushed
             stream's identifier.
           </t>
           <t>
@@ -3542,14 +3543,14 @@ HTTP2-Settings    = token68
 
       <section title="Connection Management">
         <t>
-          HTTP/2 connections are persistent.  For best performance, it is expected clients will not
+          HTTP/2 connections are persistent.  For best performance, it is expected that clients will not
           close connections until it is determined that no further communication with a server is
           necessary (for example, when a user navigates away from a particular web page) or until
           the server closes the connection.
         </t>
         <t>
           Clients SHOULD NOT open more than one HTTP/2 connection to a given host and port pair,
-          where host is derived from a URI, a selected <xref target="ALT-SVC">alternative
+          where the host is derived from a URI, a selected <xref target="ALT-SVC">alternative
           service</xref>, or a configured proxy.
         </t>
         <t>
@@ -3627,7 +3628,7 @@ HTTP2-Settings    = token68
           </t>
           <t>
             Clients receiving a 421 (Misdirected Request) response from a server MAY retry the
-            request - whether the request method is idempotent or not - over a different connection.
+            request -- whether the request method is idempotent or not -- over a different connection.
             This is possible if a connection is reused (<xref target="reuse"/>) or if an alternative
             service is selected <xref target="ALT-SVC"/>.
           </t>
@@ -3635,7 +3636,7 @@ HTTP2-Settings    = token68
             This status code MUST NOT be generated by proxies.
           </t>
           <t>
-            A 421 response is cacheable by default; i.e., unless otherwise indicated by the method
+            A 421 response is cacheable by default, i.e., unless otherwise indicated by the method
             definition or explicit cache controls (see <xref target="RFC7234"
             x:rel="#heuristic.freshness" x:fmt="of"/>).
           </t>
@@ -3695,7 +3696,7 @@ HTTP2-Settings    = token68
             specific protected resource.  A future specification might provide a way to support this
             use case. Alternatively, a server might use an <xref target="ErrorHandler">
             error</xref> of type <x:ref>HTTP_1_1_REQUIRED</x:ref> to request the client
-            use a protocol which supports renegotiation.
+            use a protocol that supports renegotiation.
           </t>
           <t>
             Implementations MUST support ephemeral key exchange sizes of at least 2048 bits for
@@ -3716,7 +3717,7 @@ HTTP2-Settings    = token68
           <t>
             Endpoints MAY choose to generate a <xref target="ConnectionErrorHandler">connection
             error</xref> of type <x:ref>INADEQUATE_SECURITY</x:ref> if one of the cipher suites from
-            the black list are negotiated.  A deployment that chooses to use a black-listed cipher
+            the black list is negotiated.  A deployment that chooses to use a black-listed cipher
             suite risks triggering a connection error unless the set of potential peers is known to
             accept that cipher suite.
           </t>
@@ -3731,7 +3732,7 @@ HTTP2-Settings    = token68
             TLS 1.2 deployments could have non-intersecting sets of permitted cipher suites.  To
             avoid this problem causing TLS handshake failures, deployments of HTTP/2 that use TLS
             1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref target="TLS-ECDHE"/> with
-            the P256 elliptic curve <xref target="FIPS186"/>.
+            the P-256 elliptic curve <xref target="FIPS186"/>.
           </t>
           <t>
             Note that clients might advertise support of cipher suites that are on the black list in
@@ -3759,18 +3760,18 @@ HTTP2-Settings    = token68
         <t>
           In a cross-protocol attack, an attacker causes a client to initiate a transaction in one
           protocol toward a server that understands a different protocol.  An attacker might be able
-          to cause the transaction to appear as valid transaction in the second protocol.  In
+          to cause the transaction to appear as a valid transaction in the second protocol.  In
           combination with the capabilities of the web context, this can be used to interact with
           poorly protected servers in private networks.
         </t>
         <t>
           Completing a TLS handshake with an ALPN identifier for HTTP/2 can be considered sufficient
-          protection against cross protocol attacks.  ALPN provides a positive indication that a
+          protection against cross-protocol attacks.  ALPN provides a positive indication that a
           server is willing to proceed with HTTP/2, which prevents attacks on other TLS-based
           protocols.
         </t>
         <t>
-          The encryption in TLS makes it difficult for attackers to control the data which could be
+          The encryption in TLS makes it difficult for attackers to control the data that could be
           used in a cross-protocol attack on a cleartext protocol.
         </t>
         <t>
@@ -3829,7 +3830,7 @@ HTTP2-Settings    = token68
 
       <section anchor="dos" title="Denial-of-Service Considerations">
         <t>
-          An HTTP/2 connection can demand a greater commitment of resources to operate than a
+          An HTTP/2 connection can demand a greater commitment of resources to operate than an
           HTTP/1.1 connection.  The use of header compression and flow control depend on a
           commitment of resources for storing a greater amount of state.  Settings for these
           features ensure that memory commitments for these features are strictly bounded.
@@ -3837,7 +3838,7 @@ HTTP2-Settings    = token68
         <t>
           The number of <x:ref>PUSH_PROMISE</x:ref> frames is not constrained in the same fashion.
           A client that accepts server push SHOULD limit the number of streams it allows to be in
-          the "reserved (remote)" state.  Excessive number of server push streams can be treated as
+          the "reserved (remote)" state.  An excessive number of server push streams can be treated as
           a <xref target="StreamErrorHandler">stream error</xref> of type
           <x:ref>ENHANCE_YOUR_CALM</x:ref>.
         </t>
@@ -3868,8 +3869,8 @@ HTTP2-Settings    = token68
           known to clients and could be exceeded without being an obvious protocol violation.
         </t>
         <t>
-          All these features - i.e., <x:ref>SETTINGS</x:ref> changes, small frames, header
-          compression - have legitimate uses.  These features become a burden only when they are
+          All these features -- i.e., <x:ref>SETTINGS</x:ref> changes, small frames, header
+          compression -- have legitimate uses.  These features become a burden only when they are
           used unnecessarily or to excess.
         </t>
         <t>
@@ -3885,7 +3886,7 @@ HTTP2-Settings    = token68
             commit a large amount of state.  Header fields that are critical for routing can appear
             toward the end of a header block, which prevents streaming of header fields to their
             ultimate destination.  This ordering and other reasons, such as ensuring cache
-            correctness, means that an endpoint might need to buffer the entire header block.  Since
+            correctness, mean that an endpoint might need to buffer the entire header block.  Since
             there is no hard limit to the size of a header block, some endpoints could be forced to
             commit a large amount of available memory for header fields.
           </t>
@@ -3912,7 +3913,7 @@ HTTP2-Settings    = token68
             creation is relatively inexpensive when compared to the creation and maintenance of a
             TCP connection.  A proxy might also maintain some resources for a TCP connection beyond
             the closing of the stream that carries the CONNECT request, since the outgoing TCP
-            connection remains in the TIME_WAIT state.  A proxy therefore cannot rely on
+            connection remains in the TIME_WAIT state.  Therefore, a proxy cannot rely on
             <x:ref>SETTINGS_MAX_CONCURRENT_STREAMS</x:ref> alone to limit the resources consumed by
             CONNECT requests.
           </t>
@@ -3958,8 +3959,8 @@ HTTP2-Settings    = token68
         </t>
         <t>
           Padding can be used to obscure the exact size of frame content and is provided to
-          mitigate specific attacks within HTTP.  For example, attacks where compressed content
-          includes both attacker-controlled plaintext and secret data (see for example, <xref
+          mitigate specific attacks within HTTP, for example, attacks where compressed content
+          includes both attacker-controlled plaintext and secret data (e.g., <xref
           target="BREACH"/>).
         </t>
         <t>
@@ -3982,19 +3983,19 @@ HTTP2-Settings    = token68
       <section title="Privacy Considerations">
         <t>
           Several characteristics of HTTP/2 provide an observer an opportunity to correlate actions
-          of a single client or server over time.  This includes the value of settings, the manner
+          of a single client or server over time.  These include the value of settings, the manner
           in which flow-control windows are managed, the way priorities are allocated to streams,
-          timing of reactions to stimulus, and handling of any features that are controlled by
+          the timing of reactions to stimulus, and the handling of any features that are controlled by
           settings.
         </t>
         <t>
-          As far as this creates observable differences in behavior, they could be used as a basis
+          As far as these create observable differences in behavior, they could be used as a basis
           for fingerprinting a specific client, as defined in <xref target="HTML5" x:fmt="of"
           x:sec="1.8" x:rel="introduction.html#fingerprint"/>.
         </t>
         <t>
           HTTP/2's preference for using a single TCP connection allows correlation of a user's
-          activity on a site.  If connections are reused for different origins, this allows tracking
+          activity on a site.  Reusing connections for different origins allows tracking
           across those origins.
         </t>
         <t>
@@ -4226,7 +4227,7 @@ HTTP2-Settings    = token68
       <section title="HTTP2-Settings Header Field Registration">
         <t>
           This section registers the <spanx style="verb">HTTP2-Settings</spanx> header field in the
-          "Permanent Message Header Field Names" Registry <xref target="BCP90"/>.
+          "Permanent Message Header Field Names" registry <xref target="BCP90"/>.
           <list style="hanging">
             <t hangText="Header field name:">
               HTTP2-Settings
