@@ -48,6 +48,9 @@
 <!-- generate DTD-valid output, override all values imported from rfc2629.xslt -->
 <xsl:output doctype-system="rfc2629.dtd" doctype-public="" method="xml" version="1.0" encoding="UTF-8" cdata-section-elements="artwork" />
 
+<!-- Workaround for http://trac.tools.ietf.org/tools/xml2rfc/trac/ticket/297 -->
+<xsl:param name="xml2rfc-ext-strip-vbare">false</xsl:param>
+
 <!-- kick into cleanup mode -->
 <xsl:template match="/">
   <xsl:text>&#10;</xsl:text>
@@ -790,6 +793,20 @@
 <xsl:template match="preamble/@anchor" mode="cleanup"/>
 <xsl:template match="spanx/@anchor" mode="cleanup"/>
 
+<!-- Workaround for http://trac.tools.ietf.org/tools/xml2rfc/trac/ticket/297 -->
+<xsl:template match="spanx[@style='vbare']" mode="cleanup">
+  <xsl:choose>
+    <xsl:when test="$xml2rfc-ext-strip-vbare='true'">
+      <xsl:apply-templates mode="cleanup"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <spanx style="vbare">
+        <xsl:apply-templates mode="cleanup"/>
+      </spanx>
+    </xsl:otherwise>
+  </xsl:choose>
+</xsl:template>
+
 <!-- v3 features -->
 <xsl:template match="strong" mode="cleanup">
   <xsl:choose>
@@ -847,10 +864,17 @@
 <xsl:template match="reference" mode="cleanup">
   <reference>
     <xsl:apply-templates select="@anchor|@target" mode="cleanup"/>
-    <xsl:if test="not(@target) and $xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='RFC']">
-      <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/rfc',seriesInfo[@name='RFC']/@value)"/>
-      <xsl:attribute name="target"><xsl:value-of select="$uri"/></xsl:attribute>
-    </xsl:if>
+    <xsl:choose>
+      <xsl:when test="not(@target) and $xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='BCP'] and starts-with(@anchor,'BCP')">
+        <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/bcp',seriesInfo[@name='BCP']/@value)"/>
+        <xsl:attribute name="target"><xsl:value-of select="$uri"/></xsl:attribute>
+      </xsl:when>
+      <xsl:when test="not(@target) and $xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='RFC']">
+        <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/rfc',seriesInfo[@name='RFC']/@value)"/>
+        <xsl:attribute name="target"><xsl:value-of select="$uri"/></xsl:attribute>
+      </xsl:when>
+      <xsl:otherwise/>
+    </xsl:choose>
     <xsl:apply-templates select="front" mode="cleanup"/>
     <xsl:apply-templates select="seriesInfo" mode="cleanup"/>
 
@@ -864,6 +888,17 @@
 
     <xsl:apply-templates select="*[not(self::front) and not(self::seriesInfo)]" mode="cleanup"/>
   </reference>
+</xsl:template>
+<xsl:template match="seriesInfo" mode="cleanup">
+  <xsl:choose>
+    <xsl:when test="@name='Internet-Draft' and $rfcno > 7375">
+      <!-- special case in RFC formatting since 2015 -->
+      <seriesInfo name="Work in Progress," value="{@value}"/>
+    </xsl:when>
+    <xsl:otherwise>
+      <seriesInfo name="{@name}" value="{@value}"/>
+    </xsl:otherwise>
+  </xsl:choose>
 </xsl:template>
 
 <!-- References titles -->

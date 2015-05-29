@@ -66,7 +66,7 @@ extra_css := lib/style.css
 
 reduction := lib/clean-for-DTD.xslt
 %.redxml: %.xml $(reduction)
-	$(saxon) $< $(reduction) > $@
+	$(saxon) $< $(reduction) xml2rfc-ext-strip-vbare=true > $@
 
 %.xhtml: %.xml ../../rfc2629xslt/rfc2629toXHTML.xslt
 	$(saxon) $< ../../rfc2629xslt/rfc2629toXHTML.xslt > $@

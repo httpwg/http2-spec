@@ -2019,6 +2019,8 @@
 
 <xsl:template name="compute-doi">
   <xsl:choose>
+    <!-- xref seems to be for BCP, not RFC -->
+    <xsl:when test="seriesInfo[@name='BCP'] and starts-with(@anchor, 'BCP')" />
     <xsl:when test="seriesInfo[@name='RFC']">
       <xsl:variable name="rfc" select="seriesInfo[@name='RFC'][1]/@value"/>
       <xsl:value-of select="concat('10.17487/RFC', format-number($rfc,'#0000'))"/>
@@ -2213,6 +2215,11 @@
               </xsl:call-template>
             </xsl:if>
           </xsl:when>
+          <xsl:when test="@name='Internet-Draft' and $rfcno > 7375">
+            <!-- special case in RFC formatting since 2015 -->            
+            <xsl:text>Work in Progress, </xsl:text>
+            <xsl:value-of select="@value" />
+          </xsl:when>
           <xsl:otherwise>
             <xsl:value-of select="@name" />
             <xsl:if test="@value!=''">&#0160;<xsl:value-of select="@value" /></xsl:if>
@@ -2262,6 +2269,12 @@
         <xsl:when test="string-length(normalize-space(@target)) &gt; 0">
           <xsl:text>, &lt;</xsl:text>
           <a href="{normalize-space(@target)}"><xsl:value-of select="normalize-space(@target)"/></a>
+          <xsl:text>&gt;</xsl:text>
+        </xsl:when>
+        <xsl:when test="$xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='BCP'] and starts-with(@anchor, 'BCP')">
+          <xsl:text>, &lt;</xsl:text>
+          <xsl:variable name="uri" select="concat('http://www.rfc-editor.org/info/bcp',seriesInfo[@name='BCP']/@value)"/>
+          <a href="{$uri}"><xsl:value-of select="$uri"/></a>
           <xsl:text>&gt;</xsl:text>
         </xsl:when>
         <xsl:when test="$xml2rfc-ext-link-rfc-to-info-page='yes' and seriesInfo[@name='RFC']">
@@ -2849,6 +2862,16 @@
     <xsl:call-template name="copy-anchor"/>
     <xsl:apply-templates />
   </strong>
+</xsl:template>
+
+<xsl:template match="spanx[@style!='']" priority="0.1">
+  <xsl:call-template name="warning">
+    <xsl:with-param name="msg">unknown spanx style attribute '<xsl:value-of select="@style"/>' ignored</xsl:with-param>
+  </xsl:call-template>
+  <span>
+    <xsl:call-template name="copy-anchor"/>
+    <xsl:apply-templates />
+  </span>
 </xsl:template>
 
 <xsl:template name="insert-blank-lines">
@@ -7986,11 +8009,11 @@ dd, li, p {
   <xsl:variable name="gen">
     <xsl:text>http://greenbytes.de/tech/webdav/rfc2629.xslt, </xsl:text>
     <!-- when RCS keyword substitution in place, add version info -->
-    <xsl:if test="contains('$Revision: 1.730 $',':')">
-      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.730 $', 'Revision: '),'$','')),', ')" />
+    <xsl:if test="contains('$Revision: 1.733 $',':')">
+      <xsl:value-of select="concat('Revision ',normalize-space(translate(substring-after('$Revision: 1.733 $', 'Revision: '),'$','')),', ')" />
     </xsl:if>
-    <xsl:if test="contains('$Date: 2015/05/19 09:21:05 $',':')">
-      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/05/19 09:21:05 $', 'Date: '),'$','')),', ')" />
+    <xsl:if test="contains('$Date: 2015/05/28 13:08:20 $',':')">
+      <xsl:value-of select="concat(normalize-space(translate(substring-after('$Date: 2015/05/28 13:08:20 $', 'Date: '),'$','')),', ')" />
     </xsl:if>
     <xsl:value-of select="concat('XSLT vendor: ',system-property('xsl:vendor'),' ',system-property('xsl:vendor-url'))" />
   </xsl:variable>
