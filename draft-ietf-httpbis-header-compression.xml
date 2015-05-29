@@ -72,7 +72,7 @@
         <section title="Introduction">
             <t>
                 In HTTP/1.1 (see <xref target="RFC7230"/>), header fields are
-                not compressed. As Web pages have grown to require dozens to
+                not compressed. As web pages have grown to require dozens to
                 hundreds of requests, the redundant header fields in these
                 requests unnecessarily consume bandwidth, measurably increasing
                 latency.
@@ -89,9 +89,9 @@
             </t>
 
             <t>
-                This specification defines HPACK, a new compressor for header
-                fields which eliminates redundant header fields, limits
-                vulnerability to known security attacks, and which has a bounded
+                This specification defines HPACK, a new compressor that
+                eliminates redundant header fields, limits
+                vulnerability to known security attacks, and has a bounded
                 memory requirement for use in constrained environments.
                 Potential security concerns for HPACK are described in <xref
                     target="Security"/>.
@@ -128,7 +128,7 @@
                     values.
                 </t>
                 <t>
-                    Literal values are either encoded directly or using a static
+                    Literal values are either encoded directly or use a static
                     Huffman code.
                 </t>
                 <t>
@@ -182,7 +182,7 @@
                             is a table that statically associates header fields
                             that occur frequently
                             with index values.  This table is ordered,
-                            read-only, always accessible, and may be shared
+                            read-only, always accessible, and it may be shared
                             amongst all encoding or decoding contexts.
                         </t>
                         <t hangText="Header List:">
@@ -429,7 +429,7 @@
                 <t>
                     By passing the resulting header fields to the application,
                     a decoder can be implemented with minimal transitory memory
-                    commitment in addition to the dynamic table.
+                    commitment in addition to the memory required for the dynamic table.
                 </t>
             </section>
 
@@ -507,7 +507,7 @@
                     The size of an entry is the sum of its name's length in
                     octets (as defined in <xref
                     target="string.literal.representation" />), its value's
-                    length in octets, plus 32.
+                    length in octets, and 32.
                 </t>
                 <t>
                     The size of an entry is calculated using the length of its
@@ -544,8 +544,8 @@
                 </t>
                 <t>
                     A change in the maximum size of the dynamic table is
-                    signaled via an encoding context update (see <xref
-                    target="encoding.context.update"/>).  This encoding context
+                    signaled via a dynamic table size update (see <xref
+                    target="encoding.context.update"/>).  This dynamic table size
                     update MUST occur at the beginning of the first header block
                     following the change to the dynamic table size.  In HTTP/2,
                     this follows a settings acknowledgment (see <xref
@@ -556,9 +556,9 @@
                     the transmission of two header blocks.  In the case that this
                     size is changed more than once in this interval, the
                     smallest maximum table size that occurs in that interval
-                    MUST be signaled in an encoding context update.  The final
+                    MUST be signaled in a dynamic table size update.  The final
                     maximum size is always signaled, resulting in at most two
-                    encoding context updates.  This ensures that the decoder is
+                    dynamic table size updates.  This ensures that the decoder is
                     able to perform eviction based on reductions in dynamic
                     table size (see <xref target="entry.eviction"/>).
                 </t>
@@ -722,8 +722,8 @@ else
                     size.  It is also possible for an encoder to send a large
                     number of zero values, which can waste octets and could be
                     used to overflow integer values.  Integer encodings that
-                    exceed an implementation limits -- in value or octet length --
-                    MUST be treated as a decoding error.  Different limits can
+                    exceed implementation limits -- in value or octet length --
+                    MUST be treated as decoding errors.  Different limits can
                     be set for each of the different uses of integers, based on
                     implementation constraints.
                 </t>
@@ -735,7 +735,7 @@ else
                     Header field names and header field values can be
                     represented as string literals. A string literal is encoded
                     as a sequence of octets, either by directly encoding the
-                    string literal's octets, or by using a Huffman code
+                    string literal's octets or by using a Huffman code
                     (see <xref target="HUFFMAN"/>).
                 </t>
                 <figure anchor="String.Literal.Representation"
@@ -759,7 +759,7 @@ else
                         </t>
                         <t hangText="String Length:">
                             The number of octets used to encode the string
-                            literal, encoded as an integer with 7-bit prefix
+                            literal, encoded as an integer with a 7-bit prefix
                             (see <xref target="integer.representation"/>).
                         </t>
                         <t hangText="String Data:">
@@ -772,7 +772,7 @@ else
                     </list>
                 </t>
                 <t>
-                    String literals which use Huffman encoding are encoded with
+                    String literals that use Huffman encoding are encoded with
                     the Huffman code defined in <xref target="huffman.code"/>
                     (see examples for requests in <xref
                         target="request.examples.with.huffman.coding"/> and for
@@ -784,7 +784,7 @@ else
                 <t>
                     As the Huffman-encoded data doesn't always end at an octet
                     boundary, some padding is inserted after it, up to the next
-                    octet boundary. To prevent this padding to be misinterpreted
+                    octet boundary. To prevent this padding from being misinterpreted
                     as part of the string literal, the most significant bits of
                     the code corresponding to the EOS (end-of-string) symbol are
                     used.
@@ -805,8 +805,8 @@ else
         <section title="Binary Format" anchor="detailed.format">
             <t>
                 This section describes the detailed format of each of the
-                different header field representations, plus the encoding
-                context update instruction.
+                different header field representations and the dynamic table
+                size update instruction.
             </t>
 
             <section title="Indexed Header Field Representation"
@@ -849,7 +849,7 @@ else
                 anchor="literal.header.representation">
                 <t>
                     A literal header field representation contains a literal
-                    header field value.  Header field names are either provided
+                    header field value.  Header field names are provided either
                     as a literal or by reference to an existing table entry,
                     either from the static table or the dynamic table (see <xref
                         target="indexing.tables"/>).
@@ -1174,9 +1174,9 @@ else
                         HPACK mitigates but does not completely prevent attacks
                         modeled on <xref target="CRIME">CRIME</xref> by forcing
                         a guess to match an entire header field value rather
-                        than individual characters.  An attacker can only learn
-                        whether a guess is correct or not, so is reduced to a
-                        brute-force guess for the header field values.
+                        than individual characters.  Attackers can only learn
+                        whether a guess is correct or not, so they are reduced to
+                        brute-force guesses for the header field values.
                     </t>
                     <t>
                         The viability of recovering specific header field values
@@ -1248,7 +1248,7 @@ else
                         header fields might instead introduce a penalty for
                         a header field with many different values, such that a
                         large number of attempts to guess a header field
-                        value results in the header field no more being compared
+                        value results in the header field no longer being compared
                         to the dynamic table entries in future messages,
                         effectively preventing further guesses.
                     </t>
@@ -1270,7 +1270,7 @@ else
                     <t>
                         This response might be made inversely proportional to
                         the length of the header field value.  Marking a header
-                        field as not using the dynamic table any more
+                        field as not using the dynamic table anymore
                         might occur for shorter values more quickly
                         or with higher probability than for longer values.
                     </t>
@@ -1363,7 +1363,7 @@ else
                     dynamic table. In HTTP/2, this is realized by setting an
                     appropriate value for the SETTINGS_HEADER_TABLE_SIZE
                     parameter.  An encoder can limit the amount of state memory
-                    it uses by signaling lower dynamic table size than the
+                    it uses by signaling a lower dynamic table size than the
                     decoder allows (see <xref
                         target="encoding.context.update"/>).
                 </t>
@@ -1560,8 +1560,8 @@ else
                 value.
             </t>
             <t>
-                The following table lists the predefined header fields that
-                make-up the static table.
+                <xref target="static.table.entries"/> lists the predefined header fields that
+                make up the static table and gives the index of each entry.
             </t>
             <texttable title="Static Table Entries"
                 anchor="static.table.entries">
@@ -1635,10 +1635,7 @@ else
                 <c>60</c><c>via</c><c></c>
                 <c>61</c><c>www-authenticate</c><c></c>
             </texttable>
-            <t>
-                <xref target="static.table.entries"/> gives the index of each
-                entry in the static table.
-            </t>
+
         </section>
 
         <section title="Huffman Code" anchor="huffman.code">
@@ -1953,9 +1950,9 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
 
         <section title="Examples" anchor="examples">
             <t>
-                A number of examples are worked through here, covering integer
+                This appendix contains examples covering integer
                 encoding, header field representation, and the encoding of whole
-                lists of header fields, for both requests and responses, and
+                lists of header fields for both requests and responses,
                 with and without Huffman coding.
             </t>
 
@@ -1963,7 +1960,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
                 anchor="integer.representation.examples">
                 <t>
                     This section shows the representation of integer values in
-                    details (see <xref target="integer.representation"/>).
+                    detail (see <xref target="integer.representation"/>).
                 </t>
                 <section title="Example 1: Encoding 10 Using a 5-Bit Prefix"
                     anchor="integer.representation.example1">
@@ -2004,7 +2001,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
                             <t>
                                 <list>
                                     <t>I (1306) is greater than or equal to 128,
-                                    the while loop body executes:</t>
+                                    so the while loop body executes:</t>
                                     <t>
                                         <list>
                                             <t>I % 128 == 26</t>
@@ -2014,7 +2011,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
                                             <t>I is set to 10 (1306 / 128 ==
                                             10)</t>
                                             <t>I is no longer greater than or
-                                            equal to 128, the while loop
+                                            equal to 128, so the while loop
                                             terminates.</t>
                                         </list>
                                     </t>
@@ -2045,7 +2042,7 @@ EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
                     anchor="integer.representation.example3">
                     <t>
                         The value 42 is to be encoded starting at an
-                        octet-boundary. This implies that a 8-bit prefix is
+                        octet boundary. This implies that a 8-bit prefix is
                         used.
                         <list style="symbols">
                             <t>
@@ -2456,7 +2453,7 @@ custom-key: custom-value]]></artwork>
 <section title="Request Examples with Huffman Coding"
     anchor="request.examples.with.huffman.coding">
     <t>
-        This section shows the same examples as the previous section, but using
+        This section shows the same examples as the previous section but uses
         Huffman encoding for the literal values.
     </t>
     <section title="First Request">
@@ -2931,11 +2928,11 @@ set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1]]></artwork
 <section title="Response Examples with Huffman Coding"
     anchor="response.examples.with.huffman.coding">
     <t>
-        This section shows the same examples as the previous section, but using
+        This section shows the same examples as the previous section but uses
         Huffman encoding for the literal values. The HTTP/2 setting parameter
         SETTINGS_HEADER_TABLE_SIZE is set to the value of 256 octets, causing
         some evictions to occur. The eviction mechanism uses the length of the
-        decoded literal values, so the same evictions occurs as in the previous
+        decoded literal values, so the same evictions occur as in the previous
         section.
     </t>
     <section title="First Response">
