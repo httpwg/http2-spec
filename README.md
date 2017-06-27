@@ -17,7 +17,7 @@ Header Compression (HPACK) specification:
 See [Contributing.md](https://github.com/http2/http2-spec/blob/master/CONTRIBUTING.md) for information about contributing to HTTP/2.
 
 
-##NOTE WELL
+## NOTE WELL
 
 Any submission to the [IETF](https://www.ietf.org/) intended by the Contributor
 for publication as all or part of an IETF Internet-Draft or RFC and any
