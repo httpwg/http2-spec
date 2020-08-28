@@ -1,0 +1,60 @@
+name: "Update Editor's Copy"
+
+on:
+  push:
+    paths-ignore:
+    - README.md
+    - CONTRIBUTING.md
+    - LICENSE.md
+    - .gitignore
+  pull_request:
+    paths-ignore:
+    - README.md
+    - CONTRIBUTING.md
+    - LICENSE.md
+    - .gitignore
+
+jobs:
+  build:
+    name: "Update Editor's Copy"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Checkout"
+      uses: actions/checkout@v2
+
+    - name: "Cache Setup"
+      id: cache-setup
+      run: |
+        mkdir -p "$HOME"/.cache/xml2rfc
+        echo "::set-output name=path::$HOME/.cache/xml2rfc"
+        date -u "+::set-output name=date::%FT%T"
+
+    - name: "Cache References"
+      uses: actions/cache@v2
+      with:
+        path: ${{ steps.cache-setup.outputs.path }}
+        key: refcache-${{ steps.cache-setup.outputs.date }}
+        restore-keys: |
+          refcache-${{ steps.cache-setup.outputs.date }}
+          refcache-
+
+    - name: "Build Drafts"
+      uses: martinthomson/i-d-template@v1
+
+    - name: "Update GitHub Pages"
+      uses: martinthomson/i-d-template@v1
+      if: ${{ github.event_name == 'push' }}
+      with:
+        make: gh-pages
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: "Save HTML"
+      uses: actions/upload-artifact@v2
+      with:
+        path: "*.html"
+
+    - name: "Save Text"
+      uses: actions/upload-artifact@v2
+      with:
+        path: "*.txt"
