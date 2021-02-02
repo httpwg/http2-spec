@@ -13,7 +13,7 @@
 <?rfc-ext allow-markup-in-artwork="yes" ?>
 <?rfc-ext include-index="no" ?>
 <!DOCTYPE rfc SYSTEM "rfc2629-xhtml.ent">
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:x="http://purl.org/net/xml2rfc/ext" ipr="trust200902" category="std" docName="draft-ietf-httpbis-http2bis-latest" tocInclude="true" symRefs="true" sortRefs="true" version="3" submissionType="IETF" obsoletes="7540">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:x="http://purl.org/net/xml2rfc/ext" ipr="trust200902" category="std" docName="draft-ietf-httpbis-http2bis-latest" tocInclude="true" symRefs="true" sortRefs="true" version="3" submissionType="IETF" obsoletes="7540,8740">
   <!--
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
   -->
@@ -274,7 +274,7 @@
         <ul spacing="normal">
           <li>
             <t>
-                The string "h2" identifies the protocol where HTTP/2 uses <xref target="TLS12">Transport Layer Security (TLS)</xref>.  This identifier is used in the <xref target="TLS-ALPN">TLS application-layer protocol negotiation (ALPN) extension</xref>
+                The string "h2" identifies the protocol where HTTP/2 uses <xref target="TLS13">Transport Layer Security (TLS)</xref>.  This identifier is used in the <xref target="TLS-ALPN">TLS application-layer protocol negotiation (ALPN) extension</xref>
                 field and in any place where HTTP/2 over TLS is identified.
             </t>
             <t>
@@ -410,7 +410,7 @@
       <section anchor="discover-https">
         <name>Starting HTTP/2 for "https" URIs</name>
         <t>
-          A client that makes a request to an "https" URI uses <xref target="TLS12">TLS</xref> with
+          A client that makes a request to an "https" URI uses <xref target="TLS13">TLS</xref> with
           the <xref target="TLS-ALPN">application-layer protocol negotiation (ALPN)
             extension</xref>.
         </t>
@@ -3466,12 +3466,13 @@
           negotiating TLS.
         </t>
         <t>
-          Deployments of HTTP/2 that negotiate TLS 1.3 or higher need only support and use the SNI
-          extension; deployments of TLS 1.2 are subject to the requirements in the following
-          sections.  Implementations are encouraged to provide defaults that comply, but it is
-          recognized that deployments are ultimately responsible for compliance.
+          Requirements for deployments of HTTP/2 that negotiate <xref target="TLS13">TLS 1.3</xref>
+          are included in <xref target="tls13features"/>.  Deployments of TLS 1.2 are subject to
+          the requirements in <xref target="tls12features"/> and <xref target="tls12ciphers"/>.
+          Implementations are encouraged to provide defaults that comply, but it is recognized that
+          deployments are ultimately responsible for compliance.
         </t>
-        <section>
+        <section anchor="tls12features">
           <name>TLS 1.2 Features</name>
           <t>
             This section describes restrictions on the TLS 1.2 feature set that can be used with
@@ -3508,14 +3509,14 @@
           </t>
           <t>
             Implementations MUST support ephemeral key exchange sizes of at least 2048 bits for
-            cipher suites that use ephemeral finite field Diffie-Hellman (DHE) <xref target="TLS12"/> and 224 bits for cipher suites that use ephemeral elliptic curve
+            cipher suites that use ephemeral finite field Diffie-Hellman (DHE) <xref target="TLS13"/> and 224 bits for cipher suites that use ephemeral elliptic curve
             Diffie-Hellman (ECDHE) <xref target="RFC4492"/>.  Clients MUST accept DHE sizes of up
             to 4096 bits.  Endpoints MAY treat negotiation of key sizes smaller than the lower
             limits as a <xref target="ConnectionErrorHandler">connection error</xref> of type
             <xref target="INADEQUATE_SECURITY" format="none">INADEQUATE_SECURITY</xref>.
           </t>
         </section>
-        <section>
+        <section anchor="tls12ciphers">
           <name>TLS 1.2 Cipher Suites</name>
           <t>
             A deployment of HTTP/2 over TLS 1.2 SHOULD NOT use any of the cipher suites that are
@@ -3548,6 +3549,37 @@
             However, this can result in HTTP/2 being negotiated with a prohibited cipher suite if
             the application protocol and cipher suite are independently selected.
           </t>
+        </section>
+        <section anchor="tls13features">
+          <name>TLS 1.3 Features</name>
+          <t>
+            TLS 1.3 includes a number of features not available in earlier versions.  This section
+            discusses the use of these features.
+          </t>
+          <t>
+            HTTP/2 servers MUST NOT send post-handshake TLS 1.3 CertificateRequest messages.  HTTP/2
+            clients MUST treat a TLS post-handshake CertificateRequest message as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type <xref
+            target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
+          </t>
+          <t>
+            The prohibition on post-handshake authentication applies even if the client offered the
+            "post_handshake_auth" TLS extension.  Post-handshake authentication support might be
+            advertised independently of <xref target="TLS-ALPN">ALPN</xref>.  Clients might offer
+            the capability for use in other protocols, but inclusion of the extension cannot imply
+            support within HTTP/2.
+          </t>
+          <t>
+            <xref target="TLS13"/> defines other post-handshake messages, NewSessionTicket and
+            KeyUpdate, which can be used as they have no direct interaction with HTTP/2.  Unless the
+            use of a new type of TLS message depends on an interaction with the application-layer
+            protocol, that TLS message can be sent after the handshake completes.
+          </t>
+	        <t>
+	          TLS early data MAY be used to send requests, provided that the guidance in <xref
+	          target="RFC8470"/> is observed.  Clients send requests in early data assuming initial
+	          values for all server settings.
+	        </t>
         </section>
       </section>
     </section>
@@ -3752,7 +3784,7 @@
         <name>Use of Padding</name>
         <t>
           Padding within HTTP/2 is not intended as a replacement for general purpose padding, such
-          as might be provided by <xref target="TLS12">TLS</xref>.  Redundant padding could even be
+          as might be provided by <xref target="TLS13">TLS</xref>.  Redundant padding could even be
           counterproductive.  Correct application can depend on having specific knowledge of the
           data that is being padded.
         </t>
@@ -4413,6 +4445,26 @@
             <date year="2008" month="August"/>
           </front>
         </reference>
+        <reference anchor="TLS13">
+          <front>
+            <title>The Transport Layer Security (TLS) Protocol Version 1.3</title>
+            <seriesInfo name="RFC" value="8446"/>
+            <seriesInfo name="DOI" value="10.17487/RFC8446"/>
+            <author initials="E." surname="Rescorla" fullname="E. Rescorla"/>
+            <date year="2018" month="August" />
+          </front>
+        </reference>
+	<reference anchor="RFC8470">
+	  <front>
+	    <title>Using Early Data in HTTP</title>
+	    <seriesInfo name="RFC" value="8470"/>
+	    <seriesInfo name="DOI" value="10.17487/RFC8470"/>
+	    <author initials="M." surname="Thomson" fullname="M. Thomson"/>
+	    <author initials="M." surname="Nottingham" fullname="M. Nottingham"/>
+	    <author initials="W." surname="Tarreau" fullname="W. Tarreau"/>
+	    <date year="2018" month="September"/>
+	  </front>
+	</reference>
         <reference anchor="TLS-EXT">
           <front>
             <title>
@@ -5058,8 +5110,13 @@
     <section>
       <name>Changes from RFC 7540</name>
       <t>
-        This revision makes only editorial updates.
+        This revision includes a number of editorial updates, plus the following substantive changes:
       </t>
+      <ul spacing="normal">
+        <li>
+	  Use of TLS 1.3 is defined based on RFC 8740, which this document obsoletes.
+	</li>
+      </ul>
     </section>
     <section numbered="false">
       <name>Contributors</name>
@@ -5099,7 +5156,10 @@
           </li>
         <li>
             Alexey Melnikov, who was an editor of this document in 2013.
-          </li>
+        </li>
+	<li>
+	  David Benjamin, who was author of RFC 8740, the contents of which are integrated here.
+	</li>
       </ul>
       <t>
         A substantial proportion of Martin's contribution was supported by Microsoft during his
