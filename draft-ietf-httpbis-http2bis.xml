@@ -109,7 +109,7 @@
       <name>HTTP/2 Protocol Overview</name>
       <t>
         HTTP/2 provides an optimized transport for HTTP semantics.  HTTP/2 supports all of the core
-        features of HTTP/1.1 but aims to be more efficient in several ways.
+        features of HTTP but aims to be more efficient than HTTP/1.1.
       </t>
       <t>
         The basic protocol unit in HTTP/2 is a <xref target="FrameHeader">frame</xref>.  Each frame
@@ -256,7 +256,7 @@
         (<xref target="TCP"/>). The client is the TCP connection initiator.
       </t>
       <t>
-        HTTP/2 uses the same "http" and "https" URI schemes used by HTTP/1.1. HTTP/2 shares the same
+        HTTP/2 uses the "http" and "https" URI schemes defined in <xref target="HTTP" section="4.2"/>. HTTP/2 shares the same
         default port numbers: 80 for "http" URIs and 443 for "https" URIs.  As a result,
         implementations processing requests for target resource URIs like <tt>http://example.org/foo</tt> or <tt>https://example.com/bar</tt> are required to first discover whether the
         upstream server (the immediate peer to which the client wishes to establish a connection)
@@ -620,16 +620,16 @@
         </t>
       </section>
       <section anchor="HeaderBlock">
-        <name>Header Compression and Decompression</name>
+        <name>Field Section Compression and Decompression</name>
         <t>
-          Just as in HTTP/1, a header field in HTTP/2 is a name with one or more associated values.
-          Header fields are used within HTTP request and response messages as well as in server push operations
+          A field in HTTP is a name with one or more associated values.
+          Field lines carry each value and are used within HTTP/2 request and response messages as well as in server push operations
           (see <xref target="PushResources"/>).
         </t>
         <t>
-          Header lists are collections of zero or more header fields.  When transmitted over a
-          connection, a header list is serialized into a header block using <xref target="COMPRESSION">HTTP header compression</xref>.  The serialized header block is then
-          divided into one or more octet sequences, called header block fragments, and transmitted
+          A field section is a collection of zero or more field lines.  When transmitted over a
+          connection, a field section is serialized into a field block using <xref target="COMPRESSION">HTTP header compression</xref> (previous versions of this specification used the term "header block").  The serialized field block is then
+          divided into one or more octet sequences, called field block fragments, and transmitted
           within the frame payload of <xref target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>, or <xref target="CONTINUATION">CONTINUATION</xref> frames.
         </t>
         <t>
@@ -637,11 +637,11 @@
           mapping (see <xref target="CompressCookie"/>).
         </t>
         <t>
-          A receiving endpoint reassembles the header block by concatenating its fragments and then
-          decompresses the block to reconstruct the header list.
+          A receiving endpoint reassembles the field block by concatenating its fragments and then
+          decompresses the block to reconstruct the field section.
         </t>
         <t>
-          A complete header block consists of either:
+          A complete field section consists of either:
         </t>
         <ul spacing="normal">
           <li>
@@ -655,29 +655,29 @@
             </li>
         </ul>
         <t>
-          Header compression is stateful.  One compression context and one decompression context are
-          used for the entire connection.  A decoding error in a header block MUST be treated as a
+          Field compression is stateful.  One compression context and one decompression context are
+          used for the entire connection.  A decoding error in a field block MUST be treated as a
           <xref target="ConnectionErrorHandler">connection error</xref> of type
           <xref target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref>.
         </t>
         <t>
-          Each header block is processed as a discrete unit.
-          Header blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
+          Each field block is processed as a discrete unit.
+          Field blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
           frames of any other type or from any other stream.  The last frame in a sequence of
           <xref target="HEADERS" format="none">HEADERS</xref> or <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames has the END_HEADERS flag set.
           The last frame in a sequence of <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> or <xref target="CONTINUATION" format="none">CONTINUATION</xref>
-          frames has the END_HEADERS flag set.  This allows a header block to be logically
+          frames has the END_HEADERS flag set.  This allows a field block to be logically
           equivalent to a single frame.
         </t>
         <t>
-          Header block fragments can only be sent as the frame payload of <xref target="HEADERS" format="none">HEADERS</xref>,
+          Field block fragments can only be sent as the frame payload of <xref target="HEADERS" format="none">HEADERS</xref>,
           <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames because these frames
           carry data that can modify the compression context maintained by a receiver.  An endpoint
           receiving <xref target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or
-          <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames needs to reassemble header blocks and perform
+          <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames needs to reassemble field blocks and perform
           decompression even if the frames are to be discarded.  A receiver MUST terminate the
           connection with a <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <xref target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref> if it does not decompress a header block.
+          <xref target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref> if it does not decompress a field block.
         </t>
       </section>
     </section>
@@ -754,7 +754,7 @@
        R:  RST_STREAM frame
        PP: PUSH_PROMISE frame (with implied CONTINUATIONs)
            Note: State transitions are for the promised stream.
-          ]]></artwork>
+]]></artwork>
         </figure>
         <t>
           Note that this diagram shows stream state transitions and the frames and flags that affect
@@ -1489,8 +1489,8 @@
         </t>
         <t>
           This applies to the protocol elements defined in this document.  This does not affect the
-          existing options for extending HTTP, such as defining new methods, status codes, or header
-          fields.
+          existing options for extending HTTP, such as defining new methods, status codes, or fields
+          (see <xref target="HTTP" section="16"/>).
         </t>
         <t>
           Extensions are permitted to use new <xref target="FrameHeader">frame types</xref>, new
@@ -1503,7 +1503,7 @@
           elements.  Implementations MUST discard frames that have unknown or unsupported types.
           This means that any of these extension points can be safely used by extensions without
           prior arrangement or negotiation.  However, extension frames that appear in the middle of
-          a <xref target="HeaderBlock">header block</xref> are not permitted; these MUST be treated
+          a <xref target="HeaderBlock">field block</xref> are not permitted; these MUST be treated
           as a <xref target="ConnectionErrorHandler">connection error</xref> of type
           <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
         </t>
@@ -1638,7 +1638,8 @@
         <name>HEADERS</name>
         <t>
           The HEADERS frame (type=0x1) is used to <xref target="StreamStates">open a stream</xref>,
-          and additionally carries a header block fragment. HEADERS frames can be sent on a stream
+          and additionally carries a field block fragment. Despite the name, a HEADERS frame can carry
+          a header section or a trailer section. HEADERS frames can be sent on a stream
           in the "idle", "reserved (local)", "open", or "half-closed (remote)" state.
         </t>
         <figure anchor="HEADERSFramePayload">
@@ -1651,7 +1652,7 @@
  +-+-------------+-----------------------------------------------+
  |  Weight? (8)  |
  +-+-------------+-----------------------------------------------+
- |                   Header Block Fragment (*)                 ...
+ |                    Field Block Fragment (*)                 ...
  +---------------------------------------------------------------+
  |                           Padding (*)                       ...
  +---------------------------------------------------------------+
@@ -1679,9 +1680,9 @@
               An unsigned 8-bit integer representing a priority weight for the stream (see <xref target="StreamPriority"/>).  Add one to the value to obtain a weight between 1 and 256.
               This field is only present if the PRIORITY flag is set.
             </dd>
-          <dt>Header Block Fragment:</dt>
+          <dt>Field Block Fragment:</dt>
           <dd>
-              A <xref target="HeaderBlock">header block fragment</xref>.
+              A <xref target="HeaderBlock">field block fragment</xref>.
             </dd>
           <dt>Padding:</dt>
           <dd>
@@ -1695,7 +1696,7 @@
           <dt>END_STREAM (0x1):</dt>
           <dd>
             <t>
-                When set, bit 0 indicates that the <xref target="HeaderBlock">header block</xref> is
+                When set, bit 0 indicates that the <xref target="HeaderBlock">field block</xref> is
                 the last that the endpoint will send for the identified stream.
             </t>
             <t>
@@ -1708,7 +1709,7 @@
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
-                When set, bit 2 indicates that this frame contains an entire <xref target="HeaderBlock">header block</xref> and is not followed by any
+                When set, bit 2 indicates that this frame contains an entire <xref target="HeaderBlock">field block</xref> and is not followed by any
                 <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames.
             </t>
             <t>
@@ -1734,8 +1735,8 @@
           </dd>
         </dl>
         <t>
-          The frame payload of a HEADERS frame contains a <xref target="HeaderBlock">header block
-          fragment</xref>.  A header block that does not fit within a HEADERS frame is continued in
+          The frame payload of a HEADERS frame contains a <xref target="HeaderBlock">field block
+          fragment</xref>.  A field block that does not fit within a HEADERS frame is continued in
           a <xref target="CONTINUATION">CONTINUATION frame</xref>.
         </t>
         <t>
@@ -1808,7 +1809,7 @@
         </t>
         <t>
           The PRIORITY frame can be sent on a stream in any state, though it cannot be sent between
-          consecutive frames that comprise a single <xref target="HeaderBlock">header block</xref>.
+          consecutive frames that comprise a single <xref target="HeaderBlock">field block</xref>.
           Note that this frame could arrive after processing or frame sending has completed, which
           would cause it to have no effect on the identified stream.  For a stream that is in the
           "half-closed (remote)" or "closed" state, this frame can only affect processing of the
@@ -1950,10 +1951,10 @@
             <dt anchor="SETTINGS_HEADER_TABLE_SIZE">SETTINGS_HEADER_TABLE_SIZE (0x1):</dt>
             <dd>
               <t>
-                  Allows the sender to inform the remote endpoint of the maximum size of the header
-                  compression table used to decode header blocks, in octets. The encoder can select
+                  Allows the sender to inform the remote endpoint of the maximum size of the
+                  compression table used to decode field blocks, in octets. The encoder can select
                   any size equal to or less than this value by using signaling specific to the
-                  header compression format inside a header block (see <xref target="COMPRESSION"/>). The initial value is 4,096 octets.
+                  compression format inside a field block (see <xref target="COMPRESSION"/>). The initial value is 4,096 octets.
               </t>
             </dd>
             <dt anchor="SETTINGS_ENABLE_PUSH">SETTINGS_ENABLE_PUSH (0x2):</dt>
@@ -2021,10 +2022,10 @@
             <dt anchor="SETTINGS_MAX_HEADER_LIST_SIZE">SETTINGS_MAX_HEADER_LIST_SIZE (0x6):</dt>
             <dd>
               <t>
-                  This advisory setting informs a peer of the maximum size of header list that the
+                  This advisory setting informs a peer of the maximum size of header section that the
                   sender is prepared to accept, in octets. The value is based on the uncompressed
-                  size of header fields, including the length of the name and value in octets plus
-                  an overhead of 32 octets for each header field.
+                  size of field lines, including the length of the name and value in octets plus
+                  an overhead of 32 octets for each field line.
               </t>
               <t>
                   For any given request, a lower limit than what is advertised MAY be enforced.  The
@@ -2064,8 +2065,8 @@
         <t>
           The PUSH_PROMISE frame (type=0x5) is used to notify the peer endpoint in advance of
           streams the sender intends to initiate.  The PUSH_PROMISE frame includes the unsigned
-          31-bit identifier of the stream the endpoint plans to create along with a set of headers
-          that provide additional context for the stream.  <xref target="PushResources"/> contains a
+          31-bit identifier of the stream the endpoint plans to create along with a field section
+          that provides additional context for the stream.  <xref target="PushResources"/> contains a
           thorough description of the use of PUSH_PROMISE frames.
         </t>
         <figure anchor="PUSH_PROMISEPayloadFormat">
@@ -2076,7 +2077,7 @@
  +-+-------------+-----------------------------------------------+
  |R|                  Promised Stream ID (31)                    |
  +-+-----------------------------+-------------------------------+
- |                   Header Block Fragment (*)                 ...
+ |                    Field Block Fragment (*)                 ...
  +---------------------------------------------------------------+
  |                           Padding (*)                       ...
  +---------------------------------------------------------------+
@@ -2101,10 +2102,10 @@
               PUSH_PROMISE.  The promised stream identifier MUST be a valid choice for the next
               stream sent by the sender (see "new stream identifier" in <xref target="StreamIdentifiers"/>).
             </dd>
-          <dt>Header Block Fragment:</dt>
+          <dt>Field Block Fragment:</dt>
           <dd>
-              A <xref target="HeaderBlock">header block fragment</xref> containing request header
-              fields.
+              A <xref target="HeaderBlock">field block fragment</xref> containing request control data and
+              header section.
             </dd>
           <dt>Padding:</dt>
           <dd>
@@ -2118,7 +2119,7 @@
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
-                When set, bit 2 indicates that this frame contains an entire <xref target="HeaderBlock">header block</xref> and is not followed by any
+                When set, bit 2 indicates that this frame contains an entire <xref target="HeaderBlock">field block</xref> and is not followed by any
                 <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames.
             </t>
             <t>
@@ -2159,7 +2160,7 @@
           the PUSH_PROMISE.
         </t>
         <t>
-          A PUSH_PROMISE frame modifies the connection state in two ways.  First, the inclusion of a <xref target="HeaderBlock">header block</xref> potentially modifies the state maintained for
+          A PUSH_PROMISE frame modifies the connection state in two ways.  First, the inclusion of a <xref target="HeaderBlock">field block</xref> potentially modifies the state maintained for
           header compression.  Second, PUSH_PROMISE also reserves a stream for later use, causing the
           promised stream to enter the "reserved" state.  A sender MUST NOT send a PUSH_PROMISE on a
           stream unless that stream is either "open" or "half-closed (remote)"; the sender MUST
@@ -2551,7 +2552,7 @@
       <section anchor="CONTINUATION">
         <name>CONTINUATION</name>
         <t>
-          The CONTINUATION frame (type=0x9) is used to continue a sequence of <xref target="HeaderBlock">header block fragments</xref>.  Any number of CONTINUATION frames can
+          The CONTINUATION frame (type=0x9) is used to continue a sequence of <xref target="HeaderBlock">field block fragments</xref>.  Any number of CONTINUATION frames can
           be sent, as long as the preceding frame is on the same stream and is a
           <xref target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or CONTINUATION frame without the
           END_HEADERS flag set.
@@ -2560,12 +2561,12 @@
           <name>CONTINUATION Frame Payload</name>
           <artwork type="inline"><![CDATA[
  +---------------------------------------------------------------+
- |                   Header Block Fragment (*)                 ...
+ |                    Field Block Fragment (*)                 ...
  +---------------------------------------------------------------+
 ]]></artwork>
         </figure>
         <t>
-          The CONTINUATION frame payload contains a <xref target="HeaderBlock">header block
+          The CONTINUATION frame payload contains a <xref target="HeaderBlock">field block
           fragment</xref>.
         </t>
         <t>
@@ -2575,7 +2576,7 @@
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
-                When set, bit 2 indicates that this frame ends a <xref target="HeaderBlock">header
+                When set, bit 2 indicates that this frame ends a <xref target="HeaderBlock">field
                 block</xref>.
             </t>
             <t>
@@ -2723,7 +2724,7 @@
           interim response consists of a <xref target="HEADERS" format="none">HEADERS</xref> frames
           (which might be followed by zero or more <xref target="CONTINUATION"
           format="none">CONTINUATION</xref> frames) containing the control data and header section
-          of an interim (1xx) HTTP responses (see <xref target="HTTP" section="15"/>).  A <xref
+          of an interim (1xx) HTTP response (see <xref target="HTTP" section="15"/>).  A <xref
           target="HEADERS" format="none">HEADERS</xref> frame with an END_STREAM flag that carries
           an informational status code is <xref target="malformed">malformed</xref>.
         </t>
@@ -2731,7 +2732,7 @@
         <t>
           The last frame in the sequence bears an END_STREAM flag, noting that a
           <xref target="HEADERS" format="none">HEADERS</xref> frame bearing the END_STREAM flag can be followed by
-          <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames that carry any remaining portions of the header block.
+          <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames that carry any remaining fragments of the field block.
         </t>
         <t>
           Other frames (from any stream) MUST NOT occur between the <xref target="HEADERS" format="none">HEADERS</xref> frame
@@ -2742,7 +2743,7 @@
           defined in <xref target="HTTP11" section="7.1"/> cannot be used in HTTP/2.
         </t>
         <t>
-          Trailer fields are carried in a header block that also terminates the stream.  That is,
+          Trailer fields are carried in a field block that also terminates the stream.  That is,
           trailer fields comprise a sequence starting with a <xref target="HEADERS"
           format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION"
           format="none">CONTINUATION</xref> frames, where the <xref target="HEADERS"
@@ -2762,14 +2763,14 @@
           An HTTP request/response exchange fully consumes a single stream.  A request starts with
           the <xref target="HEADERS" format="none">HEADERS</xref> frame that puts the stream into an "open" state. The request
           ends with a frame bearing END_STREAM, which causes the stream to become "half-closed
-          (local)" for the client and "half-closed (remote)" for the server.  A response starts with
-          a <xref target="HEADERS" format="none">HEADERS</xref> frame and ends with a frame bearing END_STREAM, which places the
-          stream in the "closed" state.
+          (local)" for the client and "half-closed (remote)" for the server.  A response stream starts with
+          zero or more interim responses in <xref target="HEADERS" format="none">HEADERS</xref> frames or
+          a <xref target="HEADERS" format="none">HEADERS</xref> frame containing a final status code.
         </t>
         <t>
           An HTTP response is complete after the server sends -- or the client receives -- a frame
           with the END_STREAM flag set (including any <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames needed to
-          complete a header block).  A server can send a complete response prior to the client
+          complete a field block).  A server can send a complete response prior to the client
           sending an entire request if the response does not depend on any portion of the request
           that has not been sent and received.  When this is true, a server MAY request that the
           client abort transmission of a request without error by sending a
@@ -2791,14 +2792,14 @@
           </t>
         </section>
         <section anchor="HttpHeaders">
-          <name>HTTP Header Fields</name>
+          <name>HTTP Fields</name>
           <t>
-            HTTP header fields carry information as a series of key-value pairs. For a listing of
-            registered HTTP headers, see the "Message Header Field" registry maintained at <eref target="https://www.iana.org/assignments/message-headers"/>.
+            HTTP fields carry information as a series of field lines, which are key-value pairs. For a listing of
+            registered HTTP fields, see the "Hypertext Transfer Protocol (HTTP) Field Name Registry" registry maintained at <eref target="https://www.iana.org/assignments/http-fields/"/>.
           </t>
           <t>
-            Just as in HTTP/1.x, header field names are strings of ASCII characters that are
-            compared in a case-insensitive fashion. However, header field names MUST be converted
+            Just as in HTTP/1.x, field names are strings of ASCII characters that are
+            compared in a case-insensitive fashion. Field names MUST be converted
             to lowercase prior to their encoding in HTTP/2. A request or response containing
             uppercase header field names MUST be treated as <xref target="malformed">malformed</xref>.
           </t>
@@ -2810,7 +2811,8 @@
               character (ASCII 0x3a) for this purpose.
             </t>
             <t>
-              Pseudo-header fields are not HTTP header fields.  Endpoints MUST NOT generate
+              Pseudo-header fields are not HTTP header fields.  Pseudo-header fields contain control
+              data (see <xref target="HTTP" section="6.2"/>).  Endpoints MUST NOT generate
               pseudo-header fields other than those defined in this document.  Note that an
               extension could negotiate the use of additional pseudo-header fields; see
               <xref target="extensibility"/>.
@@ -2819,13 +2821,13 @@
               Pseudo-header fields are only valid in the context in which they are defined.
               Pseudo-header fields defined for requests MUST NOT appear in responses; pseudo-header
               fields defined for responses MUST NOT appear in requests.  Pseudo-header fields MUST
-              NOT appear in trailers.  Endpoints MUST treat a request or response that contains
+              NOT appear in a trailer section.  Endpoints MUST treat a request or response that contains
               undefined or invalid pseudo-header fields as <xref target="malformed">malformed</xref>.
             </t>
             <t>
-              All pseudo-header fields MUST appear in the header block before regular header fields.
-              Any request or response that contains a pseudo-header field that appears in a header
-              block after a regular header field MUST be treated as <xref target="malformed">malformed</xref>.
+              All pseudo-header fields MUST appear in a field block before all regular field lines.
+              Any request or response that contains a pseudo-header field that appears in a field
+              block after a regular field line MUST be treated as <xref target="malformed">malformed</xref>.
             </t>
           </section>
           <section>
@@ -2843,7 +2845,7 @@
             </t>
             <t>
               An intermediary transforming a HTTP/1.x message to HTTP/2 MUST remove connection-specific
-              header fields as discussed in <xref target="HTTP" section="7.6.1"></xref>,
+              header fields as discussed in <xref target="HTTP" section="7.6.1"/>,
               or their messages will be treated by other HTTP/2 endpoints as <xref target="malformed">malformed</xref>.
             </t>
             <aside>
@@ -2919,8 +2921,9 @@
               pseudo-header fields is <xref target="malformed">malformed</xref>.
             </t>
             <t>
-              HTTP/2 does not define a way to carry the version identifier that is included in the
-              HTTP/1.1 request line.
+              Individual HTTP/2 requests do not carry an explicit indicator of protocol version.
+              All HTTP/2 messages implicitly have a protocol version of "2.0" (see
+              <xref target="HTTP" section="6.2"/>).
             </t>
           </section>
           <section anchor="HttpResponse">
@@ -2929,11 +2932,11 @@
               For HTTP/2 responses, a single <tt>:status</tt> pseudo-header
               field is defined that carries the HTTP status code field (see
               <xref target="HTTP" section="15"/>). This pseudo-header field MUST be included in all
-              responses; otherwise, the response is <xref target="malformed">malformed</xref>.
+              responses, including interim responses; otherwise, the response is
+              <xref target="malformed">malformed</xref>.
             </t>
             <t>
-              HTTP/2 does not define a way to carry the version or reason phrase that is included in
-              an HTTP/1.1 status line.
+              HTTP/2 responses implicitly have a protocol version of "2.0".
             </t>
           </section>
           <section anchor="CompressCookie">
@@ -2971,8 +2974,8 @@
             <t>
               A malformed request or response is one that is an otherwise valid sequence of HTTP/2
               frames but is invalid due to the presence of extraneous frames, prohibited
-              header fields, the absence of mandatory header fields, or the inclusion of uppercase
-              header field names.
+              fields or pseudo-header fields, the absence of mandatory fields or pseudo-header fields,
+              or the inclusion of uppercase field names.
             </t>
             <t>
               A request or response that includes message content can include a <tt>content-length</tt> header field.  A request or response is also
@@ -3003,7 +3006,7 @@
             HTTP/2 requests and responses.
           </t>
           <t>
-            An HTTP GET request includes request header fields and no message content and is therefore
+            An HTTP GET request includes control data and a request header with no message content and is therefore
             transmitted as a single <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
             <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the serialized block of request header
             fields.  The <xref target="HEADERS" format="none">HEADERS</xref> frame in the following has both the END_HEADERS and
@@ -3020,7 +3023,7 @@
                                        accept = image/jpeg
 ]]></artwork>
           <t>
-            Similarly, a response that includes only response header fields is transmitted as a
+            Similarly, a response that includes only control data and a response header is transmitted as a
             <xref target="HEADERS" format="none">HEADERS</xref> frame (again, followed by zero or more
             <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) containing the serialized block of response header
             fields.
@@ -3034,9 +3037,9 @@
                                        expires = Thu, 23 Jan ...
 ]]></artwork>
           <t>
-            An HTTP POST request that includes request header fields and message content is transmitted
+            An HTTP POST request that includes control data and a request header and message content is transmitted
             as one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
-            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the request header fields, followed by one
+            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the request header, followed by one
             or more <xref target="DATA" format="none">DATA</xref> frames, with the last <xref target="CONTINUATION" format="none">CONTINUATION</xref> (or
             <xref target="HEADERS" format="none">HEADERS</xref>) frame having the END_HEADERS flag set and the final
             <xref target="DATA" format="none">DATA</xref> frame having the END_STREAM flag set:
@@ -3060,12 +3063,12 @@
                                    {binary data}
 ]]></artwork>
           <t keepWithPrevious="true">
-              Note that data contributing to any given header field could be spread between header
-              block fragments.  The allocation of header fields to frames in this example is
+              Note that data contributing to any given field line could be spread between field
+              block fragments.  The allocation of field lines to frames in this example is
               illustrative only.
           </t>
           <t>
-            A response that includes header fields and message content is transmitted as a
+            A response that includes control data and a response header and message content is transmitted as a
             <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref>
             frames, followed by one or more <xref target="DATA" format="none">DATA</xref> frames, with the last
             <xref target="DATA" format="none">DATA</xref> frame in the sequence having the END_STREAM flag set:
@@ -3088,15 +3091,15 @@
             frames.
           </t>
           <t>
-            Trailing header fields are sent as a header block after both the request or response
-            header block and all the <xref target="DATA" format="none">DATA</xref> frames have been sent.  The
-            <xref target="HEADERS" format="none">HEADERS</xref> frame starting the trailers header block has the END_STREAM flag
-            set.
+            A trailer section is sent as a field block after both the request or response
+            field block and all the <xref target="DATA" format="none">DATA</xref> frames have been sent.  The
+            <xref target="HEADERS" format="none">HEADERS</xref> frame starting the field block that comprises
+            the trailer section has the END_STREAM flag set.
           </t>
           <t keepWithNext="true">
               The following example includes both a 100 (Continue) status code, which is sent in
               response to a request containing a "100-continue" token in the Expect header field,
-              and trailing header fields:
+              and a trailer section:
           </t>
           <artwork type="inline"><![CDATA[
   HTTP/1.1 100 Continue            HEADERS
@@ -3126,7 +3129,7 @@
         <section anchor="Reliability">
           <name>Request Reliability Mechanisms in HTTP/2</name>
           <t>
-            In HTTP/1.1, an HTTP client is unable to retry a non-idempotent request when an error
+            In general, an HTTP client is unable to retry a non-idempotent request when an error
             occurs because there is no means to determine the nature of the error.  It is possible
             that some server processing occurred prior to the error, which could result in
             undesirable effects if the request were reattempted.
@@ -3184,7 +3187,7 @@
         </t>
         <t>
           Promised requests MUST be safe (see <xref target="HTTP" section="9.2.1"/>) and cacheable
-          (see <xref target="HTTP" section="9.2.3"/>), and MUST NOT include any content. Clients
+          (see <xref target="HTTP" section="9.2.3"/>).  Promised requests cannot include any content or a trailer section. Clients
           that receive a promised request that is not cacheable, that is not known to be safe, or
           that indicates the presence of request content MUST reset the promised stream with a <xref
           target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR"
@@ -3228,7 +3231,8 @@
             frame.
           </t>
           <t>
-            The <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame includes a header block that contains a complete
+            The <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame includes a
+            field block that contains control data and a complete
             set of request header fields that the server attributes to the request. It is not
             possible to push a response to a request that includes message content.
           </t>
@@ -3257,7 +3261,7 @@
             to multiple image files and the server chooses to push those additional images to the
             client, sending <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames before the <xref target="DATA" format="none">DATA</xref> frames that contain the
             image links ensures that the client is able to see that a resource will be pushed
-            before discovering embedded links. Similarly, if the server pushes responses referenced by the header block
+            before discovering embedded links. Similarly, if the server pushes responses referenced by the field block
             (for instance, in Link header fields), sending a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> before sending the
             header block ensures that clients do not request those resources.
           </t>
@@ -3268,7 +3272,7 @@
             (remote)" state with respect to the server.  <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames are
             interspersed with the frames that comprise a response, though they cannot be
             interspersed with <xref target="HEADERS" format="none">HEADERS</xref> and <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames that
-            comprise a single header block.
+            comprise a single field block.
           </t>
           <t>
             Sending a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame creates a new stream and puts the stream
@@ -3309,7 +3313,7 @@
             Clients receiving a pushed response MUST validate that either the server is
             authoritative (see <xref target="authority"/>) or the proxy that provided the pushed
             response is configured for the corresponding request. For example, a server that offers
-            a certificate for only the <tt>example.com</tt> DNS-ID or Common Name
+            a certificate for only the <tt>example.com</tt> DNS-ID
             is not permitted to push a response for <tt>https://www.example.org/doc</tt>.
           </t>
           <t>
@@ -3335,7 +3339,7 @@
         </t>
         <t>
           In HTTP/2, the CONNECT method is used to establish a tunnel over a single HTTP/2 stream to
-          a remote host for similar purposes. The HTTP header field mapping works as defined in
+          a remote host for similar purposes. A CONNECT header section is constructed as defined in
           <xref target="HttpRequest"/> ("<xref target="HttpRequest" format="title"/>"), with a few
           differences. Specifically:
         </t>
@@ -3358,7 +3362,7 @@
         </t>
         <t>
           A proxy that supports CONNECT establishes a <xref target="TCP">TCP connection</xref> to
-          the server identified in the <tt>:authority</tt> pseudo-header field. Once
+          the host and port identified in the <tt>:authority</tt> pseudo-header field. Once
           this connection is successfully established, the proxy sends a <xref target="HEADERS" format="none">HEADERS</xref>
           frame containing a 2xx series status code to the client, as defined in <xref target="HTTP" section="9.3.6"/>.
         </t>
@@ -3444,19 +3448,16 @@
             For <tt>https</tt> resources, connection reuse additionally depends
             on having a certificate that is valid for the host in the URI.  The certificate
             presented by the server MUST satisfy any checks that the client would perform when
-            forming a new TLS connection for the host in the URI.
-          </t>
-          <t>
-            An origin server might offer a certificate with multiple <tt>subjectAltName</tt> attributes or names with wildcards, one of which is
-            valid for the authority in the URI.  For example, a certificate with a <tt>subjectAltName</tt> of <tt>*.example.com</tt> might
-            permit the use of the same connection for requests to URIs starting with <tt>https://a.example.com/</tt> and <tt>https://b.example.com/</tt>.
+            forming a new TLS connection for the host in the URI.  A single certificate can be
+            used to establish authority for multiple origins.  <xref target="HTTP" section="4.3"/>
+            describes how a client determines whether a server is authoritative for a URI.
           </t>
           <t>
             In some deployments, reusing a connection for multiple origins can result in requests
             being directed to the wrong origin server.  For example, TLS termination might be
             performed by a middlebox that uses the TLS <xref target="TLS-EXT">Server Name Indication
             (SNI)</xref> extension to select an origin server.  This means that it is possible
-            for clients to send confidential information to servers that might not be the intended
+            for clients to send requests to servers that might not be the intended
             target for the request, even though the server is otherwise authoritative.
           </t>
           <t>
@@ -3607,8 +3608,8 @@
       <section anchor="authority">
         <name>Server Authority</name>
         <t>
-          HTTP/2 relies on the HTTP/1.1 definition of authority for determining whether a server is
-          authoritative in providing a given response (see <xref target="HTTP" section="17.1"/>).
+          HTTP/2 relies on the HTTP definition of authority for determining whether a server is
+          authoritative in providing a given response (see <xref target="HTTP" section="4.3"/>).
           This relies on local name resolution for the "http" URI scheme and the authenticated server
           identity for the "https" scheme.
         </t>
@@ -3644,18 +3645,18 @@
       <section>
         <name>Intermediary Encapsulation Attacks</name>
         <t>
-          The HTTP/2 header field encoding allows the expression of names that are not valid field
-          names in the Internet Message Syntax used by HTTP/1.1.  Requests or responses containing
-          invalid header field names MUST be treated as <xref target="malformed">malformed</xref>.
+          The HTTP/2 field block encoding allows the expression of names that are not valid field
+          names in HTTP.  Requests or responses containing
+          invalid field names MUST be treated as <xref target="malformed">malformed</xref>.
           An intermediary therefore cannot translate an HTTP/2 request or response containing an
           invalid field name into an HTTP/1.1 message.
         </t>
         <t>
-          Similarly, HTTP/2 allows header field values that are not valid.  While most of the values
+          Similarly, HTTP/2 allows field values that are not valid.  While most of the values
           that can be encoded will not alter header field parsing, carriage return (CR, ASCII 0xd),
           line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII 0x0) might be exploited by
           an attacker if they are translated verbatim.  Any request or response that contains a
-          character not permitted in a header field value MUST be treated as <xref target="malformed">malformed</xref>.  Valid characters are defined by the <tt>field-content</tt> ABNF rule in <xref target="HTTP" section="5.5"/>.
+          character not permitted in a field value MUST be treated as <xref target="malformed">malformed</xref>.  Valid characters are defined by the <tt>field-content</tt> ABNF rule in <xref target="HTTP" section="5.5"/>.
         </t>
       </section>
       <section>
@@ -3735,29 +3736,29 @@
           <xref target="ENHANCE_YOUR_CALM" format="none">ENHANCE_YOUR_CALM</xref>.
         </t>
         <section anchor="MaxHeaderBlock">
-          <name>Limits on Header Block Size</name>
+          <name>Limits on Field Block Size</name>
           <t>
-            A large <xref target="HeaderBlock">header block</xref> can cause an implementation to
-            commit a large amount of state.  Header fields that are critical for routing can appear
-            toward the end of a header block, which prevents streaming of header fields to their
+            A large <xref target="HeaderBlock">field block</xref> can cause an implementation to
+            commit a large amount of state.  Field lines that are critical for routing can appear
+            toward the end of a field block, which prevents streaming of fields to their
             ultimate destination.  This ordering and other reasons, such as ensuring cache
-            correctness, mean that an endpoint might need to buffer the entire header block.  Since
-            there is no hard limit to the size of a header block, some endpoints could be forced to
-            commit a large amount of available memory for header fields.
+            correctness, mean that an endpoint might need to buffer the entire field block.  Since
+            there is no hard limit to the size of a field block, some endpoints could be forced to
+            commit a large amount of available memory for field blocks.
           </t>
           <t>
             An endpoint can use the <xref target="SETTINGS_MAX_HEADER_LIST_SIZE" format="none">SETTINGS_MAX_HEADER_LIST_SIZE</xref> to advise peers of
-            limits that might apply on the size of header blocks.  This setting is only advisory, so
-            endpoints MAY choose to send header blocks that exceed this limit and risk having the
+            limits that might apply on the size of field blocks.  This setting is only advisory, so
+            endpoints MAY choose to send field blocks that exceed this limit and risk having the
             request or response being treated as malformed.  This setting is specific to a
             connection, so any request or response could encounter a hop with a lower, unknown
             limit.  An intermediary can attempt to avoid this problem by passing on values presented
-            by different peers, but they are not obligated to do so.
+            by different peers, but they are not obliged to do so.
           </t>
           <t>
-            A server that receives a larger header block than it is willing to handle can send an
+            A server that receives a larger field block than it is willing to handle can send an
             HTTP 431 (Request Header Fields Too Large) status code <xref target="RFC6585"/>.  A
-            client can discard responses that it cannot process.  The header block MUST be processed
+            client can discard responses that it cannot process.  The field block MUST be processed
             to ensure a consistent connection state, unless the connection is closed.
           </t>
         </section>
@@ -3778,7 +3779,7 @@
         <name>Use of Compression</name>
         <t>
           Compression can allow an attacker to recover secret data when it is compressed in the same
-          context as data under attacker control.  HTTP/2 enables compression of header fields
+          context as data under attacker control.  HTTP/2 enables compression of field lines
           (<xref target="HeaderBlock"/>); the following concerns also apply to the use of HTTP
           compressed content-codings (<xref target="HTTP" section="8.4.1"/>).
         </t>
@@ -3803,7 +3804,7 @@
         <name>Use of Padding</name>
         <t>
           Padding within HTTP/2 is not intended as a replacement for general purpose padding, such
-          as might be provided by <xref target="TLS13">TLS</xref>.  Redundant padding could even be
+          as that provided by <xref target="TLS13">TLS</xref>.  Redundant padding could even be
           counterproductive.  Correct application can depend on having specific knowledge of the
           data that is being padded.
         </t>
