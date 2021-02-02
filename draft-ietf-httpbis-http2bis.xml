@@ -13,13 +13,13 @@
 <?rfc-ext allow-markup-in-artwork="yes" ?>
 <?rfc-ext include-index="no" ?>
 <!DOCTYPE rfc SYSTEM "rfc2629-xhtml.ent">
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:x="http://purl.org/net/xml2rfc/ext" ipr="trust200902" category="std" docName="draft-thomson-httpbis-http2bis-latest" tocInclude="true" symRefs="true" sortRefs="true" version="3" submissionType="IETF" obsoletes="7540">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:x="http://purl.org/net/xml2rfc/ext" ipr="trust200902" category="std" docName="draft-ietf-httpbis-http2bis-latest" tocInclude="true" symRefs="true" sortRefs="true" version="3" submissionType="IETF" obsoletes="7540,8740">
   <!--
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
   -->
   <front>
     <title abbrev="HTTP/2">Hypertext Transfer Protocol Version 2 (HTTP/2)</title>
-    <seriesInfo name="Internet-Draft" value="draft-thomson-httpbis-http2bis-latest"/>
+    <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-http2bis-latest"/>
     <author initials="M." surname="Thomson" fullname="Martin Thomson" role="editor">
       <organization>Mozilla</organization>
       <address>
@@ -27,6 +27,12 @@
           <country>Australia</country>
         </postal>
         <email>mt@lowentropy.net</email>
+      </address>
+    </author>
+    <author initials="C." surname="Benfield" fullname="Cory Benfield" role="editor">
+      <organization>Apple Inc.</organization>
+      <address>
+        <email>cbenfield@apple.com</email>
       </address>
     </author>
     <area>Applications</area>
@@ -56,7 +62,7 @@
       </t>
       <t>
         Source for this draft and an issue tracker can be found at
-        <eref target="https://github.com/martinthomson/http2-spec"/>.
+        <eref target="https://github.com/httpwg/http2-spec"/>.
       </t>
     </note>
   </front>
@@ -238,7 +244,7 @@
           and server at different times.
         </t>
         <t>
-          The term "payload body" is defined in <xref target="RFC7230" section="3.3"/>.
+          The term "content" as it applies to message bodies is defined in <xref target="draft-ietf-httpbis-semantics-14" section="6.4"/>.
         </t>
       </section>
     </section>
@@ -268,7 +274,7 @@
         <ul spacing="normal">
           <li>
             <t>
-                The string "h2" identifies the protocol where HTTP/2 uses <xref target="TLS12">Transport Layer Security (TLS)</xref>.  This identifier is used in the <xref target="TLS-ALPN">TLS application-layer protocol negotiation (ALPN) extension</xref>
+                The string "h2" identifies the protocol where HTTP/2 uses <xref target="TLS13">Transport Layer Security (TLS)</xref>.  This identifier is used in the <xref target="TLS-ALPN">TLS application-layer protocol negotiation (ALPN) extension</xref>
                 field and in any place where HTTP/2 over TLS is identified.
             </t>
             <t>
@@ -307,11 +313,11 @@
   Host: server.example.com
   Connection: Upgrade, HTTP2-Settings
   Upgrade: h2c
-  HTTP2-Settings: <base64url encoding of HTTP/2 SETTINGS payload>
+  HTTP2-Settings: <base64url encoding of HTTP/2 SETTINGS frame payload>
 
 ]]></artwork>
         <t>
-          Requests that contain a payload body MUST be sent in their entirety before the client can
+          Requests that contain message content MUST be sent in their entirety before the client can
           send HTTP/2 frames.  This means that a large request can block the use of the connection
           until it is completely sent.
         </t>
@@ -381,7 +387,7 @@
           </t>
           <t>
             The content of the <tt>HTTP2-Settings</tt> header field is the
-            payload of a <xref target="SETTINGS" format="none">SETTINGS</xref> frame (<xref target="SETTINGS"/>), encoded as a
+            frame payload of a <xref target="SETTINGS" format="none">SETTINGS</xref> frame (<xref target="SETTINGS"/>), encoded as a
             base64url string (that is, the URL- and filename-safe Base64 encoding described in
             <xref target="RFC4648" section="5"/>, with any trailing '=' characters omitted).  The
             <xref target="RFC5234">ABNF</xref> production for <tt>token68</tt> is
@@ -404,7 +410,7 @@
       <section anchor="discover-https">
         <name>Starting HTTP/2 for "https" URIs</name>
         <t>
-          A client that makes a request to an "https" URI uses <xref target="TLS12">TLS</xref> with
+          A client that makes a request to an "https" URI uses <xref target="TLS13">TLS</xref> with
           the <xref target="TLS-ALPN">application-layer protocol negotiation (ALPN)
             extension</xref>.
         </t>
@@ -507,7 +513,7 @@
       <section anchor="FrameHeader">
         <name>Frame Format</name>
         <t>
-          All frames begin with a fixed 9-octet header followed by a variable-length payload.
+          All frames begin with a fixed 9-octet header followed by a variable-length frame payload.
         </t>
         <figure anchor="FrameLayout">
           <name>Frame Layout</name>
@@ -592,7 +598,7 @@
         </t>
         <aside>
           <t>Note: Certain frame types, such as <xref target="PING">PING</xref>, impose additional limits
-            on the amount of payload data allowed.
+            on the amount of frame payload data allowed.
           </t>
         </aside>
         <t>
@@ -623,7 +629,7 @@
           Header lists are collections of zero or more header fields.  When transmitted over a
           connection, a header list is serialized into a header block using <xref target="COMPRESSION">HTTP header compression</xref>.  The serialized header block is then
           divided into one or more octet sequences, called header block fragments, and transmitted
-          within the payload of <xref target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>, or <xref target="CONTINUATION">CONTINUATION</xref> frames.
+          within the frame payload of <xref target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>, or <xref target="CONTINUATION">CONTINUATION</xref> frames.
         </t>
         <t>
           The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
@@ -663,7 +669,7 @@
           equivalent to a single frame.
         </t>
         <t>
-          Header block fragments can only be sent as the payload of <xref target="HEADERS" format="none">HEADERS</xref>,
+          Header block fragments can only be sent as the frame payload of <xref target="HEADERS" format="none">HEADERS</xref>,
           <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames because these frames
           carry data that can modify the compression context maintained by a receiver.  An endpoint
           receiving <xref target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or
@@ -1502,13 +1508,22 @@
           <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
         </t>
         <t>
-          Extensions that could change the semantics of existing protocol components MUST be
-          negotiated before being used.  For example, an extension that changes the layout of the
-          <xref target="HEADERS" format="none">HEADERS</xref> frame cannot be used until the peer has given a positive signal
-          that this is acceptable.  In this case, it could also be necessary to coordinate when the
-          revised layout comes into effect.  Note that treating any frames other than
-          <xref target="DATA" format="none">DATA</xref> frames as flow controlled is such a change in semantics and can only
-          be done through negotiation.
+          Extensions SHOULD avoiding changing protocol elements defined in this document or
+          elements for which no extension mechanism is defined.  This includes changes to the
+          layout of frames, additions or changes to the way that frames are composed into <xref
+          target="HTTPLayer">HTTP messages</xref>, the definition of pseudo-header fields, or
+          changes to any protocol element that a compliant endpoint might treat as a <xref
+          target="ConnectionErrorHandler">connection error</xref>.
+        </t>
+        <t>
+          An extension that changes existing elements MUST be negotiated before being used.  For
+          example, an extension that changes the layout of the <xref target="HEADERS"
+          format="none">HEADERS</xref> frame cannot be used until the peer has given a positive
+          signal that this is acceptable.  In this case, it could also be necessary to coordinate
+          when the revised layout comes into effect.  For example, treating frames other than
+          <xref target="DATA" format="none">DATA</xref> frames as flow controlled requires a
+          change in semantics that both endpoints need to understand, so this can only be done
+          through negotiation.
         </t>
         <t>
           This document doesn't mandate a specific method for negotiating the use of an extension
@@ -1537,7 +1552,7 @@
         <t>
           DATA frames (type=0x0) convey arbitrary, variable-length sequences of octets associated
           with a stream. One or more DATA frames are used, for instance, to carry HTTP request or
-          response payloads.
+          response message contents.
         </t>
         <t>
           DATA frames MAY also contain padding.  Padding can be added to DATA frames to obscure the
@@ -1719,7 +1734,7 @@
           </dd>
         </dl>
         <t>
-          The payload of a HEADERS frame contains a <xref target="HeaderBlock">header block
+          The frame payload of a HEADERS frame contains a <xref target="HeaderBlock">header block
           fragment</xref>.  A header block that does not fit within a HEADERS frame is continued in
           a <xref target="CONTINUATION">CONTINUATION frame</xref>.
         </t>
@@ -1763,7 +1778,7 @@
 ]]></artwork>
         </figure>
         <t>
-          The payload of a PRIORITY frame contains the following fields:
+          The frame payload of a PRIORITY frame contains the following fields:
         </t>
         <dl newline="false" spacing="normal">
           <dt>E:</dt>
@@ -1887,7 +1902,7 @@
           <dt>ACK (0x1):</dt>
           <dd>
               When set, bit 0 indicates that this frame acknowledges receipt and application of the
-              peer's SETTINGS frame.  When this bit is set, the payload of the SETTINGS frame MUST
+              peer's SETTINGS frame.  When this bit is set, the frame payload of the SETTINGS frame MUST
               be empty.  Receipt of a SETTINGS frame with the ACK flag set and a length field value
               other than 0 MUST be treated as a <xref target="ConnectionErrorHandler">connection
               error</xref> of type <xref target="FRAME_SIZE_ERROR" format="none">FRAME_SIZE_ERROR</xref>.  For more information, see <xref target="SettingsSync"/> ("<xref target="SettingsSync" format="title"/>").
@@ -1912,7 +1927,7 @@
         <section anchor="SettingFormat">
           <name>SETTINGS Format</name>
           <t>
-            The payload of a SETTINGS frame consists of zero or more parameters, each consisting of
+            The frame payload of a SETTINGS frame consists of zero or more parameters, each consisting of
             an unsigned 16-bit setting identifier and an unsigned 32-bit value.
           </t>
           <figure anchor="SettingFormatFigure">
@@ -2054,7 +2069,7 @@
           thorough description of the use of PUSH_PROMISE frames.
         </t>
         <figure anchor="PUSH_PROMISEPayloadFormat">
-          <name>PUSH_PROMISE Payload Format</name>
+          <name>PUSH_PROMISE Frame Payload</name>
           <artwork type="inline"><![CDATA[
  +---------------+
  |Pad Length? (8)|
@@ -2178,7 +2193,7 @@
           frames can be sent from any endpoint.
         </t>
         <figure anchor="PINGPayloadFormat">
-          <name>PING Payload Format</name>
+          <name>PING Frame Payload</name>
           <artwork type="inline"><![CDATA[
  +---------------------------------------------------------------+
  |                                                               |
@@ -2188,12 +2203,12 @@
 ]]></artwork>
         </figure>
         <t>
-          In addition to the frame header, PING frames MUST contain 8 octets of opaque data in the payload.
+          In addition to the frame header, PING frames MUST contain 8 octets of opaque data in the frame payload.
           A sender can include any value it chooses and use those octets in any fashion.
         </t>
         <t>
           Receivers of a PING frame that does not include an ACK flag MUST send a PING frame with
-          the ACK flag set in response, with an identical payload.  PING responses SHOULD be given
+          the ACK flag set in response, with an identical frame payload.  PING responses SHOULD be given
           higher priority than any other frame.
         </t>
         <t>
@@ -2263,7 +2278,7 @@
           terminating the connection.
         </t>
         <figure anchor="GOAWAYPayloadFormat">
-          <name>GOAWAY Payload Format</name>
+          <name>GOAWAY Frame Payload</name>
           <artwork type="inline"><![CDATA[
  +-+-------------------------------------------------------------+
  |R|                  Last-Stream-ID (31)                        |
@@ -2347,7 +2362,7 @@
           contains the reason for closing the connection.
         </t>
         <t>
-          Endpoints MAY append opaque data to the payload of any GOAWAY frame.  Additional debug
+          Endpoints MAY append opaque data to the frame payload of any GOAWAY frame.  Additional debug
           data is intended for diagnostic purposes only and carries no semantic value.  Debug
           information could contain security- or privacy-sensitive data.  Logged or otherwise
           persistently stored debug data MUST have adequate safeguards to prevent unauthorized
@@ -2378,7 +2393,7 @@
           <xref target="FLOW_CONTROL_ERROR" format="none">FLOW_CONTROL_ERROR</xref> if it is unable to accept a frame.
         </t>
         <figure anchor="WINDOW_UPDATEPayloadFormat">
-          <name>WINDOW_UPDATE Payload Format</name>
+          <name>WINDOW_UPDATE Frame Payload</name>
           <artwork type="inline"><![CDATA[
  +-+-------------------------------------------------------------+
  |R|              Window Size Increment (31)                     |
@@ -2386,7 +2401,7 @@
 ]]></artwork>
         </figure>
         <t>
-          The payload of a WINDOW_UPDATE frame is one reserved bit plus an unsigned 31-bit integer
+          The frame payload of a WINDOW_UPDATE frame is one reserved bit plus an unsigned 31-bit integer
           indicating the number of octets that the sender can transmit in addition to the existing
           flow-control window.  The legal range for the increment to the flow-control window is 1 to
           2<sup>31</sup>-1 (2,147,483,647) octets.
@@ -2705,7 +2720,7 @@
               frames) containing the message headers (see <xref target="RFC7230" section="3.2"/>),
             </li>
           <li>
-              zero or more <xref target="DATA" format="none">DATA</xref> frames containing the payload body (see <xref target="RFC7230" section="3.3"/>), and
+              zero or more <xref target="DATA" format="none">DATA</xref> frames containing the message content (see <xref target="draft-ietf-httpbis-semantics-14" section="6.4"/>), and
             </li>
           <li>
               optionally, one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
@@ -2722,20 +2737,24 @@
           and any <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames that might follow.
         </t>
         <t>
-          HTTP/2 uses DATA frames to carry message payloads.  The <tt>chunked</tt> transfer encoding defined in <xref target="RFC7230" section="4.1"/> MUST NOT be used in HTTP/2.
+          HTTP/2 uses DATA frames to carry message content.  The <tt>chunked</tt> transfer encoding defined in <xref target="RFC7230" section="4.1"/> MUST NOT be used in HTTP/2.
         </t>
         <t>
-          Trailing header fields are carried in a header block that also terminates the stream.
-          Such a header block is a sequence starting with a <xref target="HEADERS" format="none">HEADERS</xref> frame, followed
-          by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames, where the <xref target="HEADERS" format="none">HEADERS</xref> frame
-          bears an END_STREAM flag.  Header blocks after the first that do not terminate the stream
-          are not part of an HTTP request or response.
+          Trailer fields are carried in a header block that also terminates the stream.  That is,
+          trailer fields comprise a sequence starting with a <xref target="HEADERS"
+          format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION"
+          format="none">CONTINUATION</xref> frames, where the <xref target="HEADERS"
+          format="none">HEADERS</xref> frame bears an END_STREAM flag.  Trailers MUST NOT include
+          <xref target="PseudoHeaderFields">pseudo-header fields</xref>.  An endpoint that receives
+          pseudo-header fields in trailers MUST treat the request or response as <xref
+          target="malformed">malformed</xref>.
         </t>
         <t>
-          A <xref target="HEADERS" format="none">HEADERS</xref> frame (and associated <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) can
-          only appear at the start or end of a stream.  An endpoint that receives a
-          <xref target="HEADERS" format="none">HEADERS</xref> frame without the END_STREAM flag set after receiving a final
-          (non-informational) status code MUST treat the corresponding request or response as <xref target="malformed">malformed</xref>.
+          An endpoint that receives a <xref target="HEADERS" format="none">HEADERS</xref> frame
+          without the END_STREAM flag set after receiving the <xref target="HEADERS"
+          format="none">HEADERS</xref> frame that opens a request or after receiving a final
+          (non-informational) status code MUST treat the corresponding request or response as <xref
+          target="malformed">malformed</xref>.
         </t>
         <t>
           An HTTP request/response exchange fully consumes a single stream.  A request starts with
@@ -2790,8 +2809,10 @@
               ':' character (ASCII 0x3a) for this purpose.
             </t>
             <t>
-              Pseudo-header fields are not HTTP header fields. Endpoints MUST NOT generate
-              pseudo-header fields other than those defined in this document.
+              Pseudo-header fields are not HTTP header fields.  Endpoints MUST NOT generate
+              pseudo-header fields other than those defined in this document.  Note that an
+              extension could negotiate the use of additional pseudo-header fields; see
+              <xref target="extensibility"/>.
             </t>
             <t>
               Pseudo-header fields are only valid in the context in which they are defined.
@@ -2820,11 +2841,9 @@
               request; when it is, it MUST NOT contain any value other than "trailers".
             </t>
             <t>
-              This means that an intermediary transforming an HTTP/1.x message to HTTP/2 will need
-              to remove any header fields nominated by the Connection header field, along with the
-              Connection header field itself. Such intermediaries SHOULD also remove other
-              connection-specific header fields, such as Keep-Alive, Proxy-Connection,
-              Transfer-Encoding, and Upgrade, even if they are not nominated by the Connection header field.
+              An intermediary transforming a HTTP/1.x message to HTTP/2 MUST remove connection-specific
+              header fields as discussed in <xref target="draft-ietf-httpbis-semantics-14" section="7.6.1"></xref>,
+              or their messages will be treated by other HTTP/2 endpoints as <xref target="malformed">malformed</xref>.
             </t>
             <aside>
               <t>Note:
@@ -2954,10 +2973,10 @@
               header field names.
             </t>
             <t>
-              A request or response that includes a payload body can include a <tt>content-length</tt> header field.  A request or response is also
+              A request or response that includes message content can include a <tt>content-length</tt> header field.  A request or response is also
               malformed if the value of a <tt>content-length</tt> header field
               does not equal the sum of the <xref target="DATA" format="none">DATA</xref> frame payload lengths that form the
-              body.  A response that is defined to have no payload, as described in <xref target="RFC7230"/>, can have a non-zero
+              content.  A response that is defined to have no content, as described in <xref target="RFC7230"/>, can have a non-zero
               <tt>content-length</tt> header field, even though no content is
               included in <xref target="DATA" format="none">DATA</xref> frames.
             </t>
@@ -2982,7 +3001,7 @@
             HTTP/2 requests and responses.
           </t>
           <t>
-            An HTTP GET request includes request header fields and no payload body and is therefore
+            An HTTP GET request includes request header fields and no message content and is therefore
             transmitted as a single <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
             <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the serialized block of request header
             fields.  The <xref target="HEADERS" format="none">HEADERS</xref> frame in the following has both the END_HEADERS and
@@ -3013,7 +3032,7 @@
                                        expires = Thu, 23 Jan ...
 ]]></artwork>
           <t>
-            An HTTP POST request that includes request header fields and payload data is transmitted
+            An HTTP POST request that includes request header fields and message content is transmitted
             as one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
             <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the request header fields, followed by one
             or more <xref target="DATA" format="none">DATA</xref> frames, with the last <xref target="CONTINUATION" format="none">CONTINUATION</xref> (or
@@ -3044,7 +3063,7 @@
               illustrative only.
           </t>
           <t>
-            A response that includes header fields and payload data is transmitted as a
+            A response that includes header fields and message content is transmitted as a
             <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref>
             frames, followed by one or more <xref target="DATA" format="none">DATA</xref> frames, with the last
             <xref target="DATA" format="none">DATA</xref> frame in the sequence having the END_STREAM flag set:
@@ -3163,9 +3182,9 @@
         </t>
         <t>
           Promised requests MUST be cacheable (see <xref target="RFC7231" section="4.2.3"/>), MUST be safe
-          (see <xref target="RFC7231" section="4.2.1"/>), and MUST NOT include a request body. Clients that receive a
+          (see <xref target="RFC7231" section="4.2.1"/>), and MUST NOT include any content. Clients that receive a
           promised request that is not cacheable, that is not known to be safe, or that indicates the
-          presence of a request body MUST reset the promised stream with a <xref target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
+          presence of request content MUST reset the promised stream with a <xref target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
           Note this could result in the promised stream being reset if the client does not recognize
           a newly defined method as being safe.
         </t>
@@ -3208,7 +3227,7 @@
           <t>
             The <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame includes a header block that contains a complete
             set of request header fields that the server attributes to the request. It is not
-            possible to push a response to a request that includes a request body.
+            possible to push a response to a request that includes message content.
           </t>
           <t>
             Promised requests are always associated with an explicit request from the client. The
@@ -3342,7 +3361,7 @@
         </t>
         <t>
           After the initial <xref target="HEADERS" format="none">HEADERS</xref> frame sent by each peer, all subsequent
-          <xref target="DATA" format="none">DATA</xref> frames correspond to data sent on the TCP connection.  The payload of
+          <xref target="DATA" format="none">DATA</xref> frames correspond to data sent on the TCP connection.  The frame payload of
           any <xref target="DATA" format="none">DATA</xref> frames sent by the client is transmitted by the proxy to the TCP
           server; data received from the TCP server is assembled into <xref target="DATA" format="none">DATA</xref> frames by
           the proxy.  Frame types other than <xref target="DATA" format="none">DATA</xref> or stream management frames
@@ -3440,36 +3459,12 @@
           <t>
             A server that does not wish clients to reuse connections can indicate that it is not
             authoritative for a request by sending a 421 (Misdirected Request) status code in response
-            to the request (see <xref target="MisdirectedRequest"/>).
+            to the request (see <xref target="draft-ietf-httpbis-semantics-14" section="15.5.20"/>).
           </t>
           <t>
             A client that is configured to use a proxy over HTTP/2 directs requests to that proxy
             through a single connection.  That is, all requests sent via a proxy reuse the
             connection to the proxy.
-          </t>
-        </section>
-        <section anchor="MisdirectedRequest">
-          <name>The 421 (Misdirected Request) Status Code</name>
-          <t>
-            The 421 (Misdirected Request) status code indicates that the request was directed at a
-            server that is not able to produce a response.  This can be sent by a server that is not
-            configured to produce responses for the combination of scheme and authority that are
-            included in the request URI.
-          </t>
-          <t>
-            Clients receiving a 421 (Misdirected Request) response from a server MAY retry the
-            request -- whether the request method is idempotent or not -- over a different connection.
-            This is possible if a connection is reused (<xref target="reuse"/>) or if an alternative
-            service is selected <xref target="ALT-SVC"/>.
-          </t>
-          <t>
-            This status code MUST NOT be generated by proxies.
-          </t>
-          <t>
-            A 421 response is cacheable by default, i.e., unless otherwise indicated by the method
-            definition or explicit cache controls (see <xref target="RFC7234" section="4.2.2"/>).  However, it is
-            likely that caching is not desirable as a 421 response is connection-specific, which
-            is not part of a cache key.  421 responses SHOULD therefore be marked as uncacheable.
           </t>
         </section>
       </section>
@@ -3482,16 +3477,18 @@
         </t>
         <t>
           The TLS implementation MUST support the <xref target="TLS-EXT">Server Name Indication
-          (SNI)</xref> extension to TLS. HTTP/2 clients MUST indicate the target domain name when
-          negotiating TLS.
+          (SNI)</xref> extension to TLS.  If the server is identified by a <xref
+          target="DNS-TERMS">domain name</xref>, clients MUST send the server_name TLS extension
+          unless an alternative mechanism to indicate the target host is used.
         </t>
         <t>
-          Deployments of HTTP/2 that negotiate TLS 1.3 or higher need only support and use the SNI
-          extension; deployments of TLS 1.2 are subject to the requirements in the following
-          sections.  Implementations are encouraged to provide defaults that comply, but it is
-          recognized that deployments are ultimately responsible for compliance.
+          Requirements for deployments of HTTP/2 that negotiate <xref target="TLS13">TLS 1.3</xref>
+          are included in <xref target="tls13features"/>.  Deployments of TLS 1.2 are subject to
+          the requirements in <xref target="tls12features"/> and <xref target="tls12ciphers"/>.
+          Implementations are encouraged to provide defaults that comply, but it is recognized that
+          deployments are ultimately responsible for compliance.
         </t>
-        <section>
+        <section anchor="tls12features">
           <name>TLS 1.2 Features</name>
           <t>
             This section describes restrictions on the TLS 1.2 feature set that can be used with
@@ -3528,14 +3525,14 @@
           </t>
           <t>
             Implementations MUST support ephemeral key exchange sizes of at least 2048 bits for
-            cipher suites that use ephemeral finite field Diffie-Hellman (DHE) <xref target="TLS12"/> and 224 bits for cipher suites that use ephemeral elliptic curve
+            cipher suites that use ephemeral finite field Diffie-Hellman (DHE) <xref target="TLS13"/> and 224 bits for cipher suites that use ephemeral elliptic curve
             Diffie-Hellman (ECDHE) <xref target="RFC4492"/>.  Clients MUST accept DHE sizes of up
             to 4096 bits.  Endpoints MAY treat negotiation of key sizes smaller than the lower
             limits as a <xref target="ConnectionErrorHandler">connection error</xref> of type
             <xref target="INADEQUATE_SECURITY" format="none">INADEQUATE_SECURITY</xref>.
           </t>
         </section>
-        <section>
+        <section anchor="tls12ciphers">
           <name>TLS 1.2 Cipher Suites</name>
           <t>
             A deployment of HTTP/2 over TLS 1.2 SHOULD NOT use any of the cipher suites that are
@@ -3568,6 +3565,37 @@
             However, this can result in HTTP/2 being negotiated with a prohibited cipher suite if
             the application protocol and cipher suite are independently selected.
           </t>
+        </section>
+        <section anchor="tls13features">
+          <name>TLS 1.3 Features</name>
+          <t>
+            TLS 1.3 includes a number of features not available in earlier versions.  This section
+            discusses the use of these features.
+          </t>
+          <t>
+            HTTP/2 servers MUST NOT send post-handshake TLS 1.3 CertificateRequest messages.  HTTP/2
+            clients MUST treat a TLS post-handshake CertificateRequest message as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type <xref
+            target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
+          </t>
+          <t>
+            The prohibition on post-handshake authentication applies even if the client offered the
+            "post_handshake_auth" TLS extension.  Post-handshake authentication support might be
+            advertised independently of <xref target="TLS-ALPN">ALPN</xref>.  Clients might offer
+            the capability for use in other protocols, but inclusion of the extension cannot imply
+            support within HTTP/2.
+          </t>
+          <t>
+            <xref target="TLS13"/> defines other post-handshake messages, NewSessionTicket and
+            KeyUpdate, which can be used as they have no direct interaction with HTTP/2.  Unless the
+            use of a new type of TLS message depends on an interaction with the application-layer
+            protocol, that TLS message can be sent after the handshake completes.
+          </t>
+	        <t>
+	          TLS early data MAY be used to send requests, provided that the guidance in <xref
+	          target="RFC8470"/> is observed.  Clients send requests in early data assuming initial
+	          values for all server settings.
+	        </t>
         </section>
       </section>
     </section>
@@ -3772,7 +3800,7 @@
         <name>Use of Padding</name>
         <t>
           Padding within HTTP/2 is not intended as a replacement for general purpose padding, such
-          as might be provided by <xref target="TLS12">TLS</xref>.  Redundant padding could even be
+          as might be provided by <xref target="TLS13">TLS</xref>.  Redundant padding could even be
           counterproductive.  Correct application can depend on having specific knowledge of the
           data that is being padded.
         </t>
@@ -3790,8 +3818,8 @@
           best, padding only makes it more difficult for an attacker to infer length information by
           increasing the number of frames an attacker has to observe.  Incorrectly implemented
           padding schemes can be easily defeated.  In particular, randomized padding with a
-          predictable distribution provides very little protection; similarly, padding payloads to a
-          fixed size exposes information as payload sizes cross the fixed-sized boundary, which could
+          predictable distribution provides very little protection; similarly, padding frame payloads to a
+          fixed size exposes information as frame payload sizes cross the fixed-sized boundary, which could
           be possible if an attacker can control plaintext.
         </t>
         <t>
@@ -3839,7 +3867,7 @@
       </t>
       <t>
         This document registers the <tt>HTTP2-Settings</tt> header field for
-        use in HTTP; it also registers the 421 (Misdirected Request) status code.
+        use in HTTP.
       </t>
       <t>
         This document registers the <tt>PRI</tt> method for use in HTTP to avoid
@@ -4304,26 +4332,6 @@
             </dd>
         </dl>
       </section>
-      <section anchor="iana-MisdirectedRequest">
-        <name>The 421 (Misdirected Request) HTTP Status Code</name>
-        <t>
-          This document registers the 421 (Misdirected Request) HTTP status code in the
-          "HTTP Status Codes" registry (<xref target="RFC7231" section="8.2"/>).
-        </t>
-        <dl newline="false" spacing="normal">
-          <dt>Status Code:</dt>
-          <dd>
-              421
-            </dd>
-          <dt>Short Description:</dt>
-          <dd>
-              Misdirected Request
-            </dd>
-          <dt>Specification:</dt>
-          <dd><xref target="MisdirectedRequest"/> of this document
-            </dd>
-        </dl>
-      </section>
       <section anchor="iana-h2c">
         <name>The h2c Upgrade Token</name>
         <t>
@@ -4453,6 +4461,26 @@
             <date year="2008" month="August"/>
           </front>
         </reference>
+        <reference anchor="TLS13">
+          <front>
+            <title>The Transport Layer Security (TLS) Protocol Version 1.3</title>
+            <seriesInfo name="RFC" value="8446"/>
+            <seriesInfo name="DOI" value="10.17487/RFC8446"/>
+            <author initials="E." surname="Rescorla" fullname="E. Rescorla"/>
+            <date year="2018" month="August" />
+          </front>
+        </reference>
+	<reference anchor="RFC8470">
+	  <front>
+	    <title>Using Early Data in HTTP</title>
+	    <seriesInfo name="RFC" value="8470"/>
+	    <seriesInfo name="DOI" value="10.17487/RFC8470"/>
+	    <author initials="M." surname="Thomson" fullname="M. Thomson"/>
+	    <author initials="M." surname="Nottingham" fullname="M. Nottingham"/>
+	    <author initials="W." surname="Tarreau" fullname="W. Tarreau"/>
+	    <date year="2018" month="September"/>
+	  </front>
+	</reference>
         <reference anchor="TLS-EXT">
           <front>
             <title>
@@ -4768,6 +4796,43 @@
             <date year="2016" month="April"/>
           </front>
         </reference>
+        <reference anchor="DNS-TERMS">
+          <front>
+            <title>DNS Terminology</title>
+            <seriesInfo name="BCP" value="219"/>
+            <seriesInfo name="RFC" value="8499"/>
+            <seriesInfo name="DOI" value="10.17487/RFC8499"/>
+            <author initials="P." surname="Hoffman" fullname="P. Hoffman"/>
+            <author initials="A." surname="Sullivan" fullname="A. Sullivan"/>
+            <author initials="K." surname="Fujiwara" fullname="K. Fujiwara"/>
+            <date year="2019" month="January" />
+          </front>
+        </reference>
+        <reference anchor="draft-ietf-httpbis-semantics-14">
+          <front>
+            <title>HTTP Semantics</title>
+            <author fullname="Roy T. Fielding"
+                    initials="R."
+                    surname="Fielding"
+                    role="editor">
+              <organization>Adobe</organization>
+            </author>
+            <author fullname="Mark Nottingham"
+                    initials="M."
+                    surname="Nottingham"
+                    role="editor">
+              <organization>Fastly</organization>
+            </author>
+            <author fullname="Julian Reschke"
+                    initials="J."
+                    surname="Reschke"
+                    role="editor">
+              <organization abbrev="greenbytes">greenbytes GmbH</organization>
+            </author>
+            <date year="2021" month="January" day="13"/>
+          </front>
+          <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-semantics-14"/>
+        </reference>
       </references>
     </references>
     <section anchor="BadCipherSuites">
@@ -5068,8 +5133,13 @@
     <section>
       <name>Changes from RFC 7540</name>
       <t>
-        This revision makes only editorial updates.
+        This revision includes a number of editorial updates, plus the following substantive changes:
       </t>
+      <ul spacing="normal">
+        <li>
+	  Use of TLS 1.3 is defined based on RFC 8740, which this document obsoletes.
+	</li>
+      </ul>
     </section>
     <section numbered="false">
       <name>Contributors</name>
@@ -5109,7 +5179,10 @@
           </li>
         <li>
             Alexey Melnikov, who was an editor of this document in 2013.
-          </li>
+        </li>
+	<li>
+	  David Benjamin, who was author of RFC 8740, the contents of which are integrated here.
+	</li>
       </ul>
       <t>
         A substantial proportion of Martin's contribution was supported by Microsoft during his
@@ -5123,6 +5196,3 @@
     </section>
   </back>
 </rfc>
-<!--
-  vim:et:tw=100:sw=2:
-  -->
