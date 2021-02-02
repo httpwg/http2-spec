@@ -71,7 +71,7 @@
       <name>Introduction</name>
       <t>
         The Hypertext Transfer Protocol (HTTP) is a wildly successful protocol. However, the way
-        HTTP/1.1 uses the underlying transport (<xref target="RFC7230" section="6"/>) has several
+        HTTP/1.1 uses the underlying transport (<xref target="HTTP11"/>) has several
         characteristics that have a negative overall effect on application performance today.
       </t>
       <t>
@@ -240,11 +240,12 @@
         </dl>
         <t>
           Finally, the terms "gateway", "intermediary", "proxy", and "tunnel" are defined in
-          <xref target="RFC7230" section="2.3"/>.  Intermediaries act as both client
+          <xref target="HTTP" section="3.7"/>.  Intermediaries act as both client
           and server at different times.
         </t>
         <t>
-          The term "content" as it applies to message bodies is defined in <xref target="draft-ietf-httpbis-semantics-14" section="6.4"/>.
+          The term "content" as it applies to message bodies is defined in <xref target="HTTP"
+          section="6.4"/>.
         </t>
       </section>
     </section>
@@ -303,7 +304,7 @@
         <name>Starting HTTP/2 for "http" URIs</name>
         <t>
           A client that makes a request for an "http" URI without prior knowledge about support for
-          HTTP/2 on the next hop uses the HTTP Upgrade mechanism (<xref target="RFC7230" section="6.7"/>). The client does so by making an HTTP/1.1 request that
+          HTTP/2 on the next hop uses the HTTP Upgrade mechanism (<xref target="HTTP" section="7.8"/>). The client does so by making an HTTP/1.1 request that
           includes an Upgrade header field with the "h2c" token. Such an HTTP/1.1 request MUST
           include exactly one <xref target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
         </t>
@@ -391,12 +392,12 @@
             base64url string (that is, the URL- and filename-safe Base64 encoding described in
             <xref target="RFC4648" section="5"/>, with any trailing '=' characters omitted).  The
             <xref target="RFC5234">ABNF</xref> production for <tt>token68</tt> is
-            defined in <xref target="RFC7235" section="2.1"/>.
+            defined in <xref target="HTTP" section="11.2"/>.
           </t>
           <t>
             Since the upgrade is only intended to apply to the immediate connection, a client
             sending the <tt>HTTP2-Settings</tt> header field MUST also send <tt>HTTP2-Settings</tt> as a connection option in the <tt>Connection</tt> header field to prevent it from being forwarded
-            (see <xref target="RFC7230" section="6.1"/>).
+            (see <xref target="HTTP" section="7.6.1"/>).
           </t>
           <t>
             A server decodes and interprets these values as it would any other
@@ -1430,8 +1431,7 @@
           </t>
           <t>
             It is possible that the <xref target="GOAWAY" format="none">GOAWAY</xref> will not be reliably received by the
-            receiving endpoint (<xref target="RFC7230" section="6.6"/> describes how an immediate connection close
-            can result in data loss).  In the event of a connection error,
+            receiving endpoint.  In the event of a connection error,
             <xref target="GOAWAY" format="none">GOAWAY</xref> only provides a best-effort attempt to communicate with the peer
             about why the connection is being terminated.
           </t>
@@ -2688,19 +2688,11 @@
     <section anchor="HTTPLayer">
       <name>HTTP Message Exchanges</name>
       <t>
-        HTTP/2 is intended to be as compatible as possible with current uses of HTTP. This means
-        that, from the application perspective, the features of the protocol are largely
-        unchanged. To achieve this, all request and response semantics are preserved, although the
-        syntax of conveying those semantics has changed.
-      </t>
-      <t>
-        Thus, the specification and requirements of HTTP/1.1 Semantics and Content <xref target="RFC7231"/>, Conditional Requests <xref target="RFC7232"/>, Range Requests <xref target="RFC7233"/>, Caching <xref target="RFC7234"/>, and Authentication <xref target="RFC7235"/> are applicable to HTTP/2. Selected portions of HTTP/1.1 Message Syntax
-        and Routing <xref target="RFC7230"/>, such as the HTTP and HTTPS URI schemes, are also
-        applicable in HTTP/2, but the expression of those semantics for this protocol are defined
-        in the sections below.
+        HTTP/2 defines a framing of the abstract HTTP message abstraction
+        (<xref target="HTTP" section="6"/>).
       </t>
       <section anchor="HttpSequence">
-        <name>HTTP Request/Response Exchange</name>
+        <name>HTTP Message Framing</name>
         <t>
           A client sends an HTTP request on a new stream, using a previously unused <xref target="StreamIdentifiers">stream identifier</xref>.  A server sends an HTTP response on
           the same stream as the request.
@@ -2710,21 +2702,25 @@
         </t>
         <ol spacing="normal" type="1">
           <li>
-              for a response only, zero or more <xref target="HEADERS" format="none">HEADERS</xref> frames (each followed by zero
-              or more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) containing the message headers of
-              informational (1xx) HTTP responses (see <xref target="RFC7230" section="3.2"/> and
-              <xref target="RFC7231" section="6.2"/>),
+              for a response only, zero or more <xref target="HEADERS" format="none">HEADERS</xref>
+              frames (each followed by zero or more <xref target="CONTINUATION"
+              format="none">CONTINUATION</xref> frames) containing the control data and header
+              section of interim (1xx) HTTP responses (see <xref target="HTTP" section="15"/>),
             </li>
           <li>
-              one <xref target="HEADERS" format="none">HEADERS</xref> frame (followed by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref>
-              frames) containing the message headers (see <xref target="RFC7230" section="3.2"/>),
+              one <xref target="HEADERS" format="none">HEADERS</xref> frame (followed by zero or
+              more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) containing
+              the header section (see <xref target="HTTP" section="5"/>),
             </li>
           <li>
-              zero or more <xref target="DATA" format="none">DATA</xref> frames containing the message content (see <xref target="draft-ietf-httpbis-semantics-14" section="6.4"/>), and
+              zero or more <xref target="DATA" format="none">DATA</xref> frames containing the
+              message content (see <xref target="HTTP" section="6.4"/>), and
             </li>
           <li>
-              optionally, one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
-              <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the trailer-part, if present (see <xref target="RFC7230" section="4.1.2"/>).
+              optionally, one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by
+              zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames
+              containing the trailer-part, if present (see <xref target="HTTP"
+              section="6.5"/>).
             </li>
         </ol>
         <t>
@@ -2737,7 +2733,8 @@
           and any <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames that might follow.
         </t>
         <t>
-          HTTP/2 uses DATA frames to carry message content.  The <tt>chunked</tt> transfer encoding defined in <xref target="RFC7230" section="4.1"/> MUST NOT be used in HTTP/2.
+          HTTP/2 uses DATA frames to carry message content.  The <tt>chunked</tt> transfer encoding
+          defined in <xref target="HTTP11" section="7.1"/> cannot be used in HTTP/2.
         </t>
         <t>
           Trailer fields are carried in a header block that also terminates the stream.  That is,
@@ -2780,7 +2777,7 @@
           <name>Upgrading from HTTP/2</name>
           <t>
             HTTP/2 removes support for the 101 (Switching Protocols) informational status code
-            (<xref target="RFC7231" section="6.2.2"/>).
+            (<xref target="HTTP" section="15.2.2"/>).
           </t>
           <t>
             The semantics of 101 (Switching Protocols) aren't applicable to a multiplexed protocol.
@@ -2803,10 +2800,9 @@
           <section anchor="PseudoHeaderFields">
             <name>Pseudo-Header Fields</name>
             <t>
-              While HTTP/1.x used the message start-line (see <xref target="RFC7230" section="3.1"/>)
-              to convey the target URI, the method of the request, and the
-              status code for the response, HTTP/2 uses special pseudo-header fields beginning with
-              ':' character (ASCII 0x3a) for this purpose.
+              While HTTP/1.x used the message start-line (see <xref target="HTTP11" section="2.1"/>)
+              to convey control data, HTTP/2 uses special pseudo-header fields beginning with ':'
+              character (ASCII 0x3a) for this purpose.
             </t>
             <t>
               Pseudo-header fields are not HTTP header fields.  Endpoints MUST NOT generate
@@ -2842,7 +2838,7 @@
             </t>
             <t>
               An intermediary transforming a HTTP/1.x message to HTTP/2 MUST remove connection-specific
-              header fields as discussed in <xref target="draft-ietf-httpbis-semantics-14" section="7.6.1"></xref>,
+              header fields as discussed in <xref target="HTTP" section="7.6.1"></xref>,
               or their messages will be treated by other HTTP/2 endpoints as <xref target="malformed">malformed</xref>.
             </t>
             <aside>
@@ -2862,7 +2858,7 @@
               <li>
                 <t>
                     The <tt>:method</tt> pseudo-header field includes the HTTP
-                    method (<xref target="RFC7231" section="4"/>).
+                    method (<xref target="HTTP" section="9"/>).
                 </t>
               </li>
               <li>
@@ -2883,10 +2879,10 @@
                     <tt>http</tt> or <tt>https</tt> schemed URIs.
                 </t>
                 <t>
-                    To ensure that the HTTP/1.1 request line can be reproduced accurately, this
+                    To ensure that HTTP/1.1 control data can be reproduced accurately, this
                     pseudo-header field MUST be omitted when translating from an HTTP/1.1 request
                     that has a request target in origin or asterisk form (see
-                    <xref target="RFC7230" section="5.3"/>). Clients that generate HTTP/2 requests
+                    <xref target="HTTP11" section="3.2"/>). Clients that generate HTTP/2 requests
                     directly SHOULD use the <tt>:authority</tt> pseudo-header
                     field instead of the <tt>Host</tt> header field. An
                     intermediary that converts an HTTP/2 request to HTTP/1.1 MUST create a <tt>Host</tt> header field if one is not present in a request by
@@ -2904,12 +2900,12 @@
                     <tt>:path</tt> pseudo-header field.
                 </t>
                 <t>
-                    This pseudo-header field MUST NOT be empty for <tt>http</tt>
-                    or <tt>https</tt> URIs; <tt>http</tt> or
-                    <tt>https</tt> URIs that do not contain a path component
+                    This pseudo-header field MUST NOT be empty for <tt>http</tt> or <tt>https</tt>
+                    URIs; <tt>http</tt> or <tt>https</tt> URIs that do not contain a path component
                     MUST include a value of '/'. The exception to this rule is an OPTIONS request
-                    for an <tt>http</tt> or <tt>https</tt>
-                    URI that does not include a path component; these MUST include a <tt>:path</tt> pseudo-header field with a value of '*' (see <xref target="RFC7230" section="5.3.4"/>).
+                    for an <tt>http</tt> or <tt>https</tt> URI that does not include a path
+                    component; these MUST include a <tt>:path</tt> pseudo-header field with a value
+                    of '*' (see <xref target="HTTP" section="7.1"/>).
                 </t>
               </li>
             </ul>
@@ -2927,7 +2923,7 @@
             <t>
               For HTTP/2 responses, a single <tt>:status</tt> pseudo-header
               field is defined that carries the HTTP status code field (see
-              <xref target="RFC7231" section="6"/>). This pseudo-header field MUST be included in all
+              <xref target="HTTP" section="15"/>). This pseudo-header field MUST be included in all
               responses; otherwise, the response is <xref target="malformed">malformed</xref>.
             </t>
             <t>
@@ -2938,11 +2934,12 @@
           <section anchor="CompressCookie">
             <name>Compressing the Cookie Header Field</name>
             <t>
-              The <xref target="COOKIE">Cookie header field</xref> uses a semi-colon (";") to delimit cookie-pairs (or "crumbs").
-              This header field doesn't follow the list construction rules in HTTP (see
-              <xref target="RFC7230" section="3.2.2"/>), which prevents cookie-pairs from
-              being separated into different name-value pairs.  This can significantly reduce
-              compression efficiency as individual cookie-pairs are updated.
+              The <xref target="COOKIE">Cookie header field</xref> uses a semi-colon (";") to
+              delimit cookie-pairs (or "crumbs").  This header field contains multiple values, but
+              does not use a COMMA (",") as a separator, which prevents cookie-pairs from being sent
+              on multiple field lines (see <xref target="HTTP" section="5.2"/>).  This can
+              significantly reduce compression efficiency as updates to individual cookie-pairs
+              would invalidate any field lines that are stored in the HPACK table.
             </t>
             <t>
               To allow for better compression efficiency, the Cookie header field MAY be split into
@@ -2976,7 +2973,7 @@
               A request or response that includes message content can include a <tt>content-length</tt> header field.  A request or response is also
               malformed if the value of a <tt>content-length</tt> header field
               does not equal the sum of the <xref target="DATA" format="none">DATA</xref> frame payload lengths that form the
-              content.  A response that is defined to have no content, as described in <xref target="RFC7230"/>, can have a non-zero
+              content.  A response that is defined to have no content, as described in <xref target="HTTP"/>, can have a non-zero
               <tt>content-length</tt> header field, even though no content is
               included in <xref target="DATA" format="none">DATA</xref> frames.
             </t>
@@ -3181,17 +3178,18 @@
           that server push is disabled.
         </t>
         <t>
-          Promised requests MUST be cacheable (see <xref target="RFC7231" section="4.2.3"/>), MUST be safe
-          (see <xref target="RFC7231" section="4.2.1"/>), and MUST NOT include any content. Clients that receive a
-          promised request that is not cacheable, that is not known to be safe, or that indicates the
-          presence of request content MUST reset the promised stream with a <xref target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
-          Note this could result in the promised stream being reset if the client does not recognize
-          a newly defined method as being safe.
+          Promised requests MUST be safe (see <xref target="HTTP" section="9.2.1"/>) and cacheable
+          (see <xref target="HTTP" section="9.2.3"/>), and MUST NOT include any content. Clients
+          that receive a promised request that is not cacheable, that is not known to be safe, or
+          that indicates the presence of request content MUST reset the promised stream with a <xref
+          target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR"
+          format="none">PROTOCOL_ERROR</xref>.  Note this could result in the promised stream being
+          reset if the client does not recognize a newly defined method as being safe.
         </t>
         <t>
-          Pushed responses that are cacheable (see <xref target="RFC7234" section="3"/>) can be stored by the client, if it implements an HTTP
+          Pushed responses that are cacheable (see <xref target="CACHE" section="3"/>) can be stored by the client, if it implements an HTTP
           cache.  Pushed responses are considered successfully validated on the origin server (e.g.,
-          if the "no-cache" cache response directive is present; see <xref target="RFC7234" section="5.2.2"/>) while the stream identified by the
+          if the "no-cache" cache response directive is present; see <xref target="CACHE" section="5.2.2.4"/>) while the stream identified by the
           promised stream ID is still open.
         </t>
         <t>
@@ -3325,7 +3323,7 @@
       <section anchor="CONNECT">
         <name>The CONNECT Method</name>
         <t>
-          In HTTP/1.x, the pseudo-method CONNECT (<xref target="RFC7231" section="4.3.6"/>) is
+          In HTTP/1.x, the pseudo-method CONNECT (<xref target="HTTP" section="9.3.6"/>) is
           used to convert an HTTP connection into a tunnel to a remote host.
           CONNECT is primarily used with HTTP proxies to establish a TLS session with an origin
           server for the purposes of interacting with <tt>https</tt> resources.
@@ -3347,7 +3345,7 @@
           <li>
               The <tt>:authority</tt> pseudo-header field contains the host and port to
               connect to (equivalent to the authority-form of the request-target of CONNECT
-              requests (see <xref target="RFC7230" section="5.3"/>)).
+              requests; see <xref target="HTTP11" section="3.2.3"/>).
             </li>
         </ul>
         <t>
@@ -3357,7 +3355,7 @@
           A proxy that supports CONNECT establishes a <xref target="TCP">TCP connection</xref> to
           the server identified in the <tt>:authority</tt> pseudo-header field. Once
           this connection is successfully established, the proxy sends a <xref target="HEADERS" format="none">HEADERS</xref>
-          frame containing a 2xx series status code to the client, as defined in <xref target="RFC7231" section="4.3.6"/>.
+          frame containing a 2xx series status code to the client, as defined in <xref target="HTTP" section="9.3.6"/>.
         </t>
         <t>
           After the initial <xref target="HEADERS" format="none">HEADERS</xref> frame sent by each peer, all subsequent
@@ -3459,7 +3457,7 @@
           <t>
             A server that does not wish clients to reuse connections can indicate that it is not
             authoritative for a request by sending a 421 (Misdirected Request) status code in response
-            to the request (see <xref target="draft-ietf-httpbis-semantics-14" section="15.5.20"/>).
+            to the request (see <xref target="HTTP" section="15.5.20"/>).
           </t>
           <t>
             A client that is configured to use a proxy over HTTP/2 directs requests to that proxy
@@ -3605,9 +3603,9 @@
         <name>Server Authority</name>
         <t>
           HTTP/2 relies on the HTTP/1.1 definition of authority for determining whether a server is
-          authoritative in providing a given response (see <xref target="RFC7230" section="9.1"/>).
+          authoritative in providing a given response (see <xref target="HTTP" section="17.1"/>).
           This relies on local name resolution for the "http" URI scheme and the authenticated server
-          identity for the "https" scheme (see <xref target="RFC2818" section="3"/>).
+          identity for the "https" scheme.
         </t>
       </section>
       <section>
@@ -3652,7 +3650,7 @@
           that can be encoded will not alter header field parsing, carriage return (CR, ASCII 0xd),
           line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII 0x0) might be exploited by
           an attacker if they are translated verbatim.  Any request or response that contains a
-          character not permitted in a header field value MUST be treated as <xref target="malformed">malformed</xref>.  Valid characters are defined by the <tt>field-content</tt> ABNF rule in <xref target="RFC7230" section="3.2"/>.
+          character not permitted in a header field value MUST be treated as <xref target="malformed">malformed</xref>.  Valid characters are defined by the <tt>field-content</tt> ABNF rule in <xref target="HTTP" section="5.5"/>.
         </t>
       </section>
       <section>
@@ -3777,7 +3775,7 @@
           Compression can allow an attacker to recover secret data when it is compressed in the same
           context as data under attacker control.  HTTP/2 enables compression of header fields
           (<xref target="HeaderBlock"/>); the following concerns also apply to the use of HTTP
-          compressed content-codings (<xref target="RFC7231" section="3.1.2.1"/>).
+          compressed content-codings (<xref target="HTTP" section="8.4.1"/>).
         </t>
         <t>
           There are demonstrable attacks on compression that exploit the characteristics of the web
@@ -4306,7 +4304,7 @@
         <name>PRI Method Registration</name>
         <t>
           This section registers the <tt>PRI</tt> method in the "HTTP Method
-          Registry" (<xref target="RFC7231" section="8.1"/>).
+          Registry" (<xref target="HTTP" section="18.2"/>).
         </t>
         <dl newline="false" spacing="normal">
           <dt>Method Name:</dt>
@@ -4336,7 +4334,7 @@
         <name>The h2c Upgrade Token</name>
         <t>
          This document registers the "h2c" upgrade token in the "HTTP
-         Upgrade Tokens" registry (<xref target="RFC7230" section="8.6"/>).
+         Upgrade Tokens" registry (<xref target="HTTP" section="18.10"/>).
         </t>
         <dl newline="false" spacing="normal">
           <dt>Value:</dt>
@@ -4400,16 +4398,6 @@
               </address>
             </author>
             <date month="March" year="1997"/>
-          </front>
-        </reference>
-        <reference anchor="RFC2818">
-          <front>
-            <title>
-            HTTP Over TLS
-            </title>
-            <seriesInfo name="RFC" value="2818"/>
-            <author initials="E." surname="Rescorla" fullname="Eric Rescorla"/>
-            <date month="May" year="2000"/>
           </front>
         </reference>
         <reference anchor="RFC3986">
@@ -4523,134 +4511,6 @@
               <organization>NIST</organization>
             </author>
             <date year="2013" month="July"/>
-          </front>
-        </reference>
-        <reference anchor="RFC7230">
-          <front>
-            <title>
-          Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</title>
-            <seriesInfo name="RFC" value="7230"/>
-            <author fullname="Roy T. Fielding" initials="R." role="editor" surname="Fielding">
-              <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
-              <address>
-                <email>fielding@gbiv.com</email>
-              </address>
-            </author>
-            <author fullname="Julian F. Reschke" initials="J. F." role="editor" surname="Reschke">
-              <organization abbrev="greenbytes">greenbytes GmbH</organization>
-              <address>
-                <email>julian.reschke@greenbytes.de</email>
-              </address>
-            </author>
-            <date month="June" year="2014"/>
-          </front>
-        </reference>
-        <reference anchor="RFC7231">
-          <front>
-            <title>
-          Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content</title>
-            <seriesInfo name="RFC" value="7231"/>
-            <author fullname="Roy T. Fielding" initials="R." role="editor" surname="Fielding">
-              <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
-              <address>
-                <email>fielding@gbiv.com</email>
-              </address>
-            </author>
-            <author fullname="Julian F. Reschke" initials="J. F." role="editor" surname="Reschke">
-              <organization abbrev="greenbytes">greenbytes GmbH</organization>
-              <address>
-                <email>julian.reschke@greenbytes.de</email>
-              </address>
-            </author>
-            <date month="June" year="2014"/>
-          </front>
-        </reference>
-        <reference anchor="RFC7232">
-          <front>
-            <title>Hypertext Transfer Protocol (HTTP/1.1): Conditional Requests</title>
-            <seriesInfo name="RFC" value="7232"/>
-            <author fullname="Roy T. Fielding" initials="R." role="editor" surname="Fielding">
-              <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
-              <address>
-                <email>fielding@gbiv.com</email>
-              </address>
-            </author>
-            <author fullname="Julian F. Reschke" initials="J. F." role="editor" surname="Reschke">
-              <organization abbrev="greenbytes">greenbytes GmbH</organization>
-              <address>
-                <email>julian.reschke@greenbytes.de</email>
-              </address>
-            </author>
-            <date month="June" year="2014"/>
-          </front>
-        </reference>
-        <reference anchor="RFC7233">
-          <front>
-            <title>Hypertext Transfer Protocol (HTTP/1.1): Range Requests</title>
-            <seriesInfo name="RFC" value="7233"/>
-            <author initials="R." surname="Fielding" fullname="Roy T. Fielding" role="editor">
-              <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
-              <address>
-                <email>fielding@gbiv.com</email>
-              </address>
-            </author>
-            <author initials="Y." surname="Lafon" fullname="Yves Lafon" role="editor">
-              <organization abbrev="W3C">World Wide Web Consortium</organization>
-              <address>
-                <email>ylafon@w3.org</email>
-              </address>
-            </author>
-            <author initials="J. F." surname="Reschke" fullname="Julian F. Reschke" role="editor">
-              <organization abbrev="greenbytes">greenbytes GmbH</organization>
-              <address>
-                <email>julian.reschke@greenbytes.de</email>
-              </address>
-            </author>
-            <date month="June" year="2014"/>
-          </front>
-        </reference>
-        <reference anchor="RFC7234">
-          <front>
-            <title>Hypertext Transfer Protocol (HTTP/1.1): Caching</title>
-            <seriesInfo name="RFC" value="7234"/>
-            <author initials="R." surname="Fielding" fullname="Roy T. Fielding" role="editor">
-              <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
-              <address>
-                <email>fielding@gbiv.com</email>
-              </address>
-            </author>
-            <author fullname="Mark Nottingham" initials="M." role="editor" surname="Nottingham">
-              <organization>Akamai</organization>
-              <address>
-                <email>mnot@mnot.net</email>
-              </address>
-            </author>
-            <author initials="J. F." surname="Reschke" fullname="Julian F. Reschke" role="editor">
-              <organization abbrev="greenbytes">greenbytes GmbH</organization>
-              <address>
-                <email>julian.reschke@greenbytes.de</email>
-              </address>
-            </author>
-            <date month="June" year="2014"/>
-          </front>
-        </reference>
-        <reference anchor="RFC7235">
-          <front>
-            <title>Hypertext Transfer Protocol (HTTP/1.1): Authentication</title>
-            <seriesInfo name="RFC" value="7235"/>
-            <author initials="R." surname="Fielding" fullname="Roy T. Fielding" role="editor">
-              <organization abbrev="Adobe">Adobe Systems Incorporated</organization>
-              <address>
-                <email>fielding@gbiv.com</email>
-              </address>
-            </author>
-            <author initials="J. F." surname="Reschke" fullname="Julian F. Reschke" role="editor">
-              <organization abbrev="greenbytes">greenbytes GmbH</organization>
-              <address>
-                <email>julian.reschke@greenbytes.de</email>
-              </address>
-            </author>
-            <date month="June" year="2014"/>
           </front>
         </reference>
         <reference anchor="COOKIE">
@@ -4813,30 +4673,62 @@
             <date year="2019" month="January" />
           </front>
         </reference>
-        <reference anchor="draft-ietf-httpbis-semantics-14">
+        <reference anchor="HTTP">
           <front>
             <title>HTTP Semantics</title>
+            <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-semantics-14"/>
             <author fullname="Roy T. Fielding"
                     initials="R."
                     surname="Fielding"
-                    role="editor">
-              <organization>Adobe</organization>
-            </author>
+                    role="editor"/>
             <author fullname="Mark Nottingham"
                     initials="M."
                     surname="Nottingham"
-                    role="editor">
-              <organization>Fastly</organization>
-            </author>
+                    role="editor"/>
             <author fullname="Julian Reschke"
                     initials="J."
                     surname="Reschke"
-                    role="editor">
-              <organization abbrev="greenbytes">greenbytes GmbH</organization>
-            </author>
+                    role="editor"/>
             <date year="2021" month="January" day="13"/>
           </front>
-          <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-semantics-14"/>
+        </reference>
+        <reference anchor="HTTP11">
+          <front>
+            <title>HTTP/1.1</title>
+            <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-messaging-14"/>
+            <author fullname="Roy T. Fielding"
+                    initials="R."
+                    surname="Fielding"
+                    role="editor"/>
+            <author fullname="Mark Nottingham"
+                    initials="M."
+                    surname="Nottingham"
+                    role="editor"/>
+            <author fullname="Julian Reschke"
+                    initials="J."
+                    surname="Reschke"
+                    role="editor"/>
+            <date year="2021" month="January" day="13"/>
+          </front>
+        </reference>
+        <reference anchor="CACHE">
+          <front>
+            <title>HTTP Caching</title>
+            <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-cache-14"/>
+            <author fullname="Roy T. Fielding"
+                    initials="R."
+                    surname="Fielding"
+                    role="editor"/>
+            <author fullname="Mark Nottingham"
+                    initials="M."
+                    surname="Nottingham"
+                    role="editor"/>
+            <author fullname="Julian Reschke"
+                    initials="J."
+                    surname="Reschke"
+                    role="editor"/>
+            <date year="2021" month="January" day="13"/>
+          </front>
         </reference>
       </references>
     </references>
