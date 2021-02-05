@@ -141,7 +141,7 @@
       </t>
       <t>
         Because HTTP header fields used in a connection can contain large amounts of redundant
-        data, frames that contain them are <xref target="HeaderBlock">compressed</xref>. This has
+        data, frames that contain them are <xref target="FieldBlock">compressed</xref>. This has
         especially advantageous impact upon request sizes in the common case, allowing many
         requests to be compressed into one packet.
       </t>
@@ -607,7 +607,7 @@
           defined in <xref target="SETTINGS_MAX_FRAME_SIZE" format="none">SETTINGS_MAX_FRAME_SIZE</xref>, exceeds any limit defined for the frame type,
           or is too small to contain mandatory frame data. A frame size error in a frame that
           could alter the state of the entire connection MUST be treated as a <xref target="ConnectionErrorHandler">connection error</xref>; this includes any frame carrying
-          a <xref target="HeaderBlock">header block</xref> (that is, <xref target="HEADERS" format="none">HEADERS</xref>,
+          a <xref target="FieldBlock">field block</xref> (that is, <xref target="HEADERS" format="none">HEADERS</xref>,
           <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, and <xref target="CONTINUATION" format="none">CONTINUATION</xref>), <xref target="SETTINGS" format="none">SETTINGS</xref>,
           and any frame with a stream identifier of 0.
         </t>
@@ -619,18 +619,40 @@
           which, if blocked by the transmission of a large frame, could affect performance.
         </t>
       </section>
-      <section anchor="HeaderBlock">
-        <name>Field Section Compression and Decompression</name>
+      <section anchor="FieldBlock">
+        <name>Header Compression and Decompression</name>
         <t>
-          A field in HTTP is a name with one or more associated values.
-          Field lines carry each value and are used within HTTP/2 request and response messages as well as in server push operations
-          (see <xref target="PushResources"/>).
+          The term "header compression", or its inverse of "header decompression", is used to refer
+          to the process of compressing, or decompressing, a set of field lines to form a field
+          block.  The process HTTP/2 uses for header compression and decompression is defined in
+          <xref target="COMPRESSION"/>.
         </t>
         <t>
-          A field section is a collection of zero or more field lines.  When transmitted over a
-          connection, a field section is serialized into a field block using <xref target="COMPRESSION">HTTP header compression</xref> (previous versions of this specification used the term "header block").  The serialized field block is then
-          divided into one or more octet sequences, called field block fragments, and transmitted
-          within the frame payload of <xref target="HEADERS">HEADERS</xref>, <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>, or <xref target="CONTINUATION">CONTINUATION</xref> frames.
+          Field blocks carry the compressed bytes of a field section, with header sections
+          also carrying control data associated with the message in the form of <xref
+          target="PseudoHeaderFields">pseudo-header fields</xref> that use the same format as a
+          field line.
+        </t>
+        <aside>
+          <t>
+            Note: Previous versions of this specification used the term "header block" in place of
+            the more generic "field block".
+          </t>
+        </aside>
+        <t>
+          Field blocks carry control data and header sections for requests, responses, promised
+          requests, and pushed responses (see <xref target="PushResources"/>).  All these messages,
+          except for interim responses and requests contained in <xref
+          target="PUSH_PROMISE">PUSH_PROMISE</xref> frames can optionally include a field block that
+          carries a trailer section.
+        </t>
+        <t>
+          A field section is a collection of zero or more field lines.  Each of the field lines in a
+          field block carry a single value.  The serialized field block is then divided into one or
+          more octet sequences, called field block fragments, and transmitted within the frame
+          payload of <xref target="HEADERS">HEADERS</xref> or <xref
+          target="PUSH_PROMISE">PUSH_PROMISE</xref>, each of which could be followed by <xref
+          target="CONTINUATION">CONTINUATION</xref> frames.
         </t>
         <t>
           The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
@@ -1458,7 +1480,7 @@
             The peer that sends the <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame MUST be prepared to receive any
             frames that were sent or enqueued for sending by the remote peer.  These frames can be
             ignored, except where they modify connection state (such as the state maintained for
-            <xref target="HeaderBlock">header compression</xref> or flow control).
+            <xref target="FieldBlock">header compression</xref> or flow control).
           </t>
           <t>
             Normally, an endpoint SHOULD NOT send more than one <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame for
@@ -1503,7 +1525,7 @@
           elements.  Implementations MUST discard frames that have unknown or unsupported types.
           This means that any of these extension points can be safely used by extensions without
           prior arrangement or negotiation.  However, extension frames that appear in the middle of
-          a <xref target="HeaderBlock">field block</xref> are not permitted; these MUST be treated
+          a <xref target="FieldBlock">field block</xref> are not permitted; these MUST be treated
           as a <xref target="ConnectionErrorHandler">connection error</xref> of type
           <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
         </t>
@@ -1682,7 +1704,7 @@
             </dd>
           <dt>Field Block Fragment:</dt>
           <dd>
-              A <xref target="HeaderBlock">field block fragment</xref>.
+              A <xref target="FieldBlock">field block fragment</xref>.
             </dd>
           <dt>Padding:</dt>
           <dd>
@@ -1696,7 +1718,7 @@
           <dt>END_STREAM (0x1):</dt>
           <dd>
             <t>
-                When set, bit 0 indicates that the <xref target="HeaderBlock">field block</xref> is
+                When set, bit 0 indicates that the <xref target="FieldBlock">field block</xref> is
                 the last that the endpoint will send for the identified stream.
             </t>
             <t>
@@ -1709,7 +1731,7 @@
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
-                When set, bit 2 indicates that this frame contains an entire <xref target="HeaderBlock">field block</xref> and is not followed by any
+                When set, bit 2 indicates that this frame contains an entire <xref target="FieldBlock">field block</xref> and is not followed by any
                 <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames.
             </t>
             <t>
@@ -1735,7 +1757,7 @@
           </dd>
         </dl>
         <t>
-          The frame payload of a HEADERS frame contains a <xref target="HeaderBlock">field block
+          The frame payload of a HEADERS frame contains a <xref target="FieldBlock">field block
           fragment</xref>.  A field block that does not fit within a HEADERS frame is continued in
           a <xref target="CONTINUATION">CONTINUATION frame</xref>.
         </t>
@@ -1745,7 +1767,7 @@
           <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
         </t>
         <t>
-          The HEADERS frame changes the connection state as described in <xref target="HeaderBlock"/>.
+          The HEADERS frame changes the connection state as described in <xref target="FieldBlock"/>.
         </t>
         <t>
           The HEADERS frame can include padding.  Padding fields and flags are identical to those
@@ -1809,7 +1831,7 @@
         </t>
         <t>
           The PRIORITY frame can be sent on a stream in any state, though it cannot be sent between
-          consecutive frames that comprise a single <xref target="HeaderBlock">field block</xref>.
+          consecutive frames that comprise a single <xref target="FieldBlock">field block</xref>.
           Note that this frame could arrive after processing or frame sending has completed, which
           would cause it to have no effect on the identified stream.  For a stream that is in the
           "half-closed (remote)" or "closed" state, this frame can only affect processing of the
@@ -2022,7 +2044,7 @@
             <dt anchor="SETTINGS_MAX_HEADER_LIST_SIZE">SETTINGS_MAX_HEADER_LIST_SIZE (0x6):</dt>
             <dd>
               <t>
-                  This advisory setting informs a peer of the maximum size of header section that the
+                  This advisory setting informs a peer of the maximum size of field section that the
                   sender is prepared to accept, in octets. The value is based on the uncompressed
                   size of field lines, including the length of the name and value in octets plus
                   an overhead of 32 octets for each field line.
@@ -2104,7 +2126,7 @@
             </dd>
           <dt>Field Block Fragment:</dt>
           <dd>
-              A <xref target="HeaderBlock">field block fragment</xref> containing request control data and
+              A <xref target="FieldBlock">field block fragment</xref> containing request control data and
               header section.
             </dd>
           <dt>Padding:</dt>
@@ -2119,7 +2141,7 @@
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
-                When set, bit 2 indicates that this frame contains an entire <xref target="HeaderBlock">field block</xref> and is not followed by any
+                When set, bit 2 indicates that this frame contains an entire <xref target="FieldBlock">field block</xref> and is not followed by any
                 <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames.
             </t>
             <t>
@@ -2160,7 +2182,7 @@
           the PUSH_PROMISE.
         </t>
         <t>
-          A PUSH_PROMISE frame modifies the connection state in two ways.  First, the inclusion of a <xref target="HeaderBlock">field block</xref> potentially modifies the state maintained for
+          A PUSH_PROMISE frame modifies the connection state in two ways.  First, the inclusion of a <xref target="FieldBlock">field block</xref> potentially modifies the state maintained for
           header compression.  Second, PUSH_PROMISE also reserves a stream for later use, causing the
           promised stream to enter the "reserved" state.  A sender MUST NOT send a PUSH_PROMISE on a
           stream unless that stream is either "open" or "half-closed (remote)"; the sender MUST
@@ -2354,7 +2376,7 @@
           that alter connection state cannot be completely ignored.  For instance,
           <xref target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, and <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames
           MUST be minimally processed to ensure the state maintained for header compression is
-          consistent (see <xref target="HeaderBlock"/>); similarly, DATA frames MUST be counted
+          consistent (see <xref target="FieldBlock"/>); similarly, DATA frames MUST be counted
           toward the connection flow-control window.  Failure to process these frames can cause flow
           control or header compression state to become unsynchronized.
         </t>
@@ -2552,7 +2574,7 @@
       <section anchor="CONTINUATION">
         <name>CONTINUATION</name>
         <t>
-          The CONTINUATION frame (type=0x9) is used to continue a sequence of <xref target="HeaderBlock">field block fragments</xref>.  Any number of CONTINUATION frames can
+          The CONTINUATION frame (type=0x9) is used to continue a sequence of <xref target="FieldBlock">field block fragments</xref>.  Any number of CONTINUATION frames can
           be sent, as long as the preceding frame is on the same stream and is a
           <xref target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or CONTINUATION frame without the
           END_HEADERS flag set.
@@ -2566,7 +2588,7 @@
 ]]></artwork>
         </figure>
         <t>
-          The CONTINUATION frame payload contains a <xref target="HeaderBlock">field block
+          The CONTINUATION frame payload contains a <xref target="FieldBlock">field block
           fragment</xref>.
         </t>
         <t>
@@ -2576,7 +2598,7 @@
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
-                When set, bit 2 indicates that this frame ends a <xref target="HeaderBlock">field
+                When set, bit 2 indicates that this frame ends a <xref target="FieldBlock">field
                 block</xref>.
             </t>
             <t>
@@ -2588,7 +2610,7 @@
           </dd>
         </dl>
         <t>
-          The CONTINUATION frame changes the connection state as defined in <xref target="HeaderBlock"/>.
+          The CONTINUATION frame changes the connection state as defined in <xref target="FieldBlock"/>.
         </t>
         <t>
           CONTINUATION frames MUST be associated with a stream. If a CONTINUATION frame is received
@@ -3735,10 +3757,10 @@
           their use.  An endpoint MAY treat activity that is suspicious as a <xref target="ConnectionErrorHandler">connection error</xref> of type
           <xref target="ENHANCE_YOUR_CALM" format="none">ENHANCE_YOUR_CALM</xref>.
         </t>
-        <section anchor="MaxHeaderBlock">
+        <section anchor="MaxFieldBlock">
           <name>Limits on Field Block Size</name>
           <t>
-            A large <xref target="HeaderBlock">field block</xref> can cause an implementation to
+            A large <xref target="FieldBlock">field block</xref> can cause an implementation to
             commit a large amount of state.  Field lines that are critical for routing can appear
             toward the end of a field block, which prevents streaming of fields to their
             ultimate destination.  This ordering and other reasons, such as ensuring cache
@@ -3748,7 +3770,7 @@
           </t>
           <t>
             An endpoint can use the <xref target="SETTINGS_MAX_HEADER_LIST_SIZE" format="none">SETTINGS_MAX_HEADER_LIST_SIZE</xref> to advise peers of
-            limits that might apply on the size of field blocks.  This setting is only advisory, so
+            limits that might apply on the size of uncompressed field blocks.  This setting is only advisory, so
             endpoints MAY choose to send field blocks that exceed this limit and risk having the
             request or response being treated as malformed.  This setting is specific to a
             connection, so any request or response could encounter a hop with a lower, unknown
@@ -3780,7 +3802,7 @@
         <t>
           Compression can allow an attacker to recover secret data when it is compressed in the same
           context as data under attacker control.  HTTP/2 enables compression of field lines
-          (<xref target="HeaderBlock"/>); the following concerns also apply to the use of HTTP
+          (<xref target="FieldBlock"/>); the following concerns also apply to the use of HTTP
           compressed content-codings (<xref target="HTTP" section="8.4.1"/>).
         </t>
         <t>
