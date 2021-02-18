@@ -1,4 +1,5 @@
 LIBDIR := lib
+INDEX_FORMAT := md
 include $(LIBDIR)/main.mk
 
 $(LIBDIR)/main.mk:
