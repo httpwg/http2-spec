@@ -3717,49 +3717,96 @@
           features ensure that memory commitments for these features are strictly bounded.
         </t>
         <t>
-          The number of <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames is not constrained in the same fashion.
-          A client that accepts server push SHOULD limit the number of streams it allows to be in
-          the "reserved (remote)" state.  An excessive number of server push streams can be treated as
-          a <xref target="StreamErrorHandler">stream error</xref> of type
-          <xref target="ENHANCE_YOUR_CALM" format="none">ENHANCE_YOUR_CALM</xref>.
+          The number of <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames is not
+          constrained in the same fashion.  A client that accepts server push SHOULD limit the
+          number of streams it allows to be in the "reserved (remote)" state.  An excessive number
+          of server push streams can be treated as a <xref target="StreamErrorHandler">stream
+          error</xref> of type <xref target="ENHANCE_YOUR_CALM"
+          format="none">ENHANCE_YOUR_CALM</xref>.
         </t>
         <t>
-          Processing capacity cannot be guarded as effectively as state capacity.
+          A number of HTTP/2 implementations were found to be vulnerable to denial of service <xref
+          target="NFLX-2019-002"/>.  The following lists known ways that implementations might be
+          subject to denial of service attack:
+        </t>
+
+        <ul>
+          <li>
+            <t>
+              Inefficient tracking of outstanding outbound frames can lead to overload if an adversary can
+              cause large numbers of frames to be enqueued for sending.  A peer could use one of
+              several techniques to cause large numbers of frames to be generated:
+            </t>
+            <ul>
+              <li>
+                Providing tiny increments to flow control in <xref target="WINDOW_UPDATE"
+                format="none">WINDOW_UPDATE</xref> frames can cause a sender to generate a large
+                number of <xref target="DATA" format="none">DATA</xref> frames.
+              </li>
+              <li>
+                An endpoint is required to respond to a <xref target="PING"
+                format="none">PING</xref> frame.
+              </li>
+              <li>
+                Each <xref target="SETTINGS" format="none">SETTINGS</xref> frame requires
+                acknowledgment.
+              </li>
+              <li>
+                An invalid request (or server push) can cause a peer to send <xref
+                target="RST_STREAM" format="none">RST_STREAM</xref> frames in response.
+              </li>
+            </ul>
+          </li>
+          <li>
+            Large numbers of small or empty frames can be abused to cause a peer to expend time
+            processing frame headers.  Caution is required here as some uses of small frames are
+            entirely legitimate, such as the sending of an empty <xref target="DATA"
+            format="none">DATA</xref> or <xref target="CONTINUATION"
+            format="none">CONTINUATION</xref> frame at the end of a stream.
+          </li>
+          <li>
+            The <xref target="SETTINGS" format="none">SETTINGS</xref> frame might also be abused to
+            cause a peer to expend additional processing time.  This might be done by pointlessly
+            changing SETTINGS parameters, setting multiple undefined parameters, or changing the
+            same setting multiple times in the same frame.
+          </li>
+          <li>
+            Handling reprioritization with <xref target="PRIORITY" format="none">PRIORITY</xref>
+            frames can require significant processing time and can lead to overload if many <xref
+            target="PRIORITY" format="none">PRIORITY</xref> frames are sent.
+          </li>
+          <li>
+            Field section compression also offers some opportunities to waste processing resources; see
+            <xref target="COMPRESSION" section="7"/> for more details on potential abuses.
+          </li>
+          <li>
+            Limits in <xref target="SETTINGS" format="none">SETTINGS</xref> parameters cannot be
+            reduced instantaneously, which leaves an endpoint exposed to behavior from a peer that
+            could exceed the new limits. In particular, immediately after establishing a connection,
+            limits set by a server are not known to clients and could be exceeded without being an
+            obvious protocol violation.
+          </li>
+          <li>
+            An attacker can provide large amounts of flow control credit at the HTTP/2 layer, but
+            withhold credit at the TCP layer, preventing frames from being sent.  An endpoint that
+            constructs and remembers frames for sending without considering TCP limits might be
+            subject to resource exhaustion.
+          </li>
+        </ul>
+        <t>
+          Most of the features that might be exploited for denial of service -- i.e., <xref
+          target="SETTINGS" format="none">SETTINGS</xref> changes, small frames, field section
+          compression -- have legitimate uses.  These features become a burden only when they are
+          used unnecessarily or to excess.
         </t>
         <t>
-          The <xref target="SETTINGS" format="none">SETTINGS</xref> frame can be abused to cause a peer to expend additional
-          processing time. This might be done by pointlessly changing SETTINGS parameters, setting
-          multiple undefined parameters, or changing the same setting multiple times in the same
-          frame.  <xref target="WINDOW_UPDATE" format="none">WINDOW_UPDATE</xref> or <xref target="PRIORITY" format="none">PRIORITY</xref> frames can be abused to
-          cause an unnecessary waste of resources.
+          An endpoint that doesn't monitor use of these features exposes itself to a risk of
+          denial of service.  Implementations SHOULD track the use of these features and set
+          limits on their use.  An endpoint MAY treat activity that is suspicious as a <xref
+          target="ConnectionErrorHandler">connection error</xref> of type <xref
+          target="ENHANCE_YOUR_CALM" format="none">ENHANCE_YOUR_CALM</xref>.
         </t>
-        <t>
-          Large numbers of small or empty frames can be abused to cause a peer to expend time
-          processing frame headers.  Note, however, that some uses are entirely legitimate, such as
-          the sending of an empty <xref target="DATA" format="none">DATA</xref> or <xref target="CONTINUATION" format="none">CONTINUATION</xref> frame at the
-          end of a stream.
-        </t>
-        <t>
-          Field section compression also offers some opportunities to waste processing resources; see
-          <xref target="COMPRESSION" section="7"/> for more details on potential abuses.
-        </t>
-        <t>
-          Limits in <xref target="SETTINGS" format="none">SETTINGS</xref> parameters cannot be reduced instantaneously, which
-          leaves an endpoint exposed to behavior from a peer that could exceed the new limits. In
-          particular, immediately after establishing a connection, limits set by a server are not
-          known to clients and could be exceeded without being an obvious protocol violation.
-        </t>
-        <t>
-          All these features -- i.e., <xref target="SETTINGS" format="none">SETTINGS</xref> changes,
-          small frames, field section compression -- have legitimate uses.  These features become a
-          burden only when they are used unnecessarily or to excess.
-        </t>
-        <t>
-          An endpoint that doesn't monitor this behavior exposes itself to a risk of denial-of-service
-          attack.  Implementations SHOULD track the use of these features and set limits on
-          their use.  An endpoint MAY treat activity that is suspicious as a <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <xref target="ENHANCE_YOUR_CALM" format="none">ENHANCE_YOUR_CALM</xref>.
-        </t>
+
         <section anchor="MaxFieldBlock">
           <name>Limits on Field Block Size</name>
           <t>
@@ -4759,6 +4806,15 @@
             <author initials="A." surname="Sullivan" fullname="A. Sullivan"/>
             <author initials="K." surname="Fujiwara" fullname="K. Fujiwara"/>
             <date year="2019" month="January" />
+          </front>
+        </reference>
+        <reference anchor="NFLX-2019-002" target="https://github.com/Netflix/security-bulletins/blob/master/advisories/third-party/2019-002.md">
+          <front>
+            <title>HTTP/2 Denial of Service Advisory</title>
+            <author>
+              <organization>Netflix</organization>
+            </author>
+            <date year="2019" month="August" day="13"/>
           </front>
         </reference>
       </references>
