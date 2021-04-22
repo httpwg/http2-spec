@@ -376,7 +376,7 @@
           <name>HTTP2-Settings Header Field</name>
           <t>
             A request that upgrades from HTTP/1.1 to HTTP/2 MUST include exactly one <tt>HTTP2-Settings</tt> header field.  The <tt>HTTP2-Settings</tt> header field is a connection-specific header field
-            that includes parameters that govern the HTTP/2 connection, provided in anticipation of
+            that includes settings that govern the HTTP/2 connection, provided in anticipation of
             the server accepting the request to upgrade.
           </t>
           <artwork type="abnf"><![CDATA[
@@ -404,7 +404,7 @@
             <xref target="SETTINGS" format="none">SETTINGS</xref> frame.  Explicit <xref target="SettingsSync">acknowledgement of
             these settings</xref> is not necessary, since a 101 response serves as implicit
             acknowledgement.  Providing these values in the upgrade request gives a client an
-            opportunity to provide parameters prior to receiving any frames from the server.
+            opportunity to provide settings prior to receiving any frames from the server.
           </t>
         </section>
       </section>
@@ -492,9 +492,9 @@
           To avoid unnecessary latency, clients are permitted to send additional frames to the
           server immediately after sending the client connection preface, without waiting to receive
           the server connection preface.  It is important to note, however, that the server
-          connection preface <xref target="SETTINGS" format="none">SETTINGS</xref> frame might include parameters that necessarily
+          connection preface <xref target="SETTINGS" format="none">SETTINGS</xref> frame might include settings that necessarily
           alter how a client is expected to communicate with the server. Upon receiving the
-          <xref target="SETTINGS" format="none">SETTINGS</xref> frame, the client is expected to honor any parameters established.
+          <xref target="SETTINGS" format="none">SETTINGS</xref> frame, the client is expected to honor any settings established.
           In some configurations, it is possible for the server to transmit <xref target="SETTINGS" format="none">SETTINGS</xref>
           before the client sends additional frames, providing an opportunity to avoid this issue.
         </t>
@@ -1913,30 +1913,30 @@
         <t>
           The SETTINGS frame (type=0x4) conveys configuration parameters that affect how endpoints
           communicate, such as preferences and constraints on peer behavior.  The SETTINGS frame is
-          also used to acknowledge the receipt of those parameters.  Individually, a SETTINGS
-          parameter can also be referred to as a "setting".
+          also used to acknowledge the receipt of those settings.  Individually, a configuration
+          parameter from a SETTINGS frame is referred to as a "setting".
         </t>
         <t>
-          SETTINGS parameters are not negotiated; they describe characteristics of the sending peer,
-          which are used by the receiving peer. Different values for the same parameter can be
+          Settings are not negotiated; they describe characteristics of the sending peer,
+          which are used by the receiving peer. Different values for the same setting can be
           advertised by each peer. For example, a client might set a high initial flow-control
           window, whereas a server might set a lower value to conserve resources.
         </t>
         <t>
           A SETTINGS frame MUST be sent by both endpoints at the start of a connection and MAY be
           sent at any other time by either endpoint over the lifetime of the connection.
-          Implementations MUST support all of the parameters defined by this specification.
+          Implementations MUST support all of the settings defined by this specification.
         </t>
         <t>
           Each parameter in a SETTINGS frame replaces any existing value for that parameter.
-          Parameters are processed in the order in which they appear, and a receiver of a SETTINGS
-          frame does not need to maintain any state other than the current value of its
-          parameters. Therefore, the value of a SETTINGS parameter is the last value that is seen by
+          Settings are processed in the order in which they appear, and a receiver of a SETTINGS
+          frame does not need to maintain any state other than the current value of each setting.
+          Therefore, the value of a SETTINGS parameter is the last value that is seen by
           a receiver.
         </t>
         <t>
-          SETTINGS parameters are acknowledged by the receiving peer. To enable this, the SETTINGS
-          frame defines the following flag:
+          SETTINGS frames are acknowledged by the receiving peer. To enable this, the SETTINGS
+          frame defines the ACK flag:
         </t>
         <dl newline="false" spacing="normal">
           <dt>ACK (0x1):</dt>
@@ -1967,7 +1967,7 @@
         <section anchor="SettingFormat">
           <name>SETTINGS Format</name>
           <t>
-            The frame payload of a SETTINGS frame consists of zero or more parameters, each consisting of
+            The frame payload of a SETTINGS frame consists of zero or more settings, each consisting of
             an unsigned 16-bit setting identifier and an unsigned 32-bit value.
           </t>
           <figure anchor="SettingFormatFigure">
@@ -1982,9 +1982,9 @@
           </figure>
         </section>
         <section anchor="SettingValues">
-          <name>Defined SETTINGS Parameters</name>
+          <name>Defined Settings</name>
           <t>
-            The following parameters are defined:
+            The following settings are defined:
           </t>
           <dl newline="false" spacing="normal">
             <dt anchor="SETTINGS_HEADER_TABLE_SIZE">SETTINGS_HEADER_TABLE_SIZE (0x1):</dt>
@@ -2083,14 +2083,14 @@
             Most values in SETTINGS benefit from or require an understanding of when the peer has
             received and applied the changed parameter values. In order to provide
             such synchronization timepoints, the recipient of a SETTINGS frame in which the ACK flag
-            is not set MUST apply the updated parameters as soon as possible upon receipt.
+            is not set MUST apply the updated settings as soon as possible upon receipt.
           </t>
           <t>
             The values in the SETTINGS frame MUST be processed in the order they appear, with no
-            other frame processing between values.  Unsupported parameters MUST be ignored.  Once
+            other frame processing between values.  Unsupported settings MUST be ignored.  Once
             all values have been processed, the recipient MUST immediately emit a SETTINGS frame
             with the ACK flag set. Upon receiving a SETTINGS frame with the ACK flag set, the sender
-            of the altered parameters can rely on the setting having been applied.
+            of the altered settings can rely on the value having been applied.
           </t>
           <t>
             If the sender of a SETTINGS frame does not receive an acknowledgement within a
@@ -3782,7 +3782,7 @@
           <li>
             The <xref target="SETTINGS" format="none">SETTINGS</xref> frame might also be abused to
             cause a peer to expend additional processing time.  This might be done by pointlessly
-            changing SETTINGS parameters, setting multiple undefined parameters, or changing the
+            changing settings, sending multiple undefined settings, or changing the
             same setting multiple times in the same frame.
           </li>
           <li>
@@ -3795,9 +3795,9 @@
             <xref target="COMPRESSION" section="7"/> for more details on potential abuses.
           </li>
           <li>
-            Limits in <xref target="SETTINGS" format="none">SETTINGS</xref> parameters cannot be
-            reduced instantaneously, which leaves an endpoint exposed to behavior from a peer that
-            could exceed the new limits. In particular, immediately after establishing a connection,
+            Limits in <xref target="SETTINGS" format="none">SETTINGS</xref> cannot be reduced
+            instantaneously, which leaves an endpoint exposed to behavior from a peer that could
+            exceed the new limits. In particular, immediately after establishing a connection,
             limits set by a server are not known to clients and could be exceeded without being an
             obvious protocol violation.
           </li>
