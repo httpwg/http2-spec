@@ -2855,13 +2855,11 @@
           <section anchor="PseudoHeaderFields">
             <name>Pseudo-Header Fields</name>
             <t>
-              While HTTP/1.x used the message start-line (see <xref target="HTTP11" section="2.1"/>)
-              to convey control data, HTTP/2 uses special pseudo-header fields beginning with ':'
-              character (ASCII 0x3a) for this purpose.
+              HTTP/2 uses special pseudo-header fields beginning with ':' character (ASCII 0x3a) to
+              convey message control data (see <xref target="HTTP" section="6.2"/>).
             </t>
             <t>
-              Pseudo-header fields are not HTTP header fields.  Pseudo-header fields contain control
-              data (see <xref target="HTTP" section="6.2"/>).  Endpoints MUST NOT generate
+              Pseudo-header fields are not HTTP header fields.  Endpoints MUST NOT generate
               pseudo-header fields other than those defined in this document.  Note that an
               extension could negotiate the use of additional pseudo-header fields; see
               <xref target="extensibility"/>.
@@ -2939,24 +2937,33 @@
                   pseudo-header field instead of the <tt>Host</tt> header field.
                 </t>
                 <t>
-                  An intermediary that translates a request to HTTP/2 from HTTP/1.1, with an
-                  origin-, asterisk-, or authority-form request target (see <xref target="HTTP11"
-                  section="3.2"/>) MUST retain the <tt>Host</tt> header field and not add an
-                  <tt>:authority</tt> pseudo-header field.  For an absolute-form request target, the
-                  intermediary MUST obtain a value for the <tt>:authority</tt> pseudo-header field
-                  from the request URI and retain the value of the <tt>Host</tt> header field.
-
-                  <!-- The intermediary reject the request if they differ, but is this worth saying? -->
+                  An intermediary that translates a request to HTTP/2 from another HTTP version MUST
+                  translate any authority information from the request into an <tt>:authority</tt>
+                  pseudo-header field.  If the control data in the original request contains
+                  authority information, an intermediary MUST include a <tt>:authority</tt>
+                  pseudo-header field.  If control data does not contain authority, an intermediary
+                  MUST NOT add an <tt>:authority</tt> pseudo-header field.  For reference, an
+                  HTTP/1.1 <xref target="HTTP11" section="3.2">request target</xref> in
+                  authority-form always includes authority, a request target in absolute-form
+                  includes authority if the target URI includes authority, and request targets in
+                  origin- or asterisk-form do not include authority.
                 </t>
                 <t>
-                  An intermediary that translates a request to HTTP/1.1 from HTTP/2 MUST create a
-                  <tt>Host</tt> header field if one is not present in a request by copying the value
-                  of the <tt>:authority</tt> pseudo-header field.
+                  An intermediary that translates a request to another HTTP version from HTTP/2 can
+                  construct a <tt>Host</tt> header field by copying the value of the
+                  <tt>:authority</tt> pseudo-header field if that version requires that
+                  <tt>Host</tt> be included in a request, as HTTP/1.1 does for some forms of request
+                  target (see <xref target="HTTP11" section="3.2"/>).
                 </t>
                 <t>
-                  A request that was translated from absolute form could include both
-                  <tt>:authority</tt> and <tt>Host</tt>.  The value of the <tt>Host</tt> header
-                  field is ignored, as defined in <xref target="HTTP11" section="3.2.2"/>.
+                  An intermediary that translates a request to HTTP/2 from another HTTP version MUST
+                  retain any <tt>Host</tt> header field, even if an authority is part of control
+                  data.
+                </t>
+                <t>
+                  The value of the <tt>Host</tt> header field MUST be ignored if control data
+                  contains authority (that is, the <tt>:authority</tt> pseudo-header field is
+                  present).
                 </t>
               </li>
               <li>
@@ -4654,25 +4661,6 @@
             <date year="2021" month="March" day="30"/>
           </front>
         </reference>
-        <reference anchor="HTTP11">
-          <front>
-            <title>HTTP/1.1</title>
-            <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-messaging-15"/>
-            <author fullname="Roy T. Fielding"
-                    initials="R."
-                    surname="Fielding"
-                    role="editor"/>
-            <author fullname="Mark Nottingham"
-                    initials="M."
-                    surname="Nottingham"
-                    role="editor"/>
-            <author fullname="Julian Reschke"
-                    initials="J."
-                    surname="Reschke"
-                    role="editor"/>
-            <date year="2021" month="March" day="30"/>
-          </front>
-        </reference>
         <reference anchor="CACHE">
           <front>
             <title>HTTP Caching</title>
@@ -4695,6 +4683,25 @@
       </references>
       <references>
         <name>Informative References</name>
+        <reference anchor="HTTP11">
+          <front>
+            <title>HTTP/1.1</title>
+            <seriesInfo name="Internet-Draft" value="draft-ietf-httpbis-messaging-15"/>
+            <author fullname="Roy T. Fielding"
+                    initials="R."
+                    surname="Fielding"
+                    role="editor"/>
+            <author fullname="Mark Nottingham"
+                    initials="M."
+                    surname="Nottingham"
+                    role="editor"/>
+            <author fullname="Julian Reschke"
+                    initials="J."
+                    surname="Reschke"
+                    role="editor"/>
+            <date year="2021" month="March" day="30"/>
+          </front>
+        </reference>
         <reference anchor="RFC7323">
           <front>
             <title>
