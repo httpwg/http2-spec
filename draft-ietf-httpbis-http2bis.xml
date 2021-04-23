@@ -2847,10 +2847,38 @@
             registered HTTP fields, see the "Hypertext Transfer Protocol (HTTP) Field Name Registry" registry maintained at <eref target="https://www.iana.org/assignments/http-fields/"/>.
           </t>
           <t>
-            Just as in HTTP/1.x, field names are strings of ASCII characters that are
-            compared in a case-insensitive fashion. Field names MUST be converted
-            to lowercase prior to their encoding in HTTP/2. A request or response containing
-            uppercase header field names MUST be treated as <xref target="malformed">malformed</xref>.
+            Field names are strings of ASCII characters that are compared in a case-insensitive
+            fashion. Field names MUST be converted to lowercase when constructing a HTTP/2
+            message. A request or response containing an uppercase character ('A' to 'Z', ASCII 0x41
+            to 0x5a) MUST be treated as <xref target="malformed">malformed</xref>.
+          </t>
+          <t>
+            HPACK is capable of carrying field names or values that are not valid in HTTP.  Though
+            HPACK can carry octets with any value, fields are not valid in the following cases:
+          </t>
+          <ul>
+            <li>
+              A carriage return (CR, ASCII 0xd), line feed (LF, ASCII 0xa), and the zero character
+              (NUL, ASCII 0x0) MUST NOT be included at any position in a field name or value.
+            </li>
+            <li>
+              With the exception of <xref target="PseudoHeaderFields">pseudo-header fields</xref>,
+              which have a name that starts with a single colon, field names MUST NOT include a
+              colon (COLON, ASCII 0x3a).
+            </li>
+            <li>
+              A field name or value MUST NOT start or end with a whitespace character (SP or HTAB,
+              ASCII 0x20 or 0x9).
+            </li>
+          </ul>
+          <t>
+            A request or response that contains a field that violates any of these conditions MUST
+            be treated as <xref target="malformed">malformed</xref>.
+          </t>
+          <t>
+            Field values that are not valid according to the definition of the corresponding field
+            do not cause a requst to be <xref target="malformed" format="none">malformed</xref>
+            except as defined by the processing rules for the field.
           </t>
           <section anchor="PseudoHeaderFields">
             <name>Pseudo-Header Fields</name>
@@ -3707,18 +3735,12 @@
       <section>
         <name>Intermediary Encapsulation Attacks</name>
         <t>
-          The HTTP/2 field block encoding allows the expression of names that are not valid field
-          names in HTTP.  Requests or responses containing
-          invalid field names MUST be treated as <xref target="malformed">malformed</xref>.
-          An intermediary therefore cannot translate an HTTP/2 request or response containing an
-          invalid field name into an HTTP/1.1 message.
-        </t>
-        <t>
-          Similarly, HTTP/2 allows field values that are not valid.  While most of the values
-          that can be encoded will not alter header field parsing, carriage return (CR, ASCII 0xd),
-          line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII 0x0) might be exploited by
-          an attacker if they are translated verbatim.  Any request or response that contains a
-          character not permitted in a field value MUST be treated as <xref target="malformed">malformed</xref>.  Valid characters are defined by the <tt>field-content</tt> ABNF rule in <xref target="HTTP" section="5.5"/>.
+          HPACK permits encoding of field names and values that might be treated as delimiters in
+          other HTTP versions.  An intermediary that translates an HTTP/2 request or response MUST
+          validate fields according to the rules in <xref target="HttpHeaders"/> roles before
+          translating a message to another HTTP version.  Translating a field that includes invalid
+          delimiters could be used to cause recipients to incorrectly interpret a message, which
+          could be exploited by an attacker.
         </t>
       </section>
       <section>
