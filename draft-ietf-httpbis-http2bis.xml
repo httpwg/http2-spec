@@ -46,8 +46,7 @@
         Transfer Protocol (HTTP), referred to as HTTP version 2 (HTTP/2). HTTP/2 enables a more
         efficient use of network resources and a
         reduced perception of latency by introducing header field compression and allowing multiple
-        concurrent exchanges on the same connection. It also introduces unsolicited push of
-        representations from servers to clients.
+        concurrent exchanges on the same connection.
       </t>
       <t>
         This specification is an alternative to, but does not obsolete, the HTTP/1.1 message syntax.
@@ -137,18 +136,18 @@
         to the most important streams first.
       </t>
       <t>
-        HTTP/2 adds a new interaction mode whereby a server can <xref target="PushResources">push
-        responses to a client</xref>.  Server push allows a server to speculatively send data to a
-        client that the server anticipates the client will need, trading off some network usage
-        against a potential latency gain.  The server does this by synthesizing a request, which it
-        sends as a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame.  The server is then able to send a response to
-        the synthetic request on a separate stream.
-      </t>
-      <t>
         Because HTTP header fields used in a connection can contain large amounts of redundant
         data, frames that contain them are <xref target="FieldBlock">compressed</xref>. This has
         especially advantageous impact upon request sizes in the common case, allowing many
         requests to be compressed into one packet.
+      </t>
+      <t>
+        Finally, HTTP/2 adds a new, optional interaction mode whereby a server can <xref target="PushResources">push
+        responses to a client</xref>.  This is intended to allow a server to speculatively send data to a
+        client that the server anticipates the client will need, trading off some network usage
+        against a potential latency gain.  The server does this by synthesizing a request, which it
+        sends as a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame.  The server is then able to send a response to
+        the synthetic request on a separate stream.
       </t>
       <section>
         <name>Document Organization</name>
@@ -3247,9 +3246,23 @@
         <t>
           HTTP/2 allows a server to pre-emptively send (or "push") responses (along with
           corresponding "promised" requests) to a client in association with a previous
-          client-initiated request. This can be useful when the server knows the client will need
-          to have those responses available in order to fully process the response to the original
-          request.
+          client-initiated request.
+        </t>
+        <t>
+          Server push was designed to allow a server to improve client-perceived performance by
+          predicting what requests will follow those that it receives, thereby removing a round
+          trip for them. For example, a request for HTML is often followed by requests
+          for stylesheets and scripts referenced by that page. When these requests
+          are pushed, the client does not need to wait to receive the references to them in the HTML
+          and issue separate requests.
+        </t>
+        <t>
+          In practice, server push is difficult to use effectively, because it requires the
+          server to correctly anticipate the additional requests the client will make, taking into
+          account factors such as caching, content negotiation, and user behavior. Errors in
+          prediction can lead to performance degradation, due to the opportunity cost that the
+          additional data on the wire represents. In particular, pushing any significant amount of
+          data can cause contention issues with more-important responses.
         </t>
         <t>
           A client can request that server push be disabled, though this is negotiated for each hop
