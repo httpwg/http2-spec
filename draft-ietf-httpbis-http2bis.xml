@@ -268,8 +268,9 @@
       </t>
       <t>
         The means by which support for HTTP/2 is determined is different for "http" and "https"
-        URIs. Discovery for "http" URIs is described in <xref target="discover-http"/>.  Discovery
-        for "https" URIs is described in <xref target="discover-https"/>.
+        URIs.  Discovery for "https" URIs is described in <xref target="discover-https"/>. HTTP/2
+        support for "http" URIs can only be discovered by out-of-band means, and requires prior knowledge
+        of the support as described in <xref target="known-http"/>.
       </t>
       <section anchor="versioning">
         <name>HTTP/2 Version Identification</name>
@@ -290,12 +291,16 @@
           <li>
             <t>
                 The string "h2c" identifies the protocol where HTTP/2 is run over cleartext TCP.
-                This identifier is used in the HTTP/1.1 Upgrade header field and in any place where
-                HTTP/2 over TCP is identified.
+                This identifier is used in any place where HTTP/2 over TCP is identified.
             </t>
             <t>
                 The "h2c" string is reserved from the ALPN identifier space but describes a
                 protocol that does not use TLS.
+            </t>
+            <t>
+                The "h2c" string was previously used as a token for use in the HTTP Upgrade mechanism's
+                Upgrade header field (<xref target="HTTP" section="7.8"/>). This usage was never widely
+                deployed, and is no longer specified in this document.
             </t>
           </li>
         </ul>
@@ -303,114 +308,6 @@
           Negotiating "h2" or "h2c" implies the use of the transport, security, framing, and message
           semantics described in this document.
         </t>
-      </section>
-      <section anchor="discover-http">
-        <name>Starting HTTP/2 for "http" URIs</name>
-        <t>
-          A client that makes a request for an "http" URI without prior knowledge about support for
-          HTTP/2 on the next hop uses the HTTP Upgrade mechanism (<xref target="HTTP" section="7.8"/>). The client does so by making an HTTP/1.1 request that
-          includes an Upgrade header field with the "h2c" token. Such an HTTP/1.1 request MUST
-          include exactly one <xref target="Http2SettingsHeader">HTTP2-Settings</xref> header field.
-        </t>
-        <t keepWithNext="true">For example:</t>
-        <artwork type="message/http; msgtype=&quot;request&quot;"><![CDATA[
-  GET / HTTP/1.1
-  Host: server.example.com
-  Connection: Upgrade, HTTP2-Settings
-  Upgrade: h2c
-  HTTP2-Settings: <base64url encoding of SETTINGS frame payload>
-
-]]></artwork>
-        <t>
-          Requests that contain message content MUST be sent in their entirety before the client can
-          send HTTP/2 frames.  This means that a large request can block the use of the connection
-          until it is completely sent.
-        </t>
-        <t>
-          If concurrency of an initial request with subsequent requests is important, an OPTIONS
-          request can be used to perform the upgrade to HTTP/2, at the cost of an additional
-          round trip.
-        </t>
-        <t>
-          A server that does not support HTTP/2 can respond to the request as though the Upgrade
-          header field were absent:
-        </t>
-        <artwork type="message/http; msgtype=&quot;response&quot;"><![CDATA[
-  HTTP/1.1 200 OK
-  Content-Length: 243
-  Content-Type: text/html
-
-  ...
-]]></artwork>
-        <t>
-          A server MUST ignore an "h2" token in an Upgrade header field.  Presence of a token with
-          "h2" implies HTTP/2 over TLS, which is instead negotiated as described in <xref target="discover-https"/>.
-        </t>
-        <t>
-          A server that supports HTTP/2 accepts the upgrade with a 101 (Switching Protocols)
-          response.  After the empty line that terminates the 101 response, the server can begin
-          sending HTTP/2 frames.  These frames MUST include a response to the request that initiated
-          the upgrade.
-        </t>
-        <t keepWithNext="true">
-            For example:
-        </t>
-        <artwork type="message/http; msgtype=&quot;response&quot;"><![CDATA[
-  HTTP/1.1 101 Switching Protocols
-  Connection: Upgrade
-  Upgrade: h2c
-
-  [ HTTP/2 connection ...
-]]></artwork>
-        <t>
-          The first HTTP/2 frame sent by the server MUST be a server connection preface
-          (<xref target="ConnectionHeader"/>) consisting of a <xref target="SETTINGS" format="none">SETTINGS</xref>
-          frame (<xref target="SETTINGS"/>). Upon receiving the 101 response, the client MUST send a
-          <xref target="ConnectionHeader">connection preface</xref>, which includes a
-          <xref target="SETTINGS" format="none">SETTINGS</xref> frame.
-        </t>
-        <t>
-          The HTTP/1.1 request that is sent prior to upgrade is assigned a stream identifier of 1
-          (see <xref target="StreamIdentifiers"/>).  Stream 1 is implicitly "half-closed" from the
-          client toward the server (see <xref target="StreamStates"/>), since the request is
-          completed as an HTTP/1.1 request.  After commencing the HTTP/2 connection, stream 1 is
-          used for the response.
-        </t>
-        <section anchor="Http2SettingsHeader">
-          <name>HTTP2-Settings Header Field</name>
-          <t>
-            A request that upgrades from HTTP/1.1 to HTTP/2 MUST include exactly one <tt>HTTP2-Settings</tt> header field.  The <tt>HTTP2-Settings</tt> header field is a connection-specific header field
-            that includes settings that govern the HTTP/2 connection, provided in anticipation of
-            the server accepting the request to upgrade.
-          </t>
-          <artwork type="abnf"><![CDATA[
-  HTTP2-Settings    = token68
-]]></artwork>
-          <t>
-            A server MUST NOT upgrade the connection to HTTP/2 if this header field is not present
-            or if more than one is present. A server MUST NOT send this header field.
-          </t>
-          <t>
-            The content of the <tt>HTTP2-Settings</tt> header field is the
-            frame payload of a <xref target="SETTINGS" format="none">SETTINGS</xref> frame (<xref target="SETTINGS"/>), encoded as a
-            base64url string (that is, the URL- and filename-safe Base64 encoding described in
-            <xref target="RFC4648" section="5"/>, with any trailing '=' characters omitted).  The
-            <xref target="RFC5234">ABNF</xref> production for <tt>token68</tt> is
-            defined in <xref target="HTTP" section="11.2"/>.
-          </t>
-          <t>
-            Since the upgrade is only intended to apply to the immediate connection, a client
-            sending the <tt>HTTP2-Settings</tt> header field MUST also send <tt>HTTP2-Settings</tt> as a connection option in the <tt>Connection</tt> header field to prevent it from being forwarded
-            (see <xref target="HTTP" section="7.6.1"/>).
-          </t>
-          <t>
-            A server decodes and interprets these values as it would any other
-            <xref target="SETTINGS" format="none">SETTINGS</xref> frame.  Explicit <xref target="SettingsSync">acknowledgement of
-            these settings</xref> is not necessary, since a 101 response serves as implicit
-            acknowledgement.  Providing these values in the upgrade request gives a client an
-            opportunity to provide settings prior to receiving any frames from the server.
-          </t>
-        </section>
       </section>
       <section anchor="discover-https">
         <name>Starting HTTP/2 for "https" URIs</name>
@@ -469,11 +366,8 @@
           That is, the connection preface starts with the string <tt>PRI *
           HTTP/2.0\r\n\r\nSM\r\n\r\n</tt>. This sequence
           MUST be followed by a <xref target="SETTINGS" format="none">SETTINGS</xref> frame (<xref target="SETTINGS"/>), which
-          MAY be empty. The client sends the client connection preface immediately upon receipt of
-          a 101 (Switching Protocols) response (indicating a successful upgrade) or as the first
-          application data octets of a TLS connection. If starting an HTTP/2 connection with prior
-          knowledge of server support for the protocol, the client connection preface is sent upon
-          connection establishment.
+          MAY be empty. The client sends the client connection preface as the first
+          application data octets of a connection.
         </t>
         <aside>
           <t>Note:
@@ -1040,12 +934,6 @@
             even-numbered stream identifiers.  A stream identifier of zero (0x0) is used for
             connection control messages; the stream identifier of zero cannot be used to establish a
             new stream.
-          </t>
-          <t>
-            HTTP/1.1 requests that are upgraded to HTTP/2 (see <xref target="discover-http"/>) are
-            responded to with a stream identifier of one (0x1).  After the upgrade
-            completes, stream 0x1 is "half-closed (local)" to the client.  Therefore, stream 0x1
-            cannot be selected as a new stream identifier by a client that upgrades from HTTP/1.1.
           </t>
           <t>
             The identifier of a newly established stream MUST be numerically greater than all
@@ -3553,9 +3441,7 @@
           The cleartext version of HTTP/2 has minimal protection against cross-protocol attacks.
           The <xref target="ConnectionHeader">connection preface</xref> contains a string that is
           designed to confuse HTTP/1.1 servers, but no special protection is offered for other
-          protocols.  A server that is willing to ignore parts of an HTTP/1.1 request containing an
-          Upgrade header field in addition to the client connection preface could be exposed to a
-          cross-protocol attack.
+          protocols.
         </t>
       </section>
       <section>
@@ -4239,34 +4125,9 @@
       <section>
         <name>HTTP2-Settings Header Field Registration</name>
         <t>
-          This section registers the <tt>HTTP2-Settings</tt> header field in the
-          "Permanent Message Header Field Names" registry <xref target="BCP90"/>.
+          This section marks the <tt>HTTP2-Settings</tt> header field registered in
+          <xref target="RFC7540" section="11.5"/> as obsoleted.
         </t>
-        <dl newline="false" spacing="normal">
-          <dt>Header field name:</dt>
-          <dd>
-              HTTP2-Settings
-            </dd>
-          <dt>Applicable protocol:</dt>
-          <dd>
-              http
-            </dd>
-          <dt>Status:</dt>
-          <dd>
-              standard
-            </dd>
-          <dt>Author/Change controller:</dt>
-          <dd>
-              IETF
-            </dd>
-          <dt>Specification document(s):</dt>
-          <dd><xref target="Http2SettingsHeader"/> of this document
-            </dd>
-          <dt>Related information:</dt>
-          <dd>
-              This header field is only used by an HTTP/2 client for Upgrade-based negotiation.
-            </dd>
-        </dl>
       </section>
       <section>
         <name>PRI Method Registration</name>
@@ -4301,26 +4162,9 @@
       <section anchor="iana-h2c">
         <name>The h2c Upgrade Token</name>
         <t>
-         This document registers the "h2c" upgrade token in the "HTTP
-         Upgrade Tokens" registry (<xref target="HTTP" section="18.10"/>).
+         Previous versions of this document (<xref target="RFC7540" section="11.8"/>) registered an upgrade
+         token. This capability has been removed: see <xref target="versioning"/>.
         </t>
-        <dl newline="false" spacing="normal">
-          <dt>Value:</dt>
-          <dd>
-             h2c
-           </dd>
-          <dt>Description:</dt>
-          <dd>
-             Hypertext Transfer Protocol version 2 (HTTP/2)
-           </dd>
-          <dt>Expected Version Tokens:</dt>
-          <dd>
-             None
-           </dd>
-          <dt>Reference:</dt>
-          <dd><xref target="discover-http"/> of this document
-           </dd>
-        </dl>
       </section>
     </section>
   </middle>
@@ -4547,6 +4391,22 @@
                     surname="Reschke"
                     role="editor"/>
             <date year="2021" month="March" day="30"/>
+          </front>
+        </reference>
+        <reference anchor="RFC7540">
+          <front>
+            <title>Hypertext Transfer Protocol Version 2 (HTTP/2)</title>
+            <seriesInfo name="RFC" value="7540"/>
+            <author initials="M." surname="Belshe" fullname="M. Belshe">
+              <organization/>
+            </author>
+            <author initials="R." surname="Peon" fullname="R. Peon">
+              <organization/>
+            </author>
+            <author initials="M." surname="Thomson" fullname="M. Thomson" role="editor">
+              <organization/>
+            </author>
+            <date year="2015" month="May"/>
           </front>
         </reference>
       </references>
@@ -5040,6 +4900,10 @@
       <ul spacing="normal">
         <li>
           Use of TLS 1.3 is defined based on RFC 8740, which this document obsoletes.
+        </li>
+        <li>
+          The HTTP/1.1 Upgrade mechanism is no longer specified in this document. It was never widely deployed,
+          with plaintext HTTP/2 users choosing to use the prior-knowledge implementation instead.
         </li>
       </ul>
     </section>
