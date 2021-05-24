@@ -974,54 +974,59 @@
           <dt>closed:</dt>
           <dd>
             <t>
+              The "closed" state is the terminal state.
+            </t>
+            <t>
+              An stream enters the "closed" state after an endpoint both sends and receives a frame
+              with an END_STREAM flag set. A stream also enters the "closed" state after an endpoint
+              either sends or receives a <xref target="RST_STREAM" format="none">RST_STREAM</xref>
+              frame.
+            </t>
+            <t>
+              An endpoint MUST NOT send frames other than <xref target="PRIORITY"
+              format="none">PRIORITY</xref> on a closed stream.  An endpoint MAY treat receipt of
+              any other type of frame on a "closed" stream as a <xref
+              target="ConnectionErrorHandler">connection error</xref> of type <xref
+              target="STREAM_CLOSED" format="none">STREAM_CLOSED</xref>, except as noted below.
+            </t>
+            <t>
+              An endpoint that sends a frame with the END_STREAM flag set or a <xref
+              target="RST_STREAM" format="none">RST_STREAM</xref> frame might receive a <xref
+              target="WINDOW_UPDATE" format="none">WINDOW_UPDATE</xref> or <xref target="RST_STREAM"
+              format="none">RST_STREAM</xref> frame from its peer in the time before the peer
+              receives and processes the frame that closes the stream.
+            </t>
+            <t>
+              An endpoint that sends a <xref target="RST_STREAM" format="none">RST_STREAM</xref>
+              frame on a stream that is in the "open" state could receive any type of frame.  The
+              peer might have sent or enqueued for sending these frames before processing the <xref
+              target="RST_STREAM" format="none">RST_STREAM</xref> frame. An endpoint MUST minimally
+              process and then discard any frames it receives in this state.  This means updating
+              header compression state for <xref target="HEADERS" format="none">HEADERS</xref> and
+              <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames; <xref
+              target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames also cause the promised
+              stream to become "reserved", even when the <xref target="PUSH_PROMISE"
+              format="none">PUSH_PROMISE</xref> frame is received on a closed stream; and, the
+              content of <xref target="DATA" format="none">DATA</xref> frames counts toward the
+              connection flow-control window.
+            </t>
+            <t>
+              An endpoint can perform this minimal processing for all streams that are in the
+              "closed" state.  Endpoints MAY use other signals to detect that a peer has received
+              the frames that caused stream to become "closed" and treat receipt of any frame other
+              than <xref target="PRIORITY" format="none">PRIORITY</xref> as a <xref
+              target="ConnectionErrorHandler">connection error</xref> of type <xref
+              target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.  Endpoints can use frames
+              that indicate that the peer has received the closing signal to drive this.  Endpoints
+              SHOULD NOT use timers for this purpose.  For example, an endpoint that sends a <xref
+              target="SETTINGS" format="none">SETTINGS</xref> frame after closing a stream can
+              safely treat receipt of a <xref target="DATA" format="none">DATA</xref> frame on that
+              stream as an error after receiving an acknowledgement of the settings.  Other things
+              that might be used are <xref target="PING" format="none">PING</xref> frames, receiving
+              data on streams that were created after closing the stream, or responses to requests
+              created after closing the stream.
+            </t>
 
-                The "closed" state is the terminal state.
-            </t>
-            <t>
-                An endpoint MUST NOT send frames other than <xref target="PRIORITY" format="none">PRIORITY</xref> on a closed
-                stream.  An endpoint that receives any frame other than <xref target="PRIORITY" format="none">PRIORITY</xref>
-                after receiving a <xref target="RST_STREAM" format="none">RST_STREAM</xref> MUST treat that as a <xref target="StreamErrorHandler">stream error</xref> of type
-                <xref target="STREAM_CLOSED" format="none">STREAM_CLOSED</xref>.  Similarly, an endpoint that receives any frames after
-                receiving a frame with the END_STREAM flag set MUST treat that as a <xref target="ConnectionErrorHandler">connection error</xref> of type
-                <xref target="STREAM_CLOSED" format="none">STREAM_CLOSED</xref>, unless the frame is permitted as described below.
-            </t>
-            <t><xref target="WINDOW_UPDATE" format="none">WINDOW_UPDATE</xref> or <xref target="RST_STREAM" format="none">RST_STREAM</xref> frames can be received in
-                this state for a short period after a <xref target="DATA" format="none">DATA</xref> or <xref target="HEADERS" format="none">HEADERS</xref>
-                frame containing an END_STREAM flag is sent.  Until the remote peer receives and
-                processes <xref target="RST_STREAM" format="none">RST_STREAM</xref> or the frame bearing the END_STREAM flag, it
-                might send frames of these types.  Endpoints MUST ignore
-                <xref target="WINDOW_UPDATE" format="none">WINDOW_UPDATE</xref> or <xref target="RST_STREAM" format="none">RST_STREAM</xref> frames received in this
-                state, though endpoints MAY choose to treat frames that arrive a significant time
-                after sending END_STREAM as a <xref target="ConnectionErrorHandler">connection
-                error</xref> of type <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
-            </t>
-            <t><xref target="PRIORITY" format="none">PRIORITY</xref> frames can be sent on closed streams to prioritize streams
-                that are dependent on the closed stream.  Endpoints SHOULD process
-                <xref target="PRIORITY" format="none">PRIORITY</xref> frames, though they can be ignored if the stream has been
-                removed from the dependency tree (see <xref target="priority-gc"/>).
-            </t>
-            <t>
-                If this state is reached as a result of sending a <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame,
-                the peer that receives the <xref target="RST_STREAM" format="none">RST_STREAM</xref> might have already sent -- or
-                enqueued for sending -- frames on the stream that cannot be withdrawn.  An endpoint
-                MUST ignore frames that it receives on closed streams after it has sent a
-                <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame.  An endpoint MAY choose to limit the period over
-                which it ignores frames and treat frames that arrive after this time as being in
-                error.
-            </t>
-            <t>
-                Flow-controlled frames (i.e., <xref target="DATA" format="none">DATA</xref>) received after sending
-                <xref target="RST_STREAM" format="none">RST_STREAM</xref> are counted toward the connection flow-control window.
-                Even though these frames might be ignored, because they are sent before the sender
-                receives the <xref target="RST_STREAM" format="none">RST_STREAM</xref>, the sender will consider the frames to count
-                against the flow-control window.
-            </t>
-            <t>
-                An endpoint might receive a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame after it sends
-                <xref target="RST_STREAM" format="none">RST_STREAM</xref>.  <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> causes a stream to become
-                "reserved" even if the associated stream has been reset.  Therefore, a
-                <xref target="RST_STREAM" format="none">RST_STREAM</xref> is needed to close an unwanted promised stream.
-            </t>
           </dd>
         </dl>
         <t>
