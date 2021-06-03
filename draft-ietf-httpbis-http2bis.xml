@@ -1360,10 +1360,18 @@ HTTP Frame {
           DATA frames MAY also contain padding.  Padding can be added to DATA frames to obscure the
           size of messages.  Padding is a security feature; see <xref target="padding"/>.
         </t>
-        <figure anchor="DATAFramePayload">
-          <name>DATA Frame Payload</name>
+        <figure anchor="DATAFrameFormat">
+          <name>DATA Frame Format</name>
           <artwork type="inline"><![CDATA[
-Data Frame Payload {
+Data Frame {
+  Length (24),
+  Type (8),
+  END_STREAM Flag (1),
+  Unused Flags (2),
+  PADDED Flag (1),
+  Unused Flags (4),
+  R (1),
+  Stream Identifier (31),
   [Pad Length (8)],
   Data (..),
   Padding (..),
@@ -1442,10 +1450,19 @@ Data Frame Payload {
           a header section or a trailer section. HEADERS frames can be sent on a stream
           in the "idle", "reserved (local)", "open", or "half-closed (remote)" state.
         </t>
-        <figure anchor="HEADERSFramePayload">
-          <name>HEADERS Frame Payload</name>
+        <figure anchor="HEADERSFrameFormat">
+          <name>HEADERS Frame Format</name>
           <artwork type="inline"><![CDATA[
-Headers Frame Payload {
+Headers Frame {
+  Length (24),
+  Type (8),
+  END_STREAM Flag (1),
+  Unused Flag (1),
+  END_HEADERS Flag (1),
+  PADDED Flag (1),
+  Unused Flag (1),
+  PRIORITY Flag (1),
+  Unused Flags (2),
   [Pad Length (8)],
   E (1),
   [Stream Dependency (31)],
@@ -1556,10 +1573,13 @@ Headers Frame Payload {
           The PRIORITY frame (type=0x2) is deprecated; see <xref target="PriorityHere"/>.  A
           PRIORITY frame can be sent in any stream state, including idle or closed streams.
         </t>
-        <figure anchor="PRIORITYFramePayload">
-          <name>PRIORITY Frame Payload</name>
+        <figure anchor="PRIORITYFrameFormat">
+          <name>PRIORITY Frame Format</name>
           <artwork type="inline"><![CDATA[
-Priority Frame Payload {
+Priority Frame {
+  Length (24),
+  Type (8),
+  Unused Flags (8),
   E (1),
   Stream Dependency (31),
   Weight (8),
@@ -1611,10 +1631,13 @@ Priority Frame Payload {
           is sent to request cancellation of a stream or to indicate that an error condition has
           occurred.
         </t>
-        <figure anchor="RST_STREAMFramePayload">
-          <name>RST_STREAM Frame Payload</name>
+        <figure anchor="RST_STREAMFrameFormat">
+          <name>RST_STREAM Frame Format</name>
           <artwork type="inline"><![CDATA[
-RST_STREAM Frame Payload {
+RST_STREAM Frame {
+  Length (24),
+  Type (8),
+  Unused Flags (8),
   Error Code (32),
 }
 ]]></artwork>
@@ -1711,10 +1734,13 @@ RST_STREAM Frame Payload {
             The frame payload of a SETTINGS frame consists of zero or more settings, each consisting of
             an unsigned 16-bit setting identifier and an unsigned 32-bit value.
           </t>
-          <figure anchor="SettingFormatFigure">
+          <figure anchor="SettingFrameFormat">
             <name>SETTINGS Frame Format</name>
             <artwork type="inline"><![CDATA[
-SETTINGS Frame Payload {
+SETTINGS Frame {
+  Length (24),
+  Type (8),
+  Unused Flags (8),
   Setting (..) ...,
 }
 
@@ -1861,10 +1887,16 @@ Setting {
           that provides additional context for the stream.  <xref target="PushResources"/> contains a
           thorough description of the use of PUSH_PROMISE frames.
         </t>
-        <figure anchor="PUSH_PROMISEPayloadFormat">
-          <name>PUSH_PROMISE Frame Payload</name>
+        <figure anchor="PUSH_PROMISEFrameFormat">
+          <name>PUSH_PROMISE Frame Format</name>
           <artwork type="inline"><![CDATA[
-PUSH_PROMISE Frame Payload {
+PUSH_PROMISE Frame {
+  Length (24),
+  Type (8),
+  Unused Flags (2),
+  END_HEADERS Flag (1),
+  Padded Flag (1),
+  Unused Flags (4),
   [Pad Length (8)],
   R (1),
   Promised Stream ID (31),
@@ -1983,10 +2015,14 @@ PUSH_PROMISE Frame Payload {
           sender, as well as determining whether an idle connection is still functional.  PING
           frames can be sent from any endpoint.
         </t>
-        <figure anchor="PINGPayloadFormat">
-          <name>PING Frame Payload</name>
+        <figure anchor="PINGFrameFormat">
+          <name>PING Frame Format</name>
           <artwork type="inline"><![CDATA[
-Ping Frame Payload {
+Ping Frame {
+  Length (24),
+  Type (8),
+  ACK Flag (1)
+  Unused Flags (7),
   Opaque Data (64),
 }
 ]]></artwork>
@@ -2066,10 +2102,13 @@ Ping Frame Payload {
           GOAWAY that has no more use for the connection SHOULD still send a GOAWAY frame before
           terminating the connection.
         </t>
-        <figure anchor="GOAWAYPayloadFormat">
-          <name>GOAWAY Frame Payload</name>
+        <figure anchor="GOAWAYFrameFormat">
+          <name>GOAWAY Frame Format</name>
           <artwork type="inline"><![CDATA[
-GOAWAY Frame Payload {
+GOAWAY Frame {
+  Length (24),
+  Type (8),
+  Unused Flags (8),
   R (1),
   Last-Stream-ID (31),
   Error Code (32),
@@ -2180,10 +2219,13 @@ GOAWAY Frame Payload {
           a <xref target="StreamErrorHandler">stream error</xref> or <xref target="ConnectionErrorHandler">connection error</xref> of type
           <xref target="FLOW_CONTROL_ERROR" format="none">FLOW_CONTROL_ERROR</xref> if it is unable to accept a frame.
         </t>
-        <figure anchor="WINDOW_UPDATEPayloadFormat">
-          <name>WINDOW_UPDATE Frame Payload</name>
+        <figure anchor="WINDOW_UPDATEFrameFormat">
+          <name>WINDOW_UPDATE Frame Format</name>
           <artwork type="inline"><![CDATA[
-WINDOW_UPDATE Frame Payload {
+WINDOW_UPDATE Frame {
+  Length (24),
+  Type (8),
+  Unused Flags (8),
   R (1),
   Window Size Increment (31),
 }
@@ -2345,10 +2387,15 @@ WINDOW_UPDATE Frame Payload {
           <xref target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or CONTINUATION frame without the
           END_HEADERS flag set.
         </t>
-        <figure anchor="CONTINUATIONFramePayload">
-          <name>CONTINUATION Frame Payload</name>
+        <figure anchor="CONTINUATIONFrameFormat">
+          <name>CONTINUATION Frame Format</name>
           <artwork type="inline"><![CDATA[
-CONTINUATION Frame Payload {
+CONTINUATION Frame {
+  Length (24),
+  Type (8),
+  Unused Flags (2),
+  END_HEADERS Flag (1),
+  Unused Flags (5),
   Field Block Fragment (..),
 }
 ]]></artwork>
