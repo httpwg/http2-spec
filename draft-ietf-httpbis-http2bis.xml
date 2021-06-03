@@ -2590,10 +2590,45 @@
             registered HTTP fields, see the "Hypertext Transfer Protocol (HTTP) Field Name Registry" registry maintained at <eref target="https://www.iana.org/assignments/http-fields/"/>.
           </t>
           <t>
-            Just as in HTTP/1.x, field names are strings of ASCII characters that are
-            compared in a case-insensitive fashion. Field names MUST be converted
-            to lowercase prior to their encoding in HTTP/2. A request or response containing
-            uppercase header field names MUST be treated as <xref target="malformed">malformed</xref>.
+            Field names are strings of ASCII characters that are compared in a case-insensitive
+            fashion. Field names MUST be converted to lowercase when constructing a HTTP/2
+            message. A request or response containing an uppercase character ('A' to 'Z', ASCII 0x41
+            to 0x5a) in a field name MUST be treated as <xref target="malformed">malformed</xref>.
+          </t>
+          <t>
+            HPACK is capable of carrying field names or values that are not valid in HTTP.  Though
+            HPACK can carry any octet, fields are not valid in the following cases:
+          </t>
+          <ul>
+            <li>
+              A field name MUST NOT contain characters in the range 0x00-0x20 or 0x7F-0xFF (both
+              ranges inclusive).  This limits field names to visible ASCII characters, other than
+              ASCII SP (0x20).
+            </li>
+            <li>
+              With the exception of <xref target="PseudoHeaderFields">pseudo-header fields</xref>,
+              which have a name that starts with a single colon, field names MUST NOT include a
+              colon (ASCII COLON, 0x3a).
+            </li>
+            <li>
+              A field value MUST NOT contain the zero value (ASCII NUL, 0x0), line feed (ASCII LF,
+              0xa), or carriage return (ASCII CR, 0xd) at any position.
+            </li>
+            <li>
+              A field value MUST NOT start or end with an ASCII whitespace character (ASCII SP or
+              HTAB, 0x20 or 0x9).
+            </li>
+          </ul>
+          <t>
+            A request or response that contains a field that violates any of these conditions MUST
+            be treated as <xref target="malformed">malformed</xref>.  In particular, an intermediary
+            that does not process fields when forwarding messages MUST NOT forward fields that
+            contain any of the values that are listed as prohibited above.
+          </t>
+          <t>
+            Field values that are not valid according to the definition of the corresponding field
+            do not cause a request to be <xref target="malformed" format="none">malformed</xref>
+            except as defined by the processing rules for the field.
           </t>
           <section anchor="PseudoHeaderFields">
             <name>Pseudo-Header Fields</name>
@@ -3487,18 +3522,19 @@
       <section>
         <name>Intermediary Encapsulation Attacks</name>
         <t>
-          The HTTP/2 field block encoding allows the expression of names that are not valid field
-          names in HTTP.  Requests or responses containing
-          invalid field names MUST be treated as <xref target="malformed">malformed</xref>.
-          An intermediary therefore cannot translate an HTTP/2 request or response containing an
-          invalid field name into an HTTP/1.1 message.
+          HPACK permits encoding of field names and values that might be treated as delimiters in
+          other HTTP versions.  An intermediary that translates an HTTP/2 request or response MUST
+          validate fields according to the rules in <xref target="HttpHeaders"/> roles before
+          translating a message to another HTTP version.  Translating a field that includes invalid
+          delimiters could be used to cause recipients to incorrectly interpret a message, which
+          could be exploited by an attacker.
         </t>
         <t>
-          Similarly, HTTP/2 allows field values that are not valid.  While most of the values
-          that can be encoded will not alter header field parsing, carriage return (CR, ASCII 0xd),
-          line feed (LF, ASCII 0xa), and the zero character (NUL, ASCII 0x0) might be exploited by
-          an attacker if they are translated verbatim.  Any request or response that contains a
-          character not permitted in a field value MUST be treated as <xref target="malformed">malformed</xref>.  Valid characters are defined by the <tt>field-content</tt> ABNF rule in <xref target="HTTP" section="5.5"/>.
+          An intermediary can reject fields that contain invalid field names or values for other
+          reasons, in particular those that do not conform to the HTTP ABNF grammar from <xref
+          target="HTTP" section="5"/>. Intermediaries that do not perform any validation of fields
+          other than the minimum required by <xref target="HttpHeaders"/> could forward messages
+          that contain invalid field names or values.
         </t>
         <t>
           An intermediary that receives any field that requires removal before forwarding
