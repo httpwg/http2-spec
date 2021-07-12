@@ -1363,9 +1363,9 @@ HTTP Frame {
         <figure anchor="DATAFrameFormat">
           <name>DATA Frame Format</name>
           <artwork type="inline"><![CDATA[
-Data Frame {
+DATA Frame {
   Length (24),
-  Type (8),
+  Type (8) = 0,
   Unused Flags (4),
   PADDED Flag (1),
   Unused Flags (2),
@@ -1406,15 +1406,15 @@ Data Frame {
           The DATA frame defines the following flags:
         </t>
         <dl newline="false" spacing="normal">
-          <dt>END_STREAM (0x1):</dt>
-          <dd>
-              When set, bit 0 indicates that this frame is the last that the endpoint will send for
-              the identified stream.  Setting this flag causes the stream to enter one of <xref target="StreamStates">the "half-closed" states or the "closed" state</xref>.
-            </dd>
           <dt>PADDED (0x8):</dt>
           <dd>
               When set, bit 3 indicates that the Pad Length field and any padding that it describes
               are present.
+            </dd>
+          <dt>END_STREAM (0x1):</dt>
+          <dd>
+              When set, bit 0 indicates that this frame is the last that the endpoint will send for
+              the identified stream.  Setting this flag causes the stream to enter one of <xref target="StreamStates">the "half-closed" states or the "closed" state</xref>.
             </dd>
         </dl>
         <t>
@@ -1454,9 +1454,9 @@ Data Frame {
         <figure anchor="HEADERSFrameFormat">
           <name>HEADERS Frame Format</name>
           <artwork type="inline"><![CDATA[
-Headers Frame {
+HEADERS Frame {
   Length (24),
-  Type (8),
+  Type (8) = 1,
   Unused Flags (2),
   PRIORITY Flag (1),
   Unused Flag (1),
@@ -1467,7 +1467,7 @@ Headers Frame {
   Reserved (1),
   Stream Identifier (31),
   [Pad Length (8)],
-  Exclusive (1),
+  [Exclusive (1)],
   [Stream Dependency (31)],
   [Weight (8)],
   Field Block Fragment (..),
@@ -1510,17 +1510,18 @@ Headers Frame {
           The HEADERS frame defines the following flags:
         </t>
         <dl newline="false" spacing="normal">
-          <dt>END_STREAM (0x1):</dt>
+          <dt>PRIORITY (0x20):</dt>
           <dd>
             <t>
-                When set, bit 0 indicates that the <xref target="FieldBlock">field block</xref> is
-                the last that the endpoint will send for the identified stream.
+              When set, bit 5 indicates that the Exclusive, Stream Dependency, and Weight
+              fields are present.
             </t>
+          </dd>
+          <dt>PADDED (0x8):</dt>
+          <dd>
             <t>
-                A HEADERS frame carries the END_STREAM flag that signals the end of a stream.
-                However, a HEADERS frame with the END_STREAM flag set can be followed by
-                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames on the same stream.  Logically, the
-                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames are part of the HEADERS frame.
+                When set, bit 3 indicates that the Pad Length field and any padding that it
+                describes are present.
             </t>
           </dd>
           <dt>END_HEADERS (0x4):</dt>
@@ -1536,18 +1537,17 @@ Headers Frame {
                 <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
             </t>
           </dd>
-          <dt>PADDED (0x8):</dt>
+          <dt>END_STREAM (0x1):</dt>
           <dd>
             <t>
-                When set, bit 3 indicates that the Pad Length field and any padding that it
-                describes are present.
+                When set, bit 0 indicates that the <xref target="FieldBlock">field block</xref> is
+                the last that the endpoint will send for the identified stream.
             </t>
-          </dd>
-          <dt>PRIORITY (0x20):</dt>
-          <dd>
             <t>
-              When set, bit 5 indicates that the Exclusive, Stream Dependency, and Weight
-              fields are present.
+                A HEADERS frame carries the END_STREAM flag that signals the end of a stream.
+                However, a HEADERS frame with the END_STREAM flag set can be followed by
+                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames on the same stream.  Logically, the
+                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames are part of the HEADERS frame.
             </t>
           </dd>
         </dl>
@@ -1580,9 +1580,9 @@ Headers Frame {
         <figure anchor="PRIORITYFrameFormat">
           <name>PRIORITY Frame Format</name>
           <artwork type="inline"><![CDATA[
-Priority Frame {
+PRIORITY Frame {
   Length (24),
-  Type (8),
+  Type (8) = 2,
   Unused Flags (8),
   Reserved (1),
   Stream Identifier (31),
@@ -1643,7 +1643,7 @@ Priority Frame {
           <artwork type="inline"><![CDATA[
 RST_STREAM Frame {
   Length (24),
-  Type (8),
+  Type (8) = 3,
   Unused Flags (8),
   Reserved (1),
   Stream Identifier (31),
@@ -1749,8 +1749,9 @@ RST_STREAM Frame {
             <artwork type="inline"><![CDATA[
 SETTINGS Frame {
   Length (24),
-  Type (8),
-  Unused Flags (8),
+  Type (8) = 4,
+  Unused Flags (7),
+  ACK Flag (1),
   Reserved (1),
   Stream Identifier (31),
   Setting (..) ...,
@@ -1904,7 +1905,7 @@ Setting {
           <artwork type="inline"><![CDATA[
 PUSH_PROMISE Frame {
   Length (24),
-  Type (8),
+  Type (8) = 5,
   Unused Flags (4),
   PADDED Flag (1),
   END_HEADERS Flag (1),
@@ -1953,6 +1954,13 @@ PUSH_PROMISE Frame {
           The PUSH_PROMISE frame defines the following flags:
         </t>
         <dl newline="false" spacing="normal">
+          <dt>PADDED (0x8):</dt>
+          <dd>
+            <t>
+                When set, bit 3 indicates that the Pad Length field and any padding that it
+                describes are present.
+            </t>
+          </dd>
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
@@ -1964,13 +1972,6 @@ PUSH_PROMISE Frame {
                 CONTINUATION frame for the same stream.  A receiver MUST treat the receipt of any
                 other type of frame or a frame on a different stream as a <xref target="ConnectionErrorHandler">connection error</xref> of type
                 <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
-            </t>
-          </dd>
-          <dt>PADDED (0x8):</dt>
-          <dd>
-            <t>
-                When set, bit 3 indicates that the Pad Length field and any padding that it
-                describes are present.
             </t>
           </dd>
         </dl>
@@ -2033,11 +2034,11 @@ PUSH_PROMISE Frame {
         <figure anchor="PINGFrameFormat">
           <name>PING Frame Format</name>
           <artwork type="inline"><![CDATA[
-Ping Frame {
+PING Frame {
   Length (24),
-  Type (8),
-  ACK Flag (1)
+  Type (8) = 6,
   Unused Flags (7),
+  ACK Flag (1)
   Reserved (1),
   Stream Identifier (31),
   Opaque Data (64),
@@ -2127,7 +2128,7 @@ Ping Frame {
           <artwork type="inline"><![CDATA[
 GOAWAY Frame {
   Length (24),
-  Type (8),
+  Type (8) = 7,
   Unused Flags (8),
   Reserved (1),
   Stream Identifier (31),
@@ -2249,7 +2250,7 @@ GOAWAY Frame {
           <artwork type="inline"><![CDATA[
 WINDOW_UPDATE Frame {
   Length (24),
-  Type (8),
+  Type (8) = 8,
   Unused Flags (8),
   Reserved (1),
   Stream Identifier (31),
@@ -2420,7 +2421,7 @@ WINDOW_UPDATE Frame {
           <artwork type="inline"><![CDATA[
 CONTINUATION Frame {
   Length (24),
-  Type (8),
+  Type (8) = 9,
   Unused Flags (5),
   END_HEADERS Flag (1),
   Unused Flags (2),
