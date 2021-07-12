@@ -115,7 +115,7 @@
       <t>
         The basic protocol unit in HTTP/2 is a <xref target="FrameHeader">frame</xref>.  Each frame
         type serves a different purpose.  For example, <xref target="HEADERS" format="none">HEADERS</xref> and
-        <xref target="DATA" format="none">DATA</xref> frames form the basis of <xref target="HttpSequence">HTTP requests and
+        <xref target="DATA" format="none">DATA</xref> frames form the basis of <xref target="HttpFraming">HTTP requests and
         responses</xref>; other frame types like <xref target="SETTINGS" format="none">SETTINGS</xref>,
         <xref target="WINDOW_UPDATE" format="none">WINDOW_UPDATE</xref>, and <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> are used in support of other
         HTTP/2 features.
@@ -162,7 +162,7 @@
           <li><xref target="FrameTypes">Frame</xref> and <xref target="ErrorCodes">error</xref>
               definitions include details of the frame and error types used in HTTP/2.
             </li>
-          <li><xref target="HTTPLayer">HTTP mappings</xref> and <xref target="HttpExtra">additional
+          <li><xref target="HttpLayer">HTTP mappings</xref> and <xref target="HttpExtra">additional
               requirements</xref> describe how HTTP semantics are expressed using frames and
               streams.
           </li>
@@ -909,7 +909,7 @@ HTTP Frame {
         </t>
         <t>
           An example of the state transitions for an HTTP request/response exchange can be found in
-          <xref target="HttpSequence"/>.  An example of the state transitions for server push can be
+          <xref target="HttpExamples"/>.  An example of the state transitions for server push can be
           found in Sections <xref target="PushRequests" format="counter"/> and <xref target="PushResponses" format="counter"/>.
         </t>
         <section anchor="StreamIdentifiers">
@@ -1280,7 +1280,7 @@ HTTP Frame {
         <t>
           Extensions SHOULD avoiding changing protocol elements defined in this document or
           elements for which no extension mechanism is defined.  This includes changes to the
-          layout of frames, additions or changes to the way that frames are composed into <xref target="HTTPLayer">HTTP messages</xref>, the definition of pseudo-header fields, or
+          layout of frames, additions or changes to the way that frames are composed into <xref target="HttpFraming">HTTP messages</xref>, the definition of pseudo-header fields, or
           changes to any protocol element that a compliant endpoint might treat as a <xref target="ConnectionErrorHandler">connection error</xref>.
         </t>
         <t>
@@ -2511,14 +2511,14 @@ CONTINUATION Frame {
         treated by an implementation as being equivalent to <xref target="INTERNAL_ERROR" format="none">INTERNAL_ERROR</xref>.
       </t>
     </section>
-    <section anchor="HTTPLayer">
+    <section anchor="HttpLayer">
       <name>Expressing HTTP Semantics in HTTP/2</name>
-      <section anchor="HttpSequence">
+      <t>
+        HTTP/2 is an instantiation of the HTTP message abstraction (<xref target="HTTP"
+        section="6"/>).
+      </t>
+      <section anchor="HttpFraming">
         <name>HTTP Message Framing</name>
-        <t>
-          HTTP/2 defines a framing of the HTTP message abstraction
-          (<xref target="HTTP" section="6"/>).
-        </t>
         <t>
           A client sends an HTTP request on a new stream, using a previously unused <xref
           target="StreamIdentifiers">stream identifier</xref>. A server sends an HTTP response on
@@ -2529,19 +2529,19 @@ CONTINUATION Frame {
         </t>
         <ol spacing="normal" type="1">
           <li>
-              one <xref target="HEADERS" format="none">HEADERS</xref> frame (followed by zero or
-              more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) containing
-              the header section (see <xref target="HTTP" section="6.3"/>),
-            </li>
+            one <xref target="HEADERS" format="none">HEADERS</xref> frame (followed by zero or
+            more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) containing
+            the header section (see <xref target="HTTP" section="6.3"/>),
+          </li>
           <li>
-              zero or more <xref target="DATA" format="none">DATA</xref> frames containing the
-              message content (see <xref target="HTTP" section="6.4"/>), and
-            </li>
+            zero or more <xref target="DATA" format="none">DATA</xref> frames containing the
+            message content (see <xref target="HTTP" section="6.4"/>), and
+          </li>
           <li>
-              optionally, one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by
-              zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames
-              containing the trailer-part, if present (see <xref target="HTTP" section="6.5"/>).
-            </li>
+            optionally, one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by
+            zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames
+            containing the trailer-part, if present (see <xref target="HTTP" section="6.5"/>).
+          </li>
         </ol>
         <t>
           For a response only, a server MAY send any number of interim responses before the <xref
@@ -2610,49 +2610,49 @@ CONTINUATION Frame {
         <section anchor="malformed">
           <name>Malformed Messages</name>
           <t>
-              A malformed request or response is one that is an otherwise valid sequence of HTTP/2
-              frames but is invalid due to the presence of extraneous frames, prohibited fields or
-              pseudo-header fields, the absence of mandatory fields or pseudo-header fields, the
-              inclusion of uppercase field names, or invalid field names and/or values (in certain
-              circumstances; see <xref target="HttpHeaders"/>).
-            </t>
+            A malformed request or response is one that is an otherwise valid sequence of HTTP/2
+            frames but is invalid due to the presence of extraneous frames, prohibited fields or
+            pseudo-header fields, the absence of mandatory fields or pseudo-header fields, the
+            inclusion of uppercase field names, or invalid field names and/or values (in certain
+            circumstances; see <xref target="HttpHeaders"/>).
+          </t>
           <t>
-              A request or response that includes message content can include a
-              <tt>content-length</tt> header field. A request or response is also malformed if the
-              value of a <tt>content-length</tt> header field does not equal the sum of the <xref
-              target="DATA" format="none">DATA</xref> frame payload lengths that form the content.
-              A response that is defined to have no content, as described in <xref target="HTTP"
-              section="6.4"/>, can have a non-zero <tt>content-length</tt> header field, even
-              though no content is included in <xref target="DATA" format="none">DATA</xref> frames.
-            </t>
+            A request or response that includes message content can include a
+            <tt>content-length</tt> header field. A request or response is also malformed if the
+            value of a <tt>content-length</tt> header field does not equal the sum of the <xref
+            target="DATA" format="none">DATA</xref> frame payload lengths that form the content.
+            A response that is defined to have no content, as described in <xref target="HTTP"
+            section="6.4"/>, can have a non-zero <tt>content-length</tt> header field, even
+            though no content is included in <xref target="DATA" format="none">DATA</xref> frames.
+          </t>
           <t>
-              Intermediaries that process HTTP requests or responses (i.e., any intermediary not
-              acting as a tunnel) MUST NOT forward a malformed request or response. Malformed
-              requests or responses that are detected MUST be treated as a <xref
-              target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR"
-              format="none">PROTOCOL_ERROR</xref>.
-            </t>
+            Intermediaries that process HTTP requests or responses (i.e., any intermediary not
+            acting as a tunnel) MUST NOT forward a malformed request or response. Malformed
+            requests or responses that are detected MUST be treated as a <xref
+            target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR"
+            format="none">PROTOCOL_ERROR</xref>.
+          </t>
           <t>
-              For malformed requests, a server MAY send an HTTP response prior to closing or
-              resetting the stream.  Clients MUST NOT accept a malformed response.
-            </t>
+            For malformed requests, a server MAY send an HTTP response prior to closing or
+            resetting the stream.  Clients MUST NOT accept a malformed response.
+          </t>
           <t>
-              Endpoints that progressively process messages might have performed some processing
-              before identifying a request or response as malformed. For instance, it might be
-              possible to generate an informational or 404 status code without having received a
-              complete request. Similarly, intermediaries might forward incomplete messages before
-              detecting errors. A server MAY generate a final response before receiving an entire
-              request when the response does not depend on the remainder of the request being
-              correct. A server or intermediary MAY use <xref target="RST_STREAM"
-              format="none">RST_STREAM</xref> -- with a code other than <xref
-              target="REFUSED_STREAM" format="none">REFUSED_STREAM</xref> -- to abort a stream if a
-              malformed request or response is received.
-            </t>
+            Endpoints that progressively process messages might have performed some processing
+            before identifying a request or response as malformed. For instance, it might be
+            possible to generate an informational or 404 status code without having received a
+            complete request. Similarly, intermediaries might forward incomplete messages before
+            detecting errors. A server MAY generate a final response before receiving an entire
+            request when the response does not depend on the remainder of the request being
+            correct. A server or intermediary MAY use <xref target="RST_STREAM"
+            format="none">RST_STREAM</xref> -- with a code other than <xref
+            target="REFUSED_STREAM" format="none">REFUSED_STREAM</xref> -- to abort a stream if a
+            malformed request or response is received.
+          </t>
           <t>
-              These requirements are intended to protect against several types of common attacks
-              against HTTP; they are deliberately strict because being permissive can expose
-              implementations to these vulnerabilities.
-            </t>
+            These requirements are intended to protect against several types of common attacks
+            against HTTP; they are deliberately strict because being permissive can expose
+            implementations to these vulnerabilities.
+          </t>
         </section>
       </section>
       <section anchor="HttpHeaders">
@@ -3047,7 +3047,7 @@ cookie: e=f
             the server can begin delivering the pushed response as a <xref
             target="HttpResponse">response</xref> on a server-initiated stream that uses the
             promised stream identifier. The server uses this stream to transmit an HTTP response,
-            using the same sequence of frames as defined in <xref target="HttpSequence"/>. This
+            using the same sequence of frames as defined in <xref target="HttpFraming"/>. This
             stream becomes <xref target="StreamStates">"half-closed" to the client</xref> after the
             initial <xref target="HEADERS" format="none">HEADERS</xref> frame is sent.
           </t>
@@ -3218,7 +3218,7 @@ cookie: e=f
           test whether a connection is still active without sending a request.
         </t>
       </section>
-      <section>
+      <section anchor="HttpExamples">
         <name>Examples</name>
         <t>
             This section shows HTTP/1.1 requests and responses, with illustrations of equivalent
