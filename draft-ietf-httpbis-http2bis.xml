@@ -2555,13 +2555,13 @@ CONTINUATION Frame {
       </t>
     </section>
     <section anchor="HTTPLayer">
-      <name>HTTP Message Exchanges</name>
-      <t>
-        HTTP/2 defines a framing of the HTTP message abstraction
-        (<xref target="HTTP" section="6"/>).
-      </t>
+      <name>Expressing HTTP Semantics in HTTP/2</name>
       <section anchor="HttpSequence">
         <name>HTTP Message Framing</name>
+        <t>
+          HTTP/2 defines a framing of the HTTP message abstraction
+          (<xref target="HTTP" section="6"/>).
+        </t>
         <t>
           A client sends an HTTP request on a new stream, using a previously unused <xref target="StreamIdentifiers">stream identifier</xref>.  A server sends an HTTP response on
           the same stream as the request.
@@ -2647,269 +2647,8 @@ CONTINUATION Frame {
           responses as a result of receiving such a <xref target="RST_STREAM" format="none">RST_STREAM</xref>, though clients can
           always discard responses at their discretion for other reasons.
         </t>
-        <section anchor="informational-responses">
-          <name>Upgrading from HTTP/2</name>
-          <t>
-            HTTP/2 removes support for the 101 (Switching Protocols) informational status code
-            (<xref target="HTTP" section="15.2.2"/>).
-          </t>
-          <t>
-            The semantics of 101 (Switching Protocols) aren't applicable to a multiplexed protocol.
-            Alternative protocols are able to use the same mechanisms that HTTP/2 uses to negotiate
-            their use (see <xref target="starting"/>).
-          </t>
-        </section>
-        <section anchor="HttpHeaders">
-          <name>HTTP Fields</name>
-          <t>
-            HTTP fields carry information as a series of field lines, which are key-value pairs. For a listing of
-            registered HTTP fields, see the "Hypertext Transfer Protocol (HTTP) Field Name Registry"
-            registry maintained at <eref target="https://www.iana.org/assignments/http-fields/"/>.
-          </t>
-          <t>
-            Field names are strings of ASCII characters that are compared in a case-insensitive
-            fashion. Field names MUST be converted to lowercase when constructing a HTTP/2
-            message.
-          </t>
-          <t>
-            HPACK is capable of carrying field names or values that are not valid in HTTP.  Though
-            HPACK can carry any octet, fields are not valid in the following cases:
-          </t>
-          <ul>
-            <li>
-              A field name MUST NOT contain characters in the ranges 0x00-0x20, 0x41-0x5A, or 0x7F-0xFF
-              (all ranges inclusive).  This limits field names to visible ASCII characters, other than
-              ASCII SP (0x20) and uppercase characters ('A' to 'Z', ASCII 0x41 to 0x5a).
-            </li>
-            <li>
-              With the exception of <xref target="PseudoHeaderFields">pseudo-header fields</xref>,
-              which have a name that starts with a single colon, field names MUST NOT include a
-              colon (ASCII COLON, 0x3a).
-            </li>
-            <li>
-              A field value MUST NOT contain the zero value (ASCII NUL, 0x0), line feed (ASCII LF,
-              0xa), or carriage return (ASCII CR, 0xd) at any position.
-            </li>
-            <li>
-              A field value MUST NOT start or end with an ASCII whitespace character (ASCII SP or
-              HTAB, 0x20 or 0x9).
-            </li>
-          </ul>
-          <t>
-            A request or response that contains a field that violates any of these conditions MUST
-            be treated as <xref target="malformed">malformed</xref>.  In particular, an intermediary
-            that does not process fields when forwarding messages MUST NOT forward fields that
-            contain any of the values that are listed as prohibited above.
-          </t>
-          <t>
-            A recipient MAY treat a message that contains a field name or value that includes
-            other characters disallowed by <xref target="HTTP" section="5.1"/> and <xref
-            target="HTTP" section="5.5"/> as <xref target="malformed">malformed</xref>.
-          </t>
-          <t>
-            When a request message violates one of the requirements above, it SHOULD be responded
-            to using the 400 (Bad Request) status code <xref target="HTTP" section="15.5.1"/>
-            before the stream is reset, unless a more suitable status code is defined, or the
-            status code cannot be sent (e.g., because the error occurs in a trailer field).
-          </t>
-          <t>
-            Note that field values that are not valid according to the definition of the corresponding field
-            do not cause a request to be <xref target="malformed" format="none">malformed</xref>; the
-            requirements above only apply to the generic syntax for field values as defined in <xref
-            target="HTTP" section="5.5"/>.
-          </t>
-          <section anchor="PseudoHeaderFields">
-            <name>Pseudo-Header Fields</name>
-            <t>
-              HTTP/2 uses special pseudo-header fields beginning with ':' character (ASCII 0x3a) to
-              convey message control data (see <xref target="HTTP" section="6.2"/>).
-            </t>
-            <t>
-              Pseudo-header fields are not HTTP header fields.  Endpoints MUST NOT generate
-              pseudo-header fields other than those defined in this document.  Note that an
-              extension could negotiate the use of additional pseudo-header fields; see
-              <xref target="extensibility"/>.
-            </t>
-            <t>
-              Pseudo-header fields are only valid in the context in which they are defined.
-              Pseudo-header fields defined for requests MUST NOT appear in responses; pseudo-header
-              fields defined for responses MUST NOT appear in requests.  Pseudo-header fields MUST
-              NOT appear in a trailer section.  Endpoints MUST treat a request or response that contains
-              undefined or invalid pseudo-header fields as <xref target="malformed">malformed</xref>.
-            </t>
-            <t>
-              All pseudo-header fields MUST appear in a field block before all regular field lines.
-              Any request or response that contains a pseudo-header field that appears in a field
-              block after a regular field line MUST be treated as <xref target="malformed">malformed</xref>.
-            </t>
-          </section>
-          <section anchor="HttpRequest">
-            <name>Request Pseudo-Header Fields</name>
-            <t>
-              The following pseudo-header fields are defined for HTTP/2 requests:
-            </t>
-            <ul spacing="normal">
-              <li>
-                <t>
-                    The <tt>:method</tt> pseudo-header field includes the HTTP
-                    method (<xref target="HTTP" section="9"/>).
-                </t>
-              </li>
-              <li>
-                <t>
-                  The <tt>:scheme</tt> pseudo-header field includes the scheme portion of the
-                  request target.  The scheme is taken from the target URI (<xref target="RFC3986"
-                  section="3.1"/>) when generating a request directly, or from the scheme of a
-                  translated request (for example. see <xref target="HTTP11" section="3.3"/>).
-                  Scheme is omitted for <xref target="CONNECT">CONNECT requests</xref>.
-                </t>
-                <t>
-                  <tt>:scheme</tt> is not restricted to <tt>http</tt> and <tt>https</tt> schemed
-                  URIs.  A proxy or gateway can translate requests for non-HTTP schemes, enabling
-                  the use of HTTP to interact with non-HTTP services.
-                </t>
-              </li>
-              <li>
-                <t>
-                    The <tt>:authority</tt> pseudo-header field includes the
-                    authority portion of the target URI (<xref target="RFC3986" section="3.2"/>). The
-                    authority MUST NOT include the deprecated <tt>userinfo</tt> subcomponent for
-                    <tt>http</tt> or <tt>https</tt> schemed URIs.
-                </t>
-                <t>
-                  Clients that generate HTTP/2 requests directly SHOULD use the <tt>:authority</tt>
-                  pseudo-header field instead of the <tt>Host</tt> header field.
-                </t>
-                <t>
-                  An intermediary that translates a request to HTTP/2 from another HTTP version MUST
-                  translate any authority information from the request into an <tt>:authority</tt>
-                  pseudo-header field.  If the control data in the original request contains
-                  authority information, an intermediary MUST include a <tt>:authority</tt>
-                  pseudo-header field.  If control data does not contain authority, an intermediary
-                  MUST NOT add an <tt>:authority</tt> pseudo-header field.  For reference, an
-                  HTTP/1.1 <xref target="HTTP11" section="3.2">request target</xref> in
-                  authority-form always includes authority, a request target in absolute-form
-                  includes authority if the target URI includes authority, and request targets in
-                  origin- or asterisk-form do not include authority.
-                </t>
-                <t>
-                  An intermediary that translates a request to another HTTP version from HTTP/2 can
-                  construct a <tt>Host</tt> header field by copying the value of the
-                  <tt>:authority</tt> pseudo-header field if that version requires that
-                  <tt>Host</tt> be included in a request, as HTTP/1.1 does for some forms of request
-                  target (see <xref target="HTTP11" section="3.2"/>).
-                </t>
-                <t>
-                  An intermediary that translates a request to HTTP/2 from another HTTP version MUST
-                  retain any <tt>Host</tt> header field, even if an authority is part of control
-                  data.
-                </t>
-                <t>
-                  The value of the <tt>Host</tt> header field MUST be ignored if control data
-                  contains authority (that is, the <tt>:authority</tt> pseudo-header field is
-                  present).
-                </t>
-              </li>
-              <li>
-                <t>
-                    The <tt>:path</tt> pseudo-header field includes the path and
-                    query parts of the target URI (the <tt>path-absolute</tt>
-                    production and optionally a '?' character followed by the
-                    <tt>query</tt> production (see Sections 3.3 and 3.4 of <xref target="RFC3986"/>).
-                    A request in asterisk form includes the value '*' for the
-                    <tt>:path</tt> pseudo-header field.
-                </t>
-                <t>
-                    This pseudo-header field MUST NOT be empty for <tt>http</tt> or <tt>https</tt>
-                    URIs; <tt>http</tt> or <tt>https</tt> URIs that do not contain a path component
-                    MUST include a value of '/'. The exception to this rule is an OPTIONS request
-                    for an <tt>http</tt> or <tt>https</tt> URI that does not include a path
-                    component; these MUST include a <tt>:path</tt> pseudo-header field with a value
-                    of '*' (see <xref target="HTTP" section="7.1"/>).
-                </t>
-              </li>
-            </ul>
-            <t>
-              All HTTP/2 requests MUST include exactly one valid value for the <tt>:method</tt>, <tt>:scheme</tt>, and <tt>:path</tt> pseudo-header fields, unless it is a <xref target="CONNECT">CONNECT request</xref>. An HTTP request that omits mandatory
-              pseudo-header fields is <xref target="malformed">malformed</xref>.
-            </t>
-            <t>
-              Individual HTTP/2 requests do not carry an explicit indicator of protocol version.
-              All HTTP/2 messages implicitly have a protocol version of "2.0" (see
-              <xref target="HTTP" section="6.2"/>).
-            </t>
-          </section>
-          <section anchor="HttpResponse">
-            <name>Response Pseudo-Header Fields</name>
-            <t>
-              For HTTP/2 responses, a single <tt>:status</tt> pseudo-header
-              field is defined that carries the HTTP status code field (see
-              <xref target="HTTP" section="15"/>). This pseudo-header field MUST be included in all
-              responses, including interim responses; otherwise, the response is
-              <xref target="malformed">malformed</xref>.
-            </t>
-            <t>
-              HTTP/2 responses implicitly have a protocol version of "2.0".
-            </t>
-          </section>
-          <section anchor="CompressCookie">
-            <name>Compressing the Cookie Header Field</name>
-            <t>
-              The <xref target="COOKIE">Cookie header field</xref> uses a semi-colon (";") to
-              delimit cookie-pairs (or "crumbs").  This header field contains multiple values, but
-              does not use a COMMA (",") as a separator, which prevents cookie-pairs from being sent
-              on multiple field lines (see <xref target="HTTP" section="5.2"/>).  This can
-              significantly reduce compression efficiency as updates to individual cookie-pairs
-              would invalidate any field lines that are stored in the HPACK table.
-            </t>
-            <t>
-              To allow for better compression efficiency, the Cookie header field MAY be split into
-              separate header fields, each with one or more cookie-pairs.  If there are multiple
-              Cookie header fields after decompression, these MUST be concatenated into a single
-              octet string using the two-octet delimiter of 0x3B, 0x20 (the ASCII string "; ")
-              before being passed into a non-HTTP/2 context, such as an HTTP/1.1 connection, or a
-              generic HTTP server application.
-            </t>
-            <t keepWithNext="true">
-                Therefore, the following two lists of Cookie header fields are semantically
-                equivalent.
-            </t>
-            <artwork type="inline"><![CDATA[
-  cookie: a=b; c=d; e=f
-
-  cookie: a=b
-  cookie: c=d
-  cookie: e=f
-]]></artwork>
-          </section>
-          <section>
-            <name>Connection-Specific Header Fields</name>
-            <t>
-              HTTP/2 does not use the <tt>Connection</tt> header field to
-              indicate connection-specific header fields; in this protocol, connection-specific
-              metadata is conveyed by other means.  An endpoint MUST NOT generate an HTTP/2 message
-              containing connection-specific header fields; any message containing
-              connection-specific header fields MUST be treated as <xref target="malformed">malformed</xref>.
-            </t>
-            <t>
-              The only exception to this is the TE header field, which MAY be present in an HTTP/2
-              request; when it is, it MUST NOT contain any value other than "trailers".
-            </t>
-            <t>
-              An intermediary transforming a HTTP/1.x message to HTTP/2 MUST remove connection-specific
-              header fields as discussed in <xref target="HTTP" section="7.6.1"/>,
-              or their messages will be treated by other HTTP/2 endpoints as <xref target="malformed">malformed</xref>.
-            </t>
-            <aside>
-              <t>Note:
-                HTTP/2 purposefully does not support upgrade to another protocol.  The handshake
-                methods described in <xref target="starting"/> are believed sufficient to
-                negotiate the use of alternative protocols.
-              </t>
-            </aside>
-          </section>
           <section anchor="malformed">
-            <name>Malformed Requests and Responses</name>
+            <name>Malformed Messages</name>
             <t>
               A malformed request or response is one that is an otherwise valid sequence of HTTP/2
               frames but is invalid due to the presence of extraneous frames, prohibited fields or
@@ -2953,175 +2692,253 @@ CONTINUATION Frame {
             </t>
           </section>
         </section>
+        <section anchor="HttpHeaders">
+        <name>HTTP Fields</name>
+        <t>
+          HTTP fields carry information as a series of field lines, which are key-value pairs. For a listing of
+          registered HTTP fields, see the "Hypertext Transfer Protocol (HTTP) Field Name Registry"
+          registry maintained at <eref target="https://www.iana.org/assignments/http-fields/"/>.
+        </t>
+        <t>
+          Field names are strings of ASCII characters that are compared in a case-insensitive
+          fashion. Field names MUST be converted to lowercase when constructing a HTTP/2
+          message.
+        </t>
+        <t>
+          HPACK is capable of carrying field names or values that are not valid in HTTP.  Though
+          HPACK can carry any octet, fields are not valid in the following cases:
+        </t>
+        <ul>
+          <li>
+            A field name MUST NOT contain characters in the ranges 0x00-0x20, 0x41-0x5A, or 0x7F-0xFF
+            (all ranges inclusive).  This limits field names to visible ASCII characters, other than
+            ASCII SP (0x20) and uppercase characters ('A' to 'Z', ASCII 0x41 to 0x5a).
+          </li>
+          <li>
+            With the exception of <xref target="PseudoHeaderFields">pseudo-header fields</xref>,
+            which have a name that starts with a single colon, field names MUST NOT include a
+            colon (ASCII COLON, 0x3a).
+          </li>
+          <li>
+            A field value MUST NOT contain the zero value (ASCII NUL, 0x0), line feed (ASCII LF,
+            0xa), or carriage return (ASCII CR, 0xd) at any position.
+          </li>
+          <li>
+            A field value MUST NOT start or end with an ASCII whitespace character (ASCII SP or
+            HTAB, 0x20 or 0x9).
+          </li>
+        </ul>
+        <t>
+          A request or response that contains a field that violates any of these conditions MUST
+          be treated as <xref target="malformed">malformed</xref>.  In particular, an intermediary
+          that does not process fields when forwarding messages MUST NOT forward fields that
+          contain any of the values that are listed as prohibited above.
+        </t>
+        <t>
+          A recipient MAY treat a message that contains a field name or value that includes
+          other characters disallowed by <xref target="HTTP" section="5.1"/> and <xref
+          target="HTTP" section="5.5"/> as <xref target="malformed">malformed</xref>.
+        </t>
+        <t>
+          When a request message violates one of the requirements above, it SHOULD be responded
+          to using the 400 (Bad Request) status code <xref target="HTTP" section="15.5.1"/>
+          before the stream is reset, unless a more suitable status code is defined, or the
+          status code cannot be sent (e.g., because the error occurs in a trailer field).
+        </t>
+        <t>
+          Note that field values that are not valid according to the definition of the corresponding field
+          do not cause a request to be <xref target="malformed" format="none">malformed</xref>; the
+          requirements above only apply to the generic syntax for field values as defined in <xref
+          target="HTTP" section="5.5"/>.
+        </t>
         <section>
-          <name>Examples</name>
+          <name>Connection-Specific Header Fields</name>
           <t>
-            This section shows HTTP/1.1 requests and responses, with illustrations of equivalent
-            HTTP/2 requests and responses.
+            HTTP/2 does not use the <tt>Connection</tt> header field to
+            indicate connection-specific header fields; in this protocol, connection-specific
+            metadata is conveyed by other means.  An endpoint MUST NOT generate an HTTP/2 message
+            containing connection-specific header fields; any message containing
+            connection-specific header fields MUST be treated as <xref target="malformed">malformed</xref>.
           </t>
           <t>
-            An HTTP GET request includes control data and a request header with no message content and is therefore
-            transmitted as a single <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
-            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the serialized block of request header
-            fields.  The <xref target="HEADERS" format="none">HEADERS</xref> frame in the following has both the END_HEADERS and
-            END_STREAM flags set; no <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames are sent.
-          </t>
-          <artwork type="inline"><![CDATA[
-  GET /resource HTTP/1.1           HEADERS
-  Host: example.org          ==>     + END_STREAM
-  Accept: image/jpeg                 + END_HEADERS
-                                       :method = GET
-                                       :scheme = https
-                                       :path = /resource
-                                       host = example.org
-                                       accept = image/jpeg
-]]></artwork>
-          <t>
-            Similarly, a response that includes only control data and a response header is transmitted as a
-            <xref target="HEADERS" format="none">HEADERS</xref> frame (again, followed by zero or more
-            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) containing the serialized block of response header
-            fields.
-          </t>
-          <artwork type="inline"><![CDATA[
-  HTTP/1.1 304 Not Modified        HEADERS
-  ETag: "xyzzy"              ==>     + END_STREAM
-  Expires: Thu, 23 Jan ...           + END_HEADERS
-                                       :status = 304
-                                       etag = "xyzzy"
-                                       expires = Thu, 23 Jan ...
-]]></artwork>
-          <t>
-            An HTTP POST request that includes control data and a request header and message content is transmitted
-            as one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
-            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the request header, followed by one
-            or more <xref target="DATA" format="none">DATA</xref> frames, with the last <xref target="CONTINUATION" format="none">CONTINUATION</xref> (or
-            <xref target="HEADERS" format="none">HEADERS</xref>) frame having the END_HEADERS flag set and the final
-            <xref target="DATA" format="none">DATA</xref> frame having the END_STREAM flag set:
-          </t>
-          <artwork type="inline"><![CDATA[
-  POST /resource HTTP/1.1          HEADERS
-  Host: example.org          ==>     - END_STREAM
-  Content-Type: image/jpeg           - END_HEADERS
-  Content-Length: 123                  :method = POST
-                                       :path = /resource
-  {binary data}                        :scheme = https
-
-                                   CONTINUATION
-                                     + END_HEADERS
-                                       content-type = image/jpeg
-                                       host = example.org
-                                       content-length = 123
-
-                                   DATA
-                                     + END_STREAM
-                                   {binary data}
-]]></artwork>
-          <t keepWithPrevious="true">
-              Note that data contributing to any given field line could be spread between field
-              block fragments.  The allocation of field lines to frames in this example is
-              illustrative only.
+            The only exception to this is the TE header field, which MAY be present in an HTTP/2
+            request; when it is, it MUST NOT contain any value other than "trailers".
           </t>
           <t>
-            A response that includes control data and a response header and message content is transmitted as a
-            <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref>
-            frames, followed by one or more <xref target="DATA" format="none">DATA</xref> frames, with the last
-            <xref target="DATA" format="none">DATA</xref> frame in the sequence having the END_STREAM flag set:
+            An intermediary transforming a HTTP/1.x message to HTTP/2 MUST remove connection-specific
+            header fields as discussed in <xref target="HTTP" section="7.6.1"/>,
+            or their messages will be treated by other HTTP/2 endpoints as <xref target="malformed">malformed</xref>.
           </t>
-          <artwork type="inline"><![CDATA[
-  HTTP/1.1 200 OK                  HEADERS
-  Content-Type: image/jpeg   ==>     - END_STREAM
-  Content-Length: 123                + END_HEADERS
-                                       :status = 200
-  {binary data}                        content-type = image/jpeg
-                                       content-length = 123
-
-                                   DATA
-                                     + END_STREAM
-                                   {binary data}
-]]></artwork>
+          <aside>
+            <t>Note:
+              HTTP/2 purposefully does not support upgrade to another protocol.  The handshake
+              methods described in <xref target="starting"/> are believed sufficient to
+              negotiate the use of alternative protocols.
+            </t>
+          </aside>
+        </section>
+        <section anchor="CompressCookie">
+          <name>Compressing the Cookie Header Field</name>
           <t>
-            An informational response using a 1xx status code other than 101 is transmitted as a
-            <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref>
-            frames.
+            The <xref target="COOKIE">Cookie header field</xref> uses a semi-colon (";") to
+            delimit cookie-pairs (or "crumbs").  This header field contains multiple values, but
+            does not use a COMMA (",") as a separator, which prevents cookie-pairs from being sent
+            on multiple field lines (see <xref target="HTTP" section="5.2"/>).  This can
+            significantly reduce compression efficiency as updates to individual cookie-pairs
+            would invalidate any field lines that are stored in the HPACK table.
           </t>
           <t>
-            A trailer section is sent as a field block after both the request or response
-            field block and all the <xref target="DATA" format="none">DATA</xref> frames have been sent.  The
-            <xref target="HEADERS" format="none">HEADERS</xref> frame starting the field block that comprises
-            the trailer section has the END_STREAM flag set.
+            To allow for better compression efficiency, the Cookie header field MAY be split into
+            separate header fields, each with one or more cookie-pairs.  If there are multiple
+            Cookie header fields after decompression, these MUST be concatenated into a single
+            octet string using the two-octet delimiter of 0x3B, 0x20 (the ASCII string "; ")
+            before being passed into a non-HTTP/2 context, such as an HTTP/1.1 connection, or a
+            generic HTTP server application.
           </t>
           <t keepWithNext="true">
-              The following example includes both a 100 (Continue) status code, which is sent in
-              response to a request containing a "100-continue" token in the Expect header field,
-              and a trailer section:
+              Therefore, the following two lists of Cookie header fields are semantically
+              equivalent.
           </t>
           <artwork type="inline"><![CDATA[
-  HTTP/1.1 100 Continue            HEADERS
-  Extension-Field: bar       ==>     - END_STREAM
-                                     + END_HEADERS
-                                       :status = 100
-                                       extension-field = bar
+cookie: a=b; c=d; e=f
 
-  HTTP/1.1 200 OK                  HEADERS
-  Content-Type: image/jpeg   ==>     - END_STREAM
-  Transfer-Encoding: chunked         + END_HEADERS
-  Trailer: Foo                         :status = 200
-                                       content-length = 123
-  123                                  content-type = image/jpeg
-  {binary data}                        trailer = Foo
-  0
-  Foo: bar                         DATA
-                                     - END_STREAM
-                                   {binary data}
-
-                                   HEADERS
-                                     + END_STREAM
-                                     + END_HEADERS
-                                       foo = bar
+cookie: a=b
+cookie: c=d
+cookie: e=f
 ]]></artwork>
         </section>
-        <section anchor="Reliability">
-          <name>Request Reliability Mechanisms in HTTP/2</name>
+      </section>
+      <section anchor="PseudoHeaderFields">
+        <name>HTTP Control Data</name>
+        <t>
+          HTTP/2 uses special pseudo-header fields beginning with ':' character (ASCII 0x3a) to
+          convey message control data (see <xref target="HTTP" section="6.2"/>).
+        </t>
+        <t>
+          Pseudo-header fields are not HTTP header fields.  Endpoints MUST NOT generate
+          pseudo-header fields other than those defined in this document.  Note that an
+          extension could negotiate the use of additional pseudo-header fields; see
+          <xref target="extensibility"/>.
+        </t>
+        <t>
+          Pseudo-header fields are only valid in the context in which they are defined.
+          Pseudo-header fields defined for requests MUST NOT appear in responses; pseudo-header
+          fields defined for responses MUST NOT appear in requests.  Pseudo-header fields MUST
+          NOT appear in a trailer section.  Endpoints MUST treat a request or response that contains
+          undefined or invalid pseudo-header fields as <xref target="malformed">malformed</xref>.
+        </t>
+        <t>
+          All pseudo-header fields MUST appear in a field block before all regular field lines.
+          Any request or response that contains a pseudo-header field that appears in a field
+          block after a regular field line MUST be treated as <xref target="malformed">malformed</xref>.
+        </t>
+        <section anchor="HttpRequest">
+          <name>Request Pseudo-Header Fields</name>
           <t>
-            In general, an HTTP client is unable to retry a non-idempotent request when an error
-            occurs because there is no means to determine the nature of the error.  It is possible
-            that some server processing occurred prior to the error, which could result in
-            undesirable effects if the request were reattempted.
-          </t>
-          <t>
-            HTTP/2 provides two mechanisms for providing a guarantee to a client that a request has
-            not been processed:
+            The following pseudo-header fields are defined for HTTP/2 requests:
           </t>
           <ul spacing="normal">
             <li>
-                The <xref target="GOAWAY" format="none">GOAWAY</xref> frame indicates the highest stream number that might have
-                been processed.  Requests on streams with higher numbers are therefore guaranteed to
-                be safe to retry.
-              </li>
+              <t>
+                  The <tt>:method</tt> pseudo-header field includes the HTTP
+                  method (<xref target="HTTP" section="9"/>).
+              </t>
+            </li>
             <li>
-                The <xref target="REFUSED_STREAM" format="none">REFUSED_STREAM</xref> error code can be included in a
-                <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame to indicate that the stream is being closed prior to
-                any processing having occurred.  Any request that was sent on the reset stream can
-                be safely retried.
-              </li>
+              <t>
+                The <tt>:scheme</tt> pseudo-header field includes the scheme portion of the
+                request target.  The scheme is taken from the target URI (<xref target="RFC3986"
+                section="3.1"/>) when generating a request directly, or from the scheme of a
+                translated request (for example. see <xref target="HTTP11" section="3.3"/>).
+                Scheme is omitted for <xref target="CONNECT">CONNECT requests</xref>.
+              </t>
+              <t>
+                <tt>:scheme</tt> is not restricted to <tt>http</tt> and <tt>https</tt> schemed
+                URIs.  A proxy or gateway can translate requests for non-HTTP schemes, enabling
+                the use of HTTP to interact with non-HTTP services.
+              </t>
+            </li>
+            <li>
+              <t>
+                  The <tt>:authority</tt> pseudo-header field includes the
+                  authority portion of the target URI (<xref target="RFC3986" section="3.2"/>). The
+                  authority MUST NOT include the deprecated <tt>userinfo</tt> subcomponent for
+                  <tt>http</tt> or <tt>https</tt> schemed URIs.
+              </t>
+              <t>
+                Clients that generate HTTP/2 requests directly SHOULD use the <tt>:authority</tt>
+                pseudo-header field instead of the <tt>Host</tt> header field.
+              </t>
+              <t>
+                An intermediary that translates a request to HTTP/2 from another HTTP version MUST
+                translate any authority information from the request into an <tt>:authority</tt>
+                pseudo-header field.  If the control data in the original request contains
+                authority information, an intermediary MUST include a <tt>:authority</tt>
+                pseudo-header field.  If control data does not contain authority, an intermediary
+                MUST NOT add an <tt>:authority</tt> pseudo-header field.  For reference, an
+                HTTP/1.1 <xref target="HTTP11" section="3.2">request target</xref> in
+                authority-form always includes authority, a request target in absolute-form
+                includes authority if the target URI includes authority, and request targets in
+                origin- or asterisk-form do not include authority.
+              </t>
+              <t>
+                An intermediary that translates a request to another HTTP version from HTTP/2 can
+                construct a <tt>Host</tt> header field by copying the value of the
+                <tt>:authority</tt> pseudo-header field if that version requires that
+                <tt>Host</tt> be included in a request, as HTTP/1.1 does for some forms of request
+                target (see <xref target="HTTP11" section="3.2"/>).
+              </t>
+              <t>
+                An intermediary that translates a request to HTTP/2 from another HTTP version MUST
+                retain any <tt>Host</tt> header field, even if an authority is part of control
+                data.
+              </t>
+              <t>
+                The value of the <tt>Host</tt> header field MUST be ignored if control data
+                contains authority (that is, the <tt>:authority</tt> pseudo-header field is
+                present).
+              </t>
+            </li>
+            <li>
+              <t>
+                  The <tt>:path</tt> pseudo-header field includes the path and
+                  query parts of the target URI (the <tt>path-absolute</tt>
+                  production and optionally a '?' character followed by the
+                  <tt>query</tt> production (see Sections 3.3 and 3.4 of <xref target="RFC3986"/>).
+                  A request in asterisk form includes the value '*' for the
+                  <tt>:path</tt> pseudo-header field.
+              </t>
+              <t>
+                  This pseudo-header field MUST NOT be empty for <tt>http</tt> or <tt>https</tt>
+                  URIs; <tt>http</tt> or <tt>https</tt> URIs that do not contain a path component
+                  MUST include a value of '/'. The exception to this rule is an OPTIONS request
+                  for an <tt>http</tt> or <tt>https</tt> URI that does not include a path
+                  component; these MUST include a <tt>:path</tt> pseudo-header field with a value
+                  of '*' (see <xref target="HTTP" section="7.1"/>).
+              </t>
+            </li>
           </ul>
           <t>
-            Requests that have not been processed have not failed; clients MAY automatically retry
-            them, even those with non-idempotent methods.
+            All HTTP/2 requests MUST include exactly one valid value for the <tt>:method</tt>, <tt>:scheme</tt>, and <tt>:path</tt> pseudo-header fields, unless it is a <xref target="CONNECT">CONNECT request</xref>. An HTTP request that omits mandatory
+            pseudo-header fields is <xref target="malformed">malformed</xref>.
           </t>
           <t>
-            A server MUST NOT indicate that a stream has not been processed unless it can guarantee
-            that fact.  If frames that are on a stream are passed to the application layer for any
-            stream, then <xref target="REFUSED_STREAM" format="none">REFUSED_STREAM</xref> MUST NOT be used for that stream, and a
-            <xref target="GOAWAY" format="none">GOAWAY</xref> frame MUST include a stream identifier that is greater than or
-            equal to the given stream identifier.
+            Individual HTTP/2 requests do not carry an explicit indicator of protocol version.
+            All HTTP/2 messages implicitly have a protocol version of "2.0" (see
+            <xref target="HTTP" section="6.2"/>).
+          </t>
+        </section>
+        <section anchor="HttpResponse">
+          <name>Response Pseudo-Header Fields</name>
+          <t>
+            For HTTP/2 responses, a single <tt>:status</tt> pseudo-header
+            field is defined that carries the HTTP status code field (see
+            <xref target="HTTP" section="15"/>). This pseudo-header field MUST be included in all
+            responses, including interim responses; otherwise, the response is
+            <xref target="malformed">malformed</xref>.
           </t>
           <t>
-            In addition to these mechanisms, the <xref target="PING" format="none">PING</xref> frame provides a way for a
-            client to easily test a connection.  Connections that remain idle can become broken as
-            some middleboxes (for instance, network address translators or load balancers) silently
-            discard connection bindings.  The <xref target="PING" format="none">PING</xref> frame allows a client to safely
-            test whether a connection is still active without sending a request.
+            HTTP/2 responses implicitly have a protocol version of "2.0".
           </t>
         </section>
       </section>
@@ -3361,8 +3178,193 @@ CONTINUATION Frame {
           RST bit set if it detects an error with the stream or the HTTP/2 connection.
         </t>
       </section>
+      <section anchor="informational-responses">
+        <name>The Upgrade Header Field</name>
+        <t>
+          HTTP/2 removes support for the 101 (Switching Protocols) informational status code
+          (<xref target="HTTP" section="15.2.2"/>).
+        </t>
+        <t>
+          The semantics of 101 (Switching Protocols) aren't applicable to a multiplexed protocol.
+          Alternative protocols are able to use the same mechanisms that HTTP/2 uses to negotiate
+          their use (see <xref target="starting"/>).
+        </t>
+      </section>
+
+      <section anchor="Reliability">
+        <name>Request Reliability</name>
+        <t>
+          In general, an HTTP client is unable to retry a non-idempotent request when an error
+          occurs because there is no means to determine the nature of the error.  It is possible
+          that some server processing occurred prior to the error, which could result in
+          undesirable effects if the request were reattempted.
+        </t>
+        <t>
+          HTTP/2 provides two mechanisms for providing a guarantee to a client that a request has
+          not been processed:
+        </t>
+        <ul spacing="normal">
+          <li>
+              The <xref target="GOAWAY" format="none">GOAWAY</xref> frame indicates the highest stream number that might have
+              been processed.  Requests on streams with higher numbers are therefore guaranteed to
+              be safe to retry.
+            </li>
+          <li>
+              The <xref target="REFUSED_STREAM" format="none">REFUSED_STREAM</xref> error code can be included in a
+              <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame to indicate that the stream is being closed prior to
+              any processing having occurred.  Any request that was sent on the reset stream can
+              be safely retried.
+            </li>
+        </ul>
+        <t>
+          Requests that have not been processed have not failed; clients MAY automatically retry
+          them, even those with non-idempotent methods.
+        </t>
+        <t>
+          A server MUST NOT indicate that a stream has not been processed unless it can guarantee
+          that fact.  If frames that are on a stream are passed to the application layer for any
+          stream, then <xref target="REFUSED_STREAM" format="none">REFUSED_STREAM</xref> MUST NOT be used for that stream, and a
+          <xref target="GOAWAY" format="none">GOAWAY</xref> frame MUST include a stream identifier that is greater than or
+          equal to the given stream identifier.
+        </t>
+        <t>
+          In addition to these mechanisms, the <xref target="PING" format="none">PING</xref> frame provides a way for a
+          client to easily test a connection.  Connections that remain idle can become broken as
+          some middleboxes (for instance, network address translators or load balancers) silently
+          discard connection bindings.  The <xref target="PING" format="none">PING</xref> frame allows a client to safely
+          test whether a connection is still active without sending a request.
+        </t>
+      </section>
+
+        <section>
+          <name>Examples</name>
+          <t>
+            This section shows HTTP/1.1 requests and responses, with illustrations of equivalent
+            HTTP/2 requests and responses.
+          </t>
+          <t>
+            An HTTP GET request includes control data and a request header with no message content and is therefore
+            transmitted as a single <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
+            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the serialized block of request header
+            fields.  The <xref target="HEADERS" format="none">HEADERS</xref> frame in the following has both the END_HEADERS and
+            END_STREAM flags set; no <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames are sent.
+          </t>
+          <artwork type="inline"><![CDATA[
+  GET /resource HTTP/1.1           HEADERS
+  Host: example.org          ==>     + END_STREAM
+  Accept: image/jpeg                 + END_HEADERS
+                                       :method = GET
+                                       :scheme = https
+                                       :path = /resource
+                                       host = example.org
+                                       accept = image/jpeg
+]]></artwork>
+          <t>
+            Similarly, a response that includes only control data and a response header is transmitted as a
+            <xref target="HEADERS" format="none">HEADERS</xref> frame (again, followed by zero or more
+            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames) containing the serialized block of response header
+            fields.
+          </t>
+          <artwork type="inline"><![CDATA[
+  HTTP/1.1 304 Not Modified        HEADERS
+  ETag: "xyzzy"              ==>     + END_STREAM
+  Expires: Thu, 23 Jan ...           + END_HEADERS
+                                       :status = 304
+                                       etag = "xyzzy"
+                                       expires = Thu, 23 Jan ...
+]]></artwork>
+          <t>
+            An HTTP POST request that includes control data and a request header and message content is transmitted
+            as one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
+            <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames containing the request header, followed by one
+            or more <xref target="DATA" format="none">DATA</xref> frames, with the last <xref target="CONTINUATION" format="none">CONTINUATION</xref> (or
+            <xref target="HEADERS" format="none">HEADERS</xref>) frame having the END_HEADERS flag set and the final
+            <xref target="DATA" format="none">DATA</xref> frame having the END_STREAM flag set:
+          </t>
+          <artwork type="inline"><![CDATA[
+  POST /resource HTTP/1.1          HEADERS
+  Host: example.org          ==>     - END_STREAM
+  Content-Type: image/jpeg           - END_HEADERS
+  Content-Length: 123                  :method = POST
+                                       :path = /resource
+  {binary data}                        :scheme = https
+
+                                   CONTINUATION
+                                     + END_HEADERS
+                                       content-type = image/jpeg
+                                       host = example.org
+                                       content-length = 123
+
+                                   DATA
+                                     + END_STREAM
+                                   {binary data}
+]]></artwork>
+          <t keepWithPrevious="true">
+              Note that data contributing to any given field line could be spread between field
+              block fragments.  The allocation of field lines to frames in this example is
+              illustrative only.
+          </t>
+          <t>
+            A response that includes control data and a response header and message content is transmitted as a
+            <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref>
+            frames, followed by one or more <xref target="DATA" format="none">DATA</xref> frames, with the last
+            <xref target="DATA" format="none">DATA</xref> frame in the sequence having the END_STREAM flag set:
+          </t>
+          <artwork type="inline"><![CDATA[
+  HTTP/1.1 200 OK                  HEADERS
+  Content-Type: image/jpeg   ==>     - END_STREAM
+  Content-Length: 123                + END_HEADERS
+                                       :status = 200
+  {binary data}                        content-type = image/jpeg
+                                       content-length = 123
+
+                                   DATA
+                                     + END_STREAM
+                                   {binary data}
+]]></artwork>
+          <t>
+            An informational response using a 1xx status code other than 101 is transmitted as a
+            <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more <xref target="CONTINUATION" format="none">CONTINUATION</xref>
+            frames.
+          </t>
+          <t>
+            A trailer section is sent as a field block after both the request or response
+            field block and all the <xref target="DATA" format="none">DATA</xref> frames have been sent.  The
+            <xref target="HEADERS" format="none">HEADERS</xref> frame starting the field block that comprises
+            the trailer section has the END_STREAM flag set.
+          </t>
+          <t keepWithNext="true">
+              The following example includes both a 100 (Continue) status code, which is sent in
+              response to a request containing a "100-continue" token in the Expect header field,
+              and a trailer section:
+          </t>
+          <artwork type="inline"><![CDATA[
+  HTTP/1.1 100 Continue            HEADERS
+  Extension-Field: bar       ==>     - END_STREAM
+                                     + END_HEADERS
+                                       :status = 100
+                                       extension-field = bar
+
+  HTTP/1.1 200 OK                  HEADERS
+  Content-Type: image/jpeg   ==>     - END_STREAM
+  Transfer-Encoding: chunked         + END_HEADERS
+  Trailer: Foo                         :status = 200
+                                       content-length = 123
+  123                                  content-type = image/jpeg
+  {binary data}                        trailer = Foo
+  0
+  Foo: bar                         DATA
+                                     - END_STREAM
+                                   {binary data}
+
+                                   HEADERS
+                                     + END_STREAM
+                                     + END_HEADERS
+                                       foo = bar
+]]></artwork>
+        </section>
     </section>
-    <section anchor="HttpExtra">
+      <section anchor="HttpExtra">
       <name>Additional HTTP Requirements/Considerations</name>
       <t>
         This section outlines attributes of the HTTP protocol that improve interoperability, reduce
