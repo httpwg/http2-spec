@@ -190,6 +190,10 @@
           from decimal literals.
         </t>
         <t>
+          This specification describes binary formats using the convention described in
+          <xref target="QUIC" section="1.3">RFC 9000</xref>.
+        </t>
+        <t>
           The following terms are used:
         </t>
         <dl newline="false" spacing="normal">
@@ -417,15 +421,14 @@
         <figure anchor="FrameLayout">
           <name>Frame Layout</name>
           <artwork type="inline"><![CDATA[
- +-----------------------------------------------+
- |                 Length (24)                   |
- +---------------+---------------+---------------+
- |   Type (8)    |   Flags (8)   |
- +-+-------------+---------------+-------------------------------+
- |R|                 Stream Identifier (31)                      |
- +=+=============================================================+
- |                   Frame Payload (0...)                      ...
- +---------------------------------------------------------------+
+HTTP Frame {
+  Length (24),
+  Type (8),
+  Flags (8),
+  Reserved (1),
+  Stream Identifier (31),
+  Frame Payload (..),
+}
 ]]></artwork>
         </figure>
         <t>
@@ -457,12 +460,12 @@
                 An 8-bit field reserved for boolean flags specific to the frame type.
             </t>
             <t>
-                Flags are assigned semantics specific to the indicated frame type.  Flags that have
-                no defined semantics for a particular frame type MUST be ignored and MUST be left
+                Flags are assigned semantics specific to the indicated frame type.  Unused Flags are those that have
+                no defined semantics for a particular frame type, and MUST be ignored and MUST be left
                 unset (0x0) when sending.
             </t>
           </dd>
-          <dt>R:</dt>
+          <dt>Reserved:</dt>
           <dd>
             <t>
                 A reserved 1-bit field.  The semantics of this bit are undefined, and the bit MUST
@@ -1357,20 +1360,27 @@
           DATA frames MAY also contain padding.  Padding can be added to DATA frames to obscure the
           size of messages.  Padding is a security feature; see <xref target="padding"/>.
         </t>
-        <figure anchor="DATAFramePayload">
-          <name>DATA Frame Payload</name>
+        <figure anchor="DATAFrameFormat">
+          <name>DATA Frame Format</name>
           <artwork type="inline"><![CDATA[
- +---------------+
- |Pad Length? (8)|
- +---------------+-----------------------------------------------+
- |                            Data (*)                         ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
- +---------------------------------------------------------------+
+DATA Frame {
+  Length (24),
+  Type (8) = 0,
+  Unused Flags (4),
+  PADDED Flag (1),
+  Unused Flags (2),
+  END_STREAM Flag (1),
+  Reserved (1),
+  Stream Identifier (31),
+  [Pad Length (8)],
+  Data (..),
+  Padding (..),
+}
 ]]></artwork>
         </figure>
         <t>
-          The DATA frame contains the following fields:
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
+          The DATA frame contains the following additional fields:
         </t>
         <dl newline="false" spacing="normal">
           <dt>Pad Length:</dt>
@@ -1396,15 +1406,15 @@
           The DATA frame defines the following flags:
         </t>
         <dl newline="false" spacing="normal">
-          <dt>END_STREAM (0x1):</dt>
-          <dd>
-              When set, bit 0 indicates that this frame is the last that the endpoint will send for
-              the identified stream.  Setting this flag causes the stream to enter one of <xref target="StreamStates">the "half-closed" states or the "closed" state</xref>.
-            </dd>
           <dt>PADDED (0x8):</dt>
           <dd>
               When set, bit 3 indicates that the Pad Length field and any padding that it describes
               are present.
+            </dd>
+          <dt>END_STREAM (0x1):</dt>
+          <dd>
+              When set, bit 0 indicates that this frame is the last that the endpoint will send for
+              the identified stream.  Setting this flag causes the stream to enter one of <xref target="StreamStates">the "half-closed" states or the "closed" state</xref>.
             </dd>
         </dl>
         <t>
@@ -1441,24 +1451,33 @@
           a header section or a trailer section. HEADERS frames can be sent on a stream
           in the "idle", "reserved (local)", "open", or "half-closed (remote)" state.
         </t>
-        <figure anchor="HEADERSFramePayload">
-          <name>HEADERS Frame Payload</name>
+        <figure anchor="HEADERSFrameFormat">
+          <name>HEADERS Frame Format</name>
           <artwork type="inline"><![CDATA[
- +---------------+
- |Pad Length? (8)|
- +-+-------------+-----------------------------------------------+
- |E|                 Stream Dependency? (31)                     |
- +-+-------------+-----------------------------------------------+
- |  Weight? (8)  |
- +-+-------------+-----------------------------------------------+
- |                    Field Block Fragment (*)                 ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
- +---------------------------------------------------------------+
+HEADERS Frame {
+  Length (24),
+  Type (8) = 1,
+  Unused Flags (2),
+  PRIORITY Flag (1),
+  Unused Flag (1),
+  PADDED Flag (1),
+  END_HEADERS Flag (1),
+  Unused Flag (1),
+  END_STREAM Flag (1),
+  Reserved (1),
+  Stream Identifier (31),
+  [Pad Length (8)],
+  [Exclusive (1)],
+  [Stream Dependency (31)],
+  [Weight (8)],
+  Field Block Fragment (..),
+  Padding (..),
+}
 ]]></artwork>
         </figure>
         <t>
-          The HEADERS frame payload has the following fields:
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
+          The HEADERS frame payload has the following additional fields:
         </t>
         <dl newline="false" spacing="normal">
           <dt>Pad Length:</dt>
@@ -1466,7 +1485,7 @@
             An 8-bit field containing the length of the frame padding in units of octets.  This
             field is only present if the PADDED flag is set.
           </dd>
-          <dt>E:</dt>
+          <dt>Exclusive:</dt>
           <dd>
             A single-bit flag.  This field is only present if the PRIORITY flag is set.
           </dd>
@@ -1491,17 +1510,18 @@
           The HEADERS frame defines the following flags:
         </t>
         <dl newline="false" spacing="normal">
-          <dt>END_STREAM (0x1):</dt>
+          <dt>PRIORITY (0x20):</dt>
           <dd>
             <t>
-                When set, bit 0 indicates that the <xref target="FieldBlock">field block</xref> is
-                the last that the endpoint will send for the identified stream.
+              When set, bit 5 indicates that the Exclusive, Stream Dependency, and Weight
+              fields are present.
             </t>
+          </dd>
+          <dt>PADDED (0x8):</dt>
+          <dd>
             <t>
-                A HEADERS frame carries the END_STREAM flag that signals the end of a stream.
-                However, a HEADERS frame with the END_STREAM flag set can be followed by
-                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames on the same stream.  Logically, the
-                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames are part of the HEADERS frame.
+                When set, bit 3 indicates that the Pad Length field and any padding that it
+                describes are present.
             </t>
           </dd>
           <dt>END_HEADERS (0x4):</dt>
@@ -1517,18 +1537,17 @@
                 <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
             </t>
           </dd>
-          <dt>PADDED (0x8):</dt>
+          <dt>END_STREAM (0x1):</dt>
           <dd>
             <t>
-                When set, bit 3 indicates that the Pad Length field and any padding that it
-                describes are present.
+                When set, bit 0 indicates that the <xref target="FieldBlock">field block</xref> is
+                the last that the endpoint will send for the identified stream.
             </t>
-          </dd>
-          <dt>PRIORITY (0x20):</dt>
-          <dd>
             <t>
-              When set, bit 5 indicates that the Exclusive Flag (E), Stream Dependency, and Weight
-              fields are present.
+                A HEADERS frame carries the END_STREAM flag that signals the end of a stream.
+                However, a HEADERS frame with the END_STREAM flag set can be followed by
+                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames on the same stream.  Logically, the
+                <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames are part of the HEADERS frame.
             </t>
           </dd>
         </dl>
@@ -1558,21 +1577,27 @@
           The PRIORITY frame (type=0x2) is deprecated; see <xref target="PriorityHere"/>.  A
           PRIORITY frame can be sent in any stream state, including idle or closed streams.
         </t>
-        <figure anchor="PRIORITYFramePayload">
-          <name>PRIORITY Frame Payload</name>
+        <figure anchor="PRIORITYFrameFormat">
+          <name>PRIORITY Frame Format</name>
           <artwork type="inline"><![CDATA[
- +-+-------------------------------------------------------------+
- |E|                  Stream Dependency (31)                     |
- +-+-------------+-----------------------------------------------+
- |   Weight (8)  |
- +-+-------------+
+PRIORITY Frame {
+  Length (24),
+  Type (8) = 2,
+  Unused Flags (8),
+  Reserved (1),
+  Stream Identifier (31),
+  Exclusive (1),
+  Stream Dependency (31),
+  Weight (8),
+}
 ]]></artwork>
         </figure>
         <t>
-          The frame payload of a PRIORITY frame contains the following fields:
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
+          The frame payload of a PRIORITY frame contains the following additional fields:
         </t>
         <dl newline="false" spacing="normal">
-          <dt>E:</dt>
+          <dt>Exclusive:</dt>
           <dd>
             A single-bit flag.
           </dd>
@@ -1613,16 +1638,22 @@
           is sent to request cancellation of a stream or to indicate that an error condition has
           occurred.
         </t>
-        <figure anchor="RST_STREAMFramePayload">
-          <name>RST_STREAM Frame Payload</name>
+        <figure anchor="RST_STREAMFrameFormat">
+          <name>RST_STREAM Frame Format</name>
           <artwork type="inline"><![CDATA[
- +---------------------------------------------------------------+
- |                        Error Code (32)                        |
- +---------------------------------------------------------------+
+RST_STREAM Frame {
+  Length (24),
+  Type (8) = 3,
+  Unused Flags (8),
+  Reserved (1),
+  Stream Identifier (31),
+  Error Code (32),
+}
 ]]></artwork>
         </figure>
         <t>
-          The RST_STREAM frame contains a single unsigned, 32-bit integer identifying the <xref target="ErrorCodes">error code</xref>.  The error code indicates why the stream is being
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
+          Additionally, the RST_STREAM frame contains a single unsigned, 32-bit integer identifying the <xref target="ErrorCodes">error code</xref>.  The error code indicates why the stream is being
           terminated.
         </t>
         <t>
@@ -1713,14 +1744,23 @@
             The frame payload of a SETTINGS frame consists of zero or more settings, each consisting of
             an unsigned 16-bit setting identifier and an unsigned 32-bit value.
           </t>
-          <figure anchor="SettingFormatFigure">
-            <name>Setting Format</name>
+          <figure anchor="SettingFrameFormat">
+            <name>SETTINGS Frame Format</name>
             <artwork type="inline"><![CDATA[
- +-------------------------------+
- |       Identifier (16)         |
- +-------------------------------+-------------------------------+
- |                        Value (32)                             |
- +---------------------------------------------------------------+
+SETTINGS Frame {
+  Length (24),
+  Type (8) = 4,
+  Unused Flags (7),
+  ACK Flag (1),
+  Reserved (1),
+  Stream Identifier (31),
+  Setting (..) ...,
+}
+
+Setting {
+  Identifier (16),
+  Value (32),
+}
 ]]></artwork>
           </figure>
         </section>
@@ -1860,22 +1900,29 @@
           that provides additional context for the stream.  <xref target="PushResources"/> contains a
           thorough description of the use of PUSH_PROMISE frames.
         </t>
-        <figure anchor="PUSH_PROMISEPayloadFormat">
-          <name>PUSH_PROMISE Frame Payload</name>
+        <figure anchor="PUSH_PROMISEFrameFormat">
+          <name>PUSH_PROMISE Frame Format</name>
           <artwork type="inline"><![CDATA[
- +---------------+
- |Pad Length? (8)|
- +-+-------------+-----------------------------------------------+
- |R|                  Promised Stream ID (31)                    |
- +-+-----------------------------+-------------------------------+
- |                    Field Block Fragment (*)                 ...
- +---------------------------------------------------------------+
- |                           Padding (*)                       ...
- +---------------------------------------------------------------+
+PUSH_PROMISE Frame {
+  Length (24),
+  Type (8) = 5,
+  Unused Flags (4),
+  PADDED Flag (1),
+  END_HEADERS Flag (1),
+  Unused Flags (2),
+  Reserved (1),
+  Stream Identifier (31),
+  [Pad Length (8)],
+  Reserved (1),
+  Promised Stream ID (31),
+  Field Block Fragment (..),
+  Padding (..),
+}
 ]]></artwork>
         </figure>
         <t>
-          The PUSH_PROMISE frame payload has the following fields:
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
+          The PUSH_PROMISE frame payload has the following additional fields:
         </t>
         <dl newline="false" spacing="normal">
           <dt>Pad Length:</dt>
@@ -1907,6 +1954,13 @@
           The PUSH_PROMISE frame defines the following flags:
         </t>
         <dl newline="false" spacing="normal">
+          <dt>PADDED (0x8):</dt>
+          <dd>
+            <t>
+                When set, bit 3 indicates that the Pad Length field and any padding that it
+                describes are present.
+            </t>
+          </dd>
           <dt>END_HEADERS (0x4):</dt>
           <dd>
             <t>
@@ -1918,13 +1972,6 @@
                 CONTINUATION frame for the same stream.  A receiver MUST treat the receipt of any
                 other type of frame or a frame on a different stream as a <xref target="ConnectionErrorHandler">connection error</xref> of type
                 <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
-            </t>
-          </dd>
-          <dt>PADDED (0x8):</dt>
-          <dd>
-            <t>
-                When set, bit 3 indicates that the Pad Length field and any padding that it
-                describes are present.
             </t>
           </dd>
         </dl>
@@ -1984,16 +2031,23 @@
           sender, as well as determining whether an idle connection is still functional.  PING
           frames can be sent from any endpoint.
         </t>
-        <figure anchor="PINGPayloadFormat">
-          <name>PING Frame Payload</name>
+        <figure anchor="PINGFrameFormat">
+          <name>PING Frame Format</name>
           <artwork type="inline"><![CDATA[
- +---------------------------------------------------------------+
- |                                                               |
- |                      Opaque Data (64)                         |
- |                                                               |
- +---------------------------------------------------------------+
+PING Frame {
+  Length (24),
+  Type (8) = 6,
+  Unused Flags (7),
+  ACK Flag (1)
+  Reserved (1),
+  Stream Identifier (31),
+  Opaque Data (64),
+}
 ]]></artwork>
         </figure>
+        <t>
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
+        </t>
         <t>
           In addition to the frame header, PING frames MUST contain 8 octets of opaque data in the frame payload.
           A sender can include any value it chooses and use those octets in any fashion.
@@ -2069,18 +2123,25 @@
           GOAWAY that has no more use for the connection SHOULD still send a GOAWAY frame before
           terminating the connection.
         </t>
-        <figure anchor="GOAWAYPayloadFormat">
-          <name>GOAWAY Frame Payload</name>
+        <figure anchor="GOAWAYFrameFormat">
+          <name>GOAWAY Frame Format</name>
           <artwork type="inline"><![CDATA[
- +-+-------------------------------------------------------------+
- |R|                  Last-Stream-ID (31)                        |
- +-+-------------------------------------------------------------+
- |                      Error Code (32)                          |
- +---------------------------------------------------------------+
- |                  Additional Debug Data (*)                    |
- +---------------------------------------------------------------+
+GOAWAY Frame {
+  Length (24),
+  Type (8) = 7,
+  Unused Flags (8),
+  Reserved (1),
+  Stream Identifier (31),
+  Reserved (1),
+  Last-Stream-ID (31),
+  Error Code (32),
+  Additional Debug Data (..),
+}
 ]]></artwork>
         </figure>
+        <t>
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
+        </t>
         <t>
           The GOAWAY frame does not define any flags.
         </t>
@@ -2184,15 +2245,22 @@
           a <xref target="StreamErrorHandler">stream error</xref> or <xref target="ConnectionErrorHandler">connection error</xref> of type
           <xref target="FLOW_CONTROL_ERROR" format="none">FLOW_CONTROL_ERROR</xref> if it is unable to accept a frame.
         </t>
-        <figure anchor="WINDOW_UPDATEPayloadFormat">
-          <name>WINDOW_UPDATE Frame Payload</name>
+        <figure anchor="WINDOW_UPDATEFrameFormat">
+          <name>WINDOW_UPDATE Frame Format</name>
           <artwork type="inline"><![CDATA[
- +-+-------------------------------------------------------------+
- |R|              Window Size Increment (31)                     |
- +-+-------------------------------------------------------------+
+WINDOW_UPDATE Frame {
+  Length (24),
+  Type (8) = 8,
+  Unused Flags (8),
+  Reserved (1),
+  Stream Identifier (31),
+  Reserved (1),
+  Window Size Increment (31),
+}
 ]]></artwork>
         </figure>
         <t>
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
           The frame payload of a WINDOW_UPDATE frame is one reserved bit plus an unsigned 31-bit integer
           indicating the number of octets that the sender can transmit in addition to the existing
           flow-control window.  The legal range for the increment to the flow-control window is 1 to
@@ -2348,15 +2416,23 @@
           <xref target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, or CONTINUATION frame without the
           END_HEADERS flag set.
         </t>
-        <figure anchor="CONTINUATIONFramePayload">
-          <name>CONTINUATION Frame Payload</name>
+        <figure anchor="CONTINUATIONFrameFormat">
+          <name>CONTINUATION Frame Format</name>
           <artwork type="inline"><![CDATA[
- +---------------------------------------------------------------+
- |                    Field Block Fragment (*)                 ...
- +---------------------------------------------------------------+
+CONTINUATION Frame {
+  Length (24),
+  Type (8) = 9,
+  Unused Flags (5),
+  END_HEADERS Flag (1),
+  Unused Flags (2),
+  Reserved (1),
+  Stream Identifier (31),
+  Field Block Fragment (..),
+}
 ]]></artwork>
         </figure>
         <t>
+          The Length, Type, Unused Flag(s), Reserved, and Stream Identifier fields are described in <xref target="FramingLayer"/>.
           The CONTINUATION frame payload contains a <xref target="FieldBlock">field block
           fragment</xref>.
         </t>
@@ -4472,6 +4548,20 @@
                     role="editor"/>
             <date year="2021" month="March" day="30"/>
           </front>
+        </reference>
+        <reference anchor="QUIC" target="https://www.rfc-editor.org/info/rfc9000">
+          <front>
+            <title>QUIC: A UDP-Based Multiplexed and Secure Transport</title>
+            <author initials="J." surname="Iyengar" fullname="J. Iyengar" role="editor">
+              <organization/>
+            </author>
+            <author initials="M." surname="Thomson" fullname="M. Thomson" role="editor">
+              <organization/>
+            </author>
+            <date year="2021" month="May"/>
+          </front>
+          <seriesInfo name="RFC" value="9000"/>
+          <seriesInfo name="DOI" value="10.17487/RFC9000"/>
         </reference>
       </references>
 
