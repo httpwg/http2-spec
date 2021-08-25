@@ -88,10 +88,10 @@
       </t>
       <t>
         HTTP/2 addresses these issues by defining an optimized mapping of HTTP's semantics to an
-        underlying connection. Specifically, it allows interleaving of request and response
-        messages on the same connection and uses an efficient coding for HTTP fields. It
-        also allows prioritization of requests, letting more important requests complete more
-        quickly, further improving performance.
+        underlying connection. Specifically, it allows interleaving of messages on the same
+        connection and uses an efficient coding for HTTP fields. It also allows prioritization of
+        requests, letting more important requests complete more quickly, further improving
+        performance.
       </t>
       <t>
         The resulting protocol is more friendly to the network because fewer TCP connections can
@@ -128,10 +128,12 @@
         progress on other streams.
       </t>
       <t>
-        Flow control and prioritization ensure that it is possible to efficiently use multiplexed
-        streams.  <xref target="FlowControl">Flow control</xref> helps to ensure that only data that
-        can be used by a receiver is transmitted.  <xref target="StreamPriority">Prioritization</xref> ensures that limited resources can be directed
-        to the most important streams first.
+        Effective use of multiplexing depends on flow control and prioritization.  <xref
+        target="FlowControl">Flow control</xref> ensures that it is possible to efficiently use
+        multiplexed streams by restricting data that is transmitted to what the receiver is able to
+        handle.  <xref target="StreamPriority">Prioritization</xref> ensures that limited resources
+        are used most effectively.  This revision of HTTP/2 deprecates the priority signaling scheme
+        from <xref target="RFC7540"/>.
       </t>
       <t>
         Because HTTP fields used in a connection can contain large amounts of redundant
@@ -278,12 +280,16 @@
       <section anchor="versioning">
         <name>HTTP/2 Version Identification</name>
         <t>
-          The protocol defined in this document has two identifiers.
+          The protocol defined in this document has two identifiers. Creating a connection based on
+          either implies the use of the transport, framing, and message semantics described in this
+          document.
         </t>
         <ul spacing="normal">
           <li>
             <t>
-                The string "h2" identifies the protocol where HTTP/2 uses <xref target="TLS13">Transport Layer Security (TLS)</xref>.  This identifier is used in the <xref target="TLS-ALPN">TLS application-layer protocol negotiation (ALPN) extension</xref>
+                The string "h2" identifies the protocol where HTTP/2 uses Transport Layer Security
+                (TLS); see <xref target="TLSUsage"/>.  This identifier is used in the <xref
+                target="TLS-ALPN">TLS application-layer protocol negotiation (ALPN) extension</xref>
                 field and in any place where HTTP/2 over TLS is identified.
             </t>
             <t>
@@ -297,8 +303,9 @@
                 This identifier is used in any place where HTTP/2 over TCP is identified.
             </t>
             <t>
-                The "h2c" string is reserved from the ALPN identifier space but describes a
-                protocol that does not use TLS.
+                The "h2c" string is reserved from the ALPN identifier space but describes a protocol
+                that does not use TLS.  The security properties of this protocol do not hold unless
+                TLS is used; see <xref target="security"/>.
             </t>
             <t>
                 The "h2c" string was previously used as a token for use in the HTTP Upgrade mechanism's
@@ -307,10 +314,6 @@
             </t>
           </li>
         </ul>
-        <t>
-          Negotiating "h2" or "h2c" implies the use of the transport, security, framing, and message
-          semantics described in this document.
-        </t>
       </section>
       <section anchor="discover-https">
         <name>Starting HTTP/2 for "https" URIs</name>
@@ -332,14 +335,15 @@
         <name>Starting HTTP/2 with Prior Knowledge</name>
         <t>
           A client can learn that a particular server supports HTTP/2 by other means.  For example,
-          <xref target="ALT-SVC"/> describes a mechanism for advertising this capability.
+          a client could be configured with knowledge that a server supports HTTP/2.
         </t>
         <t>
-          A client MUST send the <xref target="ConnectionHeader">connection preface</xref> and
-          then MAY immediately send HTTP/2 frames to such a server; servers can identify these
-          connections by the presence of the connection preface. This only affects the
-          establishment of HTTP/2 connections over cleartext TCP; implementations that support
-          HTTP/2 over TLS MUST use <xref target="TLS-ALPN">protocol negotiation in TLS</xref>.
+          A client that knows that a server supports HTTP/2 can establish a TCP connection and send
+          the <xref target="ConnectionHeader">connection preface</xref> followed by HTTP/2 frames.
+          Servers can identify these connections by the presence of the connection preface. This
+          only affects the establishment of HTTP/2 connections over cleartext TCP; HTTP/2 connections
+          over TLS MUST use <xref target="TLS-ALPN">protocol negotiation in
+          TLS</xref>.
         </t>
         <t>
           Likewise, the server MUST send a <xref target="ConnectionHeader">connection preface</xref>.
@@ -549,7 +553,7 @@ HTTP Frame {
           carries a trailer section.
         </t>
         <t>
-          A field section is a collection of zero or more field lines.  Each of the field lines in a
+          A field section is a collection of field lines.  Each of the field lines in a
           field block carry a single value.  The serialized field block is then divided into one or
           more octet sequences, called field block fragments, and transmitted within the frame
           payload of <xref target="HEADERS">HEADERS</xref> or <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>, each of which could be followed by <xref target="CONTINUATION">CONTINUATION</xref> frames.
@@ -707,8 +711,9 @@ HTTP Frame {
             </t>
             <ul spacing="normal">
               <li>
-                    Sending or receiving a <xref target="HEADERS" format="none">HEADERS</xref> frame causes the stream to become
-                    "open".  The stream identifier is selected as described in <xref target="StreamIdentifiers"/>.  The same <xref target="HEADERS" format="none">HEADERS</xref> frame can also
+                    Sending a <xref target="HEADERS" format="none">HEADERS</xref> frame as a client, or receiving a HEADERS frame
+                    as a server, causes the stream to become "open".  The stream identifier is selected as described in
+                    <xref target="StreamIdentifiers"/>.  The same <xref target="HEADERS" format="none">HEADERS</xref> frame can also
                     cause a stream to immediately become "half-closed".
                   </li>
               <li>
@@ -730,6 +735,9 @@ HTTP Frame {
             <t>
                 Receiving any frame other than <xref target="HEADERS" format="none">HEADERS</xref> or <xref target="PRIORITY" format="none">PRIORITY</xref> on
                 a stream in this state MUST be treated as a <xref target="ConnectionErrorHandler">connection error</xref> of type
+                <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>. If this stream is server-initiated, as described in
+                <xref target="StreamIdentifiers"/>, then receiving a <xref target="HEADERS" format="none">HEADERS</xref> frame MUST also
+                be treated as a <xref target="ConnectionErrorHandler">connection error</xref> of type
                 <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
             </t>
           </dd>
@@ -2627,7 +2635,8 @@ CONTINUATION Frame {
         </t>
         <t>
           HTTP/2 uses DATA frames to carry message content.  The <tt>chunked</tt> transfer encoding
-          defined in <xref target="HTTP11" section="7.1"/> cannot be used in HTTP/2.
+          defined in <xref target="HTTP11" section="7.1"/> cannot be used in HTTP/2; see <xref
+          target="ConnectionSpecific"/>.
         </t>
         <t>
           Trailer fields are carried in a field block that also terminates the stream. That is,
@@ -2777,14 +2786,18 @@ CONTINUATION Frame {
             for field values as defined in <xref target="HTTP" section="5.5"/>.
           </t>
         </section>
-        <section>
+        <section anchor="ConnectionSpecific">
           <name>Connection-Specific Header Fields</name>
           <t>
-            HTTP/2 does not use the <tt>Connection</tt> header field (<xref target="HTTP" section="7.6.1"/>) to
-            indicate connection-specific header fields; in this protocol, connection-specific
-            metadata is conveyed by other means.  An endpoint MUST NOT generate an HTTP/2 message
-            containing connection-specific header fields; any message containing
-            connection-specific header fields MUST be treated as <xref target="malformed">malformed</xref>.
+            HTTP/2 does not use the <tt>Connection</tt> header field (<xref target="HTTP"
+            section="7.6.1"/>) to indicate connection-specific header fields; in this protocol,
+            connection-specific metadata is conveyed by other means.  An endpoint MUST NOT generate
+            an HTTP/2 message containing connection-specific header fields.  This includes the
+            <tt>Connection</tt> header field and those listed as having connection-specific
+            semantics in <xref target="HTTP" section="7.6.1"/> (that is, <tt>Proxy-Connection</tt>,
+            <tt>Keep-Alive</tt>, <tt>Transfer-Encoding</tt>, and <tt>Upgrade</tt>).  Any message
+            containing connection-specific header fields MUST be treated as <xref
+            target="malformed">malformed</xref>.
           </t>
           <t>
             The only exception to this is the TE header field, which MAY be present in an HTTP/2
@@ -2858,6 +2871,11 @@ cookie: e=f
           Any request or response that contains a pseudo-header field that appears in a field
           block after a regular field line MUST be treated as <xref target="malformed">malformed</xref>.
         </t>
+        <t>
+          The same pseudo-header field name MUST NOT appear more than once in a field block. A
+          field block for an HTTP request or response that contains a repeated pseudo-header field
+          name MUST be treated as <xref target="malformed">malformed</xref>.
+        </t>
         <section anchor="HttpRequest">
           <name>Request Pseudo-Header Fields</name>
           <t>
@@ -2899,8 +2917,12 @@ cookie: e=f
                 <tt>:authority</tt> pseudo-header field using the authority information from the
                 control data in the original request.  If control data does not contain authority,
                 an intermediary MUST NOT add an <tt>:authority</tt> pseudo-header field.  Note that
-                while the <tt>Host</tt> header field can determine a request target, is not control
-                data for this purpose; see <xref target="HTTP" section="7.2"/>.
+                while the <tt>Host</tt> header field can determine a request target, it is not
+                control data for this purpose; see <xref target="HTTP" section="7.2"/>.
+              </t>
+              <t>
+                Request targets for CONNECT or asterisk-form OPTIONS requests do not include
+                authority.
               </t>
               <t>
                 An intermediary that forwards from HTTP/2 can construct a <tt>Host</tt> header field
@@ -2931,11 +2953,18 @@ cookie: e=f
               <t>
                   This pseudo-header field MUST NOT be empty for <tt>http</tt> or <tt>https</tt>
                   URIs; <tt>http</tt> or <tt>https</tt> URIs that do not contain a path component
-                  MUST include a value of '/'. The exception to this rule is an OPTIONS request
-                  for an <tt>http</tt> or <tt>https</tt> URI that does not include a path
-                  component; these MUST include a <tt>:path</tt> pseudo-header field with a value
-                  of '*' (see <xref target="HTTP" section="7.1"/>).
+                  MUST include a value of '/'. The exceptions to this rule are:
               </t>
+              <ul>
+                <li>
+                  an OPTIONS request for an <tt>http</tt> or <tt>https</tt> URI that does not include a path
+                  component; these MUST include a <tt>:path</tt> pseudo-header field with a value
+                  of '*' (see <xref target="HTTP" section="7.1"/>)
+                </li>
+                <li>
+                  <xref target="CONNECT">CONNECT requests</xref>, where the <tt>:path</tt> pseudo-header field is omitted.
+                </li>
+              </ul>
             </li>
           </ul>
           <t>
@@ -3280,7 +3309,8 @@ cookie: e=f
         <t>
             This section shows HTTP/1.1 requests and responses, with illustrations of equivalent
             HTTP/2 requests and responses.
-          </t>
+        </t>
+        <section><name>Simple Request</name>
         <t>
             An HTTP GET request includes control data and a request header with no message content and is therefore
             transmitted as a single <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
@@ -3294,10 +3324,13 @@ cookie: e=f
   Accept: image/jpeg                 + END_HEADERS
                                        :method = GET
                                        :scheme = https
+                                       :authority = example.org
                                        :path = /resource
                                        host = example.org
                                        accept = image/jpeg
 ]]></artwork>
+        </section>
+        <section><name>Simple Response</name>
         <t>
             Similarly, a response that includes only control data and a response header is transmitted as a
             <xref target="HEADERS" format="none">HEADERS</xref> frame (again, followed by zero or more
@@ -3312,6 +3345,8 @@ cookie: e=f
                                        etag = "xyzzy"
                                        expires = Thu, 23 Jan ...
 ]]></artwork>
+        </section>
+        <section><name>Complex Request</name>
         <t>
             An HTTP POST request that includes control data and a request header and message content is transmitted
             as one <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
@@ -3325,6 +3360,7 @@ cookie: e=f
   Host: example.org          ==>     - END_STREAM
   Content-Type: image/jpeg           - END_HEADERS
   Content-Length: 123                  :method = POST
+                                       :authority = example.org
                                        :path = /resource
   {binary data}                        :scheme = https
 
@@ -3343,6 +3379,8 @@ cookie: e=f
               block fragments.  The allocation of field lines to frames in this example is
               illustrative only.
           </t>
+        </section>
+        <section><name>Response with Body</name>
         <t>
             A response that includes control data and a response header and message content is
             transmitted as a <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by
@@ -3363,6 +3401,8 @@ cookie: e=f
                                      + END_STREAM
                                    {binary data}
 ]]></artwork>
+        </section>
+        <section><name>Informational Responses</name>
         <t>
             An informational response using a 1xx status code other than 101 is transmitted as a
             <xref target="HEADERS" format="none">HEADERS</xref> frame, followed by zero or more
@@ -3390,12 +3430,11 @@ cookie: e=f
   Content-Type: image/jpeg   ==>     - END_STREAM
   Transfer-Encoding: chunked         + END_HEADERS
   Trailer: Foo                         :status = 200
-                                       content-length = 123
-  123                                  content-type = image/jpeg
-  {binary data}                        trailer = Foo
-  0
-  Foo: bar                         DATA
-                                     - END_STREAM
+                                       content-type = image/jpeg
+  123                                  trailer = Foo
+  {binary data}
+  0                                DATA
+  Foo: bar                           - END_STREAM
                                    {binary data}
 
                                    HEADERS
@@ -3403,6 +3442,7 @@ cookie: e=f
                                      + END_HEADERS
                                        foo = bar
 ]]></artwork>
+        </section>
       </section>
     </section>
     <section anchor="HttpExtra">
@@ -3625,6 +3665,11 @@ cookie: e=f
     </section>
     <section anchor="security">
       <name>Security Considerations</name>
+      <t>
+        The use of TLS is necessary to provide many of the security properties of this protocol.
+        Many of the claims in this section do not hold unless TLS is used as described in <xref
+        target="TLSUsage"/>.
+      </t>
       <section anchor="authority">
         <name>Server Authority</name>
         <t>
@@ -5052,15 +5097,11 @@ cookie: e=f
         <li>TLS_PSK_WITH_AES_128_CCM_8</li>
         <li>TLS_PSK_WITH_AES_256_CCM_8</li>
       </ul>
-      <aside>
-        <t>Note:
-          This list was assembled from the set of registered TLS cipher suites at the time of
-          writing.  This list includes those cipher suites that do not offer an ephemeral key
-          exchange and those that are based on the TLS null, stream, or block cipher type (as
-          defined in <xref target="TLS12" section="6.2.3"/>).  Additional cipher suites with
-          these properties could be defined; these would not be explicitly prohibited.
-        </t>
-      </aside>
+      <aside><t>Note: This list was assembled from the set of registered TLS cipher suites when
+      <xref target="RFC7540"/> was developed.  This list includes those cipher suites that do not
+      offer an ephemeral key exchange and those that are based on the TLS null, stream, or block
+      cipher type (as defined in <xref target="TLS12" section="6.2.3"/>).  Additional cipher suites
+      with these properties could be defined; these would not be explicitly prohibited.</t></aside>
     </section>
     <section>
       <name>Changes from RFC 7540</name>
@@ -5091,6 +5132,10 @@ cookie: e=f
         <li>
           The ranges of codepoints for settings and frame types that were reserved for "Experimental
           Use" are now available for general use.
+        </li>
+        <li>
+          Connection-specific header fields - which are prohibited - are more precisely and
+          comprehensively identified.
         </li>
       </ul>
     </section>
