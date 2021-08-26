@@ -2736,11 +2736,19 @@ CONTINUATION Frame {
         <section>
           <name>Field Validity</name>
           <t>
-            HPACK is capable of carrying field names or values that are not valid in HTTP.  Attacks
-            on HTTP/2 implementations might exploit this by including delimiters in fields with the
-            intent evading security controls.  This might be used in a request smuggling attack, for
-            example.  To prevent these attacks, HTTP/2 implementations MUST validate fields they
-            receive as follows:
+            The definitions of field names and values in HTTP prohibits some characters that HPACK
+            might be able to convey.  HTTP/2 implementations SHOULD validate field names and values
+            according to their definitions in Sections <xref target="HTTP" section="5.1"
+            format="counter"/> and <xref target="HTTP" section="5.5"/> respectively and treat
+            messages that contain prohibited characters as <xref
+            target="malformed">malformed</xref>.
+          </t>
+          <t>
+            Failure to validate fields can be exploited for request smuggling attacks.  In
+            particular, unvalidated fields might enable attacks when messages are forwarded using
+            <xref target="HTTP11">HTTP 1.1</xref>, where characters such as CR and COLON are used as
+            delimiters.  Implementations that do not fully validate field names and values MUST
+            perform the following minimal validation:
           </t>
           <ul>
             <li>
@@ -2771,24 +2779,18 @@ CONTINUATION Frame {
           </t>
           <t>
             When a request message violates one of these requirements, an implementation SHOULD
-            generate a 400 (Bad Request) status code (<xref target="HTTP" section="15.5.1"/>),
+            generate a <xref target="HTTP" section="15.5.1">400 (Bad Request) status code</xref>,
             unless a more suitable status code is defined or the status code cannot be sent (e.g.,
             because the error occurs in a trailer field).
           </t>
-          <t>
-            These checks are the minimum necessary for any form of message handling; they do not
-            guarantee that fields are valid.  <xref target="HTTP" section="5.1"/> and <xref
-            target="HTTP" section="5.5"/> define field names and values and what characters are
-            valid, prohibiting more characters than those listed here.  A recipient can treat a
-            message that contains an invalid field name or value <xref
-            target="malformed">malformed</xref>.
-          </t>
-          <t>
-            Note that field values that are not valid according to the definition of the
-            corresponding field do not cause a request to be <xref target="malformed"
-            format="none">malformed</xref>; the requirements above only apply to the generic syntax
-            for field values as defined in <xref target="HTTP" section="5.5"/>.
-          </t>
+          <aside>
+            <t>
+              Note: Field values that are not valid according to the definition of the corresponding
+              field do not cause a request to be <xref target="malformed"
+              format="none">malformed</xref>; the requirements above only apply to the generic
+              syntax for fields as defined in <xref target="HTTP" section="5"/>.
+            </t>
+          </aside>
         </section>
         <section>
           <name>Connection-Specific Header Fields</name>
