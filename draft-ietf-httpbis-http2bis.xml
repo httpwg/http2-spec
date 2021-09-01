@@ -2739,14 +2739,26 @@ CONTINUATION Frame {
         <section>
           <name>Field Validity</name>
           <t>
-            HPACK is capable of carrying field names or values that are not valid in HTTP.  Though
-            HPACK can carry any octet, fields are not valid in the following cases:
+            The definitions of field names and values in HTTP prohibits some characters that HPACK
+            might be able to convey.  HTTP/2 implementations SHOULD validate field names and values
+            according to their definitions in Sections <xref target="HTTP" section="5.1"
+            format="counter"/> and <xref target="HTTP" section="5.5" format="counter"/> of <xref
+            target="HTTP"/> respectively and treat messages that contain prohibited characters as
+            <xref target="malformed">malformed</xref>.
+          </t>
+          <t>
+            Failure to validate fields can be exploited for request smuggling attacks.  In
+            particular, unvalidated fields might enable attacks when messages are forwarded using
+            <xref target="HTTP11">HTTP 1.1</xref>, where characters such as CR, LF, and COLON are
+            used as delimiters.  Implementations MUST perform the following minimal validation of
+            field names and values:
           </t>
           <ul>
             <li>
-              A field name MUST NOT contain characters in the ranges 0x00-0x20, 0x41-0x5A, or 0x7F-0xFF
-              (all ranges inclusive).  This limits field names to visible ASCII characters, other than
-              ASCII SP (0x20) and uppercase characters ('A' to 'Z', ASCII 0x41 to 0x5a).
+              A field name MUST NOT contain characters in the ranges 0x00-0x20, 0x41-0x5A, or
+              0x7F-0xFF (all ranges inclusive).  This specifically excludes all non-visible ASCII
+              characters, ASCII SP (0x20), and uppercase characters ('A' to 'Z', ASCII 0x41 to
+              0x5a).
             </li>
             <li>
               With the exception of <xref target="PseudoHeaderFields">pseudo-header fields</xref>,
@@ -2762,6 +2774,14 @@ CONTINUATION Frame {
               HTAB, 0x20 or 0x9).
             </li>
           </ul>
+          <aside>
+          <t>
+            Note: An implementation that validates fields according the definitions in Sections
+            <xref target="HTTP" section="5.1" format="counter"/> and <xref target="HTTP"
+            section="5.5" format="counter"/> of <xref target="HTTP"/> only needs an additional check
+            that field names do not include uppercase characters.
+          </t>
+        </aside>
           <t>
             A request or response that contains a field that violates any of these conditions MUST
             be treated as <xref target="malformed">malformed</xref>.  In particular, an intermediary
@@ -2769,22 +2789,19 @@ CONTINUATION Frame {
             contain any of the values that are listed as prohibited above.
           </t>
           <t>
-            A recipient MAY treat a message that contains a field name or value that includes other
-            characters disallowed by <xref target="HTTP" section="5.1"/> and <xref target="HTTP"
-            section="5.5"/> as <xref target="malformed">malformed</xref>.
+            When a request message violates one of these requirements, an implementation SHOULD
+            generate a <xref target="HTTP" section="15.5.1">400 (Bad Request) status code</xref>,
+            unless a more suitable status code is defined or the status code cannot be sent (e.g.,
+            because the error occurs in a trailer field).
           </t>
-          <t>
-            When a request message violates one of the requirements above, it SHOULD be responded
-            to using the 400 (Bad Request) status code (<xref target="HTTP" section="15.5.1"/>)
-            before the stream is reset, unless a more suitable status code is defined, or the
-            status code cannot be sent (e.g., because the error occurs in a trailer field).
-          </t>
-          <t>
-            Note that field values that are not valid according to the definition of the
-            corresponding field do not cause a request to be <xref target="malformed"
-            format="none">malformed</xref>; the requirements above only apply to the generic syntax
-            for field values as defined in <xref target="HTTP" section="5.5"/>.
-          </t>
+          <aside>
+            <t>
+              Note: Field values that are not valid according to the definition of the corresponding
+              field do not cause a request to be <xref target="malformed"
+              format="none">malformed</xref>; the requirements above only apply to the generic
+              syntax for fields as defined in <xref target="HTTP" section="5"/>.
+            </t>
+          </aside>
         </section>
         <section anchor="ConnectionSpecific">
           <name>Connection-Specific Header Fields</name>
