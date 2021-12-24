@@ -13,7 +13,7 @@
 <?rfc-ext allow-markup-in-artwork="yes" ?>
 <?rfc-ext include-index="no" ?>
 <!DOCTYPE rfc SYSTEM "rfc2629-xhtml.ent">
-<rfc xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:x="http://purl.org/net/xml2rfc/ext" ipr="trust200902" category="std" docName="draft-ietf-httpbis-http2bis-latest" tocInclude="true" symRefs="true" sortRefs="true" version="3" submissionType="IETF" obsoletes="7540,8740">
+<rfc xmlns:xi="http://www.w3.org/2001/XInclude" xmlns:x="http://purl.org/net/xml2rfc/ext" ipr="trust200902" category="std" docName="draft-ietf-httpbis-http2bis-latest" tocInclude="true" symRefs="true" sortRefs="true" version="3" submissionType="IETF" obsoletes="7540,7541,8740">
   <!--
   <x:feedback template="mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&amp;body=&lt;{ref}&gt;:"/>
   -->
@@ -49,7 +49,7 @@
         concurrent exchanges on the same connection.
       </t>
       <t>
-        This document obsoletes RFC 7540 and RFC 8740.
+        This document obsoletes RFC 7540 and RFC 8740.  It updates RFC 7541.
       </t>
     </abstract>
     <note title="Discussion Venues" removeInRFC="true">
@@ -599,7 +599,7 @@ HTTP Frame {
           target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref>.
         </t>
 
-        <section>
+        <section anchor="dynamic-table">
           <name>Compression State</name>
           <t>
             Field compression is stateful.  One compression context and one decompression context
@@ -622,13 +622,25 @@ HTTP Frame {
           </t>
           <t>
             If a change to SETTINGS_HEADER_TABLE_SIZE reduces the maximum below the current size of
-            the dynamic table, the encoder starts the next field block with a Dynamic Table Size
+            the dynamic table, the encoder MUST start the next field block with a Dynamic Table Size
             Update instruction that sets the dynamic table to a size that is less than or equal to
-            the reduced maximum; see <xref target="COMPRESSION" section="4.2"/>.  A decoder MAY
-            treat a field block without a sufficiently small Dynamic Table Size Update instruction
-            that follows an acknowledgment of a reduction of SETTINGS_HEADER_TABLE_SIZE as a <xref
-            target="ConnectionErrorHandler">connection error</xref> of type <xref
-            target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref>.
+            the reduced maximum.  A decoder MUST treat a field block without a sufficiently small
+            Dynamic Table Size Update instruction that follows an acknowledgment of a reduction of
+            SETTINGS_HEADER_TABLE_SIZE as a <xref target="ConnectionErrorHandler">connection
+            error</xref> of type <xref target="COMPRESSION_ERROR"
+            format="none">COMPRESSION_ERROR</xref>.
+          </t>
+          <aside>
+            <t>
+              Implementers are advised that support for reducing the value of
+              SETTINGS_HEADER_TABLE_SIZE is not interoperable.  This includes use of the connection
+              preface to reduce the value below the initial value of 4,096.
+            </t>
+          </aside>
+          <t>
+            This differs from the requirement in <xref target="COMPRESSION" section="4.2"/> as it
+            allows an encoder to omit the instruction if the dynamic table size does not change.
+            Experience with deployed implementations shows that this is more interoperable.
           </t>
         </section>
       </section>
@@ -4951,6 +4963,10 @@ cookie: e=f
         </li>
         <li>
           <tt>Host</tt> and <tt>:authority</tt> are no longer permitted to disagree.
+        </li>
+        <li>
+          Rules for sending Dynamic Table Size Update instructions after changes in settings have
+          been clarified in <xref target="dynamic-table"/>.
         </li>
       </ul>
       <t>
