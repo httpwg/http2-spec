@@ -575,12 +575,6 @@ HTTP Frame {
             </li>
         </ul>
         <t>
-          Field compression is stateful.  One compression context and one decompression context are
-          used for the entire connection.  A decoding error in a field block MUST be treated as a
-          <xref target="ConnectionErrorHandler">connection error</xref> of type
-          <xref target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref>.
-        </t>
-        <t>
           Each field block is processed as a discrete unit.
           Field blocks MUST be transmitted as a contiguous sequence of frames, with no interleaved
           frames of any other type or from any other stream.  The last frame in a sequence of
@@ -599,6 +593,42 @@ HTTP Frame {
           connection with a <xref target="ConnectionErrorHandler">connection error</xref> of type
           <xref target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref> if it does not decompress a field block.
         </t>
+        <t>
+          A decoding error in a field block MUST be treated as a <xref
+          target="ConnectionErrorHandler">connection error</xref> of type <xref
+          target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref>.
+        </t>
+
+        <section>
+          <name>Compression State</name>
+          <t>
+            Field compression is stateful.  One compression context and one decompression context
+            are used for the entire connection.  <xref target="COMPRESSION" section="4"/> defines
+            the dynamic table, which is the primary state that is used for field compression.
+          </t>
+          <t>
+            The dynamic table has a maximum size that is set by a decoder using the
+            SETTINGS_HEADER_TABLE_SIZE setting; see <xref target="SettingValues"/>.  The encoder can
+            set the dynamic table to any size up to the maximum value set by the decoder.  The
+            encoder declares the size of the dynamic table with a Dynamic Table Size Update
+            instruction (<xref target="COMPRESSION" section="6.3"/>).  The encoder at both client
+            and server is initialized with a dynamic table size of 4,096 bytes, the initial value of
+            the SETTINGS_HEADER_TABLE_SIZE setting.
+          </t>
+          <t>
+            Any change to the maximum value set by the decoder takes effect when the encoder <xref
+            target="SettingsSync">acknowledges settings</xref>.  The first field block sent by an
+            encoder after a change in SETTINGS_HEADER_TABLE_SIZE starts with at least one Dynamic
+            Table Size Update instruction; see <xref target="COMPRESSION" section="4.2"/>.  An
+            encoder sends a Dynamic Table Size Update instruction after acknowledging a change of
+            SETTINGS_HEADER_TABLE_SIZE even if it is not changing the size of the dynamic table or
+            an increase to the maximum size is subsequently reverted before the field block is sent.
+            An encoder MAY treat the absence of Dynamic Table Size Update instructions in a field
+            block following an acknowledgment of a change to SETTINGS_HEADER_TABLE_SIZE as a <xref
+            target="ConnectionErrorHandler">connection error</xref> of type <xref
+            target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref>.
+          </t>
+        </section>
       </section>
     </section>
     <section anchor="StreamsLayer">
