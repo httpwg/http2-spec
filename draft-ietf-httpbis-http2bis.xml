@@ -437,7 +437,7 @@ HTTP Frame {
           <dt>Length:</dt>
           <dd>
             <t>
-                The length of the frame payload expressed as an unsigned 24-bit integer.  Values
+                The length of the frame payload expressed as an unsigned 24-bit integer in units of octets.  Values
                 greater than 2<sup>14</sup> (16,384) MUST NOT be sent unless the receiver has
                 set a larger value for <xref target="SETTINGS_MAX_FRAME_SIZE" format="none">SETTINGS_MAX_FRAME_SIZE</xref>.
             </t>
@@ -549,8 +549,8 @@ HTTP Frame {
         <t>
           A field section is a collection of field lines.  Each of the field lines in a
           field block carry a single value.  The serialized field block is then divided into one or
-          more octet sequences, called field block fragments, and transmitted within the frame
-          payload of <xref target="HEADERS">HEADERS</xref> or <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>, each of which could be followed by <xref target="CONTINUATION">CONTINUATION</xref> frames.
+          more octet sequences, called field block fragments.  The first field block fragment is transmitted within the frame
+          payload of <xref target="HEADERS">HEADERS</xref> or <xref target="PUSH_PROMISE">PUSH_PROMISE</xref>, each of which could be followed by <xref target="CONTINUATION">CONTINUATION</xref> frames to carry subsequent field block fragments.
         </t>
         <t>
           The <xref target="COOKIE">Cookie header field</xref> is treated specially by the HTTP
@@ -1045,7 +1045,7 @@ HTTP Frame {
         <section anchor="StreamIdentifiers">
           <name>Stream Identifiers</name>
           <t>
-            Streams are identified with an unsigned 31-bit integer.  Streams initiated by a client
+            Streams are identified by an unsigned 31-bit integer.  Streams initiated by a client
             MUST use odd-numbered stream identifiers; those initiated by the server MUST use
             even-numbered stream identifiers.  A stream identifier of zero (0x0) is used for
             connection control messages; the stream identifier of zero cannot be used to establish a
@@ -1177,7 +1177,7 @@ HTTP Frame {
           <t>
             Flow control is defined to protect endpoints that are operating under resource
             constraints.  For example, a proxy needs to share memory between many connections and
-            also might have a slow upstream connection and a fast downstream one.  Flow-control
+            also might have a slow upstream connection and a fast downstream one.  Flow control
             addresses cases where the receiver is unable to process data on one stream yet wants to
             continue to process other streams in the same connection.
           </t>
@@ -1475,7 +1475,7 @@ DATA Frame {
 
   [Pad Length (8)],
   Data (..),
-  Padding (..),
+  Padding (..2040),
 }
 ]]></artwork>
         </figure>
@@ -1575,7 +1575,7 @@ HEADERS Frame {
   [Stream Dependency (31)],
   [Weight (8)],
   Field Block Fragment (..),
-  Padding (..),
+  Padding (..2040),
 }
 ]]></artwork>
         </figure>
@@ -1695,7 +1695,7 @@ HEADERS Frame {
           <name>PRIORITY Frame Format</name>
           <artwork type="inline"><![CDATA[
 PRIORITY Frame {
-  Length (24),
+  Length (24) = 0x5,
   Type (8) = 0x2,
 
   Unused Flags (8),
@@ -1754,7 +1754,7 @@ PRIORITY Frame {
           <name>RST_STREAM Frame Format</name>
           <artwork type="inline"><![CDATA[
 RST_STREAM Frame {
-  Length (24),
+  Length (24) = 0x4,
   Type (8) = 0x3,
 
   Unused Flags (8),
@@ -2057,7 +2057,7 @@ PUSH_PROMISE Frame {
   Reserved (1),
   Promised Stream ID (31),
   Field Block Fragment (..),
-  Padding (..),
+  Padding (..2040),
 }
 ]]></artwork>
         </figure>
@@ -2406,7 +2406,7 @@ GOAWAY Frame {
           <name>WINDOW_UPDATE Frame Format</name>
           <artwork type="inline"><![CDATA[
 WINDOW_UPDATE Frame {
-  Length (24),
+  Length (24) = 0x4,
   Type (8) = 0x8,
 
   Unused Flags (8),
@@ -2518,7 +2518,7 @@ WINDOW_UPDATE Frame {
             Prior to receiving a <xref target="SETTINGS" format="none">SETTINGS</xref> frame that sets a value for
             <xref target="SETTINGS_INITIAL_WINDOW_SIZE" format="none">SETTINGS_INITIAL_WINDOW_SIZE</xref>, an endpoint can only use the default
             initial window size when sending flow-controlled frames.  Similarly, the connection flow-control
-            window is set to the default initial window size until a WINDOW_UPDATE frame is
+            window is set based on the default initial window size until a WINDOW_UPDATE frame is
             received.
           </t>
           <t>
