@@ -602,32 +602,33 @@ HTTP Frame {
         <section anchor="dynamic-table">
           <name>Compression State</name>
           <t>
-            Field compression is stateful.  Each endpoint has an encoder context and a decoder
-            context that are used for encoding and decoding all field blocks.  <xref
+            Field compression is stateful.  Each endpoint has an HPACK encoder context and an HPACK
+            decoder context that are used for encoding and decoding all field blocks.  <xref
             target="COMPRESSION" section="4"/> defines the dynamic table, which is the primary state
             for each context.
           </t>
           <t>
-            The dynamic table has a maximum size that is set by a decoder using the
+            The dynamic table has a maximum size that is set by an HPACK decoder. An endpoint
+            communicates the size chosen by its HPACK decoder context using the
             SETTINGS_HEADER_TABLE_SIZE setting; see <xref target="SettingValues"/>.  When a
-            connection is established, the dynamic table size for the decoder and encoder at both
-            endpoints starts at 4,096 bytes, the initial value of the SETTINGS_HEADER_TABLE_SIZE
-            setting.
+            connection is established, the dynamic table size for the HPACK decoder and encoder at
+            both endpoints starts at 4,096 bytes, the initial value of the
+            SETTINGS_HEADER_TABLE_SIZE setting.
           </t>
           <t>
-            Any change to the maximum value set by the decoder using SETTINGS_HEADER_TABLE_SIZE
-            takes effect when the encoder <xref target="SettingsSync">acknowledges settings</xref>.
-            The encoder can set the dynamic table to any size up to the maximum value set by the
-            decoder.  The encoder declares the size of the dynamic table with a Dynamic Table Size
-            Update instruction (<xref target="COMPRESSION" section="6.3"/>).
+            Any change to the maximum value set using SETTINGS_HEADER_TABLE_SIZE takes effect when
+            the endpoint <xref target="SettingsSync">acknowledges settings</xref>.  The HPACK
+            encoder at that endpoint can set the dynamic table to any size up to the maximum value
+            set by the decoder.  An HPACK encoder declares the size of the dynamic table with a
+            Dynamic Table Size Update instruction (<xref target="COMPRESSION" section="6.3"/>).
           </t>
           <t>
             Once an endpoint acknowledges a change to SETTINGS_HEADER_TABLE_SIZE that reduces the
-            maximum below the current size of the dynamic table, the encoder MUST start the next
-            field block with a Dynamic Table Size Update instruction that sets the dynamic table to
-            a size that is less than or equal to the reduced maximum; see <xref target="COMPRESSION"
-            section="4.2"/>.  A decoder MUST treat a field block that follows an acknowledgment of the
-            reduction to the maximum dynamic table size as a <xref
+            maximum below the current size of the dynamic table, its HPACK encoder MUST start the
+            next field block with a Dynamic Table Size Update instruction that sets the dynamic
+            table to a size that is less than or equal to the reduced maximum; see <xref
+            target="COMPRESSION" section="4.2"/>.  An endpoint MUST treat a field block that follows
+            an acknowledgment of the reduction to the maximum dynamic table size as a <xref
             target="ConnectionErrorHandler">connection error</xref> of type <xref
             target="COMPRESSION_ERROR" format="none">COMPRESSION_ERROR</xref> if it does not start
             with an conformant Dynamic Table Size Update instruction.
