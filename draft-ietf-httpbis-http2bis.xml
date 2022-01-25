@@ -305,10 +305,10 @@
           </li>
           <li>
             <t>
-                The "h2c" string was previously used as a token for use in the HTTP Upgrade mechanism's
-                Upgrade header field (<xref target="HTTP" section="7.8"/>) and as an identifier for the
-                protocol where HTTP/2 is run over cleartext TCP. This usage was never widely
-                deployed, and is deprecated by this document.
+                The "h2c" string was previously used as a token for use in the HTTP Upgrade
+                mechanism's Upgrade header field (<xref target="HTTP" section="7.8"/>). This usage
+                was never widely deployed and is deprecated by this document. The same apples to the
+                HTTP2-Settings header field, which was used with the upgrade to "h2c".
             </t>
           </li>
         </ul>
@@ -534,8 +534,9 @@ HTTP Frame {
           processes as header compression and decompression.
         </t>
         <t>
-          Field blocks carry the compressed bytes of a field section, with header sections
-          also carrying control data associated with the message in the form of <xref target="PseudoHeaderFields">pseudo-header fields</xref> that use the same format as a
+          Each field block carries all of the compressed field lines of a single field section.
+          Header sections also include control data associated with the message in the form of <xref
+          target="PseudoHeaderFields">pseudo-header fields</xref> that use the same format as a
           field line.
         </t>
         <aside>
@@ -1045,13 +1046,13 @@ HTTP Frame {
             </t>
             <t>
               An endpoint that sends a <xref target="RST_STREAM" format="none">RST_STREAM</xref>
-              frame on a stream that is in the "open" state could receive any type of frame.  The
+              frame on a stream that is in the "open"  or "half-closed (local)" state could receive any type of frame.  The
               peer might have sent or enqueued for sending these frames before processing the <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame. An endpoint MUST minimally
               process and then discard any frames it receives in this state.  This means updating
               header compression state for <xref target="HEADERS" format="none">HEADERS</xref> and
               <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames; <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames also cause the promised
               stream to become "reserved", even when the <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame is received on a closed stream; and, the
-              content of <xref target="DATA" format="none">DATA</xref> frames counts toward the
+              content of <xref target="DATA" format="none">DATA</xref> frames count toward the
               connection flow-control window.
             </t>
             <t>
@@ -1464,13 +1465,14 @@ HTTP Frame {
           changes to any protocol element that a compliant endpoint might treat as a <xref target="ConnectionErrorHandler">connection error</xref>.
         </t>
         <t>
-          An extension that changes existing elements MUST be negotiated before being used.  For
-          example, an extension that changes the layout of the <xref target="HEADERS" format="none">HEADERS</xref> frame cannot be used until the peer has given a positive
-          signal that this is acceptable.  In this case, it could also be necessary to coordinate
-          when the revised layout comes into effect.  For example, treating frames other than
-          <xref target="DATA" format="none">DATA</xref> frames as flow controlled requires a
-          change in semantics that both endpoints need to understand, so this can only be done
-          through negotiation.
+          An extension that changes existing protocol elements or state MUST be negotiated before
+          being used.  For example, an extension that changes the layout of the <xref
+          target="HEADERS" format="none">HEADERS</xref> frame cannot be used until the peer has
+          given a positive signal that this is acceptable.  In this case, it could also be necessary
+          to coordinate when the revised layout comes into effect.  For example, treating frames
+          other than <xref target="DATA" format="none">DATA</xref> frames as flow controlled
+          requires a change in semantics that both endpoints need to understand, so this can only be
+          done through negotiation.
         </t>
         <t>
           This document doesn't mandate a specific method for negotiating the use of an extension
@@ -2566,7 +2568,7 @@ WINDOW_UPDATE Frame {
             flow-control window size of 65,535 octets. The connection flow-control window is also 65,535
             octets. Both endpoints can adjust the initial window size for new streams by including
             a value for <xref target="SETTINGS_INITIAL_WINDOW_SIZE" format="none">SETTINGS_INITIAL_WINDOW_SIZE</xref> in the <xref target="SETTINGS" format="none">SETTINGS</xref>
-            frame that forms part of the connection preface. The connection flow-control window can
+            frame. The connection flow-control window can
             only be changed using WINDOW_UPDATE frames.
           </t>
           <t>
@@ -3303,14 +3305,15 @@ cookie: e=f
           </t>
           <t>
             The header fields in <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> and
-            any subsequent <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames
-            MUST be a valid and complete set of <xref target="HttpRequest">request header
+            any subsequent <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames MUST
+            be a valid and complete set of <xref target="HttpRequest">request header
             fields</xref>. The server MUST include a method in the <tt>:method</tt> pseudo-header
             field that is safe and cacheable. If a client receives a <xref target="PUSH_PROMISE"
             format="none">PUSH_PROMISE</xref> that does not include a complete and valid set of
             header fields or the <tt>:method</tt> pseudo-header field identifies a method that is
-            not safe, it MUST respond with a <xref target="StreamErrorHandler">stream error</xref>
-            of type <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
+            not safe, it MUST respond on the promised stream with a <xref
+            target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR"
+            format="none">PROTOCOL_ERROR</xref>.
           </t>
           <t>
             The server SHOULD send <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>
@@ -3385,7 +3388,7 @@ cookie: e=f
             Clients receiving a pushed response MUST validate that either the server is
             authoritative (see <xref target="authority"/>) or the proxy that provided the pushed
             response is configured for the corresponding request. For example, a server that offers
-            a certificate for only the <tt>example.com</tt> DNS-ID
+            a certificate for only the <tt>example.com</tt> DNS-ID (see <xref target="RFC6125"/>)
             is not permitted to push a response for <tt>https://www.example.org/doc</tt>.
           </t>
           <t>
@@ -3843,7 +3846,7 @@ cookie: e=f
             which means that TLS 1.2 deployments could have non-intersecting sets of permitted cipher
             suites.  To avoid this problem causing TLS handshake failures, deployments of HTTP/2 that use
             TLS 1.2 MUST support TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 <xref target="TLS-ECDHE"/> with
-            the P-256 elliptic curve <xref target="FIPS186"/>.
+            the P-256 elliptic curve <xref target="RFC8422"/>.
           </t>
           <t>
             Note that clients might advertise support of cipher suites that are prohibited in
@@ -4029,9 +4032,17 @@ cookie: e=f
             </ul>
           </li>
           <li>
+            An attacker can provide large amounts of flow control credit at the HTTP/2 layer, but
+            withhold credit at the TCP layer, preventing frames from being sent.  An endpoint that
+            constructs and remembers frames for sending without considering TCP limits might be
+            subject to resource exhaustion.
+          </li>
+          <li>
             Large numbers of small or empty frames can be abused to cause a peer to expend time
             processing frame headers.  Caution is required here as some uses of small frames are
-            entirely legitimate, such as the sending of an empty <xref target="DATA" format="none">DATA</xref> or <xref target="CONTINUATION" format="none">CONTINUATION</xref> frame at the end of a stream.
+            entirely legitimate, such as the sending of an empty <xref target="DATA"
+            format="none">DATA</xref> or <xref target="CONTINUATION"
+            format="none">CONTINUATION</xref> frame at the end of a stream.
           </li>
           <li>
             The <xref target="SETTINGS" format="none">SETTINGS</xref> frame might also be abused to
@@ -4053,12 +4064,6 @@ cookie: e=f
             exceed the new limits. In particular, immediately after establishing a connection,
             limits set by a server are not known to clients and could be exceeded without being an
             obvious protocol violation.
-          </li>
-          <li>
-            An attacker can provide large amounts of flow control credit at the HTTP/2 layer, but
-            withhold credit at the TCP layer, preventing frames from being sent.  An endpoint that
-            constructs and remembers frames for sending without considering TCP limits might be
-            subject to resource exhaustion.
           </li>
         </ul>
         <t>
@@ -4424,17 +4429,15 @@ cookie: e=f
             <date year="2008" month="August"/>
           </front>
         </reference>
-        <reference anchor="FIPS186" target="https://csrc.nist.gov/publications/detail/fips/186/4/final">
+        <reference  anchor="RFC8422" target="https://www.rfc-editor.org/info/rfc8422">
           <front>
-            <title>
-            Digital Signature Standard (DSS)
-            </title>
-            <seriesInfo name="FIPS" value="PUB 186-4"/>
-            <seriesInfo name="DOI" value="10.6028/NIST.FIPS.186-4"/>
-            <author>
-              <organization>NIST</organization>
-            </author>
-            <date year="2013" month="July"/>
+            <title>Elliptic Curve Cryptography (ECC) Cipher Suites for Transport Layer Security (TLS) Versions 1.2 and Earlier</title>
+            <seriesInfo name="RFC" value="8422"/>
+            <seriesInfo name="DOI" value="10.17487/RFC8422"/>
+            <author initials="Y." surname="Nir" fullname="Y. Nir"/>
+            <author initials="S." surname="Josefsson" fullname="S. Josefsson"/>
+            <author initials="M." surname="Pegourie-Gonnard" fullname="M. Pegourie-Gonnard"/>
+            <date year="2018" month="August" />
           </front>
         </reference>
         <reference anchor="COOKIE">
@@ -4543,6 +4546,16 @@ cookie: e=f
             <date year="2014" month="September"/>
           </front>
         </reference>
+        <reference  anchor="RFC6125" target="https://www.rfc-editor.org/info/rfc6125">
+          <front>
+            <title>Representation and Verification of Domain-Based Application Service Identity within Internet Public Key Infrastructure Using X.509 (PKIX) Certificates in the Context of Transport Layer Security (TLS)</title>
+            <seriesInfo name="RFC" value="6125"/>
+            <seriesInfo name="DOI" value="10.17487/RFC6125"/>
+            <author initials="P." surname="Saint-Andre" fullname="P. Saint-Andre"/>
+            <author initials="J." surname="Hodges" fullname="J. Hodges"/>
+            <date year="2011" month="March" />
+          </front>
+        </reference>
         <reference anchor="RFC3749">
           <front>
             <title>Transport Layer Security Protocol Compression Methods</title>
@@ -4560,20 +4573,6 @@ cookie: e=f
             <author initials="M." surname="Nottingham" fullname="Mark Nottingham"/>
             <author initials="R." surname="Fielding" fullname="Roy Fielding"/>
             <date year="2012" month="April"/>
-          </front>
-        </reference>
-        <reference anchor="RFC8422">
-          <front>
-            <title>
-              Elliptic Curve Cryptography (ECC) Cipher Suites
-              for Transport Layer Security (TLS) Versions 1.2 and Earlier
-            </title>
-            <seriesInfo name="RFC" value="8422"/>
-            <seriesInfo name="DOI" value="10.17487/RFC8422"/>
-            <author initials="Y." surname="Nir" fullname="Yoav Nir"/>
-            <author initials="S." surname="Josefsson" fullname="Simon Josefsson"/>
-            <author initials="M." surname="Pegourie-Gonnard" fullname="Manuel Pegourie-Gonnard"/>
-            <date year="2018" month="August"/>
           </front>
         </reference>
         <reference anchor="PRIVACY">
@@ -4997,7 +4996,9 @@ cookie: e=f
       </ul>
       <t>
         Editorial changes are also included. In particular, changes to terminology and document
-        structure are in response to updates to <xref target="HTTP">core HTTP semantics</xref>.
+        structure are in response to updates to <xref target="HTTP">core HTTP
+        semantics</xref>. Those documents now include some concepts that were first defined in RFC
+        7540, such as the 421 status code or connection coalescing.
       </t>
     </section>
     <section numbered="false">
