@@ -161,7 +161,7 @@
         <t>
           While some of the frame and stream layer concepts are isolated from HTTP, this
           specification does not define a completely generic frame layer. The frame and stream
-          layers are tailored to the needs of the HTTP protocol.
+          layers are tailored to the needs of HTTP.
         </t>
       </section>
       <section>
@@ -491,13 +491,17 @@ HTTP Frame {
           </t>
         </aside>
         <t>
-          An endpoint MUST send an error code of <xref target="FRAME_SIZE_ERROR" format="none">FRAME_SIZE_ERROR</xref> if a frame exceeds the size
-          defined in <xref target="SETTINGS_MAX_FRAME_SIZE" format="none">SETTINGS_MAX_FRAME_SIZE</xref>, exceeds any limit defined for the frame type,
-          or is too small to contain mandatory frame data. A frame size error in a frame that
-          could alter the state of the entire connection MUST be treated as a <xref target="ConnectionErrorHandler">connection error</xref>; this includes any frame carrying
-          a <xref target="FieldBlock">field block</xref> (that is, <xref target="HEADERS" format="none">HEADERS</xref>,
-          <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>, and <xref target="CONTINUATION" format="none">CONTINUATION</xref>), <xref target="SETTINGS" format="none">SETTINGS</xref>,
-          and any frame with a stream identifier of 0.
+          An endpoint MUST send an error code of <xref target="FRAME_SIZE_ERROR"
+          format="none">FRAME_SIZE_ERROR</xref> if a frame exceeds the size defined in <xref
+          target="SETTINGS_MAX_FRAME_SIZE" format="none">SETTINGS_MAX_FRAME_SIZE</xref>, exceeds any
+          limit defined for the frame type, or is too small to contain mandatory frame data. A frame
+          size error in a frame that could alter the state of the entire connection MUST be treated
+          as a <xref target="ConnectionErrorHandler">connection error</xref>; this includes any
+          frame carrying a <xref target="FieldBlock">field block</xref> (that is, <xref
+          target="HEADERS" format="none">HEADERS</xref>, <xref target="PUSH_PROMISE"
+          format="none">PUSH_PROMISE</xref>, and <xref target="CONTINUATION"
+          format="none">CONTINUATION</xref>), a <xref target="SETTINGS"
+          format="none">SETTINGS</xref> frame, and any frame with a stream identifier of 0.
         </t>
         <t>
           Endpoints are not obligated to use all available space in a frame. Responsiveness can be
@@ -1033,8 +1037,8 @@ HTTP Frame {
               peer might have sent or enqueued for sending these frames before processing the <xref target="RST_STREAM" format="none">RST_STREAM</xref> frame. An endpoint MUST minimally
               process and then discard any frames it receives in this state.  This means updating
               header compression state for <xref target="HEADERS" format="none">HEADERS</xref> and
-              <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames; <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames also cause the promised
-              stream to become "reserved (remote)", even when the <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame is received on a closed stream; and, the
+              <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames.  <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frames also cause the promised
+              stream to become "reserved (remote)", even when the <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame is received on a closed stream. Additionally, the
               content of <xref target="DATA" format="none">DATA</xref> frames count toward the
               connection flow-control window.
             </t>
@@ -1223,29 +1227,31 @@ HTTP Frame {
             Deployments with constrained resources (for example, memory) can employ flow control to
             limit the amount of memory a peer can consume.  Note, however, that this can lead to
             suboptimal use of available network resources if flow control is enabled without
-            knowledge of the bandwidth-delay product (see <xref target="RFC7323"/>).
+            knowledge of the bandwidth * delay product (see <xref target="RFC7323"/>).
           </t>
           <t>
-            Even with full awareness of the current bandwidth-delay product, implementation of flow
-            control can be difficult.  Endpoints MUST read and process HTTP/2 frames from the TCP
-            receive buffer as soon as data is available.  Failure to read promptly could lead to a
-            deadlock when critical frames, such as <xref target="WINDOW_UPDATE"
+            Even with full awareness of the current bandwidth * delay product, implementation of
+            flow control can be difficult.  Endpoints MUST read and process HTTP/2 frames from the
+            TCP receive buffer as soon as data is available.  Failure to read promptly could lead to
+            a deadlock when critical frames, such as <xref target="WINDOW_UPDATE"
             format="none">WINDOW_UPDATE</xref>, are not read and acted upon. Reading frames promptly
             does not expose endpoints to resource exhaustion attacks as HTTP/2 flow control limits
             resource commitments.
           </t>
         </section>
         <section anchor="FlowControlPerformance">
-          <name>Flow Control Performance</name>
+          <name>Flow-Control Performance</name>
           <t>
-            If an endpoint cannot ensure that its peer always has available flow-control window space that is greater than the peer's
-            bandwidth-delay product on this connection, its receive throughput will be limited by HTTP/2 flow control. This will result
-            in degraded performance.
+            If an endpoint cannot ensure that its peer always has available flow-control window
+            space that is greater than the peer's bandwidth * delay product on this connection, its
+            receive throughput will be limited by HTTP/2 flow control. This will result in degraded
+            performance.
           </t>
           <t>
-            Sending timely <xref target="WINDOW_UPDATE" format="none">WINDOW_UPDATE</xref> frames can improve performance. Endpoints will
-            want to balance the need to improve receive throughput with the need to manage resource exhaustion risks, and should take
-            careful note of <xref target="dos"/> in defining their strategy to manage window sizes.
+            Sending timely <xref target="WINDOW_UPDATE" format="none">WINDOW_UPDATE</xref> frames
+            can improve performance. Endpoints will want to balance the need to improve receive
+            throughput with the need to manage resource exhaustion risks, and should take careful
+            note of <xref target="dos"/> in defining their strategy to manage window sizes.
           </t>
         </section>
       </section>
@@ -1554,8 +1560,8 @@ DATA Frame {
           <t>
             Note: An endpoint that learns of stream closure after sending all data can close a
             stream by sending a STREAM frame with a zero-length Data field and the END_STREAM flag
-            set. This is only possible if the endpoint does not send trailers as the END_STREAM flag
-            appears on a HEADERS frame in that case; see <xref target="HttpFraming"/>.
+            set. This is only possible if the endpoint does not send trailers, as the END_STREAM
+            flag appears on a HEADERS frame in that case; see <xref target="HttpFraming"/>.
           </t>
         </aside>
         <t>
@@ -1955,12 +1961,13 @@ Setting {
             <dt anchor="SETTINGS_ENABLE_PUSH">SETTINGS_ENABLE_PUSH (0x02):</dt>
             <dd>
               <t>
-                This setting can be used to disable <xref target="PushResources">server
-                push</xref>. A server MUST NOT send a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame if it receives this parameter set to a value
-                of 0. A client that has both set this parameter to 0 and had it acknowledged MUST
-                treat the receipt of a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref>
-                frame as a <xref target="ConnectionErrorHandler">connection error</xref> of type
-                <xref target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
+                This setting can be used to enable or disable server push.  A server MUST NOT send a
+                <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame if it receives
+                this parameter set to a value of 0; see <xref target="PushResources"/>. A client
+                that has both set this parameter to 0 and had it acknowledged MUST treat the receipt
+                of a <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> frame as a <xref
+                target="ConnectionErrorHandler">connection error</xref> of type <xref
+                target="PROTOCOL_ERROR" format="none">PROTOCOL_ERROR</xref>.
               </t>
               <t>
                 The initial value of SETTINGS_ENABLE_PUSH is 1.  For a client this value indicates that it
@@ -2110,10 +2117,6 @@ PUSH_PROMISE Frame {
           <dd>
               An 8-bit field containing the length of the frame padding in units of octets.  This
               field is only present if the PADDED flag is set.
-            </dd>
-          <dt>Reserved:</dt>
-          <dd>
-              A single reserved bit.
             </dd>
           <dt>Promised Stream ID:</dt>
           <dd>
@@ -2289,10 +2292,10 @@ PING Frame {
           the identified stream is the highest-numbered stream initiated by the client.
         </t>
         <t>
-          Once sent, the sender will ignore frames sent on streams initiated by the receiver if the
-          stream has an identifier higher than the included last stream identifier.  Receivers of a
-          GOAWAY frame MUST NOT open additional streams on the connection, although a new connection
-          can be established for new streams.
+          Once the GOAWAY is sent, the sender will ignore frames sent on streams initiated by the
+          receiver if the stream has an identifier higher than the included last stream identifier.
+          Receivers of a GOAWAY frame MUST NOT open additional streams on the connection, although a
+          new connection can be established for new streams.
         </t>
         <t>
           If the receiver of the GOAWAY has sent data on streams with a higher stream identifier
@@ -3012,12 +3015,12 @@ CONTINUATION Frame {
         <section anchor="CompressCookie">
           <name>Compressing the Cookie Header Field</name>
           <t>
-            The <xref target="COOKIE">Cookie header field</xref> uses a semicolon (";") to
-            delimit cookie-pairs (or "crumbs").  This header field contains multiple values, but
-            does not use a COMMA (",") as a separator, which prevents cookie-pairs from being sent
-            on multiple field lines (see <xref target="HTTP" section="5.2"/>).  This can
-            significantly reduce compression efficiency as updates to individual cookie-pairs
-            would invalidate any field lines that are stored in the HPACK table.
+            The <xref target="COOKIE">Cookie header field</xref> uses a semicolon (";") to delimit
+            cookie-pairs (or "crumbs").  This header field contains multiple values but does not use
+            a COMMA (",") as a separator, thereby preventing cookie-pairs from being sent on
+            multiple field lines (see <xref target="HTTP" section="5.2"/>).  This can significantly
+            reduce compression efficiency as updates to individual cookie-pairs would invalidate any
+            field lines that are stored in the HPACK table.
           </t>
           <t>
             To allow for better compression efficiency, the Cookie header field MAY be split into
@@ -3077,40 +3080,40 @@ cookie: e=f
           <ul spacing="normal">
             <li>
               <t>
-                  The <tt>:method</tt> pseudo-header field includes the HTTP
+                  The "<tt>:method</tt>" pseudo-header field includes the HTTP
                   method (<xref target="HTTP" section="9"/>).
               </t>
             </li>
             <li>
               <t>
-                The <tt>:scheme</tt> pseudo-header field includes the scheme portion of the request
+                The "<tt>:scheme</tt>" pseudo-header field includes the scheme portion of the request
                 target. The scheme is taken from the target URI (<xref target="RFC3986"
                 section="3.1"/>) when generating a request directly, or from the scheme of a
                 translated request (for example, see <xref target="HTTP11" section="3.3"/>). Scheme
                 is omitted for <xref target="CONNECT">CONNECT requests</xref>.
               </t>
-              <t><tt>:scheme</tt> is not restricted to <tt>http</tt> and <tt>https</tt> schemed
+              <t>"<tt>:scheme</tt>" is not restricted to <tt>http</tt> and <tt>https</tt> schemed
                 URIs.  A proxy or gateway can translate requests for non-HTTP schemes, enabling
                 the use of HTTP to interact with non-HTTP services.
               </t>
             </li>
             <li>
               <t>
-                The <tt>:authority</tt> pseudo-header field conveys the authority portion (<xref
+                The "<tt>:authority</tt>" pseudo-header field conveys the authority portion (<xref
                 target="RFC3986" section="3.2"/>) of the target URI (<xref target="HTTP"
                 section="7.1"/>). The recipient of a HTTP/2 request MUST NOT use the <tt>Host</tt>
-                header field to determine the target URI if <tt>:authority</tt> is present.
+                header field to determine the target URI if "<tt>:authority</tt>" is present.
               </t>
               <t>
-                Clients that generate HTTP/2 requests directly MUST use the <tt>:authority</tt>
+                Clients that generate HTTP/2 requests directly MUST use the "<tt>:authority</tt>"
                 pseudo-header field to convey authority information, unless there is no authority
-                information to convey (in which case it MUST NOT generate :authority).
+                information to convey (in which case it MUST NOT generate "<tt>:authority</tt>").
               </t>
               <t>
                 Clients MUST NOT generate a request with a <tt>Host</tt> header field that differs
-                from the <tt>:authority</tt> pseudo-header field.  A
+                from the "<tt>:authority</tt>" pseudo-header field.  A
                 server SHOULD treat a request as malformed if it contains a <tt>Host</tt> header
-                field that identifies a different entity to the <tt>:authority</tt> pseudo-header
+                field that identifies an entity that differs from the entity in the "<tt>:authority</tt>" pseudo-header
                 field.  The values of fields need to be normalized to compare them (see <xref
                 target="RFC3986" section="6.2"/>).  An origin server can apply any normalization
                 method, whereas other servers MUST perform scheme-based normalization (see <xref
@@ -3118,15 +3121,15 @@ cookie: e=f
               </t>
               <t>
                 An intermediary that forwards a request over HTTP/2 MUST construct an
-                <tt>:authority</tt> pseudo-header field using the authority information from the
+                "<tt>:authority</tt>" pseudo-header field using the authority information from the
                 control data of the original request, unless the original request's target URI
                 does not contain authority information (in which case it MUST NOT generate
-                <tt>:authority</tt>). Note that the <tt>Host</tt> header field is not the sole
+                "<tt>:authority</tt>"). Note that the <tt>Host</tt> header field is not the sole
                 source of this information; see <xref target="HTTP" section="7.2"/>.
               </t>
               <t>
                 An intermediary that needs to generate a <tt>Host</tt> header field (which might be
-                necessary to construct an HTTP/1.1 request) MUST use the value from the <tt>:authority</tt>
+                necessary to construct an HTTP/1.1 request) MUST use the value from the "<tt>:authority</tt>"
                 pseudo-header field as the value of the <tt>Host</tt> field,
                 unless the intermediary also changes the request target. This replaces any existing
                 <tt>Host</tt> field to avoid potential vulnerabilities in HTTP routing.
@@ -3137,21 +3140,23 @@ cookie: e=f
               </t>
               <t>
                 Note that request targets for CONNECT or asterisk-form OPTIONS requests never
-                include authority information; see <xref target="HTTP" section="7.1"/>.
+                include authority information; see Sections <xref target="HTTP" section="7.1"
+                sectionFormat="bare"/> and <xref target="HTTP" section="7.2" sectionFormat="bare"/>
+                of <xref target="HTTP"/>.
               </t>
               <t>
-                <tt>:authority</tt> MUST NOT include the deprecated userinfo subcomponent for
+                "<tt>:authority</tt>" MUST NOT include the deprecated userinfo subcomponent for
                 <tt>http</tt> or <tt>https</tt> schemed URIs.
               </t>
             </li>
             <li>
               <t>
-                  The <tt>:path</tt> pseudo-header field includes the path and
+                  The "<tt>:path</tt>" pseudo-header field includes the path and
                   query parts of the target URI (the <tt>absolute-path</tt>
                   production and optionally a '?' character followed by the
                   <tt>query</tt> production; see <xref target="HTTP" section="4.1"/>).
                   A request in asterisk form (for OPTIONS) includes the value '*' for the
-                  <tt>:path</tt> pseudo-header field.
+                  "<tt>:path</tt>" pseudo-header field.
               </t>
               <t>
                   This pseudo-header field MUST NOT be empty for <tt>http</tt> or <tt>https</tt>
@@ -3161,18 +3166,18 @@ cookie: e=f
               <ul>
                 <li>
                   an OPTIONS request for an <tt>http</tt> or <tt>https</tt> URI that does not include a path
-                  component; these MUST include a <tt>:path</tt> pseudo-header field with a value
+                  component; these MUST include a "<tt>:path</tt>" pseudo-header field with a value
                   of '*' (see <xref target="HTTP" section="7.1"/>)
                 </li>
                 <li>
-                  <xref target="CONNECT">CONNECT requests</xref>, where the <tt>:path</tt> pseudo-header field is omitted.
+                  <xref target="CONNECT">CONNECT requests</xref>, where the "<tt>:path</tt>" pseudo-header field is omitted.
                 </li>
               </ul>
             </li>
           </ul>
           <t>
-            All HTTP/2 requests MUST include exactly one valid value for the <tt>:method</tt>,
-            <tt>:scheme</tt>, and <tt>:path</tt> pseudo-header fields, unless it is a <xref
+            All HTTP/2 requests MUST include exactly one valid value for the "<tt>:method</tt>",
+            "<tt>:scheme</tt>", and "<tt>:path</tt>" pseudo-header fields, unless it is a <xref
             target="CONNECT">CONNECT request</xref>. An HTTP request that omits mandatory
             pseudo-header fields is <xref target="malformed">malformed</xref>.
           </t>
@@ -3185,7 +3190,7 @@ cookie: e=f
         <section anchor="HttpResponse">
           <name>Response Pseudo-Header Fields</name>
           <t>
-            For HTTP/2 responses, a single <tt>:status</tt> pseudo-header
+            For HTTP/2 responses, a single "<tt>:status</tt>" pseudo-header
             field is defined that carries the HTTP status code field (see
             <xref target="HTTP" section="15"/>). This pseudo-header field MUST be included in all
             responses, including interim responses; otherwise, the response is
@@ -3247,7 +3252,7 @@ cookie: e=f
           be made available to the application separately.
         </t>
         <t>
-          The server MUST include a value in the <tt>:authority</tt> pseudo-header field for which
+          The server MUST include a value in the "<tt>:authority</tt>" pseudo-header field for which
           the server is authoritative (see <xref target="authority"/>). A client MUST treat a <xref
           target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> for which the server is not
           authoritative as a <xref target="StreamErrorHandler">stream error</xref> of type <xref
@@ -3290,10 +3295,10 @@ cookie: e=f
             The header fields in <xref target="PUSH_PROMISE" format="none">PUSH_PROMISE</xref> and
             any subsequent <xref target="CONTINUATION" format="none">CONTINUATION</xref> frames MUST
             be a valid and complete set of <xref target="HttpRequest">request header
-            fields</xref>. The server MUST include a method in the <tt>:method</tt> pseudo-header
+            fields</xref>. The server MUST include a method in the "<tt>:method</tt>" pseudo-header
             field that is safe and cacheable. If a client receives a <xref target="PUSH_PROMISE"
             format="none">PUSH_PROMISE</xref> that does not include a complete and valid set of
-            header fields or the <tt>:method</tt> pseudo-header field identifies a method that is
+            header fields or the "<tt>:method</tt>" pseudo-header field identifies a method that is
             not safe, it MUST respond on the promised stream with a <xref
             target="StreamErrorHandler">stream error</xref> of type <xref target="PROTOCOL_ERROR"
             format="none">PROTOCOL_ERROR</xref>.
@@ -3337,7 +3342,7 @@ cookie: e=f
             the server can begin delivering the pushed response as a <xref
             target="HttpResponse">response</xref> on a server-initiated stream that uses the
             promised stream identifier. The server uses this stream to transmit an HTTP response,
-            using the same sequence of frames as defined in <xref target="HttpFraming"/>. This
+            using the same sequence of frames as that defined in <xref target="HttpFraming"/>. This
             stream becomes <xref target="StreamStates">"half-closed" to the client</xref> after the
             initial <xref target="HEADERS" format="none">HEADERS</xref> frame is sent.
           </t>
@@ -3403,14 +3408,14 @@ cookie: e=f
         </t>
         <ul spacing="normal">
           <li>
-              The <tt>:method</tt> pseudo-header field is set to <tt>CONNECT</tt>.
+              The "<tt>:method</tt>" pseudo-header field is set to <tt>CONNECT</tt>.
             </li>
           <li>
-              The <tt>:scheme</tt> and <tt>:path</tt> pseudo-header
+              The "<tt>:scheme</tt>" and "<tt>:path</tt>" pseudo-header
               fields MUST be omitted.
             </li>
           <li>
-              The <tt>:authority</tt> pseudo-header field contains the host and port to
+              The "<tt>:authority</tt>" pseudo-header field contains the host and port to
               connect to (equivalent to the authority-form of the request-target of CONNECT
               requests; see <xref target="HTTP11" section="3.2.3"/>).
             </li>
@@ -3420,7 +3425,7 @@ cookie: e=f
         </t>
         <t>
           A proxy that supports CONNECT establishes a <xref target="TCP">TCP connection</xref> to
-          the host and port identified in the <tt>:authority</tt> pseudo-header field. Once
+          the host and port identified in the "<tt>:authority</tt>" pseudo-header field. Once
           this connection is successfully established, the proxy sends a <xref target="HEADERS" format="none">HEADERS</xref>
           frame containing a 2xx series status code to the client, as defined in <xref target="HTTP" section="9.3.6"/>.
         </t>
@@ -3656,9 +3661,8 @@ cookie: e=f
     <section anchor="HttpExtra">
       <name>HTTP/2 Connections</name>
       <t>
-        This section outlines attributes of the HTTP protocol that improve interoperability, reduce
-        exposure to known security vulnerabilities, or reduce the potential for implementation
-        variation.
+        This section outlines attributes of HTTP that improve interoperability, reduce exposure to
+        known security vulnerabilities, or reduce the potential for implementation variation.
       </t>
       <section>
         <name>Connection Management</name>
@@ -3926,10 +3930,10 @@ cookie: e=f
         <t>
           <xref target="HttpHeaders"/> does not include specific rules for validation of
           pseudo-header fields.  If the values of these fields are used, additional validation is
-          necessary. This is particularly important where <tt>:scheme</tt>, <tt>:authority</tt>, and
-          <tt>:path</tt> are combined to form a single URI string (<xref
-          target="RFC3986"/>). Similar problems might occur when that URI or just <tt>:path</tt> are
-          combined with <tt>:method</tt> to construct a request line (as in <xref target="HTTP11"
+          necessary. This is particularly important where "<tt>:scheme</tt>", "<tt>:authority</tt>", and
+          "<tt>:path</tt>" are combined to form a single URI string (<xref
+          target="RFC3986"/>). Similar problems might occur when that URI or just "<tt>:path</tt>" are
+          combined with "<tt>:method</tt>" to construct a request line (as in <xref target="HTTP11"
           section="3"/>). Simple concatenation is not secure unless the input values are fully
           validated.
         </t>
@@ -4972,7 +4976,7 @@ cookie: e=f
           comprehensively identified.
         </li>
         <li>
-          <tt>Host</tt> and <tt>:authority</tt> are no longer permitted to disagree.
+          <tt>Host</tt> and "<tt>:authority</tt>" are no longer permitted to disagree.
         </li>
         <li>
           Rules for sending Dynamic Table Size Update instructions after changes in settings have
