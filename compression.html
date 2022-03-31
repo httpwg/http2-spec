@@ -1,0 +1,3272 @@
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+   <head profile="http://dublincore.org/documents/2008/08/04/dc-html/">
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <title>HPACK: Header Compression for HTTP/2</title><script type="application/javascript">
+var buttonsAdded = false;
+
+function initFeedback() {
+  var fb = document.createElement("div");
+  fb.className = "feedback noprint";
+  fb.setAttribute("onclick", "feedback();");
+  fb.appendChild(document.createTextNode("feedback"));
+
+  document.body.appendChild(fb);
+}
+
+function feedback() {
+  toggleButtonsToElementsByName("h1");
+  toggleButtonsToElementsByName("h2");
+  toggleButtonsToElementsByName("h3");
+  toggleButtonsToElementsByName("h4");
+
+  buttonsAdded = !buttonsAdded;
+}
+
+function toggleButtonsToElementsByName(name) {
+  var list = document.getElementsByTagName(name);
+  for (var i = 0; i < list.length; i++) {
+    toggleButton(list.item(i));
+  }
+}
+
+function toggleButton(node) {
+  if (! buttonsAdded) {
+
+    // docname
+    var template = "mailto:ietf-http-wg@w3.org?subject={docname},%20%22{section}%22&body=<{ref}>:";
+
+    var id = node.getAttribute("id");
+    // better id available?
+    var titlelinks = node.getElementsByTagName("a");
+    for (var i = 0; i < titlelinks.length; i++) {
+      var tl = titlelinks.item(i);
+      if (tl.getAttribute("id")) {
+        id = tl.getAttribute("id");
+      }
+    }
+
+    // ref
+    var ref = window.location.toString();
+    var hash = ref.indexOf("#");
+    if (hash != -1) {
+      ref = ref.substring(0, hash);
+    }
+    if (id != "") {
+      ref += "#" + id;
+    }
+
+    // docname
+    var docname = "draft-ietf-httpbis-header-compression-latest";
+
+    // section
+    var section = node.textContent;
+    section = section.replace("\u00a0", " ");
+
+    // build URI from template
+    var uri = template.replace("{docname}", encodeURIComponent(docname));
+    uri = uri.replace("{section}", encodeURIComponent(section));
+    uri = uri.replace("{ref}", encodeURIComponent(ref));
+
+    var button = document.createElement("a");
+    button.className = "fbbutton noprint";
+    button.setAttribute("href", uri);
+    button.appendChild(document.createTextNode("send feedback"));
+    node.appendChild(button);
+  }
+  else {
+    var buttons = node.getElementsByTagName("a");
+    for (var i = 0; i < buttons.length; i++) {
+      var b = buttons.item(i);
+      if (b.className == "fbbutton noprint") {
+        node.removeChild(b);
+      }
+    }
+  }
+}</script><style type="text/css" title="Xml2Rfc (sans serif)">
+a {
+  text-decoration: none;
+}
+a.smpl {
+  color: black;
+}
+a:hover {
+  text-decoration: underline;
+}
+a:active {
+  text-decoration: underline;
+}
+address {
+  margin-top: 1em;
+  margin-left: 2em;
+  font-style: normal;
+}
+body {
+  color: black;
+  font-family: cambria, georgia, serif;
+  font-size: 12pt;
+  margin: 2em auto;
+  max-width: 1000px;
+}
+samp, tt, code, pre {
+  font-family: consolas, monaco, monospace;
+}
+cite {
+  font-style: normal;
+}
+div.note {
+  margin-left: 2em;
+}
+dl {
+  margin-left: 2em;
+}
+dl > dt {
+  float: left;
+  margin-right: 1em;
+}
+dl.nohang > dt {
+  float: none;
+}
+dl > dd {
+  margin-bottom: .5em;
+}
+dl.compact > dd {
+  margin-bottom: .0em;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+}
+ul.empty {
+  list-style-type: none;
+}
+ul.empty li {
+  margin-top: .5em;
+}
+dl p {
+  margin-left: 0em;
+}
+h1 {
+  font-size: 130%;
+  line-height: 21pt;
+  page-break-after: avoid;
+}
+h1.np {
+  page-break-before: always;
+}
+h2 {
+  font-size: 120%;
+  line-height: 15pt;
+  page-break-after: avoid;
+}
+h3 {
+  font-size: 110%;
+  page-break-after: avoid;
+}
+h4, h5, h6 {
+  page-break-after: avoid;
+}
+h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
+  color: black;
+}
+img {
+  margin-left: 3em;
+}
+li {
+  margin-left: 2em;
+}
+ol {
+  margin-left: 2em;
+}
+ol.la {
+  list-style-type: lower-alpha;
+}
+ol.ua {
+  list-style-type: upper-alpha;
+}
+ol p {
+  margin-left: 0em;
+}
+p {
+  margin-left: 2em;
+}
+pre {
+  font-size: 11pt;
+  margin-left: 3em;
+  background-color: lightyellow;
+  padding: .25em;
+  page-break-inside: avoid;
+}
+pre.text2 {
+  border-style: dotted;
+  border-width: 1px;
+  background-color: #f0f0f0;
+}
+pre.inline {
+  background-color: white;
+  padding: 0em;
+  page-break-inside: auto;
+}
+pre.text {
+  border-style: dotted;
+  border-width: 1px;
+  background-color: #f8f8f8;
+}
+pre.drawing {
+  border-style: solid;
+  border-width: 1px;
+  background-color: #f8f8f8;
+  padding: 2em;
+}
+sup {
+  font-size: 60%;
+}
+table {
+  margin-left: 2em;
+}
+table.tt {
+  vertical-align: top;
+  border-color: gray;
+}
+table.tt th {
+  border-color: gray;
+}
+table.tt td {
+  border-color: gray;
+}
+table.all {
+  border-style: solid;
+  border-width: 2px;
+}
+table.full {
+  border-style: solid;
+  border-width: 2px;
+}
+table.tt td {
+  vertical-align: top;
+}
+table.all td {
+  border-style: solid;
+  border-width: 1px;
+}
+table.full td {
+  border-style: none solid;
+  border-width: 1px;
+}
+table.tt th {
+  vertical-align: top;
+}
+table.all th {
+  border-style: solid;
+  border-width: 1px;
+}
+table.full th {
+  border-style: solid;
+  border-width: 1px 1px 2px 1px;
+}
+table.headers th {
+  border-style: none none solid none;
+  border-width: 2px;
+}
+table.left {
+  margin-right: auto;
+}
+table.right {
+  margin-left: auto;
+}
+table.center {
+  margin-left: auto;
+  margin-right: auto;
+}
+caption {
+  caption-side: bottom;
+  font-weight: bold;
+  font-size: 10pt;
+  margin-top: .5em;
+}
+
+table.header {
+  border-spacing: 1px;
+  width: 95%;
+  font-size: 11pt;
+  color: white;
+}
+td.top {
+  vertical-align: top;
+}
+td.topnowrap {
+  vertical-align: top;
+  white-space: nowrap;
+}
+table.header td {
+  background-color: gray;
+  width: 50%;
+}
+td.reference {
+  vertical-align: top;
+  white-space: nowrap;
+  padding-right: 1em;
+}
+thead {
+  display:table-header-group;
+}
+ul.toc, ul.toc ul {
+  list-style: none;
+  margin-left: 1.5em;
+  padding-left: 0em;
+}
+ul.toc li {
+  line-height: 150%;
+  font-weight: bold;
+  margin-left: 0em;
+}
+ul.toc li li {
+  line-height: normal;
+  font-weight: normal;
+  font-size: 11pt;
+  margin-left: 0em;
+}
+li.excluded {
+  font-size: 0pt;
+}
+ul p {
+  margin-left: 0em;
+}
+.title, .filename, h1, h2, h3, h4 {
+  font-family: candara, calibri, segoe, optima, arial, sans-serif;
+}
+
+.comment {
+  background-color: yellow;
+}
+.center {
+  text-align: center;
+}
+.error {
+  color: red;
+  font-style: italic;
+  font-weight: bold;
+}
+.figure {
+  font-weight: bold;
+  text-align: center;
+  font-size: 10pt;
+}
+.filename {
+  color: #333333;
+  font-size: 75%;
+  font-weight: bold;
+  line-height: 21pt;
+  text-align: center;
+}
+.fn {
+  font-weight: bold;
+}
+.left {
+  text-align: left;
+}
+.right {
+  text-align: right;
+}
+.title {
+  color: green;
+  font-size: 150%;
+  line-height: 18pt;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 36pt;
+}
+.warning {
+  font-size: 130%;
+  background-color: yellow;
+}.feedback {
+  position: fixed;
+  bottom: 1%;
+  right: 1%;
+  padding: 3px 5px;
+  color: white;
+  border-radius: 5px;
+  background: #006400;
+  border: 1px solid silver;
+  -webkit-user-select: none; 
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+.fbbutton {
+  margin-left: 1em;
+  color: #303030;
+  font-size: small;
+  font-weight: normal;
+  background: #d0d000;
+  padding: 1px 4px;
+  border: 1px solid silver;
+  border-radius: 5px;
+}
+
+@media screen {
+  pre.text, pre.text2 {
+    width: 69em;
+  }
+}
+
+@media print {
+  .noprint {
+    display: none;
+  }
+
+  a {
+    color: black;
+    text-decoration: none;
+  }
+
+  table.header {
+    width: 90%;
+  }
+
+  td.header {
+    width: 50%;
+    color: black;
+    background-color: white;
+    vertical-align: top;
+    font-size: 110%;
+  }
+
+  ul.toc a:last-child::after {
+    content: leader('.') target-counter(attr(href), page);
+  }
+
+  ul.ind li li a {
+    content: target-counter(attr(href), page);
+  }
+
+  pre {
+    font-size: 10pt;
+  }
+
+  .print2col {
+    column-count: 2;
+    -moz-column-count: 2;
+    column-fill: auto;
+  }
+}
+
+@page {
+  @top-left {
+       content: "Internet-Draft";
+  }
+  @top-right {
+       content: "May 2015";
+  }
+  @top-center {
+       content: "HPACK";
+  }
+  @bottom-left {
+       content: "Peon & Ruellan";
+  }
+  @bottom-center {
+       content: "Expires December 1, 2015";
+  }
+  @bottom-right {
+       content: "[Page " counter(page) "]";
+  }
+}
+
+@page:first {
+    @top-left {
+      content: normal;
+    }
+    @top-right {
+      content: normal;
+    }
+    @top-center {
+      content: normal;
+    }
+}
+</style><link rel="Contents" href="#rfc.toc">
+  <style type="text/css">
+@viewport {
+  zoom: 1.0;
+  width: extend-to-zoom;
+}
+
+@-ms-viewport {
+  width: extend-to-zoom;
+  zoom: 1.0;
+}
+
+body {
+  font: 11pt cambria, helvetica, arial, sans-serif;
+  font-size-adjust: 0.5;
+  line-height: 130%;
+  max-width: 700px;
+}
+
+.title, .filename, h1, h2, h3, h4 {
+  font-family: candara, helvetica, arial, sans-serif;
+  font-size-adjust: 0.5;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+table.header td {
+  background-color: inherit;
+  color: black;
+}
+
+samp, tt, code, pre {
+  font: 11pt consolas, monospace;
+  font-size-adjust: none;
+}
+pre.text, pre.text2 {
+  width: 90%;
+}
+  </style>
+      <link rel="Author" href="#rfc.authors">
+      <link rel="Copyright" href="#rfc.copyrightnotice">
+      <link rel="Chapter" title="1 Introduction" href="#rfc.section.1">
+      <link rel="Chapter" title="2 Compression Process Overview" href="#rfc.section.2">
+      <link rel="Chapter" title="3 Header Block Decoding" href="#rfc.section.3">
+      <link rel="Chapter" title="4 Dynamic Table Management" href="#rfc.section.4">
+      <link rel="Chapter" title="5 Primitive Type Representations" href="#rfc.section.5">
+      <link rel="Chapter" title="6 Binary Format" href="#rfc.section.6">
+      <link rel="Chapter" title="7 Security Considerations" href="#rfc.section.7">
+      <link rel="Chapter" href="#rfc.section.8" title="8 References">
+      <link rel="Appendix" title="A Static Table Definition" href="#rfc.section.A">
+      <link rel="Appendix" title="B Huffman Code" href="#rfc.section.B">
+      <link rel="Appendix" title="C Examples" href="#rfc.section.C">
+      <link rel="Appendix" title="Acknowledgments" href="#rfc.section.unnumbered-1">
+      <meta name="generator" content="http://greenbytes.de/tech/webdav/rfc2629.xslt, Revision 1.733, 2015/05/28 13:08:20, XSLT vendor: SAXON 9.1.0.8 from Saxonica http://www.saxonica.com/">
+      <meta name="keywords" content="HTTP, Header">
+      <link rel="schema.dct" href="http://purl.org/dc/terms/">
+      <meta name="dct.creator" content="Peon, R.">
+      <meta name="dct.creator" content="Ruellan, H.">
+      <meta name="dct.identifier" content="urn:ietf:id:draft-ietf-httpbis-header-compression-latest">
+      <meta name="dct.issued" scheme="ISO8601" content="2015-05-30">
+      <meta name="dct.abstract" content="This specification defines HPACK, a compression format for efficiently representing HTTP header fields, to be used in HTTP/2.">
+      <meta name="description" content="This specification defines HPACK, a compression format for efficiently representing HTTP header fields, to be used in HTTP/2.">
+   </head>
+   <body onload="initFeedback();">
+      <table class="header" id="rfc.headerblock">
+         <tbody>
+            <tr>
+               <td class="left">HTTPbis Working Group</td>
+               <td class="right">R. Peon</td>
+            </tr>
+            <tr>
+               <td class="left">Internet-Draft</td>
+               <td class="right">Google, Inc</td>
+            </tr>
+            <tr>
+               <td class="left">Intended status: Standards Track</td>
+               <td class="right">H. Ruellan</td>
+            </tr>
+            <tr>
+               <td class="left">Expires: December 1, 2015</td>
+               <td class="right">Canon CRF</td>
+            </tr>
+            <tr>
+               <td class="left"></td>
+               <td class="right">May 30, 2015</td>
+            </tr>
+         </tbody>
+      </table>
+      <p class="title" id="rfc.title">HPACK: Header Compression for HTTP/2<br><span class="filename">draft-ietf-httpbis-header-compression-latest</span></p>
+      <h1 id="rfc.abstract"><a href="#rfc.abstract">Abstract</a></h1>
+      <p>This specification defines HPACK, a compression format for efficiently representing HTTP header fields, to be used in HTTP/2.</p>
+      <h1 id="rfc.note.1"><a href="#rfc.note.1">Editorial Note (To be removed by RFC Editor)</a></h1>
+      <p>Discussion of this draft takes place on the HTTPBIS working group mailing list (ietf-http-wg@w3.org), which is archived at &lt;<a href="https://lists.w3.org/Archives/Public/ietf-http-wg/">https://lists.w3.org/Archives/Public/ietf-http-wg/</a>&gt;.
+      </p>
+      <p>Working Group information can be found at &lt;<a href="http://tools.ietf.org/wg/httpbis/">http://tools.ietf.org/wg/httpbis/</a>&gt;; that specific to HTTP/2 are at &lt;<a href="http://http2.github.io/">http://http2.github.io/</a>&gt;.
+      </p>
+      <div id="rfc.status">
+         <h1><a href="#rfc.status">Status of This Memo</a></h1>
+         <p>This Internet-Draft is submitted in full conformance with the provisions of BCP 78 and BCP 79.</p>
+         <p>Internet-Drafts are working documents of the Internet Engineering Task Force (IETF). Note that other groups may also distribute
+            working documents as Internet-Drafts. The list of current Internet-Drafts is at <a href="http://datatracker.ietf.org/drafts/current/">http://datatracker.ietf.org/drafts/current/</a>.
+         </p>
+         <p>Internet-Drafts are draft documents valid for a maximum of six months and may be updated, replaced, or obsoleted by other
+            documents at any time. It is inappropriate to use Internet-Drafts as reference material or to cite them other than as “work
+            in progress”.
+         </p>
+         <p>This Internet-Draft will expire on December 1, 2015.</p>
+      </div>
+      <div id="rfc.copyrightnotice">
+         <h1><a href="#rfc.copyrightnotice">Copyright Notice</a></h1>
+         <p>Copyright © 2015 IETF Trust and the persons identified as the document authors. All rights reserved.</p>
+         <p>This document is subject to BCP 78 and the IETF Trust's Legal Provisions Relating to IETF Documents (<a href="http://trustee.ietf.org/license-info">http://trustee.ietf.org/license-info</a>) in effect on the date of publication of this document. Please review these documents carefully, as they describe your rights
+            and restrictions with respect to this document. Code Components extracted from this document must include Simplified BSD License
+            text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified
+            BSD License.
+         </p>
+      </div>
+      <hr class="noprint">
+      <div id="rfc.toc">
+         <h1 class="np"><a href="#rfc.toc">Table of Contents</a></h1>
+         <ul class="toc">
+            <li><a href="#rfc.section.1">1.</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.1">Introduction</a><ul>
+                  <li><a href="#rfc.section.1.1">1.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.1.1">Overview</a></li>
+                  <li><a href="#rfc.section.1.2">1.2</a>&nbsp;&nbsp;&nbsp;<a href="#conventions">Conventions</a></li>
+                  <li><a href="#rfc.section.1.3">1.3</a>&nbsp;&nbsp;&nbsp;<a href="#encoding.concepts">Terminology</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.2">2.</a>&nbsp;&nbsp;&nbsp;<a href="#header.encoding">Compression Process Overview</a><ul>
+                  <li><a href="#rfc.section.2.1">2.1</a>&nbsp;&nbsp;&nbsp;<a href="#header.list.ordering">Header List Ordering</a></li>
+                  <li><a href="#rfc.section.2.2">2.2</a>&nbsp;&nbsp;&nbsp;<a href="#encoding.context">Encoding and Decoding Contexts</a></li>
+                  <li><a href="#rfc.section.2.3">2.3</a>&nbsp;&nbsp;&nbsp;<a href="#indexing.tables">Indexing Tables</a><ul>
+                        <li><a href="#rfc.section.2.3.1">2.3.1</a>&nbsp;&nbsp;&nbsp;<a href="#static.table">Static Table</a></li>
+                        <li><a href="#rfc.section.2.3.2">2.3.2</a>&nbsp;&nbsp;&nbsp;<a href="#dynamic.table">Dynamic Table</a></li>
+                        <li><a href="#rfc.section.2.3.3">2.3.3</a>&nbsp;&nbsp;&nbsp;<a href="#index.address.space">Index Address Space</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.2.4">2.4</a>&nbsp;&nbsp;&nbsp;<a href="#header.representation">Header Field Representation</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.3">3.</a>&nbsp;&nbsp;&nbsp;<a href="#header.block.decoding">Header Block Decoding</a><ul>
+                  <li><a href="#rfc.section.3.1">3.1</a>&nbsp;&nbsp;&nbsp;<a href="#header.block.processing">Header Block Processing</a></li>
+                  <li><a href="#rfc.section.3.2">3.2</a>&nbsp;&nbsp;&nbsp;<a href="#header.representation.processing">Header Field Representation Processing</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.4">4.</a>&nbsp;&nbsp;&nbsp;<a href="#dynamic.table.management">Dynamic Table Management</a><ul>
+                  <li><a href="#rfc.section.4.1">4.1</a>&nbsp;&nbsp;&nbsp;<a href="#calculating.table.size">Calculating Table Size</a></li>
+                  <li><a href="#rfc.section.4.2">4.2</a>&nbsp;&nbsp;&nbsp;<a href="#maximum.table.size">Maximum Table Size</a></li>
+                  <li><a href="#rfc.section.4.3">4.3</a>&nbsp;&nbsp;&nbsp;<a href="#entry.eviction">Entry Eviction When Dynamic Table Size Changes</a></li>
+                  <li><a href="#rfc.section.4.4">4.4</a>&nbsp;&nbsp;&nbsp;<a href="#entry.addition">Entry Eviction When Adding New Entries</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.5">5.</a>&nbsp;&nbsp;&nbsp;<a href="#low-level.representation">Primitive Type Representations</a><ul>
+                  <li><a href="#rfc.section.5.1">5.1</a>&nbsp;&nbsp;&nbsp;<a href="#integer.representation">Integer Representation</a></li>
+                  <li><a href="#rfc.section.5.2">5.2</a>&nbsp;&nbsp;&nbsp;<a href="#string.literal.representation">String Literal Representation</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.6">6.</a>&nbsp;&nbsp;&nbsp;<a href="#detailed.format">Binary Format</a><ul>
+                  <li><a href="#rfc.section.6.1">6.1</a>&nbsp;&nbsp;&nbsp;<a href="#indexed.header.representation">Indexed Header Field Representation</a></li>
+                  <li><a href="#rfc.section.6.2">6.2</a>&nbsp;&nbsp;&nbsp;<a href="#literal.header.representation">Literal Header Field Representation</a><ul>
+                        <li><a href="#rfc.section.6.2.1">6.2.1</a>&nbsp;&nbsp;&nbsp;<a href="#literal.header.with.incremental.indexing">Literal Header Field with Incremental Indexing</a></li>
+                        <li><a href="#rfc.section.6.2.2">6.2.2</a>&nbsp;&nbsp;&nbsp;<a href="#literal.header.without.indexing">Literal Header Field without Indexing</a></li>
+                        <li><a href="#rfc.section.6.2.3">6.2.3</a>&nbsp;&nbsp;&nbsp;<a href="#literal.header.never.indexed">Literal Header Field Never Indexed</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.6.3">6.3</a>&nbsp;&nbsp;&nbsp;<a href="#encoding.context.update">Dynamic Table Size Update</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.7">7.</a>&nbsp;&nbsp;&nbsp;<a href="#Security">Security Considerations</a><ul>
+                  <li><a href="#rfc.section.7.1">7.1</a>&nbsp;&nbsp;&nbsp;<a href="#compression.based.attacks">Probing Dynamic Table State</a><ul>
+                        <li><a href="#rfc.section.7.1.1">7.1.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.7.1.1">Applicability to HPACK and HTTP</a></li>
+                        <li><a href="#rfc.section.7.1.2">7.1.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.7.1.2">Mitigation</a></li>
+                        <li><a href="#rfc.section.7.1.3">7.1.3</a>&nbsp;&nbsp;&nbsp;<a href="#never.indexed.literals">Never-Indexed Literals</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.7.2">7.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.7.2">Static Huffman Encoding</a></li>
+                  <li><a href="#rfc.section.7.3">7.3</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.7.3">Memory Consumption</a></li>
+                  <li><a href="#rfc.section.7.4">7.4</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.7.4">Implementation Limits</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.8">8.</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.references">References</a><ul>
+                  <li><a href="#rfc.section.8.1">8.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.references.1">Normative References</a></li>
+                  <li><a href="#rfc.section.8.2">8.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.references.2">Informative References</a></li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.A">A.</a>&nbsp;&nbsp;&nbsp;<a href="#static.table.definition">Static Table Definition</a></li>
+            <li><a href="#rfc.section.B">B.</a>&nbsp;&nbsp;&nbsp;<a href="#huffman.code">Huffman Code</a></li>
+            <li><a href="#rfc.section.C">C.</a>&nbsp;&nbsp;&nbsp;<a href="#examples">Examples</a><ul>
+                  <li><a href="#rfc.section.C.1">C.1</a>&nbsp;&nbsp;&nbsp;<a href="#integer.representation.examples">Integer Representation Examples</a><ul>
+                        <li><a href="#rfc.section.C.1.1">C.1.1</a>&nbsp;&nbsp;&nbsp;<a href="#integer.representation.example1">Example 1: Encoding 10 Using a 5-Bit Prefix</a></li>
+                        <li><a href="#rfc.section.C.1.2">C.1.2</a>&nbsp;&nbsp;&nbsp;<a href="#integer.representation.example2">Example 2: Encoding 1337 Using a 5-Bit Prefix</a></li>
+                        <li><a href="#rfc.section.C.1.3">C.1.3</a>&nbsp;&nbsp;&nbsp;<a href="#integer.representation.example3">Example 3: Encoding 42 Starting at an Octet Boundary</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.C.2">C.2</a>&nbsp;&nbsp;&nbsp;<a href="#header.field.representation.examples">Header Field Representation Examples</a><ul>
+                        <li><a href="#rfc.section.C.2.1">C.2.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.2.1">Literal Header Field with Indexing</a></li>
+                        <li><a href="#rfc.section.C.2.2">C.2.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.2.2">Literal Header Field without Indexing</a></li>
+                        <li><a href="#rfc.section.C.2.3">C.2.3</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.2.3">Literal Header Field Never Indexed</a></li>
+                        <li><a href="#rfc.section.C.2.4">C.2.4</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.2.4">Indexed Header Field</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.C.3">C.3</a>&nbsp;&nbsp;&nbsp;<a href="#request.examples.without.huffman.coding">Request Examples without Huffman Coding</a><ul>
+                        <li><a href="#rfc.section.C.3.1">C.3.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.3.1">First Request</a></li>
+                        <li><a href="#rfc.section.C.3.2">C.3.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.3.2">Second Request</a></li>
+                        <li><a href="#rfc.section.C.3.3">C.3.3</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.3.3">Third Request</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.C.4">C.4</a>&nbsp;&nbsp;&nbsp;<a href="#request.examples.with.huffman.coding">Request Examples with Huffman Coding</a><ul>
+                        <li><a href="#rfc.section.C.4.1">C.4.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.4.1">First Request</a></li>
+                        <li><a href="#rfc.section.C.4.2">C.4.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.4.2">Second Request</a></li>
+                        <li><a href="#rfc.section.C.4.3">C.4.3</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.4.3">Third Request</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.C.5">C.5</a>&nbsp;&nbsp;&nbsp;<a href="#response.examples.without.huffman.coding">Response Examples without Huffman Coding</a><ul>
+                        <li><a href="#rfc.section.C.5.1">C.5.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.5.1">First Response</a></li>
+                        <li><a href="#rfc.section.C.5.2">C.5.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.5.2">Second Response</a></li>
+                        <li><a href="#rfc.section.C.5.3">C.5.3</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.5.3">Third Response</a></li>
+                     </ul>
+                  </li>
+                  <li><a href="#rfc.section.C.6">C.6</a>&nbsp;&nbsp;&nbsp;<a href="#response.examples.with.huffman.coding">Response Examples with Huffman Coding</a><ul>
+                        <li><a href="#rfc.section.C.6.1">C.6.1</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.6.1">First Response</a></li>
+                        <li><a href="#rfc.section.C.6.2">C.6.2</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.6.2">Second Response</a></li>
+                        <li><a href="#rfc.section.C.6.3">C.6.3</a>&nbsp;&nbsp;&nbsp;<a href="#rfc.section.C.6.3">Third Response</a></li>
+                     </ul>
+                  </li>
+               </ul>
+            </li>
+            <li><a href="#rfc.section.unnumbered-1">Acknowledgments</a></li>
+            <li><a href="#rfc.authors">Authors' Addresses</a></li>
+         </ul>
+      </div>
+      <ul class="toc">
+         <li>Figures
+            
+            <ul>
+               <li><a href="#rfc.figure.1">Figure 1: Index Address Space</a></li>
+               <li><a href="#rfc.figure.2">Figure 2: Integer Value Encoded within the Prefix (Shown for N = 5)</a></li>
+               <li><a href="#rfc.figure.3">Figure 3: Integer Value Encoded after the Prefix (Shown for N = 5)</a></li>
+               <li><a href="#rfc.figure.4">Figure 4: String Literal Representation</a></li>
+               <li><a href="#rfc.figure.5">Figure 5: Indexed Header Field</a></li>
+               <li><a href="#rfc.figure.6">Figure 6: Literal Header Field with Incremental Indexing — Indexed Name</a></li>
+               <li><a href="#rfc.figure.7">Figure 7: Literal Header Field with Incremental Indexing — New Name</a></li>
+               <li><a href="#rfc.figure.8">Figure 8: Literal Header Field without Indexing — Indexed Name</a></li>
+               <li><a href="#rfc.figure.9">Figure 9: Literal Header Field without Indexing — New Name</a></li>
+               <li><a href="#rfc.figure.10">Figure 10: Literal Header Field Never Indexed — Indexed Name</a></li>
+               <li><a href="#rfc.figure.11">Figure 11: Literal Header Field Never Indexed — New Name</a></li>
+               <li><a href="#rfc.figure.12">Figure 12: Maximum Dynamic Table Size Change</a></li>
+            </ul>
+         </li>
+      </ul>
+      <div>
+         <h1 id="rfc.section.1" class="np"><a href="#rfc.section.1">1.</a>&nbsp;Introduction
+         </h1>
+         <div id="rfc.section.1.p.1">
+            <p>In HTTP/1.1 (see <a href="#RFC7230"><cite title="Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing">[RFC7230]</cite></a>), header fields are not compressed. As web pages have grown to require dozens to hundreds of requests, the redundant header
+               fields in these requests unnecessarily consume bandwidth, measurably increasing latency.
+            </p>
+         </div>
+         <div id="rfc.section.1.p.2">
+            <p><a href="#SPDY">SPDY</a> <cite title="SPDY Protocol">[SPDY]</cite> initially addressed this redundancy by compressing header fields using the <a href="#DEFLATE">DEFLATE</a> <cite title="DEFLATE Compressed Data Format Specification version 1.3">[DEFLATE]</cite> format, which proved very effective at efficiently representing the redundant header fields. However, that approach exposed
+               a security risk as demonstrated by the CRIME (Compression Ratio Info-leak Made Easy) attack (see <a href="#CRIME"><cite title="CRIME">[CRIME]</cite></a>).
+            </p>
+         </div>
+         <div id="rfc.section.1.p.3">
+            <p>This specification defines HPACK, a new compressor that eliminates redundant header fields, limits vulnerability to known
+               security attacks, and has a bounded memory requirement for use in constrained environments. Potential security concerns for
+               HPACK are described in <a href="#Security" title="Security Considerations">Section&nbsp;7</a>.
+            </p>
+         </div>
+         <div id="rfc.section.1.p.4">
+            <p>The HPACK format is intentionally simple and inflexible. Both characteristics reduce the risk of interoperability or security
+               issues due to implementation error. No extensibility mechanisms are defined; changes to the format are only possible by defining
+               a complete replacement.
+            </p>
+         </div>
+         <div>
+            <h2 id="rfc.section.1.1"><a href="#rfc.section.1.1">1.1</a>&nbsp;Overview
+            </h2>
+            <div id="rfc.section.1.1.p.1">
+               <p>The format defined in this specification treats a list of header fields as an ordered collection of name-value pairs that
+                  can include duplicate pairs. Names and values are considered to be opaque sequences of octets, and the order of header fields
+                  is preserved after being compressed and decompressed.
+               </p>
+            </div>
+            <div id="rfc.section.1.1.p.2">
+               <p>Encoding is informed by header field tables that map header fields to indexed values. These header field tables can be incrementally
+                  updated as new header fields are encoded or decoded.
+               </p>
+            </div>
+            <div id="rfc.section.1.1.p.3">
+               <p>In the encoded form, a header field is represented either literally or as a reference to a header field in one of the header
+                  field tables. Therefore, a list of header fields can be encoded using a mixture of references and literal values.
+               </p>
+            </div>
+            <div id="rfc.section.1.1.p.4">
+               <p>Literal values are either encoded directly or use a static Huffman code.</p>
+            </div>
+            <div id="rfc.section.1.1.p.5">
+               <p>The encoder is responsible for deciding which header fields to insert as new entries in the header field tables. The decoder
+                  executes the modifications to the header field tables prescribed by the encoder, reconstructing the list of header fields
+                  in the process. This enables decoders to remain simple and interoperate with a wide variety of encoders.
+               </p>
+            </div>
+            <div id="rfc.section.1.1.p.6">
+               <p>Examples illustrating the use of these different mechanisms to represent header fields are available in <a href="#examples" title="Examples">Appendix&nbsp;C</a>.
+               </p>
+            </div>
+         </div>
+         <div id="conventions">
+            <h2 id="rfc.section.1.2"><a href="#rfc.section.1.2">1.2</a>&nbsp;<a href="#conventions">Conventions</a></h2>
+            <div id="rfc.section.1.2.p.1">
+               <p>The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL"
+                  in this document are to be interpreted as described in <a href="#RFC2119">RFC 2119</a> <cite title="Key words for use in RFCs to Indicate Requirement Levels">[RFC2119]</cite>.
+               </p>
+            </div>
+            <div id="rfc.section.1.2.p.2">
+               <p>All numeric values are in network byte order. Values are unsigned unless otherwise indicated. Literal values are provided
+                  in decimal or hexadecimal as appropriate.
+               </p>
+            </div>
+         </div>
+         <div id="encoding.concepts">
+            <h2 id="rfc.section.1.3"><a href="#rfc.section.1.3">1.3</a>&nbsp;<a href="#encoding.concepts">Terminology</a></h2>
+            <div id="rfc.section.1.3.p.1">
+               <p>This specification uses the following terms: </p>
+               <dl>
+                  <dt>Header Field:</dt>
+                  <dd>A name-value pair. Both the name and value are treated as opaque sequences of octets.</dd>
+                  <dt>Dynamic Table:</dt>
+                  <dd>The dynamic table (see <a href="#dynamic.table" title="Dynamic Table">Section&nbsp;2.3.2</a>) is a table that associates stored header fields with index values. This table is dynamic and specific to an encoding or
+                     decoding context.
+                  </dd>
+                  <dt>Static Table:</dt>
+                  <dd>The static table (see <a href="#static.table" title="Static Table">Section&nbsp;2.3.1</a>) is a table that statically associates header fields that occur frequently with index values. This table is ordered, read-only,
+                     always accessible, and it may be shared amongst all encoding or decoding contexts.
+                  </dd>
+                  <dt>Header List:</dt>
+                  <dd>A header list is an ordered collection of header fields that are encoded jointly and can contain duplicate header fields.
+                     A complete list of header fields contained in an HTTP/2 header block is a header list.
+                  </dd>
+                  <dt>Header Field Representation:</dt>
+                  <dd>A header field can be represented in encoded form either as a literal or as an index (see <a href="#header.representation" title="Header Field Representation">Section&nbsp;2.4</a>).
+                  </dd>
+                  <dt>Header Block:</dt>
+                  <dd>An ordered list of header field representations, which, when decoded, yields a complete header list.</dd>
+               </dl>
+            </div>
+         </div>
+      </div>
+      <div id="header.encoding">
+         <h1 id="rfc.section.2"><a href="#rfc.section.2">2.</a>&nbsp;<a href="#header.encoding">Compression Process Overview</a></h1>
+         <div id="rfc.section.2.p.1">
+            <p>This specification does not describe a specific algorithm for an encoder. Instead, it defines precisely how a decoder is expected
+               to operate, allowing encoders to produce any encoding that this definition permits.
+            </p>
+         </div>
+         <div id="header.list.ordering">
+            <h2 id="rfc.section.2.1"><a href="#rfc.section.2.1">2.1</a>&nbsp;<a href="#header.list.ordering">Header List Ordering</a></h2>
+            <div id="rfc.section.2.1.p.1">
+               <p>HPACK preserves the ordering of header fields inside the header list. An encoder MUST order header field representations in
+                  the header block according to their ordering in the original header list. A decoder MUST order header fields in the decoded
+                  header list according to their ordering in the header block.
+               </p>
+            </div>
+         </div>
+         <div id="encoding.context">
+            <h2 id="rfc.section.2.2"><a href="#rfc.section.2.2">2.2</a>&nbsp;<a href="#encoding.context">Encoding and Decoding Contexts</a></h2>
+            <div id="rfc.section.2.2.p.1">
+               <p>To decompress header blocks, a decoder only needs to maintain a dynamic table (see <a href="#dynamic.table" title="Dynamic Table">Section&nbsp;2.3.2</a>) as a decoding context. No other dynamic state is needed.
+               </p>
+            </div>
+            <div id="rfc.section.2.2.p.2">
+               <p>When used for bidirectional communication, such as in HTTP, the encoding and decoding dynamic tables maintained by an endpoint
+                  are completely independent, i.e., the request and response dynamic tables are separate.
+               </p>
+            </div>
+         </div>
+         <div id="indexing.tables">
+            <h2 id="rfc.section.2.3"><a href="#rfc.section.2.3">2.3</a>&nbsp;<a href="#indexing.tables">Indexing Tables</a></h2>
+            <div id="rfc.section.2.3.p.1">
+               <p>HPACK uses two tables for associating header fields to indexes. The static table (see <a href="#static.table" title="Static Table">Section&nbsp;2.3.1</a>) is predefined and contains common header fields (most of them with an empty value). The dynamic table (see <a href="#dynamic.table" title="Dynamic Table">Section&nbsp;2.3.2</a>) is dynamic and can be used by the encoder to index header fields repeated in the encoded header lists.
+               </p>
+            </div>
+            <div id="rfc.section.2.3.p.2">
+               <p>These two tables are combined into a single address space for defining index values (see <a href="#index.address.space" title="Index Address Space">Section&nbsp;2.3.3</a>).
+               </p>
+            </div>
+            <div id="static.table">
+               <h3 id="rfc.section.2.3.1"><a href="#rfc.section.2.3.1">2.3.1</a>&nbsp;<a href="#static.table">Static Table</a></h3>
+               <div id="rfc.section.2.3.1.p.1">
+                  <p>The static table consists of a predefined static list of header fields. Its entries are defined in <a href="#static.table.definition" title="Static Table Definition">Appendix&nbsp;A</a>.
+                  </p>
+               </div>
+            </div>
+            <div id="dynamic.table">
+               <h3 id="rfc.section.2.3.2"><a href="#rfc.section.2.3.2">2.3.2</a>&nbsp;<a href="#dynamic.table">Dynamic Table</a></h3>
+               <div id="rfc.section.2.3.2.p.1">
+                  <p>The dynamic table consists of a list of header fields maintained in first-in, first-out order. The first and newest entry
+                     in a dynamic table is at the lowest index, and the oldest entry of a dynamic table is at the highest index.
+                  </p>
+               </div>
+               <div id="rfc.section.2.3.2.p.2">
+                  <p>The dynamic table is initially empty. Entries are added as each header block is decompressed.</p>
+               </div>
+               <div id="rfc.section.2.3.2.p.3">
+                  <p>The dynamic table can contain duplicate entries (i.e., entries with the same name and same value). Therefore, duplicate entries
+                     MUST NOT be treated as an error by a decoder.
+                  </p>
+               </div>
+               <div id="rfc.section.2.3.2.p.4">
+                  <p>The encoder decides how to update the dynamic table and as such can control how much memory is used by the dynamic table.
+                     To limit the memory requirements of the decoder, the dynamic table size is strictly bounded (see <a href="#maximum.table.size" title="Maximum Table Size">Section&nbsp;4.2</a>).
+                  </p>
+               </div>
+               <div id="rfc.section.2.3.2.p.5">
+                  <p>The decoder updates the dynamic table during the processing of a list of header field representations (see <a href="#header.representation.processing" title="Header Field Representation Processing">Section&nbsp;3.2</a>).
+                  </p>
+               </div>
+            </div>
+            <div id="index.address.space">
+               <h3 id="rfc.section.2.3.3"><a href="#rfc.section.2.3.3">2.3.3</a>&nbsp;<a href="#index.address.space">Index Address Space</a></h3>
+               <div id="rfc.section.2.3.3.p.1">
+                  <p>The static table and the dynamic table are combined into a single index address space.</p>
+               </div>
+               <div id="rfc.section.2.3.3.p.2">
+                  <p>Indices between 1 and the length of the static table (inclusive) refer to elements in the static table (see <a href="#static.table" title="Static Table">Section&nbsp;2.3.1</a>).
+                  </p>
+               </div>
+               <div id="rfc.section.2.3.3.p.3">
+                  <p>Indices strictly greater than the length of the static table refer to elements in the dynamic table (see <a href="#dynamic.table" title="Dynamic Table">Section&nbsp;2.3.2</a>). The length of the static table is subtracted to find the index into the dynamic table.
+                  </p>
+               </div>
+               <div id="rfc.section.2.3.3.p.4">
+                  <p>Indices strictly greater than the sum of the lengths of both tables MUST be treated as a decoding error.</p>
+               </div>
+               <div id="Index.Address.Space"></div>
+               <div id="rfc.figure.1">
+                  <p>For a static table size of s and a dynamic table size of k, the following diagram shows the entire valid index address space.</p><pre class="drawing">        &lt;----------  Index Address Space ----------&gt;
+        &lt;-- Static  Table --&gt;  &lt;-- Dynamic Table --&gt;
+        +---+-----------+---+  +---+-----------+---+
+        | 1 |    ...    | s |  |s+1|    ...    |s+k|
+        +---+-----------+---+  +---+-----------+---+
+                               ^                   |
+                               |                   V
+                        Insertion Point      Dropping Point
+</pre></div>
+               <p class="figure">Figure 1: Index Address Space</p>
+            </div>
+         </div>
+         <div id="header.representation">
+            <h2 id="rfc.section.2.4"><a href="#rfc.section.2.4">2.4</a>&nbsp;<a href="#header.representation">Header Field Representation</a></h2>
+            <div id="rfc.section.2.4.p.1">
+               <p>An encoded header field can be represented either as an index or as a literal.</p>
+            </div>
+            <div id="rfc.section.2.4.p.2">
+               <p>An indexed representation defines a header field as a reference to an entry in either the static table or the dynamic table
+                  (see <a href="#indexed.header.representation" title="Indexed Header Field Representation">Section&nbsp;6.1</a>).
+               </p>
+            </div>
+            <div id="rfc.section.2.4.p.3">
+               <p>A literal representation defines a header field by specifying its name and value. The header field name can be represented
+                  literally or as a reference to an entry in either the static table or the dynamic table. The header field value is represented
+                  literally.
+               </p>
+            </div>
+            <div id="rfc.section.2.4.p.4">
+               <p>Three different literal representations are defined: </p>
+               <ul>
+                  <li>A literal representation that adds the header field as a new entry at the beginning of the dynamic table (see <a href="#literal.header.with.incremental.indexing" title="Literal Header Field with Incremental Indexing">Section&nbsp;6.2.1</a>).
+                  </li>
+                  <li>A literal representation that does not add the header field to the dynamic table (see <a href="#literal.header.without.indexing" title="Literal Header Field without Indexing">Section&nbsp;6.2.2</a>).
+                  </li>
+                  <li>A literal representation that does not add the header field to the dynamic table, with the additional stipulation that this
+                     header field always use a literal representation, in particular when re-encoded by an intermediary (see <a href="#literal.header.never.indexed" title="Literal Header Field Never Indexed">Section&nbsp;6.2.3</a>). This representation is intended for protecting header field values that are not to be put at risk by compressing them (see <a href="#never.indexed.literals" title="Never-Indexed Literals">Section&nbsp;7.1.3</a> for more details).
+                  </li>
+               </ul>
+            </div>
+            <div id="rfc.section.2.4.p.5">
+               <p>The selection of one of these literal representations can be guided by security considerations, in order to protect sensitive
+                  header field values (see <a href="#compression.based.attacks" title="Probing Dynamic Table State">Section&nbsp;7.1</a>).
+               </p>
+            </div>
+            <div id="rfc.section.2.4.p.6">
+               <p>The literal representation of a header field name or of a header field value can encode the sequence of octets either directly
+                  or using a static Huffman code (see <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>).
+               </p>
+            </div>
+         </div>
+      </div>
+      <div id="header.block.decoding">
+         <h1 id="rfc.section.3"><a href="#rfc.section.3">3.</a>&nbsp;<a href="#header.block.decoding">Header Block Decoding</a></h1>
+         <div id="header.block.processing">
+            <h2 id="rfc.section.3.1"><a href="#rfc.section.3.1">3.1</a>&nbsp;<a href="#header.block.processing">Header Block Processing</a></h2>
+            <div id="rfc.section.3.1.p.1">
+               <p>A decoder processes a header block sequentially to reconstruct the original header list.</p>
+            </div>
+            <div id="rfc.section.3.1.p.2">
+               <p>A header block is the concatenation of header field representations. The different possible header field representations are
+                  described in <a href="#detailed.format" title="Binary Format">Section&nbsp;6</a>.
+               </p>
+            </div>
+            <div id="rfc.section.3.1.p.3">
+               <p>Once a header field is decoded and added to the reconstructed header list, the header field cannot be removed. A header field
+                  added to the header list can be safely passed to the application.
+               </p>
+            </div>
+            <div id="rfc.section.3.1.p.4">
+               <p>By passing the resulting header fields to the application, a decoder can be implemented with minimal transitory memory commitment
+                  in addition to the memory required for the dynamic table.
+               </p>
+            </div>
+         </div>
+         <div id="header.representation.processing">
+            <h2 id="rfc.section.3.2"><a href="#rfc.section.3.2">3.2</a>&nbsp;<a href="#header.representation.processing">Header Field Representation Processing</a></h2>
+            <div id="rfc.section.3.2.p.1">
+               <p>The processing of a header block to obtain a header list is defined in this section. To ensure that the decoding will successfully
+                  produce a header list, a decoder MUST obey the following rules.
+               </p>
+            </div>
+            <div id="rfc.section.3.2.p.2">
+               <p>All the header field representations contained in a header block are processed in the order in which they appear, as specified
+                  below. Details on the formatting of the various header field representations and some additional processing instructions are
+                  found in <a href="#detailed.format" title="Binary Format">Section&nbsp;6</a>.
+               </p>
+            </div>
+            <div id="rfc.section.3.2.p.3">
+               <p>An <em>indexed representation</em> entails the following actions: 
+               </p>
+               <ul>
+                  <li>The header field corresponding to the referenced entry in either the static table or dynamic table is appended to the decoded
+                     header list.
+                  </li>
+               </ul>
+            </div>
+            <div id="rfc.section.3.2.p.4">
+               <p>A <em>literal representation</em> that is <em>not added</em> to the dynamic table entails the following action: 
+               </p>
+               <ul>
+                  <li>The header field is appended to the decoded header list.</li>
+               </ul>
+            </div>
+            <div id="rfc.section.3.2.p.5">
+               <p>A <em>literal representation</em> that is <em>added</em> to the dynamic table entails the following actions: 
+               </p>
+               <ul>
+                  <li>The header field is appended to the decoded header list.</li>
+                  <li>The header field is inserted at the beginning of the dynamic table. This insertion could result in the eviction of previous
+                     entries in the dynamic table (see <a href="#entry.addition" title="Entry Eviction When Adding New Entries">Section&nbsp;4.4</a>).
+                  </li>
+               </ul>
+            </div>
+         </div>
+      </div>
+      <div id="dynamic.table.management">
+         <h1 id="rfc.section.4"><a href="#rfc.section.4">4.</a>&nbsp;<a href="#dynamic.table.management">Dynamic Table Management</a></h1>
+         <div id="rfc.section.4.p.1">
+            <p>To limit the memory requirements on the decoder side, the dynamic table is constrained in size.</p>
+         </div>
+         <div id="calculating.table.size">
+            <h2 id="rfc.section.4.1"><a href="#rfc.section.4.1">4.1</a>&nbsp;<a href="#calculating.table.size">Calculating Table Size</a></h2>
+            <div id="rfc.section.4.1.p.1">
+               <p>The size of the dynamic table is the sum of the size of its entries.</p>
+            </div>
+            <div id="rfc.section.4.1.p.2">
+               <p>The size of an entry is the sum of its name's length in octets (as defined in <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>), its value's length in octets, and 32.
+               </p>
+            </div>
+            <div id="rfc.section.4.1.p.3">
+               <p>The size of an entry is calculated using the length of its name and value without any Huffman encoding applied.</p>
+            </div>
+            <div class="note">
+               <div id="rfc.section.4.1.p.4">
+                  <p><b>Note:</b> The additional 32 octets account for an estimated overhead associated with an entry. For example, an entry structure using
+                     two 64-bit pointers to reference the name and the value of the entry and two 64-bit integers for counting the number of references
+                     to the name and value would have 32 octets of overhead.
+                  </p>
+               </div>
+            </div>
+         </div>
+         <div id="maximum.table.size">
+            <h2 id="rfc.section.4.2"><a href="#rfc.section.4.2">4.2</a>&nbsp;<a href="#maximum.table.size">Maximum Table Size</a></h2>
+            <div id="rfc.section.4.2.p.1">
+               <p>Protocols that use HPACK determine the maximum size that the encoder is permitted to use for the dynamic table. In HTTP/2,
+                  this value is determined by the SETTINGS_HEADER_TABLE_SIZE setting (see <a href="https://tools.ietf.org/html/rfc7540#section-6.5.2" title="Defined SETTINGS Parameters">Section 6.5.2</a> of <a href="#HTTP2"><cite title="Hypertext Transfer Protocol Version 2 (HTTP/2)">[HTTP2]</cite></a>).
+               </p>
+            </div>
+            <div id="rfc.section.4.2.p.2">
+               <p>An encoder can choose to use less capacity than this maximum size (see <a href="#encoding.context.update" title="Dynamic Table Size Update">Section&nbsp;6.3</a>), but the chosen size MUST stay lower than or equal to the maximum set by the protocol.
+               </p>
+            </div>
+            <div id="rfc.section.4.2.p.3">
+               <p>A change in the maximum size of the dynamic table is signaled via a dynamic table size update (see <a href="#encoding.context.update" title="Dynamic Table Size Update">Section&nbsp;6.3</a>). This dynamic table size update MUST occur at the beginning of the first header block following the change to the dynamic
+                  table size. In HTTP/2, this follows a settings acknowledgment (see <a href="https://tools.ietf.org/html/rfc7540#section-6.5.3" title="Settings Synchronization">Section 6.5.3</a> of <a href="#HTTP2"><cite title="Hypertext Transfer Protocol Version 2 (HTTP/2)">[HTTP2]</cite></a>).
+               </p>
+            </div>
+            <div id="rfc.section.4.2.p.4">
+               <p>Multiple updates to the maximum table size can occur between the transmission of two header blocks. In the case that this
+                  size is changed more than once in this interval, the smallest maximum table size that occurs in that interval MUST be signaled
+                  in a dynamic table size update. The final maximum size is always signaled, resulting in at most two dynamic table size updates.
+                  This ensures that the decoder is able to perform eviction based on reductions in dynamic table size (see <a href="#entry.eviction" title="Entry Eviction When Dynamic Table Size Changes">Section&nbsp;4.3</a>).
+               </p>
+            </div>
+            <div id="rfc.section.4.2.p.5">
+               <p>This mechanism can be used to completely clear entries from the dynamic table by setting a maximum size of 0, which can subsequently
+                  be restored.
+               </p>
+            </div>
+         </div>
+         <div id="entry.eviction">
+            <h2 id="rfc.section.4.3"><a href="#rfc.section.4.3">4.3</a>&nbsp;<a href="#entry.eviction">Entry Eviction When Dynamic Table Size Changes</a></h2>
+            <div id="rfc.section.4.3.p.1">
+               <p>Whenever the maximum size for the dynamic table is reduced, entries are evicted from the end of the dynamic table until the
+                  size of the dynamic table is less than or equal to the maximum size.
+               </p>
+            </div>
+         </div>
+         <div id="entry.addition">
+            <h2 id="rfc.section.4.4"><a href="#rfc.section.4.4">4.4</a>&nbsp;<a href="#entry.addition">Entry Eviction When Adding New Entries</a></h2>
+            <div id="rfc.section.4.4.p.1">
+               <p>Before a new entry is added to the dynamic table, entries are evicted from the end of the dynamic table until the size of
+                  the dynamic table is less than or equal to (maximum size - new entry size) or until the table is empty.
+               </p>
+            </div>
+            <div id="rfc.section.4.4.p.2">
+               <p>If the size of the new entry is less than or equal to the maximum size, that entry is added to the table. It is not an error
+                  to attempt to add an entry that is larger than the maximum size; an attempt to add an entry larger than the maximum size causes
+                  the table to be emptied of all existing entries and results in an empty table.
+               </p>
+            </div>
+            <div id="rfc.section.4.4.p.3">
+               <p>A new entry can reference the name of an entry in the dynamic table that will be evicted when adding this new entry into the
+                  dynamic table. Implementations are cautioned to avoid deleting the referenced name if the referenced entry is evicted from
+                  the dynamic table prior to inserting the new entry.
+               </p>
+            </div>
+         </div>
+      </div>
+      <div id="low-level.representation">
+         <h1 id="rfc.section.5"><a href="#rfc.section.5">5.</a>&nbsp;<a href="#low-level.representation">Primitive Type Representations</a></h1>
+         <div id="rfc.section.5.p.1">
+            <p>HPACK encoding uses two primitive types: unsigned variable-length integers and strings of octets.</p>
+         </div>
+         <div id="integer.representation">
+            <h2 id="rfc.section.5.1"><a href="#rfc.section.5.1">5.1</a>&nbsp;<a href="#integer.representation">Integer Representation</a></h2>
+            <div id="rfc.section.5.1.p.1">
+               <p>Integers are used to represent name indexes, header field indexes, or string lengths. An integer representation can start
+                  anywhere within an octet. To allow for optimized processing, an integer representation always finishes at the end of an octet.
+               </p>
+            </div>
+            <div id="rfc.section.5.1.p.2">
+               <p>An integer is represented in two parts: a prefix that fills the current octet and an optional list of octets that are used
+                  if the integer value does not fit within the prefix. The number of bits of the prefix (called N) is a parameter of the integer
+                  representation.
+               </p>
+            </div>
+            <div id="rfc.section.5.1.p.3">
+               <p>If the integer value is small enough, i.e., strictly less than 2<sup>N</sup>-1, it is encoded within the N-bit prefix.
+               </p>
+            </div>
+            <div id="Integer.Value.Encoded.within.the.Prefix.shown.for.N.5"></div>
+            <div id="rfc.figure.2"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| ? | ? | ? |       Value       |
++---+---+---+-------------------+
+</pre></div>
+            <p class="figure">Figure 2: Integer Value Encoded within the Prefix (Shown for N = 5)</p>
+            <div id="rfc.section.5.1.p.4">
+               <p>Otherwise, all the bits of the prefix are set to 1, and the value, decreased by 2<sup>N</sup>-1, is encoded using a list of one or more octets. The most significant bit of each octet is used as a continuation flag:
+                  its value is set to 1 except for the last octet in the list. The remaining bits of the octets are used to encode the decreased
+                  value.
+               </p>
+            </div>
+            <div id="Integer.Value.Encoded.after.the.Prefix.shown.for.N.5"></div>
+            <div id="rfc.figure.3"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| ? | ? | ? | 1   1   1   1   1 |
++---+---+---+-------------------+
+| 1 |    Value-(2^N-1) LSB      |
++---+---------------------------+
+               ...
++---+---------------------------+
+| 0 |    Value-(2^N-1) MSB      |
++---+---------------------------+
+</pre></div>
+            <p class="figure">Figure 3: Integer Value Encoded after the Prefix (Shown for N = 5)</p>
+            <div id="rfc.section.5.1.p.5">
+               <p>Decoding the integer value from the list of octets starts by reversing the order of the octets in the list. Then, for each
+                  octet, its most significant bit is removed. The remaining bits of the octets are concatenated, and the resulting value is
+                  increased by 2<sup>N</sup>-1 to obtain the integer value.
+               </p>
+            </div>
+            <div id="rfc.section.5.1.p.6">
+               <p>The prefix size, N, is always between 1 and 8 bits. An integer starting at an octet boundary will have an 8-bit prefix.</p>
+            </div>
+            <div id="rfc.figure.u.1">
+               <p>Pseudocode to represent an integer I is as follows:</p><pre class="inline">if I &lt; 2^N - 1, encode I on N bits
+else
+    encode (2^N - 1) on N bits
+    I = I - (2^N - 1)
+    while I &gt;= 128
+         encode (I % 128 + 128) on 8 bits
+         I = I / 128
+    encode I on 8 bits
+</pre></div>
+            <div id="rfc.figure.u.2">
+               <p>Pseudocode to decode an integer I is as follows:</p><pre class="inline">decode I from the next N bits
+if I &lt; 2^N - 1, return I
+else
+    M = 0
+    repeat
+        B = next octet
+        I = I + (B &amp; 127) * 2^M
+        M = M + 7
+    while B &amp; 128 == 128
+    return I
+</pre></div>
+            <div id="rfc.section.5.1.p.7">
+               <p>Examples illustrating the encoding of integers are available in <a href="#integer.representation.examples" title="Integer Representation Examples">Appendix&nbsp;C.1</a>.
+               </p>
+            </div>
+            <div id="rfc.section.5.1.p.8">
+               <p>This integer representation allows for values of indefinite size. It is also possible for an encoder to send a large number
+                  of zero values, which can waste octets and could be used to overflow integer values. Integer encodings that exceed implementation
+                  limits — in value or octet length — MUST be treated as decoding errors. Different limits can be set for each of the different
+                  uses of integers, based on implementation constraints.
+               </p>
+            </div>
+         </div>
+         <div id="string.literal.representation">
+            <h2 id="rfc.section.5.2"><a href="#rfc.section.5.2">5.2</a>&nbsp;<a href="#string.literal.representation">String Literal Representation</a></h2>
+            <div id="rfc.section.5.2.p.1">
+               <p>Header field names and header field values can be represented as string literals. A string literal is encoded as a sequence
+                  of octets, either by directly encoding the string literal's octets or by using a Huffman code (see <a href="#HUFFMAN"><cite title="A Method for the Construction of Minimum-Redundancy Codes">[HUFFMAN]</cite></a>).
+               </p>
+            </div>
+            <div id="String.Literal.Representation"></div>
+            <div id="rfc.figure.4"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| H |    String Length (7+)     |
++---+---------------------------+
+|  String Data (Length octets)  |
++-------------------------------+
+</pre></div>
+            <p class="figure">Figure 4: String Literal Representation</p>
+            <div id="rfc.section.5.2.p.2">
+               <p>A string literal representation contains the following fields: </p>
+               <dl>
+                  <dt>H:</dt>
+                  <dd>A one-bit flag, H, indicating whether or not the octets of the string are Huffman encoded.</dd>
+                  <dt>String Length:</dt>
+                  <dd>The number of octets used to encode the string literal, encoded as an integer with a 7-bit prefix (see <a href="#integer.representation" title="Integer Representation">Section&nbsp;5.1</a>).
+                  </dd>
+                  <dt>String Data:</dt>
+                  <dd>The encoded data of the string literal. If H is '0', then the encoded data is the raw octets of the string literal. If H is
+                     '1', then the encoded data is the Huffman encoding of the string literal.
+                  </dd>
+               </dl>
+            </div>
+            <div id="rfc.section.5.2.p.3">
+               <p>String literals that use Huffman encoding are encoded with the Huffman code defined in <a href="#huffman.code" title="Huffman Code">Appendix&nbsp;B</a> (see examples for requests in <a href="#request.examples.with.huffman.coding" title="Request Examples with Huffman Coding">Appendix&nbsp;C.4</a> and for responses in <a href="#response.examples.with.huffman.coding" title="Response Examples with Huffman Coding">Appendix&nbsp;C.6</a>). The encoded data is the bitwise concatenation of the codes corresponding to each octet of the string literal.
+               </p>
+            </div>
+            <div id="rfc.section.5.2.p.4">
+               <p>As the Huffman-encoded data doesn't always end at an octet boundary, some padding is inserted after it, up to the next octet
+                  boundary. To prevent this padding from being misinterpreted as part of the string literal, the most significant bits of the
+                  code corresponding to the EOS (end-of-string) symbol are used.
+               </p>
+            </div>
+            <div id="rfc.section.5.2.p.5">
+               <p>Upon decoding, an incomplete code at the end of the encoded data is to be considered as padding and discarded. A padding strictly
+                  longer than 7 bits MUST be treated as a decoding error. A padding not corresponding to the most significant bits of the code
+                  for the EOS symbol MUST be treated as a decoding error. A Huffman-encoded string literal containing the EOS symbol MUST be
+                  treated as a decoding error.
+               </p>
+            </div>
+         </div>
+      </div>
+      <div id="detailed.format">
+         <h1 id="rfc.section.6"><a href="#rfc.section.6">6.</a>&nbsp;<a href="#detailed.format">Binary Format</a></h1>
+         <div id="rfc.section.6.p.1">
+            <p>This section describes the detailed format of each of the different header field representations and the dynamic table size
+               update instruction.
+            </p>
+         </div>
+         <div id="indexed.header.representation">
+            <h2 id="rfc.section.6.1"><a href="#rfc.section.6.1">6.1</a>&nbsp;<a href="#indexed.header.representation">Indexed Header Field Representation</a></h2>
+            <div id="rfc.section.6.1.p.1">
+               <p>An indexed header field representation identifies an entry in either the static table or the dynamic table (see <a href="#indexing.tables" title="Indexing Tables">Section&nbsp;2.3</a>).
+               </p>
+            </div>
+            <div id="rfc.section.6.1.p.2">
+               <p>An indexed header field representation causes a header field to be added to the decoded header list, as described in <a href="#header.representation.processing" title="Header Field Representation Processing">Section&nbsp;3.2</a>.
+               </p>
+            </div>
+            <div id="Indexed.Header.Field"></div>
+            <div id="rfc.figure.5"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 1 |        Index (7+)         |
++---+---------------------------+
+</pre></div>
+            <p class="figure">Figure 5: Indexed Header Field</p>
+            <div id="rfc.section.6.1.p.3">
+               <p>An indexed header field starts with the '1' 1-bit pattern, followed by the index of the matching header field, represented
+                  as an integer with a 7-bit prefix (see <a href="#integer.representation" title="Integer Representation">Section&nbsp;5.1</a>).
+               </p>
+            </div>
+            <div id="rfc.section.6.1.p.4">
+               <p>The index value of 0 is not used. It MUST be treated as a decoding error if found in an indexed header field representation.</p>
+            </div>
+         </div>
+         <div id="literal.header.representation">
+            <h2 id="rfc.section.6.2"><a href="#rfc.section.6.2">6.2</a>&nbsp;<a href="#literal.header.representation">Literal Header Field Representation</a></h2>
+            <div id="rfc.section.6.2.p.1">
+               <p>A literal header field representation contains a literal header field value. Header field names are provided either as a literal
+                  or by reference to an existing table entry, either from the static table or the dynamic table (see <a href="#indexing.tables" title="Indexing Tables">Section&nbsp;2.3</a>).
+               </p>
+            </div>
+            <div id="rfc.section.6.2.p.2">
+               <p>This specification defines three forms of literal header field representations: with indexing, without indexing, and never
+                  indexed.
+               </p>
+            </div>
+            <div id="literal.header.with.incremental.indexing">
+               <h3 id="rfc.section.6.2.1"><a href="#rfc.section.6.2.1">6.2.1</a>&nbsp;<a href="#literal.header.with.incremental.indexing">Literal Header Field with Incremental Indexing</a></h3>
+               <div id="rfc.section.6.2.1.p.1">
+                  <p>A literal header field with incremental indexing representation results in appending a header field to the decoded header
+                     list and inserting it as a new entry into the dynamic table.
+                  </p>
+               </div>
+               <div id="Literal.Header.Field.with.Incremental.Indexing.Indexed.Name"></div>
+               <div id="rfc.figure.6"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 |      Index (6+)       |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</pre></div>
+               <p class="figure">Figure 6: Literal Header Field with Incremental Indexing — Indexed Name</p>
+               <div id="Literal.Header.Field.with.Incremental.Indexing.New.Name"></div>
+               <div id="rfc.figure.7"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 1 |           0           |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
+|  Name String (Length octets)  |
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</pre></div>
+               <p class="figure">Figure 7: Literal Header Field with Incremental Indexing — New Name</p>
+               <div id="rfc.section.6.2.1.p.2">
+                  <p>A literal header field with incremental indexing representation starts with the '01' 2-bit pattern.</p>
+               </div>
+               <div id="rfc.section.6.2.1.p.3">
+                  <p>If the header field name matches the header field name of an entry stored in the static table or the dynamic table, the header
+                     field name can be represented using the index of that entry. In this case, the index of the entry is represented as an integer
+                     with a 6-bit prefix (see <a href="#integer.representation" title="Integer Representation">Section&nbsp;5.1</a>). This value is always non-zero.
+                  </p>
+               </div>
+               <div id="rfc.section.6.2.1.p.4">
+                  <p>Otherwise, the header field name is represented as a string literal (see <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>). A value 0 is used in place of the 6-bit index, followed by the header field name.
+                  </p>
+               </div>
+               <div id="rfc.section.6.2.1.p.5">
+                  <p>Either form of header field name representation is followed by the header field value represented as a string literal (see <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>).
+                  </p>
+               </div>
+            </div>
+            <div id="literal.header.without.indexing">
+               <h3 id="rfc.section.6.2.2"><a href="#rfc.section.6.2.2">6.2.2</a>&nbsp;<a href="#literal.header.without.indexing">Literal Header Field without Indexing</a></h3>
+               <div id="rfc.section.6.2.2.p.1">
+                  <p>A literal header field without indexing representation results in appending a header field to the decoded header list without
+                     altering the dynamic table.
+                  </p>
+               </div>
+               <div id="Literal.Header.Field.without.Indexing.Indexed.Name"></div>
+               <div id="rfc.figure.8"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 0 |  Index (4+)   |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</pre></div>
+               <p class="figure">Figure 8: Literal Header Field without Indexing — Indexed Name</p>
+               <div id="Literal.Header.Field.without.Indexing.New.Name"></div>
+               <div id="rfc.figure.9"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 0 |       0       |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
+|  Name String (Length octets)  |
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</pre></div>
+               <p class="figure">Figure 9: Literal Header Field without Indexing — New Name</p>
+               <div id="rfc.section.6.2.2.p.2">
+                  <p>A literal header field without indexing representation starts with the '0000' 4-bit pattern.</p>
+               </div>
+               <div id="rfc.section.6.2.2.p.3">
+                  <p>If the header field name matches the header field name of an entry stored in the static table or the dynamic table, the header
+                     field name can be represented using the index of that entry. In this case, the index of the entry is represented as an integer
+                     with a 4-bit prefix (see <a href="#integer.representation" title="Integer Representation">Section&nbsp;5.1</a>). This value is always non-zero.
+                  </p>
+               </div>
+               <div id="rfc.section.6.2.2.p.4">
+                  <p>Otherwise, the header field name is represented as a string literal (see <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>). A value 0 is used in place of the 4-bit index, followed by the header field name.
+                  </p>
+               </div>
+               <div id="rfc.section.6.2.2.p.5">
+                  <p>Either form of header field name representation is followed by the header field value represented as a string literal (see <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>).
+                  </p>
+               </div>
+            </div>
+            <div id="literal.header.never.indexed">
+               <h3 id="rfc.section.6.2.3"><a href="#rfc.section.6.2.3">6.2.3</a>&nbsp;<a href="#literal.header.never.indexed">Literal Header Field Never Indexed</a></h3>
+               <div id="rfc.section.6.2.3.p.1">
+                  <p>A literal header field never-indexed representation results in appending a header field to the decoded header list without
+                     altering the dynamic table. Intermediaries MUST use the same representation for encoding this header field.
+                  </p>
+               </div>
+               <div id="Literal.Header.Field.never.Indexed.Indexed.Name"></div>
+               <div id="rfc.figure.10"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 1 |  Index (4+)   |
++---+---+-----------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</pre></div>
+               <p class="figure">Figure 10: Literal Header Field Never Indexed — Indexed Name</p>
+               <div id="Literal.Header.Field.never.Indexed.New.Name"></div>
+               <div id="rfc.figure.11"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 0 | 1 |       0       |
++---+---+-----------------------+
+| H |     Name Length (7+)      |
++---+---------------------------+
+|  Name String (Length octets)  |
++---+---------------------------+
+| H |     Value Length (7+)     |
++---+---------------------------+
+| Value String (Length octets)  |
++-------------------------------+
+</pre></div>
+               <p class="figure">Figure 11: Literal Header Field Never Indexed — New Name</p>
+               <div id="rfc.section.6.2.3.p.2">
+                  <p>A literal header field never-indexed representation starts with the '0001' 4-bit pattern.</p>
+               </div>
+               <div id="rfc.section.6.2.3.p.3">
+                  <p>When a header field is represented as a literal header field never indexed, it MUST always be encoded with this specific literal
+                     representation. In particular, when a peer sends a header field that it received represented as a literal header field never
+                     indexed, it MUST use the same representation to forward this header field.
+                  </p>
+               </div>
+               <div id="rfc.section.6.2.3.p.4">
+                  <p>This representation is intended for protecting header field values that are not to be put at risk by compressing them (see <a href="#compression.based.attacks" title="Probing Dynamic Table State">Section&nbsp;7.1</a> for more details).
+                  </p>
+               </div>
+               <div id="rfc.section.6.2.3.p.5">
+                  <p>The encoding of the representation is identical to the literal header field without indexing (see <a href="#literal.header.without.indexing" title="Literal Header Field without Indexing">Section&nbsp;6.2.2</a>).
+                  </p>
+               </div>
+            </div>
+         </div>
+         <div id="encoding.context.update">
+            <h2 id="rfc.section.6.3"><a href="#rfc.section.6.3">6.3</a>&nbsp;<a href="#encoding.context.update">Dynamic Table Size Update</a></h2>
+            <div id="rfc.section.6.3.p.1">
+               <p>A dynamic table size update signals a change to the size of the dynamic table.</p>
+            </div>
+            <div id="Maximum.Dynamic.Table.Size.Change"></div>
+            <div id="rfc.figure.12"><pre class="inline">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 |   Max size (5+)   |
++---+---------------------------+
+</pre></div>
+            <p class="figure">Figure 12: Maximum Dynamic Table Size Change</p>
+            <div id="rfc.section.6.3.p.2">
+               <p>A dynamic table size update starts with the '001' 3-bit pattern, followed by the new maximum size, represented as an integer
+                  with a 5-bit prefix (see <a href="#integer.representation" title="Integer Representation">Section&nbsp;5.1</a>).
+               </p>
+            </div>
+            <div id="rfc.section.6.3.p.3">
+               <p>The new maximum size MUST be lower than or equal to the limit determined by the protocol using HPACK. A value that exceeds
+                  this limit MUST be treated as a decoding error. In HTTP/2, this limit is the last value of the SETTINGS_HEADER_TABLE_SIZE
+                  parameter (see <a href="https://tools.ietf.org/html/rfc7540#section-6.5.2" title="Defined SETTINGS Parameters">Section 6.5.2</a> of <a href="#HTTP2"><cite title="Hypertext Transfer Protocol Version 2 (HTTP/2)">[HTTP2]</cite></a>) received from the decoder and acknowledged by the encoder (see <a href="https://tools.ietf.org/html/rfc7540#section-6.5.3" title="Settings Synchronization">Section 6.5.3</a> of <a href="#HTTP2"><cite title="Hypertext Transfer Protocol Version 2 (HTTP/2)">[HTTP2]</cite></a>).
+               </p>
+            </div>
+            <div id="rfc.section.6.3.p.4">
+               <p>Reducing the maximum size of the dynamic table can cause entries to be evicted (see <a href="#entry.eviction" title="Entry Eviction When Dynamic Table Size Changes">Section&nbsp;4.3</a>).
+               </p>
+            </div>
+         </div>
+      </div>
+      <div id="Security">
+         <h1 id="rfc.section.7"><a href="#rfc.section.7">7.</a>&nbsp;<a href="#Security">Security Considerations</a></h1>
+         <div id="rfc.section.7.p.1">
+            <p>This section describes potential areas of security concern with HPACK: </p>
+            <ul>
+               <li>Use of compression as a length-based oracle for verifying guesses about secrets that are compressed into a shared compression
+                  context.
+               </li>
+               <li>Denial of service resulting from exhausting processing or memory capacity at a decoder.</li>
+            </ul>
+         </div>
+         <div id="compression.based.attacks">
+            <h2 id="rfc.section.7.1"><a href="#rfc.section.7.1">7.1</a>&nbsp;<a href="#compression.based.attacks">Probing Dynamic Table State</a></h2>
+            <div id="rfc.section.7.1.p.1">
+               <p>HPACK reduces the length of header field encodings by exploiting the redundancy inherent in protocols like HTTP. The ultimate
+                  goal of this is to reduce the amount of data that is required to send HTTP requests or responses.
+               </p>
+            </div>
+            <div id="rfc.section.7.1.p.2">
+               <p>The compression context used to encode header fields can be probed by an attacker who can both define header fields to be
+                  encoded and transmitted and observe the length of those fields once they are encoded. When an attacker can do both, they can
+                  adaptively modify requests in order to confirm guesses about the dynamic table state. If a guess is compressed into a shorter
+                  length, the attacker can observe the encoded length and infer that the guess was correct.
+               </p>
+            </div>
+            <div id="rfc.section.7.1.p.3">
+               <p>This is possible even over the Transport Layer Security (TLS) protocol (see <a href="#TLS12"><cite title="The Transport Layer Security (TLS) Protocol Version 1.2">[TLS12]</cite></a>), because while TLS provides confidentiality protection for content, it only provides a limited amount of protection for
+                  the length of that content.
+               </p>
+            </div>
+            <div class="note">
+               <div id="rfc.section.7.1.p.4">
+                  <p><b>Note:</b> Padding schemes only provide limited protection against an attacker with these capabilities, potentially only forcing an increased
+                     number of guesses to learn the length associated with a given guess. Padding schemes also work directly against compression
+                     by increasing the number of bits that are transmitted.
+                  </p>
+               </div>
+            </div>
+            <div id="rfc.section.7.1.p.5">
+               <p>Attacks like <a href="#CRIME">CRIME</a> <cite title="CRIME">[CRIME]</cite> demonstrated the existence of these general attacker capabilities. The specific attack exploited the fact that <a href="#DEFLATE">DEFLATE</a> <cite title="DEFLATE Compressed Data Format Specification version 1.3">[DEFLATE]</cite> removes redundancy based on prefix matching. This permitted the attacker to confirm guesses a character at a time, reducing
+                  an exponential-time attack into a linear-time attack.
+               </p>
+            </div>
+            <div>
+               <h3 id="rfc.section.7.1.1"><a href="#rfc.section.7.1.1">7.1.1</a>&nbsp;Applicability to HPACK and HTTP
+               </h3>
+               <div id="rfc.section.7.1.1.p.1">
+                  <p>HPACK mitigates but does not completely prevent attacks modeled on <a href="#CRIME">CRIME</a> <cite title="CRIME">[CRIME]</cite> by forcing a guess to match an entire header field value rather than individual characters. Attackers can only learn whether
+                     a guess is correct or not, so they are reduced to brute-force guesses for the header field values.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.1.p.2">
+                  <p>The viability of recovering specific header field values therefore depends on the entropy of values. As a result, values with
+                     high entropy are unlikely to be recovered successfully. However, values with low entropy remain vulnerable.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.1.p.3">
+                  <p>Attacks of this nature are possible any time that two mutually distrustful entities control requests or responses that are
+                     placed onto a single HTTP/2 connection. If the shared HPACK compressor permits one entity to add entries to the dynamic table
+                     and the other to access those entries, then the state of the table can be learned.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.1.p.4">
+                  <p>Having requests or responses from mutually distrustful entities occurs when an intermediary either: </p>
+                  <ul>
+                     <li>sends requests from multiple clients on a single connection toward an origin server, or</li>
+                     <li>takes responses from multiple origin servers and places them on a shared connection toward a client.</li>
+                  </ul>
+                  <p> Web browsers also need to assume that requests made on the same connection by different <a href="#ORIGIN">web origins</a> <cite title="The Web Origin Concept">[ORIGIN]</cite> are made by mutually distrustful entities.
+                  </p>
+               </div>
+            </div>
+            <div>
+               <h3 id="rfc.section.7.1.2"><a href="#rfc.section.7.1.2">7.1.2</a>&nbsp;Mitigation
+               </h3>
+               <div id="rfc.section.7.1.2.p.1">
+                  <p>Users of HTTP that require confidentiality for header fields can use values with entropy sufficient to make guessing infeasible.
+                     However, this is impractical as a general solution because it forces all users of HTTP to take steps to mitigate attacks.
+                     It would impose new constraints on how HTTP is used.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.2.p.2">
+                  <p>Rather than impose constraints on users of HTTP, an implementation of HPACK can instead constrain how compression is applied
+                     in order to limit the potential for dynamic table probing.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.2.p.3">
+                  <p>An ideal solution segregates access to the dynamic table based on the entity that is constructing header fields. Header field
+                     values that are added to the table are attributed to an entity, and only the entity that created a particular value can extract
+                     that value.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.2.p.4">
+                  <p>To improve compression performance of this option, certain entries might be tagged as being public. For example, a web browser
+                     might make the values of the Accept-Encoding header field available in all requests.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.2.p.5">
+                  <p>An encoder without good knowledge of the provenance of header fields might instead introduce a penalty for a header field
+                     with many different values, such that a large number of attempts to guess a header field value results in the header field
+                     no longer being compared to the dynamic table entries in future messages, effectively preventing further guesses.
+                  </p>
+               </div>
+               <div class="note">
+                  <div id="rfc.section.7.1.2.p.6">
+                     <p><b>Note:</b> Simply removing entries corresponding to the header field from the dynamic table can be ineffectual if the attacker has a
+                        reliable way of causing values to be reinstalled. For example, a request to load an image in a web browser typically includes
+                        the Cookie header field (a potentially highly valued target for this sort of attack), and web sites can easily force an image
+                        to be loaded, thereby refreshing the entry in the dynamic table.
+                     </p>
+                  </div>
+               </div>
+               <div id="rfc.section.7.1.2.p.7">
+                  <p>This response might be made inversely proportional to the length of the header field value. Marking a header field as not
+                     using the dynamic table anymore might occur for shorter values more quickly or with higher probability than for longer values.
+                  </p>
+               </div>
+            </div>
+            <div id="never.indexed.literals">
+               <h3 id="rfc.section.7.1.3"><a href="#rfc.section.7.1.3">7.1.3</a>&nbsp;<a href="#never.indexed.literals">Never-Indexed Literals</a></h3>
+               <div id="rfc.section.7.1.3.p.1">
+                  <p>Implementations can also choose to protect sensitive header fields by not compressing them and instead encoding their value
+                     as literals.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.3.p.2">
+                  <p>Refusing to generate an indexed representation for a header field is only effective if compression is avoided on all hops.
+                     The never-indexed literal (see <a href="#literal.header.never.indexed" title="Literal Header Field Never Indexed">Section&nbsp;6.2.3</a>) can be used to signal to intermediaries that a particular value was intentionally sent as a literal.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.3.p.3">
+                  <p>An intermediary MUST NOT re-encode a value that uses the never-indexed literal representation with another representation
+                     that would index it. If HPACK is used for re-encoding, the never-indexed literal representation MUST be used.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.3.p.4">
+                  <p>The choice to use a never-indexed literal representation for a header field depends on several factors. Since HPACK doesn't
+                     protect against guessing an entire header field value, short or low-entropy values are more readily recovered by an adversary.
+                     Therefore, an encoder might choose not to index values with low entropy.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.3.p.5">
+                  <p>An encoder might also choose not to index values for header fields that are considered to be highly valuable or sensitive
+                     to recovery, such as the Cookie or Authorization header fields.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.3.p.6">
+                  <p>On the contrary, an encoder might prefer indexing values for header fields that have little or no value if they were exposed.
+                     For instance, a User-Agent header field does not commonly vary between requests and is sent to any server. In that case, confirmation
+                     that a particular User-Agent value has been used provides little value.
+                  </p>
+               </div>
+               <div id="rfc.section.7.1.3.p.7">
+                  <p>Note that these criteria for deciding to use a never-indexed literal representation will evolve over time as new attacks are
+                     discovered.
+                  </p>
+               </div>
+            </div>
+         </div>
+         <div>
+            <h2 id="rfc.section.7.2"><a href="#rfc.section.7.2">7.2</a>&nbsp;Static Huffman Encoding
+            </h2>
+            <div id="rfc.section.7.2.p.1">
+               <p>There is no currently known attack against a static Huffman encoding. A study has shown that using a static Huffman encoding
+                  table created an information leakage; however, this same study concluded that an attacker could not take advantage of this
+                  information leakage to recover any meaningful amount of information (see <a href="#PETAL"><cite title="PETAL: Preset Encoding Table Information Leakage">[PETAL]</cite></a>).
+               </p>
+            </div>
+         </div>
+         <div>
+            <h2 id="rfc.section.7.3"><a href="#rfc.section.7.3">7.3</a>&nbsp;Memory Consumption
+            </h2>
+            <div id="rfc.section.7.3.p.1">
+               <p>An attacker can try to cause an endpoint to exhaust its memory. HPACK is designed to limit both the peak and state amounts
+                  of memory allocated by an endpoint.
+               </p>
+            </div>
+            <div id="rfc.section.7.3.p.2">
+               <p>The amount of memory used by the compressor is limited by the protocol using HPACK through the definition of the maximum size
+                  of the dynamic table. In HTTP/2, this value is controlled by the decoder through the setting parameter SETTINGS_HEADER_TABLE_SIZE
+                  (see <a href="https://tools.ietf.org/html/rfc7540#section-6.5.2" title="Defined SETTINGS Parameters">Section 6.5.2</a> of <a href="#HTTP2"><cite title="Hypertext Transfer Protocol Version 2 (HTTP/2)">[HTTP2]</cite></a>). This limit takes into account both the size of the data stored in the dynamic table, plus a small allowance for overhead.
+               </p>
+            </div>
+            <div id="rfc.section.7.3.p.3">
+               <p>A decoder can limit the amount of state memory used by setting an appropriate value for the maximum size of the dynamic table.
+                  In HTTP/2, this is realized by setting an appropriate value for the SETTINGS_HEADER_TABLE_SIZE parameter. An encoder can limit
+                  the amount of state memory it uses by signaling a lower dynamic table size than the decoder allows (see <a href="#encoding.context.update" title="Dynamic Table Size Update">Section&nbsp;6.3</a>).
+               </p>
+            </div>
+            <div id="rfc.section.7.3.p.4">
+               <p>The amount of temporary memory consumed by an encoder or decoder can be limited by processing header fields sequentially.
+                  An implementation does not need to retain a complete list of header fields. Note, however, that it might be necessary for
+                  an application to retain a complete header list for other reasons; even though HPACK does not force this to occur, application
+                  constraints might make this necessary.
+               </p>
+            </div>
+         </div>
+         <div>
+            <h2 id="rfc.section.7.4"><a href="#rfc.section.7.4">7.4</a>&nbsp;Implementation Limits
+            </h2>
+            <div id="rfc.section.7.4.p.1">
+               <p>An implementation of HPACK needs to ensure that large values for integers, long encoding for integers, or long string literals
+                  do not create security weaknesses.
+               </p>
+            </div>
+            <div id="rfc.section.7.4.p.2">
+               <p>An implementation has to set a limit for the values it accepts for integers, as well as for the encoded length (see <a href="#integer.representation" title="Integer Representation">Section&nbsp;5.1</a>). In the same way, it has to set a limit to the length it accepts for string literals (see <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>).
+               </p>
+            </div>
+         </div>
+      </div>
+      <h1 id="rfc.references"><a id="rfc.section.8" href="#rfc.section.8">8.</a> References
+      </h1>
+      <h2 id="rfc.references.1"><a href="#rfc.section.8.1" id="rfc.section.8.1">8.1</a> Normative References
+      </h2>
+      <table>
+         <tr>
+            <td class="reference"><b id="HTTP2">[HTTP2]</b></td>
+            <td class="top">Belshe, M., Peon, R., and M. Thomson, Ed., “<a href="https://tools.ietf.org/html/rfc7540">Hypertext Transfer Protocol Version 2 (HTTP/2)</a>”, RFC&nbsp;7540, <a href="http://dx.doi.org/10.17487/RFC7540">DOI&nbsp;10.17487/RFC7540</a>, May&nbsp;2015, &lt;<a href="http://www.rfc-editor.org/info/rfc7540">http://www.rfc-editor.org/info/rfc7540</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="RFC2119">[RFC2119]</b></td>
+            <td class="top">Bradner, S., “<a href="https://tools.ietf.org/html/rfc2119">Key words for use in RFCs to Indicate Requirement Levels</a>”, BCP&nbsp;14, RFC&nbsp;2119, <a href="http://dx.doi.org/10.17487/RFC2119">DOI&nbsp;10.17487/RFC2119</a>, March&nbsp;1997, &lt;<a href="http://www.rfc-editor.org/info/rfc2119">http://www.rfc-editor.org/info/rfc2119</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="RFC7230">[RFC7230]</b></td>
+            <td class="top">Fielding, R., Ed. and J. Reschke, Ed., “<a href="https://tools.ietf.org/html/rfc7230">Hypertext Transfer Protocol (HTTP/1.1): Message Syntax and Routing</a>”, RFC&nbsp;7230, <a href="http://dx.doi.org/10.17487/RFC7230">DOI&nbsp;10.17487/RFC7230</a>, June&nbsp;2014, &lt;<a href="http://www.rfc-editor.org/info/rfc7230">http://www.rfc-editor.org/info/rfc7230</a>&gt;.
+            </td>
+         </tr>
+      </table>
+      <h2 id="rfc.references.2"><a href="#rfc.section.8.2" id="rfc.section.8.2">8.2</a> Informative References
+      </h2>
+      <table>
+         <tr>
+            <td class="reference"><b id="CANONICAL">[CANONICAL]</b></td>
+            <td class="top">Schwartz, E. and B. Kallick, “<a href="https://dl.acm.org/citation.cfm?id=363991">Generating a canonical prefix encoding</a>”, Communications of the ACM,&nbsp;Volume 7 Issue 3, pp. 166-169, March&nbsp;1964, &lt;<a href="https://dl.acm.org/citation.cfm?id=363991">https://dl.acm.org/citation.cfm?id=363991</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="CRIME">[CRIME]</b></td>
+            <td class="top">Wikipedia, “<a href="http://en.wikipedia.org/w/index.php?title=CRIME&amp;oldid=660948120">CRIME</a>”, May&nbsp;2015, &lt;<a href="http://en.wikipedia.org/w/index.php?title=CRIME&amp;oldid=660948120">http://en.wikipedia.org/w/index.php?title=CRIME&amp;oldid=660948120</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="DEFLATE">[DEFLATE]</b></td>
+            <td class="top">Deutsch, P., “<a href="https://tools.ietf.org/html/rfc1951">DEFLATE Compressed Data Format Specification version 1.3</a>”, RFC&nbsp;1951, <a href="http://dx.doi.org/10.17487/RFC1951">DOI&nbsp;10.17487/RFC1951</a>, May&nbsp;1996, &lt;<a href="http://www.rfc-editor.org/info/rfc1951">http://www.rfc-editor.org/info/rfc1951</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="HUFFMAN">[HUFFMAN]</b></td>
+            <td class="top">Huffman, D., “<a href="http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">A Method for the Construction of Minimum-Redundancy Codes</a>”, Proceedings of the Institute of Radio Engineers,&nbsp;Volume 40, Number 9, pp. 1098-1101, September&nbsp;1952, &lt;<a href="http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119">http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=4051119</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="ORIGIN">[ORIGIN]</b></td>
+            <td class="top">Barth, A., “<a href="https://tools.ietf.org/html/rfc6454">The Web Origin Concept</a>”, RFC&nbsp;6454, <a href="http://dx.doi.org/10.17487/RFC6454">DOI&nbsp;10.17487/RFC6454</a>, December&nbsp;2011, &lt;<a href="http://www.rfc-editor.org/info/rfc6454">http://www.rfc-editor.org/info/rfc6454</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="PETAL">[PETAL]</b></td>
+            <td class="top">Tan, J. and J. Nahata, “<a href="http://www.pdl.cmu.edu/PDL-FTP/associated/CMU-PDL-13-106.pdf">PETAL: Preset Encoding Table Information Leakage</a>”, April&nbsp;2013, &lt;<a href="http://www.pdl.cmu.edu/PDL-FTP/associated/CMU-PDL-13-106.pdf">http://www.pdl.cmu.edu/PDL-FTP/associated/CMU-PDL-13-106.pdf</a>&gt;.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="SPDY">[SPDY]</b></td>
+            <td class="top">Belshe, M. and R. Peon, “<a href="https://tools.ietf.org/html/draft-mbelshe-httpbis-spdy-00">SPDY Protocol</a>”, Internet-Draft&nbsp;draft-mbelshe-httpbis-spdy-00 (work in progress), February&nbsp;2012.
+            </td>
+         </tr>
+         <tr>
+            <td class="reference"><b id="TLS12">[TLS12]</b></td>
+            <td class="top">Dierks, T. and E. Rescorla, “<a href="https://tools.ietf.org/html/rfc5246">The Transport Layer Security (TLS) Protocol Version 1.2</a>”, RFC&nbsp;5246, <a href="http://dx.doi.org/10.17487/RFC5246">DOI&nbsp;10.17487/RFC5246</a>, August&nbsp;2008, &lt;<a href="http://www.rfc-editor.org/info/rfc5246">http://www.rfc-editor.org/info/rfc5246</a>&gt;.
+            </td>
+         </tr>
+      </table>
+      <div id="static.table.definition">
+         <h1 id="rfc.section.A" class="np"><a href="#rfc.section.A">A.</a>&nbsp;<a href="#static.table.definition">Static Table Definition</a></h1>
+         <div id="rfc.section.A.p.1">
+            <p>The static table (see <a href="#static.table" title="Static Table">Section&nbsp;2.3.1</a>) consists in a predefined and unchangeable list of header fields.
+            </p>
+         </div>
+         <div id="rfc.section.A.p.2">
+            <p>The static table was created from the most frequent header fields used by popular web sites, with the addition of HTTP/2-specific
+               pseudo-header fields (see <a href="https://tools.ietf.org/html/rfc7540#section-8.1.2.1" title="Pseudo-Header Fields">Section 8.1.2.1</a> of <a href="#HTTP2"><cite title="Hypertext Transfer Protocol Version 2 (HTTP/2)">[HTTP2]</cite></a>). For header fields with a few frequent values, an entry was added for each of these frequent values. For other header fields,
+               an entry was added with an empty value.
+            </p>
+         </div>
+         <div id="rfc.section.A.p.3">
+            <p><a href="#static.table.entries">Table&nbsp;1</a> lists the predefined header fields that make up the static table and gives the index of each entry.
+            </p>
+         </div>
+         <div id="rfc.table.1">
+            <div id="static.table.entries"></div>
+            <table class="tt full center" cellpadding="3" cellspacing="0">
+               <caption>Table 1: Static Table Entries</caption>
+               <thead>
+                  <tr>
+                     <th>Index</th>
+                     <th>Header Name</th>
+                     <th>Header Value</th>
+                  </tr>
+               </thead>
+               <tbody>
+                  <tr>
+                     <td class="left">1</td>
+                     <td class="left">:authority</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">2</td>
+                     <td class="left">:method</td>
+                     <td class="left">GET</td>
+                  </tr>
+                  <tr>
+                     <td class="left">3</td>
+                     <td class="left">:method</td>
+                     <td class="left">POST</td>
+                  </tr>
+                  <tr>
+                     <td class="left">4</td>
+                     <td class="left">:path</td>
+                     <td class="left">/</td>
+                  </tr>
+                  <tr>
+                     <td class="left">5</td>
+                     <td class="left">:path</td>
+                     <td class="left">/index.html</td>
+                  </tr>
+                  <tr>
+                     <td class="left">6</td>
+                     <td class="left">:scheme</td>
+                     <td class="left">http</td>
+                  </tr>
+                  <tr>
+                     <td class="left">7</td>
+                     <td class="left">:scheme</td>
+                     <td class="left">https</td>
+                  </tr>
+                  <tr>
+                     <td class="left">8</td>
+                     <td class="left">:status</td>
+                     <td class="left">200</td>
+                  </tr>
+                  <tr>
+                     <td class="left">9</td>
+                     <td class="left">:status</td>
+                     <td class="left">204</td>
+                  </tr>
+                  <tr>
+                     <td class="left">10</td>
+                     <td class="left">:status</td>
+                     <td class="left">206</td>
+                  </tr>
+                  <tr>
+                     <td class="left">11</td>
+                     <td class="left">:status</td>
+                     <td class="left">304</td>
+                  </tr>
+                  <tr>
+                     <td class="left">12</td>
+                     <td class="left">:status</td>
+                     <td class="left">400</td>
+                  </tr>
+                  <tr>
+                     <td class="left">13</td>
+                     <td class="left">:status</td>
+                     <td class="left">404</td>
+                  </tr>
+                  <tr>
+                     <td class="left">14</td>
+                     <td class="left">:status</td>
+                     <td class="left">500</td>
+                  </tr>
+                  <tr>
+                     <td class="left">15</td>
+                     <td class="left">accept-charset</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">16</td>
+                     <td class="left">accept-encoding</td>
+                     <td class="left">gzip, deflate</td>
+                  </tr>
+                  <tr>
+                     <td class="left">17</td>
+                     <td class="left">accept-language</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">18</td>
+                     <td class="left">accept-ranges</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">19</td>
+                     <td class="left">accept</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">20</td>
+                     <td class="left">access-control-allow-origin</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">21</td>
+                     <td class="left">age</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">22</td>
+                     <td class="left">allow</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">23</td>
+                     <td class="left">authorization</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">24</td>
+                     <td class="left">cache-control</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">25</td>
+                     <td class="left">content-disposition</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">26</td>
+                     <td class="left">content-encoding</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">27</td>
+                     <td class="left">content-language</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">28</td>
+                     <td class="left">content-length</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">29</td>
+                     <td class="left">content-location</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">30</td>
+                     <td class="left">content-range</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">31</td>
+                     <td class="left">content-type</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">32</td>
+                     <td class="left">cookie</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">33</td>
+                     <td class="left">date</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">34</td>
+                     <td class="left">etag</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">35</td>
+                     <td class="left">expect</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">36</td>
+                     <td class="left">expires</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">37</td>
+                     <td class="left">from</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">38</td>
+                     <td class="left">host</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">39</td>
+                     <td class="left">if-match</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">40</td>
+                     <td class="left">if-modified-since</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">41</td>
+                     <td class="left">if-none-match</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">42</td>
+                     <td class="left">if-range</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">43</td>
+                     <td class="left">if-unmodified-since</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">44</td>
+                     <td class="left">last-modified</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">45</td>
+                     <td class="left">link</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">46</td>
+                     <td class="left">location</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">47</td>
+                     <td class="left">max-forwards</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">48</td>
+                     <td class="left">proxy-authenticate</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">49</td>
+                     <td class="left">proxy-authorization</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">50</td>
+                     <td class="left">range</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">51</td>
+                     <td class="left">referer</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">52</td>
+                     <td class="left">refresh</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">53</td>
+                     <td class="left">retry-after</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">54</td>
+                     <td class="left">server</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">55</td>
+                     <td class="left">set-cookie</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">56</td>
+                     <td class="left">strict-transport-security</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">57</td>
+                     <td class="left">transfer-encoding</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">58</td>
+                     <td class="left">user-agent</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">59</td>
+                     <td class="left">vary</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">60</td>
+                     <td class="left">via</td>
+                     <td class="left"></td>
+                  </tr>
+                  <tr>
+                     <td class="left">61</td>
+                     <td class="left">www-authenticate</td>
+                     <td class="left"></td>
+                  </tr>
+               </tbody>
+            </table>
+         </div>
+      </div>
+      <div id="huffman.code">
+         <h1 id="rfc.section.B"><a href="#rfc.section.B">B.</a>&nbsp;<a href="#huffman.code">Huffman Code</a></h1>
+         <div id="rfc.section.B.p.1">
+            <p>The following Huffman code is used when encoding string literals with a Huffman coding (see <a href="#string.literal.representation" title="String Literal Representation">Section&nbsp;5.2</a>).
+            </p>
+         </div>
+         <div id="rfc.section.B.p.2">
+            <p>This Huffman code was generated from statistics obtained on a large sample of HTTP headers. It is a canonical Huffman code
+               (see <a href="#CANONICAL"><cite title="Generating a canonical prefix encoding">[CANONICAL]</cite></a>) with some tweaking to ensure that no symbol has a unique code length.
+            </p>
+         </div>
+         <div id="rfc.section.B.p.3">
+            <p>Each row in the table defines the code used to represent a symbol: </p>
+            <dl>
+               <dt>sym:</dt>
+               <dd>The symbol to be represented. It is the decimal value of an octet, possibly prepended with its ASCII representation. A specific
+                  symbol, "EOS", is used to indicate the end of a string literal.
+               </dd>
+               <dt>code as bits:</dt>
+               <dd>The Huffman code for the symbol represented as a base-2 integer, aligned on the most significant bit (MSB).</dd>
+               <dt>code as hex:</dt>
+               <dd>The Huffman code for the symbol, represented as a hexadecimal integer, aligned on the least significant bit (LSB).</dd>
+               <dt>len:</dt>
+               <dd>The number of bits for the code representing the symbol.</dd>
+            </dl>
+         </div>
+         <div id="rfc.section.B.p.4">
+            <p>As an example, the code for the symbol 47 (corresponding to the ASCII character "/") consists in the 6 bits "0", "1", "1",
+               "0", "0", "0". This corresponds to the value 0x18 (in hexadecimal) encoded in 6 bits.
+            </p>
+         </div>
+         <div id="rfc.figure.u.3"><pre class="inline">                                                     code
+                       code as bits                 as hex   len
+     sym              aligned to MSB                aligned   in
+                                                    to LSB   bits
+    (  0)  |11111111|11000                             1ff8  [13]
+    (  1)  |11111111|11111111|1011000                7fffd8  [23]
+    (  2)  |11111111|11111111|11111110|0010         fffffe2  [28]
+    (  3)  |11111111|11111111|11111110|0011         fffffe3  [28]
+    (  4)  |11111111|11111111|11111110|0100         fffffe4  [28]
+    (  5)  |11111111|11111111|11111110|0101         fffffe5  [28]
+    (  6)  |11111111|11111111|11111110|0110         fffffe6  [28]
+    (  7)  |11111111|11111111|11111110|0111         fffffe7  [28]
+    (  8)  |11111111|11111111|11111110|1000         fffffe8  [28]
+    (  9)  |11111111|11111111|11101010               ffffea  [24]
+    ( 10)  |11111111|11111111|11111111|111100      3ffffffc  [30]
+    ( 11)  |11111111|11111111|11111110|1001         fffffe9  [28]
+    ( 12)  |11111111|11111111|11111110|1010         fffffea  [28]
+    ( 13)  |11111111|11111111|11111111|111101      3ffffffd  [30]
+    ( 14)  |11111111|11111111|11111110|1011         fffffeb  [28]
+    ( 15)  |11111111|11111111|11111110|1100         fffffec  [28]
+    ( 16)  |11111111|11111111|11111110|1101         fffffed  [28]
+    ( 17)  |11111111|11111111|11111110|1110         fffffee  [28]
+    ( 18)  |11111111|11111111|11111110|1111         fffffef  [28]
+    ( 19)  |11111111|11111111|11111111|0000         ffffff0  [28]
+    ( 20)  |11111111|11111111|11111111|0001         ffffff1  [28]
+    ( 21)  |11111111|11111111|11111111|0010         ffffff2  [28]
+    ( 22)  |11111111|11111111|11111111|111110      3ffffffe  [30]
+    ( 23)  |11111111|11111111|11111111|0011         ffffff3  [28]
+    ( 24)  |11111111|11111111|11111111|0100         ffffff4  [28]
+    ( 25)  |11111111|11111111|11111111|0101         ffffff5  [28]
+    ( 26)  |11111111|11111111|11111111|0110         ffffff6  [28]
+    ( 27)  |11111111|11111111|11111111|0111         ffffff7  [28]
+    ( 28)  |11111111|11111111|11111111|1000         ffffff8  [28]
+    ( 29)  |11111111|11111111|11111111|1001         ffffff9  [28]
+    ( 30)  |11111111|11111111|11111111|1010         ffffffa  [28]
+    ( 31)  |11111111|11111111|11111111|1011         ffffffb  [28]
+' ' ( 32)  |010100                                       14  [ 6]
+'!' ( 33)  |11111110|00                                 3f8  [10]
+'"' ( 34)  |11111110|01                                 3f9  [10]
+'#' ( 35)  |11111111|1010                               ffa  [12]
+'$' ( 36)  |11111111|11001                             1ff9  [13]
+'%' ( 37)  |010101                                       15  [ 6]
+'&amp;' ( 38)  |11111000                                     f8  [ 8]
+''' ( 39)  |11111111|010                                7fa  [11]
+'(' ( 40)  |11111110|10                                 3fa  [10]
+')' ( 41)  |11111110|11                                 3fb  [10]
+'*' ( 42)  |11111001                                     f9  [ 8]
+'+' ( 43)  |11111111|011                                7fb  [11]
+',' ( 44)  |11111010                                     fa  [ 8]
+'-' ( 45)  |010110                                       16  [ 6]
+'.' ( 46)  |010111                                       17  [ 6]
+'/' ( 47)  |011000                                       18  [ 6]
+'0' ( 48)  |00000                                         0  [ 5]
+'1' ( 49)  |00001                                         1  [ 5]
+'2' ( 50)  |00010                                         2  [ 5]
+'3' ( 51)  |011001                                       19  [ 6]
+'4' ( 52)  |011010                                       1a  [ 6]
+'5' ( 53)  |011011                                       1b  [ 6]
+'6' ( 54)  |011100                                       1c  [ 6]
+'7' ( 55)  |011101                                       1d  [ 6]
+'8' ( 56)  |011110                                       1e  [ 6]
+'9' ( 57)  |011111                                       1f  [ 6]
+':' ( 58)  |1011100                                      5c  [ 7]
+';' ( 59)  |11111011                                     fb  [ 8]
+'&lt;' ( 60)  |11111111|1111100                           7ffc  [15]
+'=' ( 61)  |100000                                       20  [ 6]
+'&gt;' ( 62)  |11111111|1011                               ffb  [12]
+'?' ( 63)  |11111111|00                                 3fc  [10]
+'@' ( 64)  |11111111|11010                             1ffa  [13]
+'A' ( 65)  |100001                                       21  [ 6]
+'B' ( 66)  |1011101                                      5d  [ 7]
+'C' ( 67)  |1011110                                      5e  [ 7]
+'D' ( 68)  |1011111                                      5f  [ 7]
+'E' ( 69)  |1100000                                      60  [ 7]
+'F' ( 70)  |1100001                                      61  [ 7]
+'G' ( 71)  |1100010                                      62  [ 7]
+'H' ( 72)  |1100011                                      63  [ 7]
+'I' ( 73)  |1100100                                      64  [ 7]
+'J' ( 74)  |1100101                                      65  [ 7]
+'K' ( 75)  |1100110                                      66  [ 7]
+'L' ( 76)  |1100111                                      67  [ 7]
+'M' ( 77)  |1101000                                      68  [ 7]
+'N' ( 78)  |1101001                                      69  [ 7]
+'O' ( 79)  |1101010                                      6a  [ 7]
+'P' ( 80)  |1101011                                      6b  [ 7]
+'Q' ( 81)  |1101100                                      6c  [ 7]
+'R' ( 82)  |1101101                                      6d  [ 7]
+'S' ( 83)  |1101110                                      6e  [ 7]
+'T' ( 84)  |1101111                                      6f  [ 7]
+'U' ( 85)  |1110000                                      70  [ 7]
+'V' ( 86)  |1110001                                      71  [ 7]
+'W' ( 87)  |1110010                                      72  [ 7]
+'X' ( 88)  |11111100                                     fc  [ 8]
+'Y' ( 89)  |1110011                                      73  [ 7]
+'Z' ( 90)  |11111101                                     fd  [ 8]
+'[' ( 91)  |11111111|11011                             1ffb  [13]
+'\' ( 92)  |11111111|11111110|000                     7fff0  [19]
+']' ( 93)  |11111111|11100                             1ffc  [13]
+'^' ( 94)  |11111111|111100                            3ffc  [14]
+'_' ( 95)  |100010                                       22  [ 6]
+'`' ( 96)  |11111111|1111101                           7ffd  [15]
+'a' ( 97)  |00011                                         3  [ 5]
+'b' ( 98)  |100011                                       23  [ 6]
+'c' ( 99)  |00100                                         4  [ 5]
+'d' (100)  |100100                                       24  [ 6]
+'e' (101)  |00101                                         5  [ 5]
+'f' (102)  |100101                                       25  [ 6]
+'g' (103)  |100110                                       26  [ 6]
+'h' (104)  |100111                                       27  [ 6]
+'i' (105)  |00110                                         6  [ 5]
+'j' (106)  |1110100                                      74  [ 7]
+'k' (107)  |1110101                                      75  [ 7]
+'l' (108)  |101000                                       28  [ 6]
+'m' (109)  |101001                                       29  [ 6]
+'n' (110)  |101010                                       2a  [ 6]
+'o' (111)  |00111                                         7  [ 5]
+'p' (112)  |101011                                       2b  [ 6]
+'q' (113)  |1110110                                      76  [ 7]
+'r' (114)  |101100                                       2c  [ 6]
+'s' (115)  |01000                                         8  [ 5]
+'t' (116)  |01001                                         9  [ 5]
+'u' (117)  |101101                                       2d  [ 6]
+'v' (118)  |1110111                                      77  [ 7]
+'w' (119)  |1111000                                      78  [ 7]
+'x' (120)  |1111001                                      79  [ 7]
+'y' (121)  |1111010                                      7a  [ 7]
+'z' (122)  |1111011                                      7b  [ 7]
+'{' (123)  |11111111|1111110                           7ffe  [15]
+'|' (124)  |11111111|100                                7fc  [11]
+'}' (125)  |11111111|111101                            3ffd  [14]
+'~' (126)  |11111111|11101                             1ffd  [13]
+    (127)  |11111111|11111111|11111111|1100         ffffffc  [28]
+    (128)  |11111111|11111110|0110                    fffe6  [20]
+    (129)  |11111111|11111111|010010                 3fffd2  [22]
+    (130)  |11111111|11111110|0111                    fffe7  [20]
+    (131)  |11111111|11111110|1000                    fffe8  [20]
+    (132)  |11111111|11111111|010011                 3fffd3  [22]
+    (133)  |11111111|11111111|010100                 3fffd4  [22]
+    (134)  |11111111|11111111|010101                 3fffd5  [22]
+    (135)  |11111111|11111111|1011001                7fffd9  [23]
+    (136)  |11111111|11111111|010110                 3fffd6  [22]
+    (137)  |11111111|11111111|1011010                7fffda  [23]
+    (138)  |11111111|11111111|1011011                7fffdb  [23]
+    (139)  |11111111|11111111|1011100                7fffdc  [23]
+    (140)  |11111111|11111111|1011101                7fffdd  [23]
+    (141)  |11111111|11111111|1011110                7fffde  [23]
+    (142)  |11111111|11111111|11101011               ffffeb  [24]
+    (143)  |11111111|11111111|1011111                7fffdf  [23]
+    (144)  |11111111|11111111|11101100               ffffec  [24]
+    (145)  |11111111|11111111|11101101               ffffed  [24]
+    (146)  |11111111|11111111|010111                 3fffd7  [22]
+    (147)  |11111111|11111111|1100000                7fffe0  [23]
+    (148)  |11111111|11111111|11101110               ffffee  [24]
+    (149)  |11111111|11111111|1100001                7fffe1  [23]
+    (150)  |11111111|11111111|1100010                7fffe2  [23]
+    (151)  |11111111|11111111|1100011                7fffe3  [23]
+    (152)  |11111111|11111111|1100100                7fffe4  [23]
+    (153)  |11111111|11111110|11100                  1fffdc  [21]
+    (154)  |11111111|11111111|011000                 3fffd8  [22]
+    (155)  |11111111|11111111|1100101                7fffe5  [23]
+    (156)  |11111111|11111111|011001                 3fffd9  [22]
+    (157)  |11111111|11111111|1100110                7fffe6  [23]
+    (158)  |11111111|11111111|1100111                7fffe7  [23]
+    (159)  |11111111|11111111|11101111               ffffef  [24]
+    (160)  |11111111|11111111|011010                 3fffda  [22]
+    (161)  |11111111|11111110|11101                  1fffdd  [21]
+    (162)  |11111111|11111110|1001                    fffe9  [20]
+    (163)  |11111111|11111111|011011                 3fffdb  [22]
+    (164)  |11111111|11111111|011100                 3fffdc  [22]
+    (165)  |11111111|11111111|1101000                7fffe8  [23]
+    (166)  |11111111|11111111|1101001                7fffe9  [23]
+    (167)  |11111111|11111110|11110                  1fffde  [21]
+    (168)  |11111111|11111111|1101010                7fffea  [23]
+    (169)  |11111111|11111111|011101                 3fffdd  [22]
+    (170)  |11111111|11111111|011110                 3fffde  [22]
+    (171)  |11111111|11111111|11110000               fffff0  [24]
+    (172)  |11111111|11111110|11111                  1fffdf  [21]
+    (173)  |11111111|11111111|011111                 3fffdf  [22]
+    (174)  |11111111|11111111|1101011                7fffeb  [23]
+    (175)  |11111111|11111111|1101100                7fffec  [23]
+    (176)  |11111111|11111111|00000                  1fffe0  [21]
+    (177)  |11111111|11111111|00001                  1fffe1  [21]
+    (178)  |11111111|11111111|100000                 3fffe0  [22]
+    (179)  |11111111|11111111|00010                  1fffe2  [21]
+    (180)  |11111111|11111111|1101101                7fffed  [23]
+    (181)  |11111111|11111111|100001                 3fffe1  [22]
+    (182)  |11111111|11111111|1101110                7fffee  [23]
+    (183)  |11111111|11111111|1101111                7fffef  [23]
+    (184)  |11111111|11111110|1010                    fffea  [20]
+    (185)  |11111111|11111111|100010                 3fffe2  [22]
+    (186)  |11111111|11111111|100011                 3fffe3  [22]
+    (187)  |11111111|11111111|100100                 3fffe4  [22]
+    (188)  |11111111|11111111|1110000                7ffff0  [23]
+    (189)  |11111111|11111111|100101                 3fffe5  [22]
+    (190)  |11111111|11111111|100110                 3fffe6  [22]
+    (191)  |11111111|11111111|1110001                7ffff1  [23]
+    (192)  |11111111|11111111|11111000|00           3ffffe0  [26]
+    (193)  |11111111|11111111|11111000|01           3ffffe1  [26]
+    (194)  |11111111|11111110|1011                    fffeb  [20]
+    (195)  |11111111|11111110|001                     7fff1  [19]
+    (196)  |11111111|11111111|100111                 3fffe7  [22]
+    (197)  |11111111|11111111|1110010                7ffff2  [23]
+    (198)  |11111111|11111111|101000                 3fffe8  [22]
+    (199)  |11111111|11111111|11110110|0            1ffffec  [25]
+    (200)  |11111111|11111111|11111000|10           3ffffe2  [26]
+    (201)  |11111111|11111111|11111000|11           3ffffe3  [26]
+    (202)  |11111111|11111111|11111001|00           3ffffe4  [26]
+    (203)  |11111111|11111111|11111011|110          7ffffde  [27]
+    (204)  |11111111|11111111|11111011|111          7ffffdf  [27]
+    (205)  |11111111|11111111|11111001|01           3ffffe5  [26]
+    (206)  |11111111|11111111|11110001               fffff1  [24]
+    (207)  |11111111|11111111|11110110|1            1ffffed  [25]
+    (208)  |11111111|11111110|010                     7fff2  [19]
+    (209)  |11111111|11111111|00011                  1fffe3  [21]
+    (210)  |11111111|11111111|11111001|10           3ffffe6  [26]
+    (211)  |11111111|11111111|11111100|000          7ffffe0  [27]
+    (212)  |11111111|11111111|11111100|001          7ffffe1  [27]
+    (213)  |11111111|11111111|11111001|11           3ffffe7  [26]
+    (214)  |11111111|11111111|11111100|010          7ffffe2  [27]
+    (215)  |11111111|11111111|11110010               fffff2  [24]
+    (216)  |11111111|11111111|00100                  1fffe4  [21]
+    (217)  |11111111|11111111|00101                  1fffe5  [21]
+    (218)  |11111111|11111111|11111010|00           3ffffe8  [26]
+    (219)  |11111111|11111111|11111010|01           3ffffe9  [26]
+    (220)  |11111111|11111111|11111111|1101         ffffffd  [28]
+    (221)  |11111111|11111111|11111100|011          7ffffe3  [27]
+    (222)  |11111111|11111111|11111100|100          7ffffe4  [27]
+    (223)  |11111111|11111111|11111100|101          7ffffe5  [27]
+    (224)  |11111111|11111110|1100                    fffec  [20]
+    (225)  |11111111|11111111|11110011               fffff3  [24]
+    (226)  |11111111|11111110|1101                    fffed  [20]
+    (227)  |11111111|11111111|00110                  1fffe6  [21]
+    (228)  |11111111|11111111|101001                 3fffe9  [22]
+    (229)  |11111111|11111111|00111                  1fffe7  [21]
+    (230)  |11111111|11111111|01000                  1fffe8  [21]
+    (231)  |11111111|11111111|1110011                7ffff3  [23]
+    (232)  |11111111|11111111|101010                 3fffea  [22]
+    (233)  |11111111|11111111|101011                 3fffeb  [22]
+    (234)  |11111111|11111111|11110111|0            1ffffee  [25]
+    (235)  |11111111|11111111|11110111|1            1ffffef  [25]
+    (236)  |11111111|11111111|11110100               fffff4  [24]
+    (237)  |11111111|11111111|11110101               fffff5  [24]
+    (238)  |11111111|11111111|11111010|10           3ffffea  [26]
+    (239)  |11111111|11111111|1110100                7ffff4  [23]
+    (240)  |11111111|11111111|11111010|11           3ffffeb  [26]
+    (241)  |11111111|11111111|11111100|110          7ffffe6  [27]
+    (242)  |11111111|11111111|11111011|00           3ffffec  [26]
+    (243)  |11111111|11111111|11111011|01           3ffffed  [26]
+    (244)  |11111111|11111111|11111100|111          7ffffe7  [27]
+    (245)  |11111111|11111111|11111101|000          7ffffe8  [27]
+    (246)  |11111111|11111111|11111101|001          7ffffe9  [27]
+    (247)  |11111111|11111111|11111101|010          7ffffea  [27]
+    (248)  |11111111|11111111|11111101|011          7ffffeb  [27]
+    (249)  |11111111|11111111|11111111|1110         ffffffe  [28]
+    (250)  |11111111|11111111|11111101|100          7ffffec  [27]
+    (251)  |11111111|11111111|11111101|101          7ffffed  [27]
+    (252)  |11111111|11111111|11111101|110          7ffffee  [27]
+    (253)  |11111111|11111111|11111101|111          7ffffef  [27]
+    (254)  |11111111|11111111|11111110|000          7fffff0  [27]
+    (255)  |11111111|11111111|11111011|10           3ffffee  [26]
+EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
+</pre></div>
+      </div>
+      <div id="examples">
+         <h1 id="rfc.section.C"><a href="#rfc.section.C">C.</a>&nbsp;<a href="#examples">Examples</a></h1>
+         <div id="rfc.section.C.p.1">
+            <p>This appendix contains examples covering integer encoding, header field representation, and the encoding of whole lists of
+               header fields for both requests and responses, with and without Huffman coding.
+            </p>
+         </div>
+         <div id="integer.representation.examples">
+            <h2 id="rfc.section.C.1"><a href="#rfc.section.C.1">C.1</a>&nbsp;<a href="#integer.representation.examples">Integer Representation Examples</a></h2>
+            <div id="rfc.section.C.1.p.1">
+               <p>This section shows the representation of integer values in detail (see <a href="#integer.representation" title="Integer Representation">Section&nbsp;5.1</a>).
+               </p>
+            </div>
+            <div id="integer.representation.example1">
+               <h3 id="rfc.section.C.1.1"><a href="#rfc.section.C.1.1">C.1.1</a>&nbsp;<a href="#integer.representation.example1">Example 1: Encoding 10 Using a 5-Bit Prefix</a></h3>
+               <div id="rfc.section.C.1.1.p.1">
+                  <p>The value 10 is to be encoded with a 5-bit prefix. </p>
+                  <ul>
+                     <li>10 is less than 31 (2<sup>5</sup> - 1) and is represented using the 5-bit prefix.
+                     </li>
+                  </ul>
+               </div>
+               <div id="rfc.figure.u.4"><pre class="text">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 0 | 1 | 0 | 1 | 0 |   10 stored on 5 bits
++---+---+---+---+---+---+---+---+
+</pre></div>
+            </div>
+            <div id="integer.representation.example2">
+               <h3 id="rfc.section.C.1.2"><a href="#rfc.section.C.1.2">C.1.2</a>&nbsp;<a href="#integer.representation.example2">Example 2: Encoding 1337 Using a 5-Bit Prefix</a></h3>
+               <div id="rfc.section.C.1.2.p.1">
+                  <p>The value I=1337 is to be encoded with a 5-bit prefix. </p>
+                  <ul class="empty">
+                     <li>1337 is greater than 31 (2<sup>5</sup> - 1).
+                     </li>
+                     <li>
+                        <ul class="empty">
+                           <li>The 5-bit prefix is filled with its max value (31).</li>
+                        </ul> 
+                     </li>
+                     <li>I = 1337 - (2<sup>5</sup> - 1) = 1306.
+                     </li>
+                     <li>
+                        <ul class="empty">
+                           <li>I (1306) is greater than or equal to 128, so the while loop body executes:</li>
+                           <li>
+                              <ul class="empty">
+                                 <li>I % 128 == 26</li>
+                                 <li>26 + 128 == 154</li>
+                                 <li>154 is encoded in 8 bits as: 10011010</li>
+                                 <li>I is set to 10 (1306 / 128 == 10)</li>
+                                 <li>I is no longer greater than or equal to 128, so the while loop terminates.</li>
+                              </ul> 
+                           </li>
+                           <li>I, now 10, is encoded in 8 bits as: 00001010.</li>
+                        </ul> 
+                     </li>
+                     <li>The process ends.</li>
+                  </ul>
+               </div>
+               <div id="rfc.figure.u.5"><pre class="text">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| X | X | X | 1 | 1 | 1 | 1 | 1 |  Prefix = 31, I = 1306
+| 1 | 0 | 0 | 1 | 1 | 0 | 1 | 0 |  1306&gt;=128, encode(154), I=1306/128
+| 0 | 0 | 0 | 0 | 1 | 0 | 1 | 0 |  10&lt;128, encode(10), done
++---+---+---+---+---+---+---+---+
+</pre></div>
+            </div>
+            <div id="integer.representation.example3">
+               <h3 id="rfc.section.C.1.3"><a href="#rfc.section.C.1.3">C.1.3</a>&nbsp;<a href="#integer.representation.example3">Example 3: Encoding 42 Starting at an Octet Boundary</a></h3>
+               <div id="rfc.section.C.1.3.p.1">
+                  <p>The value 42 is to be encoded starting at an octet boundary. This implies that a 8-bit prefix is used. </p>
+                  <ul>
+                     <li>42 is less than 255 (2<sup>8</sup> - 1) and is represented using the 8-bit prefix.
+                     </li>
+                  </ul>
+               </div>
+               <div id="rfc.figure.u.6"><pre class="text">  0   1   2   3   4   5   6   7
++---+---+---+---+---+---+---+---+
+| 0 | 0 | 1 | 0 | 1 | 0 | 1 | 0 |   42 stored on 8 bits
++---+---+---+---+---+---+---+---+
+</pre></div>
+            </div>
+         </div>
+         <div id="header.field.representation.examples">
+            <h2 id="rfc.section.C.2"><a href="#rfc.section.C.2">C.2</a>&nbsp;<a href="#header.field.representation.examples">Header Field Representation Examples</a></h2>
+            <div id="rfc.section.C.2.p.1">
+               <p>This section shows several independent representation examples.</p>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.2.1"><a href="#rfc.section.C.2.1">C.2.1</a>&nbsp;Literal Header Field with Indexing
+               </h3>
+               <div id="rfc.section.C.2.1.p.1">
+                  <p>The header field representation uses a literal name and a literal value. The header field is added to the dynamic table.</p>
+               </div>
+               <div id="rfc.section.C.2.1.p.2"><span id="rfc.figure.u.7">
+                     <p>Header list to encode:</p><pre class="text">custom-key: custom-header</pre></span></div>
+               <div id="rfc.section.C.2.1.p.3"><span id="rfc.figure.u.8">
+                     <p>Hex dump of encoded data:</p><pre class="text">400a 6375 7374 6f6d 2d6b 6579 0d63 7573 | @.custom-key.cus
+746f 6d2d 6865 6164 6572                | tom-header</pre></span></div>
+               <div id="rfc.section.C.2.1.p.4"><span id="rfc.figure.u.9">
+                     <p>Decoding process:</p><pre class="text">40                                      | == Literal indexed ==
+0a                                      |   Literal name (len = 10)
+6375 7374 6f6d 2d6b 6579                | custom-key
+0d                                      |   Literal value (len = 13)
+6375 7374 6f6d 2d68 6561 6465 72        | custom-header
+                                        | -&gt; custom-key:
+                                        |   custom-header</pre></span></div>
+               <div id="rfc.section.C.2.1.p.5"><span id="rfc.figure.u.10">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  55) custom-key: custom-header
+      Table size:  55</pre></span></div>
+               <div id="rfc.section.C.2.1.p.6"><span id="rfc.figure.u.11">
+                     <p>Decoded header list:</p><pre class="text">custom-key: custom-header</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.2.2"><a href="#rfc.section.C.2.2">C.2.2</a>&nbsp;Literal Header Field without Indexing
+               </h3>
+               <div id="rfc.section.C.2.2.p.1">
+                  <p>The header field representation uses an indexed name and a literal value. The header field is not added to the dynamic table.</p>
+               </div>
+               <div id="rfc.section.C.2.2.p.2"><span id="rfc.figure.u.12">
+                     <p>Header list to encode:</p><pre class="text">:path: /sample/path</pre></span></div>
+               <div id="rfc.section.C.2.2.p.3"><span id="rfc.figure.u.13">
+                     <p>Hex dump of encoded data:</p><pre class="text">040c 2f73 616d 706c 652f 7061 7468      | ../sample/path</pre></span></div>
+               <div id="rfc.section.C.2.2.p.4"><span id="rfc.figure.u.14">
+                     <p>Decoding process:</p><pre class="text">04                                      | == Literal not indexed ==
+                                        |   Indexed name (idx = 4)
+                                        |     :path
+0c                                      |   Literal value (len = 12)
+2f73 616d 706c 652f 7061 7468           | /sample/path
+                                        | -&gt; :path: /sample/path</pre></span></div>
+               <div id="rfc.section.C.2.2.p.5">
+                  <p>Dynamic table (after decoding): empty.</p>
+               </div>
+               <div id="rfc.section.C.2.2.p.6"><span id="rfc.figure.u.15">
+                     <p>Decoded header list:</p><pre class="text">:path: /sample/path</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.2.3"><a href="#rfc.section.C.2.3">C.2.3</a>&nbsp;Literal Header Field Never Indexed
+               </h3>
+               <div id="rfc.section.C.2.3.p.1">
+                  <p>The header field representation uses a literal name and a literal value. The header field is not added to the dynamic table
+                     and must use the same representation if re-encoded by an intermediary.
+                  </p>
+               </div>
+               <div id="rfc.section.C.2.3.p.2"><span id="rfc.figure.u.16">
+                     <p>Header list to encode:</p><pre class="text">password: secret</pre></span></div>
+               <div id="rfc.section.C.2.3.p.3"><span id="rfc.figure.u.17">
+                     <p>Hex dump of encoded data:</p><pre class="text">1008 7061 7373 776f 7264 0673 6563 7265 | ..password.secre
+74                                      | t</pre></span></div>
+               <div id="rfc.section.C.2.3.p.4"><span id="rfc.figure.u.18">
+                     <p>Decoding process:</p><pre class="text">10                                      | == Literal never indexed ==
+08                                      |   Literal name (len = 8)
+7061 7373 776f 7264                     | password
+06                                      |   Literal value (len = 6)
+7365 6372 6574                          | secret
+                                        | -&gt; password: secret</pre></span></div>
+               <div id="rfc.section.C.2.3.p.5">
+                  <p>Dynamic table (after decoding): empty.</p>
+               </div>
+               <div id="rfc.section.C.2.3.p.6"><span id="rfc.figure.u.19">
+                     <p>Decoded header list:</p><pre class="text">password: secret</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.2.4"><a href="#rfc.section.C.2.4">C.2.4</a>&nbsp;Indexed Header Field
+               </h3>
+               <div id="rfc.section.C.2.4.p.1">
+                  <p>The header field representation uses an indexed header field from the static table.</p>
+               </div>
+               <div id="rfc.section.C.2.4.p.2"><span id="rfc.figure.u.20">
+                     <p>Header list to encode:</p><pre class="text">:method: GET</pre></span></div>
+               <div id="rfc.section.C.2.4.p.3"><span id="rfc.figure.u.21">
+                     <p>Hex dump of encoded data:</p><pre class="text">82                                      | .</pre></span></div>
+               <div id="rfc.section.C.2.4.p.4"><span id="rfc.figure.u.22">
+                     <p>Decoding process:</p><pre class="text">82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -&gt; :method: GET</pre></span></div>
+               <div id="rfc.section.C.2.4.p.5">
+                  <p>Dynamic table (after decoding): empty.</p>
+               </div>
+               <div id="rfc.section.C.2.4.p.6"><span id="rfc.figure.u.23">
+                     <p>Decoded header list:</p><pre class="text">:method: GET</pre></span></div>
+            </div>
+         </div>
+         <div id="request.examples.without.huffman.coding">
+            <h2 id="rfc.section.C.3"><a href="#rfc.section.C.3">C.3</a>&nbsp;<a href="#request.examples.without.huffman.coding">Request Examples without Huffman Coding</a></h2>
+            <div id="rfc.section.C.3.p.1">
+               <p>This section shows several consecutive header lists, corresponding to HTTP requests, on the same connection.</p>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.3.1"><a href="#rfc.section.C.3.1">C.3.1</a>&nbsp;First Request
+               </h3>
+               <div id="rfc.section.C.3.1.p.1"><span id="rfc.figure.u.24">
+                     <p>Header list to encode:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com</pre></span></div>
+               <div id="rfc.section.C.3.1.p.2"><span id="rfc.figure.u.25">
+                     <p>Hex dump of encoded data:</p><pre class="text">8286 8441 0f77 7777 2e65 7861 6d70 6c65 | ...A.www.example
+2e63 6f6d                               | .com</pre></span></div>
+               <div id="rfc.section.C.3.1.p.3"><span id="rfc.figure.u.26">
+                     <p>Decoding process:</p><pre class="text">82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -&gt; :method: GET
+86                                      | == Indexed - Add ==
+                                        |   idx = 6
+                                        | -&gt; :scheme: http
+84                                      | == Indexed - Add ==
+                                        |   idx = 4
+                                        | -&gt; :path: /
+41                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 1)
+                                        |     :authority
+0f                                      |   Literal value (len = 15)
+7777 772e 6578 616d 706c 652e 636f 6d   | www.example.com
+                                        | -&gt; :authority: 
+                                        |   www.example.com</pre></span></div>
+               <div id="rfc.section.C.3.1.p.4"><span id="rfc.figure.u.27">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  57) :authority: www.example.com
+      Table size:  57</pre></span></div>
+               <div id="rfc.section.C.3.1.p.5"><span id="rfc.figure.u.28">
+                     <p>Decoded header list:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.3.2"><a href="#rfc.section.C.3.2">C.3.2</a>&nbsp;Second Request
+               </h3>
+               <div id="rfc.section.C.3.2.p.1"><span id="rfc.figure.u.29">
+                     <p>Header list to encode:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com
+cache-control: no-cache</pre></span></div>
+               <div id="rfc.section.C.3.2.p.2"><span id="rfc.figure.u.30">
+                     <p>Hex dump of encoded data:</p><pre class="text">8286 84be 5808 6e6f 2d63 6163 6865      | ....X.no-cache</pre></span></div>
+               <div id="rfc.section.C.3.2.p.3"><span id="rfc.figure.u.31">
+                     <p>Decoding process:</p><pre class="text">82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -&gt; :method: GET
+86                                      | == Indexed - Add ==
+                                        |   idx = 6
+                                        | -&gt; :scheme: http
+84                                      | == Indexed - Add ==
+                                        |   idx = 4
+                                        | -&gt; :path: /
+be                                      | == Indexed - Add ==
+                                        |   idx = 62
+                                        | -&gt; :authority:
+                                        |   www.example.com
+58                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 24)
+                                        |     cache-control
+08                                      |   Literal value (len = 8)
+6e6f 2d63 6163 6865                     | no-cache
+                                        | -&gt; cache-control: no-cache</pre></span></div>
+               <div id="rfc.section.C.3.2.p.4"><span id="rfc.figure.u.32">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  53) cache-control: no-cache
+[  2] (s =  57) :authority: www.example.com
+      Table size: 110</pre></span></div>
+               <div id="rfc.section.C.3.2.p.5"><span id="rfc.figure.u.33">
+                     <p>Decoded header list:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com
+cache-control: no-cache</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.3.3"><a href="#rfc.section.C.3.3">C.3.3</a>&nbsp;Third Request
+               </h3>
+               <div id="rfc.section.C.3.3.p.1"><span id="rfc.figure.u.34">
+                     <p>Header list to encode:</p><pre class="text">:method: GET
+:scheme: https
+:path: /index.html
+:authority: www.example.com
+custom-key: custom-value</pre></span></div>
+               <div id="rfc.section.C.3.3.p.2"><span id="rfc.figure.u.35">
+                     <p>Hex dump of encoded data:</p><pre class="text">8287 85bf 400a 6375 7374 6f6d 2d6b 6579 | ....@.custom-key
+0c63 7573 746f 6d2d 7661 6c75 65        | .custom-value</pre></span></div>
+               <div id="rfc.section.C.3.3.p.3"><span id="rfc.figure.u.36">
+                     <p>Decoding process:</p><pre class="text">82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -&gt; :method: GET
+87                                      | == Indexed - Add ==
+                                        |   idx = 7
+                                        | -&gt; :scheme: https
+85                                      | == Indexed - Add ==
+                                        |   idx = 5
+                                        | -&gt; :path: /index.html
+bf                                      | == Indexed - Add ==
+                                        |   idx = 63
+                                        | -&gt; :authority:
+                                        |   www.example.com
+40                                      | == Literal indexed ==
+0a                                      |   Literal name (len = 10)
+6375 7374 6f6d 2d6b 6579                | custom-key
+0c                                      |   Literal value (len = 12)
+6375 7374 6f6d 2d76 616c 7565           | custom-value
+                                        | -&gt; custom-key:
+                                        |   custom-value</pre></span></div>
+               <div id="rfc.section.C.3.3.p.4"><span id="rfc.figure.u.37">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  54) custom-key: custom-value
+[  2] (s =  53) cache-control: no-cache
+[  3] (s =  57) :authority: www.example.com
+      Table size: 164</pre></span></div>
+               <div id="rfc.section.C.3.3.p.5"><span id="rfc.figure.u.38">
+                     <p>Decoded header list:</p><pre class="text">:method: GET
+:scheme: https
+:path: /index.html
+:authority: www.example.com
+custom-key: custom-value</pre></span></div>
+            </div>
+         </div>
+         <div id="request.examples.with.huffman.coding">
+            <h2 id="rfc.section.C.4"><a href="#rfc.section.C.4">C.4</a>&nbsp;<a href="#request.examples.with.huffman.coding">Request Examples with Huffman Coding</a></h2>
+            <div id="rfc.section.C.4.p.1">
+               <p>This section shows the same examples as the previous section but uses Huffman encoding for the literal values.</p>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.4.1"><a href="#rfc.section.C.4.1">C.4.1</a>&nbsp;First Request
+               </h3>
+               <div id="rfc.section.C.4.1.p.1"><span id="rfc.figure.u.39">
+                     <p>Header list to encode:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com</pre></span></div>
+               <div id="rfc.section.C.4.1.p.2"><span id="rfc.figure.u.40">
+                     <p>Hex dump of encoded data:</p><pre class="text">8286 8441 8cf1 e3c2 e5f2 3a6b a0ab 90f4 | ...A......:k....
+ff                                      | .</pre></span></div>
+               <div id="rfc.section.C.4.1.p.3"><span id="rfc.figure.u.41">
+                     <p>Decoding process:</p><pre class="text">82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -&gt; :method: GET
+86                                      | == Indexed - Add ==
+                                        |   idx = 6
+                                        | -&gt; :scheme: http
+84                                      | == Indexed - Add ==
+                                        |   idx = 4
+                                        | -&gt; :path: /
+41                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 1)
+                                        |     :authority
+8c                                      |   Literal value (len = 12)
+                                        |     Huffman encoded:
+f1e3 c2e5 f23a 6ba0 ab90 f4ff           | .....:k.....
+                                        |     Decoded:
+                                        | www.example.com
+                                        | -&gt; :authority:
+                                        |   www.example.com</pre></span></div>
+               <div id="rfc.section.C.4.1.p.4"><span id="rfc.figure.u.42">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  57) :authority: www.example.com
+      Table size:  57</pre></span></div>
+               <div id="rfc.section.C.4.1.p.5"><span id="rfc.figure.u.43">
+                     <p>Decoded header list:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.4.2"><a href="#rfc.section.C.4.2">C.4.2</a>&nbsp;Second Request
+               </h3>
+               <div id="rfc.section.C.4.2.p.1"><span id="rfc.figure.u.44">
+                     <p>Header list to encode:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com
+cache-control: no-cache</pre></span></div>
+               <div id="rfc.section.C.4.2.p.2"><span id="rfc.figure.u.45">
+                     <p>Hex dump of encoded data:</p><pre class="text">8286 84be 5886 a8eb 1064 9cbf           | ....X....d..</pre></span></div>
+               <div id="rfc.section.C.4.2.p.3"><span id="rfc.figure.u.46">
+                     <p>Decoding process:</p><pre class="text">82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -&gt; :method: GET
+86                                      | == Indexed - Add ==
+                                        |   idx = 6
+                                        | -&gt; :scheme: http
+84                                      | == Indexed - Add ==
+                                        |   idx = 4
+                                        | -&gt; :path: /
+be                                      | == Indexed - Add ==
+                                        |   idx = 62
+                                        | -&gt; :authority:
+                                        |   www.example.com
+58                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 24)
+                                        |     cache-control
+86                                      |   Literal value (len = 6)
+                                        |     Huffman encoded:
+a8eb 1064 9cbf                          | ...d..
+                                        |     Decoded:
+                                        | no-cache
+                                        | -&gt; cache-control: no-cache</pre></span></div>
+               <div id="rfc.section.C.4.2.p.4"><span id="rfc.figure.u.47">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  53) cache-control: no-cache
+[  2] (s =  57) :authority: www.example.com
+      Table size: 110</pre></span></div>
+               <div id="rfc.section.C.4.2.p.5"><span id="rfc.figure.u.48">
+                     <p>Decoded header list:</p><pre class="text">:method: GET
+:scheme: http
+:path: /
+:authority: www.example.com
+cache-control: no-cache</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.4.3"><a href="#rfc.section.C.4.3">C.4.3</a>&nbsp;Third Request
+               </h3>
+               <div id="rfc.section.C.4.3.p.1"><span id="rfc.figure.u.49">
+                     <p>Header list to encode:</p><pre class="text">:method: GET
+:scheme: https
+:path: /index.html
+:authority: www.example.com
+custom-key: custom-value</pre></span></div>
+               <div id="rfc.section.C.4.3.p.2"><span id="rfc.figure.u.50">
+                     <p>Hex dump of encoded data:</p><pre class="text">8287 85bf 4088 25a8 49e9 5ba9 7d7f 8925 | ....@.%.I.[.}..%
+a849 e95b b8e8 b4bf                     | .I.[....</pre></span></div>
+               <div id="rfc.section.C.4.3.p.3"><span id="rfc.figure.u.51">
+                     <p>Decoding process:</p><pre class="text">82                                      | == Indexed - Add ==
+                                        |   idx = 2
+                                        | -&gt; :method: GET
+87                                      | == Indexed - Add ==
+                                        |   idx = 7
+                                        | -&gt; :scheme: https
+85                                      | == Indexed - Add ==
+                                        |   idx = 5
+                                        | -&gt; :path: /index.html
+bf                                      | == Indexed - Add ==
+                                        |   idx = 63
+                                        | -&gt; :authority:
+                                        |   www.example.com
+40                                      | == Literal indexed ==
+88                                      |   Literal name (len = 8)
+                                        |     Huffman encoded:
+25a8 49e9 5ba9 7d7f                     | %.I.[.}.
+                                        |     Decoded:
+                                        | custom-key
+89                                      |   Literal value (len = 9)
+                                        |     Huffman encoded:
+25a8 49e9 5bb8 e8b4 bf                  | %.I.[....
+                                        |     Decoded:
+                                        | custom-value
+                                        | -&gt; custom-key:
+                                        |   custom-value</pre></span></div>
+               <div id="rfc.section.C.4.3.p.4"><span id="rfc.figure.u.52">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  54) custom-key: custom-value
+[  2] (s =  53) cache-control: no-cache
+[  3] (s =  57) :authority: www.example.com
+      Table size: 164</pre></span></div>
+               <div id="rfc.section.C.4.3.p.5"><span id="rfc.figure.u.53">
+                     <p>Decoded header list:</p><pre class="text">:method: GET
+:scheme: https
+:path: /index.html
+:authority: www.example.com
+custom-key: custom-value</pre></span></div>
+            </div>
+         </div>
+         <div id="response.examples.without.huffman.coding">
+            <h2 id="rfc.section.C.5"><a href="#rfc.section.C.5">C.5</a>&nbsp;<a href="#response.examples.without.huffman.coding">Response Examples without Huffman Coding</a></h2>
+            <div id="rfc.section.C.5.p.1">
+               <p>This section shows several consecutive header lists, corresponding to HTTP responses, on the same connection. The HTTP/2 setting
+                  parameter SETTINGS_HEADER_TABLE_SIZE is set to the value of 256 octets, causing some evictions to occur.
+               </p>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.5.1"><a href="#rfc.section.C.5.1">C.5.1</a>&nbsp;First Response
+               </h3>
+               <div id="rfc.section.C.5.1.p.1"><span id="rfc.figure.u.54">
+                     <p>Header list to encode:</p><pre class="text">:status: 302
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.5.1.p.2"><span id="rfc.figure.u.55">
+                     <p>Hex dump of encoded data:</p><pre class="text">4803 3330 3258 0770 7269 7661 7465 611d | H.302X.privatea.
+4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
+2032 303a 3133 3a32 3120 474d 546e 1768 |  20:13:21 GMTn.h
+7474 7073 3a2f 2f77 7777 2e65 7861 6d70 | ttps://www.examp
+6c65 2e63 6f6d                          | le.com</pre></span></div>
+               <div id="rfc.section.C.5.1.p.3"><span id="rfc.figure.u.56">
+                     <p>Decoding process:</p><pre class="text">48                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 8)
+                                        |     :status
+03                                      |   Literal value (len = 3)
+3330 32                                 | 302
+                                        | -&gt; :status: 302
+58                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 24)
+                                        |     cache-control
+07                                      |   Literal value (len = 7)
+7072 6976 6174 65                       | private
+                                        | -&gt; cache-control: private
+61                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 33)
+                                        |     date
+1d                                      |   Literal value (len = 29)
+4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
+2032 303a 3133 3a32 3120 474d 54        |  20:13:21 GMT
+                                        | -&gt; date: Mon, 21 Oct 2013
+                                        |   20:13:21 GMT
+6e                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 46)
+                                        |     location
+17                                      |   Literal value (len = 23)
+6874 7470 733a 2f2f 7777 772e 6578 616d | https://www.exam
+706c 652e 636f 6d                       | ple.com
+                                        | -&gt; location:
+                                        |   https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.5.1.p.4"><span id="rfc.figure.u.57">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  63) location: https://www.example.com
+[  2] (s =  65) date: Mon, 21 Oct 2013 20:13:21 GMT
+[  3] (s =  52) cache-control: private
+[  4] (s =  42) :status: 302
+      Table size: 222</pre></span></div>
+               <div id="rfc.section.C.5.1.p.5"><span id="rfc.figure.u.58">
+                     <p>Decoded header list:</p><pre class="text">:status: 302
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.5.2"><a href="#rfc.section.C.5.2">C.5.2</a>&nbsp;Second Response
+               </h3>
+               <div id="rfc.section.C.5.2.p.1">
+                  <p>The (":status", "302") header field is evicted from the dynamic table to free space to allow adding the (":status", "307")
+                     header field.
+                  </p>
+               </div>
+               <div id="rfc.section.C.5.2.p.2"><span id="rfc.figure.u.59">
+                     <p>Header list to encode:</p><pre class="text">:status: 307
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.5.2.p.3"><span id="rfc.figure.u.60">
+                     <p>Hex dump of encoded data:</p><pre class="text">4803 3330 37c1 c0bf                     | H.307...</pre></span></div>
+               <div id="rfc.section.C.5.2.p.4"><span id="rfc.figure.u.61">
+                     <p>Decoding process:</p><pre class="text">48                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 8)
+                                        |     :status
+03                                      |   Literal value (len = 3)
+3330 37                                 | 307
+                                        | - evict: :status: 302
+                                        | -&gt; :status: 307
+c1                                      | == Indexed - Add ==
+                                        |   idx = 65
+                                        | -&gt; cache-control: private
+c0                                      | == Indexed - Add ==
+                                        |   idx = 64
+                                        | -&gt; date: Mon, 21 Oct 2013
+                                        |   20:13:21 GMT
+bf                                      | == Indexed - Add ==
+                                        |   idx = 63
+                                        | -&gt; location:
+                                        |   https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.5.2.p.5"><span id="rfc.figure.u.62">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  42) :status: 307
+[  2] (s =  63) location: https://www.example.com
+[  3] (s =  65) date: Mon, 21 Oct 2013 20:13:21 GMT
+[  4] (s =  52) cache-control: private
+      Table size: 222</pre></span></div>
+               <div id="rfc.section.C.5.2.p.6"><span id="rfc.figure.u.63">
+                     <p>Decoded header list:</p><pre class="text">:status: 307
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.5.3"><a href="#rfc.section.C.5.3">C.5.3</a>&nbsp;Third Response
+               </h3>
+               <div id="rfc.section.C.5.3.p.1">
+                  <p>Several header fields are evicted from the dynamic table during the processing of this header list.</p>
+               </div>
+               <div id="rfc.section.C.5.3.p.2"><span id="rfc.figure.u.64">
+                     <p>Header list to encode:</p><pre class="text">:status: 200
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:22 GMT
+location: https://www.example.com
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1</pre></span></div>
+               <div id="rfc.section.C.5.3.p.3"><span id="rfc.figure.u.65">
+                     <p>Hex dump of encoded data:</p><pre class="text">88c1 611d 4d6f 6e2c 2032 3120 4f63 7420 | ..a.Mon, 21 Oct
+3230 3133 2032 303a 3133 3a32 3220 474d | 2013 20:13:22 GM
+54c0 5a04 677a 6970 7738 666f 6f3d 4153 | T.Z.gzipw8foo=AS
+444a 4b48 514b 425a 584f 5157 454f 5049 | DJKHQKBZXOQWEOPI
+5541 5851 5745 4f49 553b 206d 6178 2d61 | UAXQWEOIU; max-a
+6765 3d33 3630 303b 2076 6572 7369 6f6e | ge=3600; version
+3d31                                    | =1</pre></span></div>
+               <div id="rfc.section.C.5.3.p.4"><span id="rfc.figure.u.66">
+                     <p>Decoding process:</p><pre class="text">88                                      | == Indexed - Add ==
+                                        |   idx = 8
+                                        | -&gt; :status: 200
+c1                                      | == Indexed - Add ==
+                                        |   idx = 65
+                                        | -&gt; cache-control: private
+61                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 33)
+                                        |     date
+1d                                      |   Literal value (len = 29)
+4d6f 6e2c 2032 3120 4f63 7420 3230 3133 | Mon, 21 Oct 2013
+2032 303a 3133 3a32 3220 474d 54        |  20:13:22 GMT
+                                        | - evict: cache-control:
+                                        |   private
+                                        | -&gt; date: Mon, 21 Oct 2013
+                                        |   20:13:22 GMT
+c0                                      | == Indexed - Add ==
+                                        |   idx = 64
+                                        | -&gt; location: 
+                                        |   https://www.example.com
+5a                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 26)
+                                        |     content-encoding
+04                                      |   Literal value (len = 4)
+677a 6970                               | gzip
+                                        | - evict: date: Mon, 21 Oct 
+                                        |    2013 20:13:21 GMT
+                                        | -&gt; content-encoding: gzip
+77                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 55)
+                                        |     set-cookie
+38                                      |   Literal value (len = 56)
+666f 6f3d 4153 444a 4b48 514b 425a 584f | foo=ASDJKHQKBZXO
+5157 454f 5049 5541 5851 5745 4f49 553b | QWEOPIUAXQWEOIU;
+206d 6178 2d61 6765 3d33 3630 303b 2076 |  max-age=3600; v
+6572 7369 6f6e 3d31                     | ersion=1
+                                        | - evict: location:
+                                        |   https://www.example.com
+                                        | - evict: :status: 307
+                                        | -&gt; set-cookie: foo=ASDJKHQ
+                                        |   KBZXOQWEOPIUAXQWEOIU; ma
+                                        |   x-age=3600; version=1</pre></span></div>
+               <div id="rfc.section.C.5.3.p.5"><span id="rfc.figure.u.67">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  98) set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU;
+                 max-age=3600; version=1
+[  2] (s =  52) content-encoding: gzip
+[  3] (s =  65) date: Mon, 21 Oct 2013 20:13:22 GMT
+      Table size: 215</pre></span></div>
+               <div id="rfc.section.C.5.3.p.6"><span id="rfc.figure.u.68">
+                     <p>Decoded header list:</p><pre class="text">:status: 200
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:22 GMT
+location: https://www.example.com
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1</pre></span></div>
+            </div>
+         </div>
+         <div id="response.examples.with.huffman.coding">
+            <h2 id="rfc.section.C.6"><a href="#rfc.section.C.6">C.6</a>&nbsp;<a href="#response.examples.with.huffman.coding">Response Examples with Huffman Coding</a></h2>
+            <div id="rfc.section.C.6.p.1">
+               <p>This section shows the same examples as the previous section but uses Huffman encoding for the literal values. The HTTP/2
+                  setting parameter SETTINGS_HEADER_TABLE_SIZE is set to the value of 256 octets, causing some evictions to occur. The eviction
+                  mechanism uses the length of the decoded literal values, so the same evictions occur as in the previous section.
+               </p>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.6.1"><a href="#rfc.section.C.6.1">C.6.1</a>&nbsp;First Response
+               </h3>
+               <div id="rfc.section.C.6.1.p.1"><span id="rfc.figure.u.69">
+                     <p>Header list to encode:</p><pre class="text">:status: 302
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.6.1.p.2"><span id="rfc.figure.u.70">
+                     <p>Hex dump of encoded data:</p><pre class="text">4882 6402 5885 aec3 771a 4b61 96d0 7abe | H.d.X...w.Ka..z.
+9410 54d4 44a8 2005 9504 0b81 66e0 82a6 | ..T.D. .....f...
+2d1b ff6e 919d 29ad 1718 63c7 8f0b 97c8 | -..n..)...c.....
+e9ae 82ae 43d3                          | ....C.</pre></span></div>
+               <div id="rfc.section.C.6.1.p.3"><span id="rfc.figure.u.71">
+                     <p>Decoding process:</p><pre class="text">48                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 8)
+                                        |     :status
+82                                      |   Literal value (len = 2)
+                                        |     Huffman encoded:
+6402                                    | d.
+                                        |     Decoded:
+                                        | 302
+                                        | -&gt; :status: 302
+58                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 24)
+                                        |     cache-control
+85                                      |   Literal value (len = 5)
+                                        |     Huffman encoded:
+aec3 771a 4b                            | ..w.K
+                                        |     Decoded:
+                                        | private
+                                        | -&gt; cache-control: private
+61                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 33)
+                                        |     date
+96                                      |   Literal value (len = 22)
+                                        |     Huffman encoded:
+d07a be94 1054 d444 a820 0595 040b 8166 | .z...T.D. .....f
+e082 a62d 1bff                          | ...-..
+                                        |     Decoded:
+                                        | Mon, 21 Oct 2013 20:13:21
+                                        | GMT
+                                        | -&gt; date: Mon, 21 Oct 2013
+                                        |   20:13:21 GMT
+6e                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 46)
+                                        |     location
+91                                      |   Literal value (len = 17)
+                                        |     Huffman encoded:
+9d29 ad17 1863 c78f 0b97 c8e9 ae82 ae43 | .)...c.........C
+d3                                      | .
+                                        |     Decoded:
+                                        | https://www.example.com
+                                        | -&gt; location:
+                                        |   https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.6.1.p.4"><span id="rfc.figure.u.72">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  63) location: https://www.example.com
+[  2] (s =  65) date: Mon, 21 Oct 2013 20:13:21 GMT
+[  3] (s =  52) cache-control: private
+[  4] (s =  42) :status: 302
+      Table size: 222</pre></span></div>
+               <div id="rfc.section.C.6.1.p.5"><span id="rfc.figure.u.73">
+                     <p>Decoded header list:</p><pre class="text">:status: 302
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.6.2"><a href="#rfc.section.C.6.2">C.6.2</a>&nbsp;Second Response
+               </h3>
+               <div id="rfc.section.C.6.2.p.1">
+                  <p>The (":status", "302") header field is evicted from the dynamic table to free space to allow adding the (":status", "307")
+                     header field.
+                  </p>
+               </div>
+               <div id="rfc.section.C.6.2.p.2"><span id="rfc.figure.u.74">
+                     <p>Header list to encode:</p><pre class="text">:status: 307
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.6.2.p.3"><span id="rfc.figure.u.75">
+                     <p>Hex dump of encoded data:</p><pre class="text">4883 640e ffc1 c0bf                     | H.d.....</pre></span></div>
+               <div id="rfc.section.C.6.2.p.4"><span id="rfc.figure.u.76">
+                     <p>Decoding process:</p><pre class="text">48                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 8)
+                                        |     :status
+83                                      |   Literal value (len = 3)
+                                        |     Huffman encoded:
+640e ff                                 | d..
+                                        |     Decoded:
+                                        | 307
+                                        | - evict: :status: 302
+                                        | -&gt; :status: 307
+c1                                      | == Indexed - Add ==
+                                        |   idx = 65
+                                        | -&gt; cache-control: private
+c0                                      | == Indexed - Add ==
+                                        |   idx = 64
+                                        | -&gt; date: Mon, 21 Oct 2013
+                                        |   20:13:21 GMT
+bf                                      | == Indexed - Add ==
+                                        |   idx = 63
+                                        | -&gt; location:
+                                        |   https://www.example.com</pre></span></div>
+               <div id="rfc.section.C.6.2.p.5"><span id="rfc.figure.u.77">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  42) :status: 307
+[  2] (s =  63) location: https://www.example.com
+[  3] (s =  65) date: Mon, 21 Oct 2013 20:13:21 GMT
+[  4] (s =  52) cache-control: private
+      Table size: 222</pre></span></div>
+               <div id="rfc.section.C.6.2.p.6"><span id="rfc.figure.u.78">
+                     <p>Decoded header list:</p><pre class="text">:status: 307
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:21 GMT
+location: https://www.example.com</pre></span></div>
+            </div>
+            <div>
+               <h3 id="rfc.section.C.6.3"><a href="#rfc.section.C.6.3">C.6.3</a>&nbsp;Third Response
+               </h3>
+               <div id="rfc.section.C.6.3.p.1">
+                  <p>Several header fields are evicted from the dynamic table during the processing of this header list.</p>
+               </div>
+               <div id="rfc.section.C.6.3.p.2"><span id="rfc.figure.u.79">
+                     <p>Header list to encode:</p><pre class="text">:status: 200
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:22 GMT
+location: https://www.example.com
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1</pre></span></div>
+               <div id="rfc.section.C.6.3.p.3"><span id="rfc.figure.u.80">
+                     <p>Hex dump of encoded data:</p><pre class="text">88c1 6196 d07a be94 1054 d444 a820 0595 | ..a..z...T.D. ..
+040b 8166 e084 a62d 1bff c05a 839b d9ab | ...f...-...Z....
+77ad 94e7 821d d7f2 e6c7 b335 dfdf cd5b | w..........5...[
+3960 d5af 2708 7f36 72c1 ab27 0fb5 291f | 9`..'..6r..'..).
+9587 3160 65c0 03ed 4ee5 b106 3d50 07   | ..1`e...N...=P.</pre></span></div>
+               <div id="rfc.section.C.6.3.p.4"><span id="rfc.figure.u.81">
+                     <p>Decoding process:</p><pre class="text">88                                      | == Indexed - Add ==
+                                        |   idx = 8
+                                        | -&gt; :status: 200
+c1                                      | == Indexed - Add ==
+                                        |   idx = 65
+                                        | -&gt; cache-control: private
+61                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 33)
+                                        |     date
+96                                      |   Literal value (len = 22)
+                                        |     Huffman encoded:
+d07a be94 1054 d444 a820 0595 040b 8166 | .z...T.D. .....f
+e084 a62d 1bff                          | ...-..
+                                        |     Decoded:
+                                        | Mon, 21 Oct 2013 20:13:22
+                                        | GMT
+                                        | - evict: cache-control:
+                                        |   private
+                                        | -&gt; date: Mon, 21 Oct 2013 
+                                        |   20:13:22 GMT
+c0                                      | == Indexed - Add ==
+                                        |   idx = 64
+                                        | -&gt; location:
+                                        |   https://www.example.com
+5a                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 26)
+                                        |     content-encoding
+83                                      |   Literal value (len = 3)
+                                        |     Huffman encoded:
+9bd9 ab                                 | ...
+                                        |     Decoded:
+                                        | gzip
+                                        | - evict: date: Mon, 21 Oct
+                                        |    2013 20:13:21 GMT
+                                        | -&gt; content-encoding: gzip
+77                                      | == Literal indexed ==
+                                        |   Indexed name (idx = 55)
+                                        |     set-cookie
+ad                                      |   Literal value (len = 45)
+                                        |     Huffman encoded:
+94e7 821d d7f2 e6c7 b335 dfdf cd5b 3960 | .........5...[9`
+d5af 2708 7f36 72c1 ab27 0fb5 291f 9587 | ..'..6r..'..)...
+3160 65c0 03ed 4ee5 b106 3d50 07        | 1`e...N...=P.
+                                        |     Decoded:
+                                        | foo=ASDJKHQKBZXOQWEOPIUAXQ
+                                        | WEOIU; max-age=3600; versi
+                                        | on=1
+                                        | - evict: location:
+                                        |   https://www.example.com
+                                        | - evict: :status: 307
+                                        | -&gt; set-cookie: foo=ASDJKHQ
+                                        |   KBZXOQWEOPIUAXQWEOIU; ma
+                                        |   x-age=3600; version=1</pre></span></div>
+               <div id="rfc.section.C.6.3.p.5"><span id="rfc.figure.u.82">
+                     <p>Dynamic Table (after decoding):</p><pre class="text">[  1] (s =  98) set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU;
+                 max-age=3600; version=1
+[  2] (s =  52) content-encoding: gzip
+[  3] (s =  65) date: Mon, 21 Oct 2013 20:13:22 GMT
+      Table size: 215</pre></span></div>
+               <div id="rfc.section.C.6.3.p.6"><span id="rfc.figure.u.83">
+                     <p>Decoded header list:</p><pre class="text">:status: 200
+cache-control: private
+date: Mon, 21 Oct 2013 20:13:22 GMT
+location: https://www.example.com
+content-encoding: gzip
+set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1</pre></span></div>
+            </div>
+         </div>
+      </div>
+      <div>
+         <h1 id="rfc.section.unnumbered-1">Acknowledgments</h1>
+         <div id="rfc.section.unnumbered-1.p.1">
+            <p>This specification includes substantial input from the following individuals: </p>
+            <ul>
+               <li>Mike Bishop, Jeff Pinner, Julian Reschke, and Martin Thomson (substantial editorial contributions).</li>
+               <li>Johnny Graettinger (Huffman code statistics).</li>
+            </ul>
+         </div>
+      </div>
+      <div class="avoidbreakinside">
+         <h1 id="rfc.authors"><a href="#rfc.authors">Authors' Addresses</a></h1>
+         <p><b>Roberto Peon</b><br>Google, Inc<br>Email: fenix@google.com
+         </p>
+         <p><b>Hervé Ruellan</b><br>Canon CRF<br>Email: herve.ruellan@crf.canon.fr
+         </p>
+      </div>
+   </body>
+</html>
