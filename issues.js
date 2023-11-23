@@ -92,6 +92,7 @@ async function get() {
     throw new Error(`Error loading <${url}>: ${response.status}`);
   }
   db = await response.json();
+  db.pulls ??= [];
   db.pulls.forEach(pr => pr.pr = true);
   subset = db.all = db.issues.concat(db.pulls);
   db.labels = db.labels.reduce((all, l) => {
@@ -316,9 +317,25 @@ class Parser {
 
   parseString() {
     let end = -1;
+    this.skipws();
+
+    let bs = false;
+    let quot = this.next === '"' || this.next === '\'';
+    let quotchar = this.next;
+    if (quot) { this.jump(1); }
+
     for (let i = 0; i < this.str.length; ++i) {
       let v = this.str.charAt(i);
-      if (v === ')' || v === ',') {
+      if (bs) {
+        bs = false;
+        continue;
+      }
+      if (v === '\\') {
+        bs = true;
+        continue;
+      }
+      if ((quot && v === quotchar) ||
+          (!quot && (v === ')' || v === ','))) {
         end = i;
         break;
       }
@@ -327,8 +344,8 @@ class Parser {
       throw new Error(`Unterminated string`);
     }
     let s = this.str.slice(0, end).trim();
-    this.jump(end);
-    return s;
+    this.jump(end + (quot ? 1 : 0));
+    return s.replace(/\\([\\"'])/g, '$1');
   }
 
   parseDate() {
